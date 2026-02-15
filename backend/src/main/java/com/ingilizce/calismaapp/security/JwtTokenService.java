@@ -39,6 +39,9 @@ public class JwtTokenService {
 
     @PostConstruct
     void init() {
+        if (properties.getSecret() == null || properties.getSecret().isBlank()) {
+            throw new IllegalStateException("JWT secret is not configured. Set APP_SECURITY_JWT_SECRET (or app.security.jwt.secret).");
+        }
         byte[] raw = properties.getSecret().getBytes(StandardCharsets.UTF_8);
         if (raw.length < 32) {
             raw = sha256(raw);

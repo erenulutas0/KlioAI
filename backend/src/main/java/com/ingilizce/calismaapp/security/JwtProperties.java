@@ -7,7 +7,7 @@ public class JwtProperties {
 
     private boolean enforceAuth = false;
     private String issuer = "calismaapp";
-    private String secret = "dev-only-change-this-secret-dev-only-change-this-secret";
+    private String secret = "";
     private long accessTokenTtlSeconds = 900;
     private long refreshTokenTtlSeconds = 604800;
     private long refreshTokenRememberMeTtlSeconds = 2592000;
