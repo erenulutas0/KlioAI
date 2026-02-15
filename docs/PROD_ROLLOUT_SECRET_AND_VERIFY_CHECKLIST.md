@@ -1,6 +1,6 @@
 # Prod Rollout Secret and Verify Checklist
 
-Date: 2026-02-12
+Date: 2026-02-13
 
 ## 1) Environment Secret Checklist
 
@@ -13,6 +13,7 @@ Minimum required secrets for prod/stage compose rendering and runtime:
 - `IYZICO_API_SECRET`
 - `IYZICO_API_BASE_URL`
 - `GROQ_API_KEY`
+- `APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS`
 - `ALERTMANAGER_DEFAULT_WEBHOOK_URL`
 - `ALERTMANAGER_CRITICAL_WEBHOOK_URL`
 - `ALERTMANAGER_WARNING_WEBHOOK_URL`
@@ -36,6 +37,27 @@ Rules:
 - `APP_SECURITY_AUTH_RATE_LIMIT_REDIS_FAILURE_BLOCK_SECONDS`:
   - Optional retry window for fail-closed mode.
   - Default: `60`.
+- `APP_SECURITY_AUTH_GOOGLE_ID_TOKEN_REQUIRED`:
+  - Prod: `true` olmalı (server-side Google ID token validation zorunlu).
+  - Default non-prod: `false`.
+- `APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS`:
+  - Prod: zorunlu. Google OAuth client ID listesi (comma-separated).
+  - ID token `aud` değeri bu listede olmalı.
+
+## 1.2) Edge / DDoS Preconditions (Prod)
+
+Before go-live, complete these edge controls:
+
+- Cloudflare (or equivalent CDN/WAF/DDoS shield) must be in front of origin.
+- Origin backend must not be directly reachable from public internet.
+- Firewall/Security Group should allow only reverse-proxy/LB ingress to backend.
+- WAF/bot rules should be active for auth endpoints:
+  - `/api/auth/login`
+  - `/api/auth/register`
+  - `/api/auth/google-login`
+  - `/api/auth/refresh`
+
+Detailed checklist: `docs/PROD_DDOS_EDGE_CHECKLIST.md`.
 
 ## 2) One-Command Verification Blocks
 
@@ -49,7 +71,7 @@ pwsh -File .\scripts\verify-rollout.ps1 -Mode prod-preflight
 
 Notes:
 
-- Requires the 10 env vars above to be already exported/injected.
+- Requires the 11 env vars above to be already exported/injected.
 - Fails fast if any required secret is missing.
 
 ### B) Non-Prod Rollout Smoke (Reconcile + Load)
@@ -109,3 +131,4 @@ docker run --rm -v C:/flutter-project-main:/workspace aquasec/trivy:0.58.1 fs --
 - Prod preflight passes with real secret values.
 - Non-prod smoke passes with `100%` success on both endpoints.
 - Local release gate passes (`test`, `coverage`, `db parity`).
+- Edge/DDoS preconditions are completed and verified.

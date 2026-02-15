@@ -26,35 +26,40 @@ class _SentencesPageState extends State<SentencesPage> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppStateProvider>().refreshSentences();
+    });
   }
-  
+
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
-  
+
   void _onSearchChanged() {
     setState(() {}); // Trigger rebuild for filtering
   }
 
   // Filtreleme metodu - artık AppState'ten gelen verileri filtreler
-  List<SentenceViewModel> _getFilteredSentences(List<SentenceViewModel> allSentences) {
+  List<SentenceViewModel> _getFilteredSentences(
+      List<SentenceViewModel> allSentences) {
     final query = _searchController.text.toLowerCase();
-    
+
     return allSentences.where((vm) {
-      final matchesQuery = vm.sentence.toLowerCase().contains(query) || 
-                           vm.translation.toLowerCase().contains(query) ||
-                           (vm.word?.englishWord.toLowerCase().contains(query) ?? false);
-                           
-      final matchesFilter = _activeFilter == 'Tümü' || 
-                            _mapDifficulty(vm.difficulty) == _activeFilter;
-      
+      final matchesQuery = vm.sentence.toLowerCase().contains(query) ||
+          vm.translation.toLowerCase().contains(query) ||
+          (vm.word?.englishWord.toLowerCase().contains(query) ?? false);
+
+      final matchesFilter = _activeFilter == 'Tümü' ||
+          _mapDifficulty(vm.difficulty) == _activeFilter;
+
       return matchesQuery && matchesFilter;
     }).toList();
   }
-  
+
   String _mapDifficulty(String diff) {
     if (diff == 'easy') return 'Kolay';
     if (diff == 'medium') return 'Orta';
@@ -72,10 +77,10 @@ class _SentencesPageState extends State<SentencesPage> {
     final appState = context.watch<AppStateProvider>();
     final allSentences = appState.allSentences;
     final isLoading = appState.isLoadingSentences;
-    
+
     // Filtrelenmiş cümleler
     final filteredSentences = _getFilteredSentences(allSentences);
-    
+
     // Calculate stats
     int total = allSentences.length;
     int easy = allSentences.where((s) => s.difficulty == 'easy').length;
@@ -123,14 +128,17 @@ class _SentencesPageState extends State<SentencesPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('Toplam', total.toString(), Colors.redAccent),
-                      _buildStatItem('Kolay', easy.toString(), Colors.greenAccent),
-                      _buildStatItem('Orta', medium.toString(), Colors.amberAccent),
+                      _buildStatItem(
+                          'Toplam', total.toString(), Colors.redAccent),
+                      _buildStatItem(
+                          'Kolay', easy.toString(), Colors.greenAccent),
+                      _buildStatItem(
+                          'Orta', medium.toString(), Colors.amberAccent),
                       _buildStatItem('Zor', hard.toString(), Colors.red),
                     ],
                   ),
                 ),
-                
+
                 // Search Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -156,9 +164,9 @@ class _SentencesPageState extends State<SentencesPage> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Filter Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -175,9 +183,9 @@ class _SentencesPageState extends State<SentencesPage> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // List
                 Expanded(
                   child: isLoading
@@ -187,21 +195,26 @@ class _SentencesPageState extends State<SentencesPage> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.notes, size: 64, color: Colors.white.withOpacity(0.2)),
+                                  Icon(Icons.notes,
+                                      size: 64,
+                                      color: Colors.white.withOpacity(0.2)),
                                   const SizedBox(height: 16),
                                   Text(
-                                    _activeFilter == 'Tümü' 
-                                        ? 'Henüz cümle eklenmedi.' 
+                                    _activeFilter == 'Tümü'
+                                        ? 'Henüz cümle eklenmedi.'
                                         : _activeFilter == 'Zor'
                                             ? 'Daha zor kelime eklenmedi.'
                                             : 'Henüz $_activeFilter seviyesinde cümle eklenmedi.',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
+                                    style: TextStyle(
+                                        color: Colors.white.withOpacity(0.5),
+                                        fontSize: 16),
                                   ),
                                 ],
                               ),
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: filteredSentences.length,
                               itemBuilder: (context, index) {
                                 final vm = filteredSentences[index];
@@ -210,35 +223,54 @@ class _SentencesPageState extends State<SentencesPage> {
                                   mapDifficulty: _mapDifficulty,
                                   onDelete: () async {
                                     try {
-                                      final appState = context.read<AppStateProvider>();
-                                      
+                                      final appState =
+                                          context.read<AppStateProvider>();
+
                                       // 🔧 ID'yi int'e çevir (dynamic olabilir)
                                       // ID'yi direkt kullan (String veya int olabilir)
                                       final dynamic sentenceId = vm.id;
-                                      
+                                      bool deleted = false;
+
                                       if (vm.isPractice) {
-                                         // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
-                                         await appState.deletePracticeSentence(sentenceId);
+                                        // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
+                                        deleted = await appState
+                                            .deletePracticeSentence(sentenceId);
                                       } else {
-                                         if (vm.word != null) {
-                                            // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
-                                            await appState.deleteSentenceFromWord(
-                                              wordId: vm.word!.id,
-                                              sentenceId: sentenceId,
-                                            );
-                                         }
+                                        if (vm.word != null) {
+                                          final int? numericSentenceId =
+                                              sentenceId is int
+                                                  ? sentenceId
+                                                  : int.tryParse(
+                                                      sentenceId.toString());
+                                          if (numericSentenceId == null) {
+                                            throw Exception(
+                                                'Geçersiz cümle ID: $sentenceId');
+                                          }
+                                          // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
+                                          deleted = await appState
+                                              .deleteSentenceFromWord(
+                                            wordId: vm.word!.id,
+                                            sentenceId: numericSentenceId,
+                                          );
+                                        }
                                       }
-                                      
+                                      if (!deleted) {
+                                        throw Exception(
+                                            'Cümle silinemedi, lütfen tekrar deneyin.');
+                                      }
+
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Cümle silindi!'), backgroundColor: Colors.green)
-                                        );
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(const SnackBar(
+                                                content: Text('Cümle silindi!'),
+                                                backgroundColor: Colors.green));
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red)
-                                        );
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(
+                                                content: Text('Hata: $e'),
+                                                backgroundColor: Colors.red));
                                       }
                                     }
                                   },
@@ -255,7 +287,7 @@ class _SentencesPageState extends State<SentencesPage> {
   }
 
   // ... (Keep _buildStatItem and others same, delete _buildSentenceCard)
-  
+
   Widget _buildStatItem(String label, String value, Color color) {
     return Container(
       width: 80,
@@ -290,7 +322,8 @@ class _SentencesPageState extends State<SentencesPage> {
       child: ModernCard(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         borderRadius: BorderRadius.circular(20),
-        variant: isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
+        variant:
+            isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
         showGlow: isSelected,
         showBorder: isSelected,
         child: Text(
@@ -307,83 +340,87 @@ class _SentencesPageState extends State<SentencesPage> {
   void _showAddNewSentenceDialog() {
     final appState = context.read<AppStateProvider>();
     final allWords = appState.allWords;
-    
-    AddSentenceFromSentencesModal.show(
-      context,
-      onSave: (items) async {
-        try {
-          int addedCount = 0;
-          
-          for (var item in items) {
-            String sentence = item.english.trim();
-            String translation = item.turkish.trim();
-            // Sadece İngilizce cümle zorunlu, Türkçe opsiyonel
-            if (sentence.isEmpty) continue;
 
-            String diff = item.difficulty;
+    AddSentenceFromSentencesModal.show(context, onSave: (items) async {
+      try {
+        int addedCount = 0;
 
-            if (!item.addToTodaysWords) {
-               // Bağımsız pratik cümlesi - AppStateProvider üzerinden ekle
-               final success = await appState.addPracticeSentence(
-                 englishSentence: sentence,
-                 turkishTranslation: translation,
-                 difficulty: diff,
-               );
-               if (success) addedCount++;
+        for (var item in items) {
+          String sentence = item.english.trim();
+          String translation = item.turkish.trim();
+          // Sadece İngilizce cümle zorunlu, Türkçe opsiyonel
+          if (sentence.isEmpty) continue;
+
+          String diff = item.difficulty;
+
+          if (!item.addToTodaysWords) {
+            // Bağımsız pratik cümlesi - AppStateProvider üzerinden ekle
+            final success = await appState.addPracticeSentence(
+              englishSentence: sentence,
+              turkishTranslation: translation,
+              difficulty: diff,
+            );
+            if (success) addedCount++;
+          } else {
+            String targetWord = item.selectedWord.trim();
+            if (targetWord.isEmpty) targetWord = "Genel";
+
+            int? wordId;
+            final existingWord = allWords.firstWhere(
+                (w) => w.englishWord.toLowerCase() == targetWord.toLowerCase(),
+                orElse: () => Word(
+                    id: -1,
+                    englishWord: '',
+                    turkishMeaning: '',
+                    learnedDate: DateTime.now(),
+                    difficulty: 'easy',
+                    sentences: []));
+
+            if (existingWord.id != -1) {
+              wordId = existingWord.id;
             } else {
-               String targetWord = item.selectedWord.trim();
-               if (targetWord.isEmpty) targetWord = "Genel";
-               
-               int? wordId;
-               final existingWord = allWords.firstWhere(
-                 (w) => w.englishWord.toLowerCase() == targetWord.toLowerCase(),
-                 orElse: () => Word(id: -1, englishWord: '', turkishMeaning: '', learnedDate: DateTime.now(), difficulty: 'easy', sentences: [])
-               );
+              final dialogMeaning = item.selectedWordTurkish.trim().isEmpty
+                  ? 'Genel'
+                  : item.selectedWordTurkish.trim();
+              // Yeni kelime ekle - AppStateProvider üzerinden
+              final newWord = await appState.addWord(
+                english: targetWord,
+                turkish: dialogMeaning,
+                addedDate: DateTime.now(),
+                difficulty: 'medium',
+              );
+              wordId = newWord?.id;
+            }
 
-               if (existingWord.id != -1) {
-                  wordId = existingWord.id;
-               } else {
-                  final dialogMeaning = item.selectedWordTurkish.trim().isEmpty ? 'Genel' : item.selectedWordTurkish.trim();
-                  // Yeni kelime ekle - AppStateProvider üzerinden
-                  final newWord = await appState.addWord(
-                     english: targetWord,
-                     turkish: dialogMeaning,
-                     addedDate: DateTime.now(),
-                     difficulty: 'medium',
-                  );
-                  wordId = newWord?.id;
-               }
-
-               if (wordId != null && wordId != 0) {
-                  // Kelimeye cümle ekle - AppStateProvider üzerinden
-                  await appState.addSentenceToWord(
-                    wordId: wordId,
-                    sentence: sentence,
-                    translation: translation,
-                    difficulty: diff,
-                  );
-                  addedCount++;
-               }
+            if (wordId != null && wordId != 0) {
+              // Kelimeye cümle ekle - AppStateProvider üzerinden
+              await appState.addSentenceToWord(
+                wordId: wordId,
+                sentence: sentence,
+                translation: translation,
+                difficulty: diff,
+              );
+              addedCount++;
             }
           }
-           
-           if (mounted && addedCount > 0) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               SnackBar(
-                 content: Text('$addedCount cümle eklendi! +${addedCount * 5} XP'),
-                 backgroundColor: Colors.green,
-               ),
-             );
-           }
-        } catch (e) {
-           if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-           }
+        }
+
+        if (mounted && addedCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$addedCount cümle eklendi! +${addedCount * 5} XP'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
         }
       }
-    );
+    });
   }
-
 }
 
 class SentenceCard extends StatefulWidget {
@@ -409,22 +446,24 @@ class _SentenceCardState extends State<SentenceCard> {
   Widget build(BuildContext context) {
     final wordText = widget.vm.word?.englishWord ?? '';
     final difficulty = widget.mapDifficulty(widget.vm.difficulty);
-    
+
     final sentenceText = widget.vm.sentence;
     final lowerSentence = sentenceText.toLowerCase();
     final lowerWord = wordText.toLowerCase();
-    final int index = (wordText.isNotEmpty) ? lowerSentence.indexOf(lowerWord) : -1;
-    
+    final int index =
+        (wordText.isNotEmpty) ? lowerSentence.indexOf(lowerWord) : -1;
+
     List<InlineSpan> spans = [];
     if (index != -1) {
       // Before the word
       if (index > 0) {
         spans.add(TextSpan(
           text: sentenceText.substring(0, index),
-          style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+          style:
+              const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
         ));
       }
-      
+
       // The highlighted word
       spans.add(WidgetSpan(
         alignment: PlaceholderAlignment.middle,
@@ -445,19 +484,20 @@ class _SentenceCardState extends State<SentenceCard> {
           child: Text(
             sentenceText.substring(index, index + wordText.length),
             style: const TextStyle(
-              color: Colors.cyanAccent, 
-              fontSize: 18, 
+              color: Colors.cyanAccent,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
       ));
-      
+
       // After the word
       if (index + wordText.length < sentenceText.length) {
         spans.add(TextSpan(
           text: sentenceText.substring(index + wordText.length),
-          style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+          style:
+              const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
         ));
       }
     } else {
@@ -469,7 +509,7 @@ class _SentenceCardState extends State<SentenceCard> {
 
     Color badgeColor;
     Color badgeBgColor;
-    
+
     switch (difficulty) {
       case 'Kolay':
         badgeColor = Colors.greenAccent;
@@ -516,8 +556,9 @@ class _SentenceCardState extends State<SentenceCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: badgeBgColor,
                         borderRadius: BorderRadius.circular(12),
@@ -526,67 +567,82 @@ class _SentenceCardState extends State<SentenceCard> {
                       child: Text(
                         difficulty.toUpperCase(),
                         style: TextStyle(
-                          color: badgeColor, 
-                          fontSize: 11, 
+                          color: badgeColor,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.white54, size: 20),
-                      onPressed: widget.onDelete != null ? () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: const Color(0xFF1e1b4b),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.white54, size: 20),
+                      onPressed: widget.onDelete != null
+                          ? () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1e1b4b),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
+                                  title: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.delete_forever,
+                                            color: Colors.red, size: 24),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text('Cümleyi Sil',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18)),
+                                    ],
                                   ),
-                                  child: const Icon(Icons.delete_forever, color: Colors.red, size: 24),
+                                  content: const Text(
+                                    'Bu cümleyi silmek istediğinize emin misiniz?',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('İptal',
+                                          style:
+                                              TextStyle(color: Colors.white54)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        widget.onDelete!();
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                      ),
+                                      child: const Text('Sil',
+                                          style:
+                                              TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                const Text('Cümleyi Sil', style: TextStyle(color: Colors.white, fontSize: 18)),
-                              ],
-                            ),
-                            content: const Text(
-                              'Bu cümleyi silmek istediğinize emin misiniz?',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('İptal', style: TextStyle(color: Colors.white54)),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  widget.onDelete!();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: const Text('Sil', style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        );
-                      } : null,
+                              );
+                            }
+                          : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Sentence with Highlight
                 RichText(
                   text: TextSpan(
@@ -594,7 +650,7 @@ class _SentenceCardState extends State<SentenceCard> {
                     style: const TextStyle(height: 1.5),
                   ),
                 ),
-                
+
                 // Meaning (Collapsible)
                 AnimatedCrossFade(
                   firstChild: const SizedBox(height: 0),
@@ -603,13 +659,16 @@ class _SentenceCardState extends State<SentenceCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(height: 1, color: Colors.white.withOpacity(0.1)),
+                        Container(
+                            height: 1, color: Colors.white.withOpacity(0.1)),
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            const Icon(Icons.translate, color: Colors.white54, size: 16),
+                            const Icon(Icons.translate,
+                                color: Colors.white54, size: 16),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(
+                            Expanded(
+                                child: Text(
                               widget.vm.translation, // Use VM translation
                               style: const TextStyle(
                                 color: Colors.white70,
@@ -622,12 +681,14 @@ class _SentenceCardState extends State<SentenceCard> {
                       ],
                     ),
                   ),
-                  crossFadeState: _isMeaningVisible ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  crossFadeState: _isMeaningVisible
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
                   duration: const Duration(milliseconds: 300),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Toggle Button
                 GestureDetector(
                   onTap: () {
@@ -642,7 +703,9 @@ class _SentenceCardState extends State<SentenceCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _isMeaningVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          _isMeaningVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           color: const Color(0xFF22d3ee),
                           size: 18,
                         ),
@@ -650,10 +713,9 @@ class _SentenceCardState extends State<SentenceCard> {
                         Text(
                           _isMeaningVisible ? "Anlamı Gizle" : "Anlamı Göster",
                           style: const TextStyle(
-                            color: Color(0xFF22d3ee), 
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14
-                          ),
+                              color: Color(0xFF22d3ee),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14),
                         ),
                       ],
                     ),

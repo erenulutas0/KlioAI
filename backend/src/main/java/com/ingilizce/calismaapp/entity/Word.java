@@ -128,8 +128,9 @@ public class Word {
     }
 
     public void removeSentence(Sentence sentence) {
+        // Sentences are deleted at the repository level; setting word=null would
+        // attempt to null out a non-nullable FK (sentences.word_id) before delete.
         sentences.remove(sentence);
-        sentence.setWord(null);
     }
 
     public String getDifficulty() {

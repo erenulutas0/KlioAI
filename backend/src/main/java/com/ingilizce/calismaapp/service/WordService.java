@@ -19,6 +19,8 @@ import java.util.Objects;
 @Service
 @Transactional
 public class WordService {
+    private static final int XP_NEW_WORD = 10;
+    private static final int XP_NEW_WORD_SENTENCE = 5;
 
     @Autowired
     private WordRepository wordRepository;
@@ -93,7 +95,7 @@ public class WordService {
                 System.err.println("Activity publish error: " + e.getMessage());
             }
 
-            progressService.awardXp(savedWord.getUserId(), 5, "New Word: " + word.getEnglishWord());
+            progressService.awardXp(savedWord.getUserId(), XP_NEW_WORD, "New Word: " + word.getEnglishWord());
             progressService.updateStreak(savedWord.getUserId());
         }
 
@@ -165,7 +167,7 @@ public class WordService {
 
             Sentence newSentence = new Sentence(sentence, translation, difficulty != null ? difficulty : "easy", word);
             word.addSentence(newSentence);
-            progressService.awardXp(userId, 3, "New Sentence for: " + word.getEnglishWord());
+            progressService.awardXp(userId, XP_NEW_WORD_SENTENCE, "New Sentence for: " + word.getEnglishWord());
             return wordRepository.save(word);
         }
         return null;
@@ -173,20 +175,22 @@ public class WordService {
 
     @Transactional
     public Word deleteSentence(Long wordId, Long sentenceId, Long userId) {
-        Optional<Word> wordOpt = getWordByIdAndUser(wordId, userId);
-        Optional<Sentence> sentenceOpt = sentenceRepository.findById(sentenceId);
-
-        if (wordOpt.isPresent() && sentenceOpt.isPresent()) {
-            Word word = wordOpt.get();
-            Sentence sentence = sentenceOpt.get();
-
-            // Check if sentence belongs to the word AND user owns the word
-            if (sentence.getWord().getId().equals(wordId) && word.getUserId().equals(userId)) {
-                word.removeSentence(sentence);
-                sentenceRepository.delete(sentence);
-                return wordRepository.save(word);
-            }
+        // Hardening: wordId may be stale/mismatched on the client during offline->online
+        // transitions. Sentence ownership is enforced via sentence.word.userId.
+        Optional<Sentence> sentenceOpt = sentenceRepository.findByIdAndWordUserId(sentenceId, userId);
+        if (sentenceOpt.isEmpty()) {
+            return null;
         }
-        return null;
+
+        Sentence sentence = sentenceOpt.get();
+        Word owningWord = sentence.getWord();
+        if (owningWord == null || owningWord.getId() == null) {
+            return null;
+        }
+
+        // Keep response consistent even if the caller used a different wordId.
+        owningWord.removeSentence(sentence);
+        sentenceRepository.delete(sentence);
+        return owningWord;
     }
 }

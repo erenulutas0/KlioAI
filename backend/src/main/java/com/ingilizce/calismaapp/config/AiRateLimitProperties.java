@@ -1,0 +1,141 @@
+package com.ingilizce.calismaapp.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Component
+@ConfigurationProperties(prefix = "app.security.ai-rate-limit")
+public class AiRateLimitProperties {
+
+    private boolean enabled = true;
+    private boolean redisEnabled = true;
+    private String redisFallbackMode = "memory";
+    private long redisFailureBlockSeconds = 60;
+
+    private int userWindowMaxRequests = 30;
+    private int ipWindowMaxRequests = 80;
+    private long windowSeconds = 60;
+    private int dailyQuotaPerUser = 200;
+
+    /**
+     * Optional per-scope overrides, keyed by normalized scope (lowercase, trimmed).
+     * Example properties:
+     * app.security.ai-rate-limit.scopes.chat.daily-quota-per-user=600
+     * app.security.ai-rate-limit.scopes.speaking-evaluate.user-window-max-requests=10
+     */
+    private Map<String, ScopeLimits> scopes = new HashMap<>();
+
+    public static class ScopeLimits {
+        private Integer userWindowMaxRequests;
+        private Integer ipWindowMaxRequests;
+        private Long windowSeconds;
+        private Integer dailyQuotaPerUser;
+
+        public Integer getUserWindowMaxRequests() {
+            return userWindowMaxRequests;
+        }
+
+        public void setUserWindowMaxRequests(Integer userWindowMaxRequests) {
+            this.userWindowMaxRequests = userWindowMaxRequests;
+        }
+
+        public Integer getIpWindowMaxRequests() {
+            return ipWindowMaxRequests;
+        }
+
+        public void setIpWindowMaxRequests(Integer ipWindowMaxRequests) {
+            this.ipWindowMaxRequests = ipWindowMaxRequests;
+        }
+
+        public Long getWindowSeconds() {
+            return windowSeconds;
+        }
+
+        public void setWindowSeconds(Long windowSeconds) {
+            this.windowSeconds = windowSeconds;
+        }
+
+        public Integer getDailyQuotaPerUser() {
+            return dailyQuotaPerUser;
+        }
+
+        public void setDailyQuotaPerUser(Integer dailyQuotaPerUser) {
+            this.dailyQuotaPerUser = dailyQuotaPerUser;
+        }
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean isRedisEnabled() {
+        return redisEnabled;
+    }
+
+    public void setRedisEnabled(boolean redisEnabled) {
+        this.redisEnabled = redisEnabled;
+    }
+
+    public String getRedisFallbackMode() {
+        return redisFallbackMode;
+    }
+
+    public void setRedisFallbackMode(String redisFallbackMode) {
+        this.redisFallbackMode = redisFallbackMode;
+    }
+
+    public long getRedisFailureBlockSeconds() {
+        return redisFailureBlockSeconds;
+    }
+
+    public void setRedisFailureBlockSeconds(long redisFailureBlockSeconds) {
+        this.redisFailureBlockSeconds = redisFailureBlockSeconds;
+    }
+
+    public int getUserWindowMaxRequests() {
+        return userWindowMaxRequests;
+    }
+
+    public void setUserWindowMaxRequests(int userWindowMaxRequests) {
+        this.userWindowMaxRequests = userWindowMaxRequests;
+    }
+
+    public int getIpWindowMaxRequests() {
+        return ipWindowMaxRequests;
+    }
+
+    public void setIpWindowMaxRequests(int ipWindowMaxRequests) {
+        this.ipWindowMaxRequests = ipWindowMaxRequests;
+    }
+
+    public long getWindowSeconds() {
+        return windowSeconds;
+    }
+
+    public void setWindowSeconds(long windowSeconds) {
+        this.windowSeconds = windowSeconds;
+    }
+
+    public int getDailyQuotaPerUser() {
+        return dailyQuotaPerUser;
+    }
+
+    public void setDailyQuotaPerUser(int dailyQuotaPerUser) {
+        this.dailyQuotaPerUser = dailyQuotaPerUser;
+    }
+
+    public Map<String, ScopeLimits> getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(Map<String, ScopeLimits> scopes) {
+        this.scopes = scopes != null ? scopes : new HashMap<>();
+    }
+}

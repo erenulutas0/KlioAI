@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../services/offline_sync_service.dart';
 import '../services/user_data_service.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../services/xp_service.dart';
 import '../services/xp_manager.dart';
 import '../services/local_database_service.dart';
@@ -17,7 +18,9 @@ class AppStateProvider extends ChangeNotifier {
   final OfflineSyncService _offlineSyncService = OfflineSyncService();
   final UserDataService _userDataService = UserDataService();
   final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
   final XPManager _xpManager = XPManager();
+  final LocalDatabaseService _localDb = LocalDatabaseService();
 
   AppStateProvider() {
     // XP değişikliklerini dinle ve UI'ı güncelle
@@ -25,7 +28,9 @@ class AppStateProvider extends ChangeNotifier {
       _userStats['xp'] = totalXP;
       _userStats['level'] = _xpManager.calculateLevel(totalXP);
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(totalXP);
-      _userStats['weeklyXP'] = (_userStats['weeklyXP'] ?? 0) + addedXP;
+      final currentWeeklyXP = (_userStats['weeklyXP'] as int?) ?? 0;
+      final nextWeeklyXP = currentWeeklyXP + addedXP;
+      _userStats['weeklyXP'] = nextWeeklyXP < 0 ? 0 : nextWeeklyXP;
       _userStats = Map<String, dynamic>.from(_userStats);
       notifyListeners();
     });
@@ -61,7 +66,7 @@ class AppStateProvider extends ChangeNotifier {
     'learnedToday': 0,
   };
   List<Map<String, dynamic>> _weeklyActivity = [];
-  
+
   // Profile
   String? _profileImageType;
   String? _profileImagePath;
@@ -112,35 +117,33 @@ class AppStateProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════════════
   Future<void> initialize() async {
     if (_isInitialized) return; // Tekrar çağrılmasın
-    
-    // 🚀 ADIM 1: Önce LOCAL verileri anında yükle (çok hızlı)
-    // Bu kullanıcının hemen bir şeyler görmesini sağlar
-    await Future.wait([
-      _loadWordsFromLocal(),
-      _loadSentencesFromLocal(),
-    ]);
-    
+
+    // 🚀 ADIM 1: Önce kelimeleri, sonra cümleleri yükle.
+    // Paralel yükleme ilk açılışta cümle cache'inin boş kalmasına neden olabiliyor.
+    await _loadWordsFromLocal();
+    await _loadSentencesFromLocal();
+
     // 🎯 ADIM 2: User data'yı hemen yükle (totalWords için kelimeler lazım)
     await _loadUserData();
-    
+
     _isInitialized = true;
     notifyListeners();
-    
+
     // 🔄 ADIM 3: Arka planda API sync ve günün kelimeleri (UI'ı bloklamaz)
     _loadDataInBackground();
   }
-  
+
   /// Arka planda API sync ve günün kelimeleri yükle
   void _loadDataInBackground() {
     Future(() async {
       // Günün kelimeleri (cache varsa hızlı, yoksa AI API'den çeker)
       await _loadDailyWords();
-      
+
       // Arka planda API ile sync (local veri zaten var)
       await _offlineSyncService.syncPendingChanges();
     });
   }
-  
+
   /// Sadece LOCAL veritabanından kelimeleri yükle (çok hızlı)
   Future<void> _loadWordsFromLocal() async {
     _isLoadingWords = true;
@@ -155,14 +158,16 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingWords = false;
     }
   }
-  
+
   /// Sadece LOCAL veritabanından cümleleri yükle (çok hızlı)
   Future<void> _loadSentencesFromLocal() async {
     _isLoadingSentences = true;
     try {
-      final words = _allWords.isNotEmpty ? _allWords : await _offlineSyncService.getLocalWords();
+      final words = _allWords.isNotEmpty
+          ? _allWords
+          : await _offlineSyncService.getLocalWords();
       final practiceSentences = await _offlineSyncService.getLocalSentences();
-      
+
       final List<SentenceViewModel> viewModels = [];
       final Set<int> seenIds = {};
 
@@ -178,14 +183,16 @@ class AppStateProvider extends ChangeNotifier {
             difficulty: s.difficulty ?? 'easy',
             word: word,
             isPractice: false,
-            date: word.learnedDate,
+            date: s.createdAt ?? word.learnedDate,
           ));
         }
       }
 
       // Practice Sentences
       for (var s in practiceSentences) {
-        if (s.source != 'practice' && s.numericId != 0 && seenIds.contains(s.numericId)) continue;
+        // The /sentences endpoint can return both practice + word-source sentences.
+        // Word sentences are already represented via words->sentences, so only keep practice here.
+        if (s.source != 'practice') continue;
         viewModels.add(SentenceViewModel(
           id: s.id,
           sentence: s.englishSentence,
@@ -207,7 +214,6 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-
   // ═══════════════════════════════════════════════════════════════
   // USER DATA LOADING
   // ═══════════════════════════════════════════════════════════════
@@ -215,68 +221,103 @@ class AppStateProvider extends ChangeNotifier {
     try {
       final authUser = await _authService.getUser();
       final displayName = authUser?['displayName'] ?? 'Kullanıcı';
-      
+
       // Profile settings
       final prefs = await SharedPreferences.getInstance();
       final type = prefs.getString('profile_image_type') ?? 'avatar';
       final path = prefs.getString('profile_image_path');
       final seed = prefs.getString('profile_avatar_seed') ?? displayName;
-      
+
       // ═══════════════════════════════════════════════════════════════
       // GERÇEK VERİTABANI DEĞERLERİNİ KULLAN
       // ═══════════════════════════════════════════════════════════════
-      
+
       // Toplam kelime sayısı = veritabanındaki gerçek kelime sayısı
       final actualTotalWords = _allWords.length;
-      
+      final totalSentenceCount = _allWords.fold<int>(
+        0,
+        (sum, word) => sum + word.sentences.length,
+      );
+
       // XP'yi XPManager'dan al (veritabanından)
-      final xpFromManager = await _xpManager.getTotalXP(forceRefresh: true);
-      final weeklyXPFromManager = await _xpManager.getWeeklyXP(forceRefresh: true);
-      
+      var xpFromManager = await _xpManager.getTotalXP(forceRefresh: true);
+      var weeklyXPFromManager =
+          await _xpManager.getWeeklyXP(forceRefresh: true);
+
+      // Bazı cihazlarda/veri göçlerinde XP geçmişi boş kalabiliyor.
+      // Kelime ve cümlelerden minimum baz XP üretip sadece başlangıç değeri olarak seed et.
+      if (xpFromManager <= 0 &&
+          (actualTotalWords > 0 || totalSentenceCount > 0)) {
+        final estimatedBaseXp =
+            (actualTotalWords * 10) + (totalSentenceCount * 5);
+        await _seedBaseXpIfMissing(estimatedBaseXp);
+        xpFromManager = await _xpManager.getTotalXP(forceRefresh: true);
+      }
+
       // ═══════════════════════════════════════════════════════════════
       // STREAK HESAPLAMASI (SharedPreferences'tan)
       // ═══════════════════════════════════════════════════════════════
       final todayStr = DateTime.now().toIso8601String().split('T')[0];
       final lastActivityDate = prefs.getString('last_activity_date');
       int currentStreak = prefs.getInt('current_streak') ?? 0;
-      
+
       // Bugün aktivite var mı kontrol et
       if (lastActivityDate != null && lastActivityDate != todayStr) {
         final lastDate = DateTime.parse(lastActivityDate);
         final today = DateTime.parse(todayStr);
         final diffDays = today.difference(lastDate).inDays;
-        
+
         if (diffDays > 1) {
           // Seri kırıldı
           currentStreak = 0;
           await prefs.setInt('current_streak', 0);
         }
       }
-      
+
+      // SharedPreferences boş ama kelime geçmişi varsa streak'i kelimelerden geri kur.
+      if (currentStreak <= 0 && actualTotalWords > 0) {
+        currentStreak = _calculateStreakFromWords(_allWords);
+        if (currentStreak > 0) {
+          await prefs.setInt('current_streak', currentStreak);
+        }
+      }
+
       // Bugünkü öğrenilen kelime sayısı SharedPreferences'tan
       final learnedTodayKey = 'learned_today_$todayStr';
-      
+
       // DOĞRU HESAPLAMA: Veritabanındaki kelimelerden bugünün kelimelerini say
       final actualLearnedToday = _allWords.where((w) {
         final dateStr = w.learnedDate.toIso8601String().split('T')[0];
         return dateStr == todayStr;
       }).length;
-      
+
       // SharedPreferences'ı güncelle
       await prefs.setInt(learnedTodayKey, actualLearnedToday);
-      
+
       final persistedLearnedToday = actualLearnedToday;
-      
+
       // ═══════════════════════════════════════════════════════════════
       // HAFTALIK AKTİVİTE HESAPLAMASI
       // ═══════════════════════════════════════════════════════════════
-      final weeklyActivity = await _calculateWeeklyActivityFromPrefs(prefs);
-      
+      final weeklyActivityFromPrefs =
+          await _calculateWeeklyActivityFromPrefs(prefs);
+      final hasWeeklyDataFromPrefs =
+          weeklyActivityFromPrefs.any((d) => (d['count'] as int? ?? 0) > 0);
+      final weeklyActivity = hasWeeklyDataFromPrefs
+          ? weeklyActivityFromPrefs
+          : _calculateWeeklyActivityFromWords(_allWords);
+
+      // Haftalık XP preflerde yoksa mevcut haftadaki kelime/cümlelerden fallback üret.
+      if (weeklyXPFromManager <= 0 &&
+          weeklyActivity.any((d) => d['learned'] == true)) {
+        weeklyXPFromManager = _estimateWeeklyXpFromWords(_allWords);
+      }
+
       // ═══════════════════════════════════════════════════════════════
       // STATS OLUŞTURMA
       // ═══════════════════════════════════════════════════════════════
       final level = _xpManager.calculateLevel(xpFromManager);
-      
+
       _userStats = {
         'name': displayName,
         'totalWords': actualTotalWords,
@@ -289,43 +330,129 @@ class AppStateProvider extends ChangeNotifier {
         'learnedToday': persistedLearnedToday,
         'isOnline': _offlineSyncService.isOnline,
       };
-      
+
       _userName = displayName;
       _userInfo = authUser;
       _weeklyActivity = weeklyActivity;
       _profileImageType = type;
       _profileImagePath = path;
       _avatarSeed = seed;
-      
+
       notifyListeners();
     } catch (e) {
       print('Error loading user data: $e');
     }
   }
-  
-  /// SharedPreferences'tan haftalık aktiviteyi hesapla
-  Future<List<Map<String, dynamic>>> _calculateWeeklyActivityFromPrefs(SharedPreferences prefs) async {
+
+  Future<void> _seedBaseXpIfMissing(int estimatedBaseXp) async {
+    if (estimatedBaseXp <= 0) return;
+    try {
+      final existing = await _xpManager.getTotalXP(forceRefresh: true);
+      if (existing > 0) return;
+
+      await _localDb.addXp(estimatedBaseXp);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('total_xp_persistent', estimatedBaseXp);
+    } catch (e) {
+      print('Error seeding base XP: $e');
+    }
+  }
+
+  int _calculateStreakFromWords(List<Word> words) {
+    if (words.isEmpty) return 0;
+    final dateSet =
+        words.map((w) => w.learnedDate.toIso8601String().split('T')[0]).toSet();
+
+    int streak = 0;
+    var cursor = DateTime.now();
+    final todayStr = cursor.toIso8601String().split('T')[0];
+
+    while (true) {
+      final dayStr = cursor.toIso8601String().split('T')[0];
+      if (dateSet.contains(dayStr)) {
+        streak++;
+        cursor = cursor.subtract(const Duration(days: 1));
+        continue;
+      }
+      if (dayStr == todayStr && streak == 0) {
+        cursor = cursor.subtract(const Duration(days: 1));
+        continue;
+      }
+      break;
+    }
+    return streak;
+  }
+
+  List<Map<String, dynamic>> _calculateWeeklyActivityFromWords(
+      List<Word> words) {
     final now = DateTime.now();
     final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-    
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+
+    final Map<String, int> dayCounts = {};
+    for (final word in words) {
+      final key = word.learnedDate.toIso8601String().split('T')[0];
+      dayCounts[key] = (dayCounts[key] ?? 0) + 1;
+    }
+
+    final weeklyActivity = <Map<String, dynamic>>[];
+    for (int i = 0; i < 7; i++) {
+      final dayDate = weekStart.add(Duration(days: i));
+      final dayStr = dayDate.toIso8601String().split('T')[0];
+      final count = dayCounts[dayStr] ?? 0;
+      weeklyActivity.add({
+        'day': days[i],
+        'count': count,
+        'learned': count > 0,
+      });
+    }
+    return weeklyActivity;
+  }
+
+  int _estimateWeeklyXpFromWords(List<Word> words) {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekStartDay =
+        DateTime(weekStart.year, weekStart.month, weekStart.day);
+    final nextWeekStart = weekStartDay.add(const Duration(days: 7));
+
+    int weeklyXp = 0;
+    for (final word in words) {
+      final learnedDay = DateTime(
+          word.learnedDate.year, word.learnedDate.month, word.learnedDate.day);
+      if (!learnedDay.isBefore(weekStartDay) &&
+          learnedDay.isBefore(nextWeekStart)) {
+        weeklyXp += 10; // kelime XP
+        weeklyXp += word.sentences.length * 5; // kelimeye bağlı cümle XP
+      }
+    }
+    return weeklyXp;
+  }
+
+  /// SharedPreferences'tan haftalık aktiviteyi hesapla
+  Future<List<Map<String, dynamic>>> _calculateWeeklyActivityFromPrefs(
+      SharedPreferences prefs) async {
+    final now = DateTime.now();
+    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
     // Bu haftanın başlangıcını bul (Pazartesi)
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    
+
     List<Map<String, dynamic>> weeklyActivity = [];
-    
+
     for (int i = 0; i < 7; i++) {
       final dayDate = weekStart.add(Duration(days: i));
       final dayStr = dayDate.toIso8601String().split('T')[0];
       final learnedKey = 'learned_today_$dayStr';
       final dayCount = prefs.getInt(learnedKey) ?? 0;
-      
+
       weeklyActivity.add({
         'day': days[i],
         'count': dayCount,
         'learned': dayCount > 0,
       });
     }
-    
+
     return weeklyActivity;
   }
 
@@ -346,16 +473,22 @@ class AppStateProvider extends ChangeNotifier {
   void setUser(Map<String, dynamic> user) {
     _userName = user['displayName'] ?? 'Kullanıcı';
     _userInfo = user;
-    
+
     // Basit istatistikleri varsayılan olarak set et, detaylar sonra yüklenir
     _userStats['name'] = _userName;
     if (user['userTag'] != null) _userStats['userTag'] = user['userTag'];
-    
+
     _isInitialized = true; // Veri var kabul et
     notifyListeners();
-    
+
     // Arka planda tam veriyi de çek
-    _loadUserData(); 
+    _loadUserData();
+
+    // Günün kelimeleri ilk initialize sırasında login yoksa boş kalabiliyor.
+    // Login sonrası tekrar yükle (cache varsa hızlı).
+    Future(() async {
+      await _loadDailyWords(forceRefresh: _dailyWords.isEmpty);
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -364,12 +497,12 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> _loadWords() async {
     _isLoadingWords = true;
     // İlk açılışta liste boşsa spinner gösterme, direkt yükle
-    
+
     try {
       final words = await _offlineSyncService.getAllWords();
       // En son eklenen en üstte olacak şekilde sırala
       words.sort((a, b) => b.learnedDate.compareTo(a.learnedDate));
-      
+
       _allWords = words;
       _isLoadingWords = false;
       notifyListeners();
@@ -383,6 +516,8 @@ class AppStateProvider extends ChangeNotifier {
   /// Kelimeleri yenile (yeni kelime eklendikten sonra)
   Future<void> refreshWords() async {
     await _loadWords();
+    await _loadSentencesFromLocal();
+    await _loadUserData();
   }
 
   /// Kelime ekle - ve listeyi güncelle
@@ -404,22 +539,25 @@ class AppStateProvider extends ChangeNotifier {
       );
       if (newWord != null) {
         _allWords.insert(0, newWord); // Başa ekle
-        
+
         // 🎯 Anlık istatistik güncellemesi (streak, weeklyActivity dahil)
         await incrementLearnedToday(); // totalWords ve learnedToday artırır + streak günceller
-        
+
         // 🆔 Transaction ID: kelime ID'si (deterministik ve çakışmasız)
         final txId = 'word_id_${newWord.id}';
 
         // XP ekle - kaynağa göre farklı XP türü (transactionId ile)
         if (source == 'daily_word') {
-          await addXPForAction(XPActionTypes.dailyWordLearn, source: 'Günün Kelimesi', transactionId: txId);
+          await addXPForAction(XPActionTypes.dailyWordLearn,
+              source: 'Günün Kelimesi', transactionId: txId);
         } else if (source == 'quick_dictionary') {
-          await addXPForAction(XPActionTypes.quickDictionaryAdd, source: 'Hızlı Sözlük', transactionId: txId);
+          await addXPForAction(XPActionTypes.quickDictionaryAdd,
+              source: 'Hızlı Sözlük', transactionId: txId);
         } else {
-          await addXPForAction(XPActionTypes.addWord, source: source, transactionId: txId);
+          await addXPForAction(XPActionTypes.addWord,
+              source: source, transactionId: txId);
         }
-        
+
         notifyListeners();
       }
       return newWord;
@@ -429,50 +567,69 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-
   /// Kelime sil
   Future<bool> deleteWord(int wordId) async {
     try {
-      // 🔥 Önce silinecek kelimenin cümle sayısını al (XP hesaplaması için)
-      final wordToDelete = _allWords.firstWhere((w) => w.id == wordId, orElse: () => Word(id: -1, englishWord: '', turkishMeaning: '', learnedDate: DateTime.now(), difficulty: 'easy', sentences: []));
-      final sentenceCount = wordToDelete.sentences.length;
-      
-      await _offlineSyncService.deleteWord(wordId);
-      
+      // Silinecek kelimenin cümle sayısını local DB'den al (stale ID fallback dahil)
+      int sentenceCount =
+          await _offlineSyncService.getSentenceCountForWord(wordId);
+      Word? wordToDelete;
+      try {
+        wordToDelete = _allWords.firstWhere((w) => w.id == wordId);
+      } catch (_) {
+        wordToDelete = null;
+      }
+      if (sentenceCount == 0 && wordToDelete != null) {
+        final unique = <String>{};
+        for (final s in wordToDelete.sentences) {
+          final key =
+              s.sentence.trim().replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+          if (key.isEmpty) continue;
+          unique.add(key);
+        }
+        sentenceCount = unique.length;
+      }
+
+      final deleted = await _offlineSyncService.deleteWord(wordId);
+      if (!deleted) {
+        return false;
+      }
+
       // Kelimeyi listeden kaldır
       _allWords.removeWhere((w) => w.id == wordId);
-      
+
       // İstatistikleri güncelle (Kelime sayısı ve bugün öğrenilenler)
       _userStats['totalWords'] = _allWords.length;
-      
+
       // Eğer bugünün kelimesi silindiyse, learnedToday'i güncelle
       final todayStr = DateTime.now().toIso8601String().split('T')[0];
       final learnedTodayCount = _allWords.where((w) {
-         final dStr = w.learnedDate.toIso8601String().split('T')[0];
-         return dStr == todayStr;
+        final dStr = w.learnedDate.toIso8601String().split('T')[0];
+        return dStr == todayStr;
       }).length;
-      
+
       _userStats['learnedToday'] = learnedTodayCount;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('learned_today_$todayStr', learnedTodayCount);
-      
+
       // 🔥 XP düşür: kelime (10 XP) + her cümle (5 XP)
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
       final xpToDeduct = 10 + (sentenceCount * 5);
-      await _xpManager.deductXP(xpToDeduct, 'Kelime silindi: ${wordToDelete.englishWord}');
-      
+      final deletedWordName = wordToDelete?.englishWord ?? 'Bilinmeyen Kelime';
+      await _xpManager.deductXP(xpToDeduct, 'Kelime silindi: $deletedWordName');
+
       // UI state'i de güncelle (XPManager callback'i bu işi yapacak ama yine de yapalım)
       final newTotalXp = await _xpManager.getTotalXP(forceRefresh: true);
       _userStats['xp'] = newTotalXp;
       _userStats['level'] = _xpManager.calculateLevel(newTotalXp);
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(newTotalXp);
-      
+
       // Map referansını değiştir (UI güncellemesi için)
       _userStats = Map<String, dynamic>.from(_userStats);
-      
+
       // 🔥 Silinen kelimenin cümlelerini de listeden kaldır
       _allSentences.removeWhere((s) => s.word?.id == wordId);
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -487,7 +644,7 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> _loadSentences() async {
     _isLoadingSentences = true;
     notifyListeners();
-    
+
     try {
       // 🚀 Optimizasyon: Kelimeler zaten yüklüyse onları kullan
       List<Word> words = _allWords;
@@ -495,9 +652,11 @@ class AppStateProvider extends ChangeNotifier {
         // Kelimeler henüz yüklenmemişse yükle
         words = await _offlineSyncService.getAllWords();
       }
-      
+
       // Practice sentences'ı paralel olarak yükle
-      final practiceSentences = await _offlineSyncService.getAllSentences();
+      // Force server reconciliation so stale/ghost practice rows don't linger.
+      final practiceSentences =
+          await _offlineSyncService.getAllSentences(forceRefresh: true);
 
       final List<SentenceViewModel> viewModels = [];
       final Set<int> seenIds = {};
@@ -507,7 +666,7 @@ class AppStateProvider extends ChangeNotifier {
         for (var s in word.sentences) {
           if (seenIds.contains(s.id)) continue;
           seenIds.add(s.id);
-          
+
           viewModels.add(SentenceViewModel(
             id: s.id,
             sentence: s.sentence,
@@ -522,8 +681,10 @@ class AppStateProvider extends ChangeNotifier {
 
       // Practice Sentences
       for (var s in practiceSentences) {
-        if (s.source != 'practice' && s.numericId != 0 && seenIds.contains(s.numericId)) continue;
-        
+        // The /sentences endpoint can return both practice + word-source sentences.
+        // Word sentences are already represented via words->sentences, so only keep practice here.
+        if (s.source != 'practice') continue;
+
         viewModels.add(SentenceViewModel(
           id: s.id,
           sentence: s.englishSentence,
@@ -552,7 +713,7 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> refreshSentences() async {
     await _loadSentences();
   }
-  
+
   /// Kelimeye cümle ekle ve listeyi güncelle
   /// XP otomatik eklenir, cümle listesi anında güncellenir
   Future<Word?> addSentenceToWord({
@@ -563,7 +724,7 @@ class AppStateProvider extends ChangeNotifier {
   }) async {
     // 🆔 Transaction ID oluştur ÖNCE - içerik tabanlı (cümle hash + kelime ID)
     final txId = 'sentence_${wordId}_${sentence.toLowerCase().hashCode}';
-    
+
     try {
       final updatedWord = await _offlineSyncService.addSentenceToWord(
         wordId: wordId,
@@ -571,43 +732,67 @@ class AppStateProvider extends ChangeNotifier {
         translation: translation,
         difficulty: difficulty,
       );
-      
+
       if (updatedWord != null) {
         // Kelime listesini güncelle
         final index = _allWords.indexWhere((w) => w.id == wordId);
         if (index != -1) {
           _allWords[index] = updatedWord;
         }
-        
+
         // XP ekle (cümle başına 5 XP) - içerik tabanlı txId ile
-        await addXPForAction(XPActionTypes.addSentence, source: 'Cümle Ekleme', transactionId: txId);
-        
+        await addXPForAction(XPActionTypes.addSentence,
+            source: 'Cümle Ekleme', transactionId: txId);
+
         // Cümle listesini ANLINDA güncelle (UI hemen görsün)
         // 🔥 Önce aynı cümle var mı kontrol et (çift eklemeyi engelle)
         if (updatedWord.sentences.isNotEmpty) {
-          final newSentence = updatedWord.sentences.last;
-          
+          String norm(String value) {
+            final trimmed = value.trim();
+            if (trimmed.isEmpty) return '';
+            return trimmed.replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+          }
+
+          // Local DB sentences ordering is not guaranteed (and may be createdAt DESC),
+          // so find the most likely "just added" sentence by content.
+          final targetSentence = norm(sentence);
+          final targetTranslation = norm(translation);
+          Sentence? newSentence;
+          for (final s in updatedWord.sentences) {
+            if (norm(s.sentence) == targetSentence &&
+                norm(s.translation) == targetTranslation) {
+              newSentence = s;
+              break;
+            }
+          }
+          newSentence ??= updatedWord.sentences.first;
+
           // Aynı cümle zaten listede var mı?
-          final alreadyExists = _allSentences.any((s) => 
-            s.sentence == newSentence.sentence && 
-            s.translation == newSentence.translation &&
-            s.word?.id == wordId
-          );
-          
+          final alreadyExists = _allSentences.any((s) =>
+              s.sentence == newSentence!.sentence &&
+              s.translation == newSentence.translation &&
+              s.word?.id == wordId);
+
           if (!alreadyExists) {
-            _allSentences.insert(0, SentenceViewModel(
-              id: newSentence.id,
-              sentence: newSentence.sentence,
-              translation: newSentence.translation,
-              difficulty: newSentence.difficulty ?? 'easy',
-              word: updatedWord,
-              isPractice: false,
-              date: DateTime.now(),
-            ));
+            _allSentences.insert(
+                0,
+                SentenceViewModel(
+                  id: newSentence.id,
+                  sentence: newSentence.sentence,
+                  translation: newSentence.translation,
+                  difficulty: newSentence.difficulty ?? 'easy',
+                  word: updatedWord,
+                  isPractice: false,
+                  date: newSentence.createdAt ?? DateTime.now(),
+                ));
           }
         }
-        
+
         notifyListeners();
+      } else {
+        // Fallback: ID eşleşme sorunlarında local DB'den yeniden yükle.
+        await refreshWords();
+        await refreshSentences();
       }
       return updatedWord;
     } catch (e) {
@@ -615,7 +800,7 @@ class AppStateProvider extends ChangeNotifier {
       return null;
     }
   }
-  
+
   /// Bağımsız pratik cümlesi ekle (kelimeye bağlı olmayan)
   /// XP otomatik eklenir, cümle listesi anında güncellenir
   Future<bool> addPracticeSentence({
@@ -625,38 +810,40 @@ class AppStateProvider extends ChangeNotifier {
   }) async {
     // 🆔 Transaction ID oluştur ÖNCE - içerik tabanlı
     final txId = 'practice_${englishSentence.toLowerCase().hashCode}';
-    
+
     try {
       final newSentence = await _offlineSyncService.createSentence(
         englishSentence: englishSentence,
         turkishTranslation: turkishTranslation,
         difficulty: difficulty,
       );
-      
+
       if (newSentence != null) {
         // 🔥 Önce aynı cümle var mı kontrol et (çift eklemeyi engelle)
-        final alreadyExists = _allSentences.any((s) => 
-          s.sentence == englishSentence && 
-          s.translation == turkishTranslation &&
-          s.isPractice == true
-        );
-        
+        final alreadyExists = _allSentences.any((s) =>
+            s.sentence == englishSentence &&
+            s.translation == turkishTranslation &&
+            s.isPractice == true);
+
         if (!alreadyExists) {
           // Cümle listesini ANLINDA güncelle (UI hemen görsün)
-          _allSentences.insert(0, SentenceViewModel(
-            id: newSentence.id,
-            sentence: newSentence.englishSentence,
-            translation: newSentence.turkishTranslation,
-            difficulty: difficulty,
-            word: null,
-            isPractice: true,
-            date: DateTime.now(),
-          ));
+          _allSentences.insert(
+              0,
+              SentenceViewModel(
+                id: newSentence.id,
+                sentence: newSentence.englishSentence,
+                translation: newSentence.turkishTranslation,
+                difficulty: difficulty,
+                word: null,
+                isPractice: true,
+                date: DateTime.now(),
+              ));
         }
-        
+
         // XP ekle (pratik cümlesi başına 5 XP) - içerik tabanlı txId ile
-        await addXPForAction(XPActionTypes.addPracticeSentence, source: 'Pratik Cümlesi', transactionId: txId);
-        
+        await addXPForAction(XPActionTypes.addPracticeSentence,
+            source: 'Pratik Cümlesi', transactionId: txId);
+
         notifyListeners();
         return true;
       }
@@ -668,19 +855,140 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// Kelimeye bağlı cümleyi sil (UI anında güncellenir)
-  Future<bool> deleteSentenceFromWord({required int wordId, required int sentenceId}) async {
+  Future<bool> deleteSentenceFromWord(
+      {required int wordId, required int sentenceId}) async {
     try {
-      await _offlineSyncService.deleteSentenceFromWord(wordId: wordId, sentenceId: sentenceId);
-      
+      String norm(String value) {
+        final trimmed = value.trim();
+        if (trimmed.isEmpty) return '';
+        return trimmed.replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+      }
+
+      // Duplicate sentence rows (same sentence text) can happen in offline->online flows.
+      // If the user is deleting only the duplicate copy, do NOT deduct XP again.
+      bool shouldDeductXp = true;
+      String? targetSentenceKey;
+      String? targetTranslationKey;
+      int effectiveWordId = wordId;
+      String? targetWordEnglish;
+      for (final w in _allWords) {
+        try {
+          final matched = w.sentences.firstWhere((s) => s.id == sentenceId);
+          targetSentenceKey = norm(matched.sentence);
+          targetTranslationKey = norm(matched.translation);
+          effectiveWordId = w.id;
+          targetWordEnglish = w.englishWord;
+          final hasAnother = w.sentences.any(
+              (s) => s.id != sentenceId && norm(s.sentence) == targetSentenceKey);
+          if (hasAnother) shouldDeductXp = false;
+          break;
+        } catch (_) {}
+      }
+
+      // Fallback: if the word list is stale, use the sentence view-model list.
+      if (targetSentenceKey == null) {
+        for (final s in _allSentences) {
+          if (!s.isPractice && s.id == sentenceId) {
+            targetSentenceKey = norm(s.sentence);
+            targetTranslationKey = norm(s.translation);
+            effectiveWordId = s.word?.id ?? wordId;
+            targetWordEnglish = s.word?.englishWord;
+            break;
+          }
+        }
+        if (targetSentenceKey != null && targetSentenceKey!.isNotEmpty) {
+          final hasAnother = _allSentences.any((s) {
+            if (s.isPractice) return false;
+            if (s.id == sentenceId) return false;
+            final sid = s.word?.id;
+            if (sid == null) return false;
+            return sid == effectiveWordId && norm(s.sentence) == targetSentenceKey;
+          });
+          if (hasAnother) {
+            shouldDeductXp = false;
+          }
+        }
+      }
+
+      final deleted = await _offlineSyncService.deleteSentenceFromWord(
+        wordId: wordId,
+        sentenceId: sentenceId,
+      );
+      if (!deleted) {
+        return false;
+      }
+
       // 🔥 UI'dan anında kaldır
-      _allSentences.removeWhere((s) => s.id == sentenceId);
-      
+      final effectiveWord = _allWords.firstWhere(
+        (w) => w.id == effectiveWordId || w.id == wordId,
+        orElse: () => Word(
+            id: wordId,
+            englishWord: '',
+            turkishMeaning: '',
+            learnedDate: DateTime.now(),
+            difficulty: 'easy',
+            sentences: const []),
+      );
+      targetWordEnglish ??=
+          (effectiveWord.englishWord.isNotEmpty ? effectiveWord.englishWord : null);
+
+      bool matchesTargetWord(SentenceViewModel vm) {
+        final vmWord = vm.word;
+        if (vmWord == null) return false;
+        if (vmWord.id == effectiveWordId || vmWord.id == wordId) return true;
+        if (targetWordEnglish == null || targetWordEnglish!.trim().isEmpty) {
+          return false;
+        }
+        return norm(vmWord.englishWord) == norm(targetWordEnglish!);
+      }
+
+      // Remove by ID and also by content, to handle localId->serverId remaps leaving stale VMs behind.
+      _allSentences.removeWhere((vm) {
+        if (vm.isPractice) return false;
+        if (vm.id.toString() == sentenceId.toString()) return true;
+        if (targetSentenceKey == null || targetSentenceKey!.isEmpty) return false;
+        if (norm(vm.sentence) != targetSentenceKey) return false;
+        if (!matchesTargetWord(vm)) return false;
+        // Translation can differ (some users leave it blank), so only use it if we have it.
+        if (targetTranslationKey != null &&
+            targetTranslationKey!.isNotEmpty &&
+            norm(vm.translation) != targetTranslationKey) {
+          return false;
+        }
+        return true;
+      });
+
       // Kelime içindeki cümleyi de güncelle
-      final wordIndex = _allWords.indexWhere((w) => w.id == wordId);
-      if (wordIndex != -1) {
-        final word = _allWords[wordIndex];
-        final updatedSentences = word.sentences.where((s) => s.id != sentenceId).toList();
-        _allWords[wordIndex] = Word(
+      final indices = <int>{};
+      for (int i = 0; i < _allWords.length; i++) {
+        final id = _allWords[i].id;
+        if (id == wordId || id == effectiveWordId) {
+          indices.add(i);
+        } else if (targetWordEnglish != null &&
+            targetWordEnglish!.trim().isNotEmpty &&
+            norm(_allWords[i].englishWord) == norm(targetWordEnglish!)) {
+          indices.add(i);
+        }
+      }
+
+      for (final idx in indices) {
+        final word = _allWords[idx];
+        final updatedSentences = word.sentences.where((s) {
+          if (s.id == sentenceId) return false;
+          if (targetSentenceKey != null &&
+              targetSentenceKey!.isNotEmpty &&
+              norm(s.sentence) == targetSentenceKey) {
+            if (targetTranslationKey != null &&
+                targetTranslationKey!.isNotEmpty &&
+                norm(s.translation) != targetTranslationKey) {
+              return true;
+            }
+            return false;
+          }
+          return true;
+        }).toList();
+
+        _allWords[idx] = Word(
           id: word.id,
           englishWord: word.englishWord,
           turkishMeaning: word.turkishMeaning,
@@ -690,20 +998,22 @@ class AppStateProvider extends ChangeNotifier {
           sentences: updatedSentences,
         );
       }
-      
+
       // 🔥 XP düşür: cümle başına 5 XP
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
-      await _xpManager.deductXP(5, 'Cümle silindi');
-      
+      if (shouldDeductXp) {
+        await _xpManager.deductXP(5, 'Cümle silindi');
+      }
+
       // UI state'i de güncelle
       final newTotalXp = await _xpManager.getTotalXP(forceRefresh: true);
       _userStats['xp'] = newTotalXp;
       _userStats['level'] = _xpManager.calculateLevel(newTotalXp);
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(newTotalXp);
-      
+
       // Map referansını değiştir (UI güncellemesi için)
       _userStats = Map<String, dynamic>.from(_userStats);
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -711,28 +1021,59 @@ class AppStateProvider extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Pratik cümlesini sil (UI anında güncellenir)
   Future<bool> deletePracticeSentence(dynamic sentenceId) async {
     try {
-      await _offlineSyncService.deletePracticeSentence(sentenceId.toString());
-      
+      String norm(String value) {
+        final trimmed = value.trim();
+        if (trimmed.isEmpty) return '';
+        return trimmed.replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+      }
+
+      SentenceViewModel? targetVm;
+      for (final s in _allSentences) {
+        if (!s.isPractice) continue;
+        if (s.id.toString() == sentenceId.toString()) {
+          targetVm = s;
+          break;
+        }
+      }
+      final targetSentence = targetVm != null ? norm(targetVm.sentence) : '';
+      final targetTranslation = targetVm != null ? norm(targetVm.translation) : '';
+
+      final deleted = await _offlineSyncService
+          .deletePracticeSentence(sentenceId.toString());
+      if (!deleted) {
+        return false;
+      }
+
       // 🔥 UI'dan anında kaldır
-      _allSentences.removeWhere((s) => s.id.toString() == sentenceId.toString() && s.isPractice);
-      
+      _allSentences.removeWhere((s) {
+        if (!s.isPractice) return false;
+        if (s.id.toString() == sentenceId.toString()) return true;
+        if (targetSentence.isEmpty) return false;
+        if (norm(s.sentence) != targetSentence) return false;
+        if (targetTranslation.isNotEmpty &&
+            norm(s.translation) != targetTranslation) {
+          return false;
+        }
+        return true;
+      });
+
       // 🔥 XP düşür: pratik cümlesi başına 5 XP
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
       await _xpManager.deductXP(5, 'Pratik cümlesi silindi');
-      
+
       // UI state'i de güncelle
       final newTotalXp = await _xpManager.getTotalXP(forceRefresh: true);
       _userStats['xp'] = newTotalXp;
       _userStats['level'] = _xpManager.calculateLevel(newTotalXp);
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(newTotalXp);
-      
+
       // Map referansını değiştir (UI güncellemesi için)
       _userStats = Map<String, dynamic>.from(_userStats);
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -744,17 +1085,17 @@ class AppStateProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════════════
   // DAILY WORDS (Günün Kelimeleri - AI Generated)
   // ═══════════════════════════════════════════════════════════════
-  Future<void> _loadDailyWords() async {
+  Future<void> _loadDailyWords({bool forceRefresh = false}) async {
     _isLoadingDailyWords = true;
     notifyListeners();
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastDate = prefs.getString('daily_words_date');
       final todayDate = DateTime.now().toIso8601String().split('T')[0];
       final cachedJson = prefs.getString('daily_words_cache');
 
-      if (lastDate == todayDate && cachedJson != null) {
+      if (!forceRefresh && lastDate == todayDate && cachedJson != null) {
         // Cache'den yükle
         final List<dynamic> decoded = jsonDecode(cachedJson);
         _dailyWords = decoded.cast<Map<String, dynamic>>();
@@ -764,15 +1105,19 @@ class AppStateProvider extends ChangeNotifier {
       }
 
       // Yeni veri getir
-      final words = await GroqService.getDailyWords();
-      
+      List<Map<String, dynamic>> words = await _apiService.getDailyWords();
+      if (words.isEmpty) {
+        // Backward-compatible fallback (BYOK) for dev/offline environments.
+        words = await GroqService.getDailyWords();
+      }
+
       if (words.isNotEmpty) {
         _dailyWords = words;
         // Cache'e kaydet
         await prefs.setString('daily_words_date', todayDate);
         await prefs.setString('daily_words_cache', jsonEncode(words));
       }
-      
+
       _isLoadingDailyWords = false;
       notifyListeners();
     } catch (e) {
@@ -784,23 +1129,23 @@ class AppStateProvider extends ChangeNotifier {
 
   /// Günün kelimelerini yenile
   Future<void> refreshDailyWords() async {
-    await _loadDailyWords();
+    await _loadDailyWords(forceRefresh: true);
   }
 
   // ═══════════════════════════════════════════════════════════════
   // XP & STATS UPDATES
   // ═══════════════════════════════════════════════════════════════
-  
+
   /// Kullanıcı istatistiklerini manuel güncelle
   void updateUserStats(Map<String, dynamic> newStats) {
     if (newStats.isEmpty) return;
-    
+
     newStats.forEach((key, value) {
       if (value != null) {
         _userStats[key] = value;
       }
     });
-    
+
     notifyListeners();
   }
 
@@ -809,21 +1154,23 @@ class AppStateProvider extends ChangeNotifier {
     _weeklyActivity = activity;
     notifyListeners();
   }
-  
+
   /// XP ekle ve state'i güncelle (eskiyi korumak için backward compatible)
   /// Öncelik: Spesifik action type methodlarını kullanın
   Future<int> addXP(int amount, {String? reason}) async {
     try {
       final added = await _xpManager.addCustomXP(amount, reason ?? 'custom');
-      
+
       // WeeklyXP'yi de güncelle
-      _userStats['weeklyXP'] = (_userStats['weeklyXP'] ?? 0) + added;
-      
+      final currentWeeklyXP = (_userStats['weeklyXP'] as int?) ?? 0;
+      final nextWeeklyXP = currentWeeklyXP + added;
+      _userStats['weeklyXP'] = nextWeeklyXP < 0 ? 0 : nextWeeklyXP;
+
       // Level kontrolü
       final totalXP = _userStats['xp'] ?? 0;
       _userStats['level'] = _xpManager.calculateLevel(totalXP);
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(totalXP);
-      
+
       notifyListeners();
       return added;
     } catch (e) {
@@ -834,11 +1181,12 @@ class AppStateProvider extends ChangeNotifier {
 
   /// XP Manager'ı direkt kullanarak spesifik aksiyon için XP ekle
   /// [transactionId]: Opsiyonel benzersiz işlem ID'si - idempotency için
-  Future<int> addXPForAction(XPActionType action, {String? source, String? transactionId}) async {
+  Future<int> addXPForAction(XPActionType action,
+      {String? source, String? transactionId}) async {
     try {
-      final added = await _xpManager.addXP(action, source: source, transactionId: transactionId);
+      final added = await _xpManager.addXP(action,
+          source: source, transactionId: transactionId);
       return added;
-
     } catch (e) {
       print('Error adding XP for action: $e');
       return 0;
@@ -850,26 +1198,25 @@ class AppStateProvider extends ChangeNotifier {
     _userStats['learnedToday'] = (_userStats['learnedToday'] ?? 0) + 1;
     // totalWords = veritabanındaki gerçek kelime sayısı
     _userStats['totalWords'] = _allWords.length;
-    
+
     // SharedPreferences'a kaydet
     final prefs = await SharedPreferences.getInstance();
     final todayStr = _now.toIso8601String().split('T')[0];
     final learnedTodayKey = 'learned_today_$todayStr';
     await prefs.setInt(learnedTodayKey, _userStats['learnedToday']);
-    
+
     // Streak güncelle
     await _updateStreak();
-    
+
     // Haftalık aktiviteyi güncelle
     _updateWeeklyActivityForToday();
-    
+
     notifyListeners();
-    
+
     // Günlük hedef kontrolü
     await _checkDailyGoal();
   }
 
-  
   /// Test için tarih mocklama
   @visibleForTesting
   DateTime? mockDate;
@@ -881,9 +1228,9 @@ class AppStateProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final todayStr = _now.toIso8601String().split('T')[0];
     final lastActivityDate = prefs.getString('last_activity_date');
-    
+
     int currentStreak = prefs.getInt('current_streak') ?? 0;
-    
+
     if (lastActivityDate == null) {
       // İlk aktivite
       currentStreak = 1;
@@ -891,7 +1238,7 @@ class AppStateProvider extends ChangeNotifier {
       final lastDate = DateTime.parse(lastActivityDate);
       final today = DateTime.parse(todayStr);
       final diffDays = today.difference(lastDate).inDays;
-      
+
       if (diffDays == 1) {
         // Ardışık gün, streak artır
         currentStreak += 1;
@@ -901,13 +1248,13 @@ class AppStateProvider extends ChangeNotifier {
       }
       // diffDays == 0 ise aynı gün, streak değişmez
     }
-    
+
     // Kaydet
     await prefs.setString('last_activity_date', todayStr);
     await prefs.setInt('current_streak', currentStreak);
-    
+
     _userStats['streak'] = currentStreak;
-    
+
     // Streak bonuslarını kontrol et
     await _xpManager.checkAndAwardStreakBonus(currentStreak);
   }
@@ -916,7 +1263,7 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> _checkDailyGoal() async {
     final learnedToday = _userStats['learnedToday'] ?? 0;
     final dailyGoal = _userStats['dailyGoal'] ?? 5;
-    
+
     if (learnedToday >= dailyGoal) {
       await _xpManager.checkDailyGoal(learnedToday, dailyGoal);
     }
@@ -927,22 +1274,24 @@ class AppStateProvider extends ChangeNotifier {
     final streak = _userStats['streak'] ?? 0;
     await _xpManager.checkAndAwardStreakBonus(streak);
   }
-  
+
   /// Bugünkü haftalık aktiviteyi güncelle
   void _updateWeeklyActivityForToday() {
     final today = _now;
     final dayIndex = today.weekday - 1; // 0 = Pazartesi, 6 = Pazar
-    
+
     if (_weeklyActivity.isEmpty) {
       // Haftalık aktivite listesi oluştur
       final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-      _weeklyActivity = List.generate(7, (i) => <String, dynamic>{
-        'day': days[i],
-        'count': 0,
-        'learned': false,
-      });
+      _weeklyActivity = List.generate(
+          7,
+          (i) => <String, dynamic>{
+                'day': days[i],
+                'count': 0,
+                'learned': false,
+              });
     }
-    
+
     if (dayIndex >= 0 && dayIndex < _weeklyActivity.length) {
       final currentCount = _weeklyActivity[dayIndex]['count'] ?? 0;
       _weeklyActivity[dayIndex] = {

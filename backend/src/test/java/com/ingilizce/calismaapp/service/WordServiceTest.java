@@ -251,7 +251,7 @@ class WordServiceTest {
                 .publishWordAdded(eq(4L), anyString());
 
         assertDoesNotThrow(() -> wordService.saveWord(incoming));
-        verify(progressService).awardXp(eq(4L), eq(5), contains("resilience"));
+        verify(progressService).awardXp(eq(4L), eq(10), contains("resilience"));
         verify(progressService).updateStreak(4L);
     }
 
@@ -311,7 +311,7 @@ class WordServiceTest {
 
         Word result = wordService.addSentence(1L, "Test", "Test TR", "easy", 1L);
         assertNotNull(result);
-        verify(progressService).awardXp(eq(1L), eq(3), anyString());
+        verify(progressService).awardXp(eq(1L), eq(5), anyString());
     }
 
     @Test
@@ -372,7 +372,7 @@ class WordServiceTest {
 
         assertNotNull(result);
         verify(sentenceRepository, never()).findByWordIdAndSentenceAndTranslation(anyLong(), any(), any());
-        verify(progressService).awardXp(eq(1L), eq(3), contains("null-path"));
+        verify(progressService).awardXp(eq(1L), eq(5), contains("null-path"));
     }
 
     @Test
@@ -386,24 +386,19 @@ class WordServiceTest {
         sentence.setWord(word);
         word.setSentences(new java.util.ArrayList<>(List.of(sentence)));
 
-        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(word));
-        when(sentenceRepository.findById(10L)).thenReturn(Optional.of(sentence));
-        when(wordRepository.save(any(Word.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sentenceRepository.findByIdAndWordUserId(10L, 1L)).thenReturn(Optional.of(sentence));
 
         Word result = wordService.deleteSentence(1L, 10L, 1L);
 
         assertNotNull(result);
+        assertEquals(0, result.getSentences().size());
         verify(sentenceRepository).delete(sentence);
-        verify(wordRepository).save(word);
+        verify(wordRepository, never()).save(any());
     }
 
     @Test
     void deleteSentence_ShouldReturnNull_WhenSentenceNotFound() {
-        Word word = new Word();
-        word.setId(1L);
-        word.setUserId(1L);
-        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(word));
-        when(sentenceRepository.findById(99L)).thenReturn(Optional.empty());
+        when(sentenceRepository.findByIdAndWordUserId(99L, 1L)).thenReturn(Optional.empty());
 
         Word result = wordService.deleteSentence(1L, 99L, 1L);
 
@@ -412,11 +407,7 @@ class WordServiceTest {
     }
 
     @Test
-    void deleteSentence_ShouldReturnNull_WhenSentenceBelongsToDifferentWord() {
-        Word ownerWord = new Word();
-        ownerWord.setId(1L);
-        ownerWord.setUserId(1L);
-
+    void deleteSentence_ShouldDelete_EvenIfWordIdMismatches_WhenSentenceOwned() {
         Word differentWord = new Word();
         differentWord.setId(2L);
         differentWord.setUserId(1L);
@@ -424,58 +415,46 @@ class WordServiceTest {
         Sentence sentence = new Sentence();
         sentence.setId(15L);
         sentence.setWord(differentWord);
+        differentWord.setSentences(new java.util.ArrayList<>(List.of(sentence)));
 
-        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(ownerWord));
-        when(sentenceRepository.findById(15L)).thenReturn(Optional.of(sentence));
+        when(sentenceRepository.findByIdAndWordUserId(15L, 1L)).thenReturn(Optional.of(sentence));
 
         Word result = wordService.deleteSentence(1L, 15L, 1L);
 
-        assertNull(result);
-        verify(sentenceRepository, never()).delete(any());
+        assertNotNull(result);
+        assertEquals(2L, result.getId());
+        assertEquals(0, result.getSentences().size());
+        verify(sentenceRepository).delete(sentence);
         verify(wordRepository, never()).save(any());
     }
 
     @Test
-    void deleteSentence_ShouldReturnNull_WhenWordMissingEvenIfSentenceExists() {
-        Word sentenceWord = new Word();
-        sentenceWord.setId(1L);
-        sentenceWord.setUserId(1L);
-
-        Sentence sentence = new Sentence();
-        sentence.setId(21L);
-        sentence.setWord(sentenceWord);
-
-        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.empty());
-        when(sentenceRepository.findById(21L)).thenReturn(Optional.of(sentence));
+    void deleteSentence_ShouldReturnNull_WhenSentenceNotOwnedByUser() {
+        when(sentenceRepository.findByIdAndWordUserId(21L, 1L)).thenReturn(Optional.empty());
 
         Word result = wordService.deleteSentence(1L, 21L, 1L);
 
         assertNull(result);
         verify(sentenceRepository, never()).delete(any());
-        verify(wordRepository, never()).save(any());
     }
 
     @Test
-    void deleteSentence_ShouldReturnNull_WhenGuardUserCheckFails() {
-        Word returnedWord = new Word();
-        returnedWord.setId(1L);
-        returnedWord.setUserId(2L);
-
-        Word sentenceWord = new Word();
-        sentenceWord.setId(1L);
-        sentenceWord.setUserId(1L);
+    void deleteSentence_ShouldNotSaveWordEntity() {
+        Word word = new Word();
+        word.setId(1L);
+        word.setUserId(1L);
 
         Sentence sentence = new Sentence();
         sentence.setId(22L);
-        sentence.setWord(sentenceWord);
+        sentence.setWord(word);
+        word.setSentences(new java.util.ArrayList<>(List.of(sentence)));
 
-        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(returnedWord));
-        when(sentenceRepository.findById(22L)).thenReturn(Optional.of(sentence));
+        when(sentenceRepository.findByIdAndWordUserId(22L, 1L)).thenReturn(Optional.of(sentence));
 
         Word result = wordService.deleteSentence(1L, 22L, 1L);
 
-        assertNull(result);
-        verify(sentenceRepository, never()).delete(any());
+        assertNotNull(result);
+        verify(sentenceRepository).delete(sentence);
         verify(wordRepository, never()).save(any());
     }
 }

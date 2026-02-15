@@ -3,8 +3,10 @@ package com.ingilizce.calismaapp.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.security.AuthSecurityProperties;
+import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.security.EmailVerificationService;
+import com.ingilizce.calismaapp.security.GoogleIdentityService;
 import com.ingilizce.calismaapp.security.JwtTokenService;
 import com.ingilizce.calismaapp.security.PasswordResetService;
 import com.ingilizce.calismaapp.security.RefreshTokenService;
@@ -45,7 +47,9 @@ class AuthControllerUnitTest {
     private CurrentUserContext currentUserContext;
     private PasswordResetService passwordResetService;
     private EmailVerificationService emailVerificationService;
+    private GoogleIdentityService googleIdentityService;
     private AuthSecurityProperties authSecurityProperties;
+    private ClientIpResolver clientIpResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
@@ -58,7 +62,9 @@ class AuthControllerUnitTest {
         currentUserContext = mock(CurrentUserContext.class);
         passwordResetService = mock(PasswordResetService.class);
         emailVerificationService = mock(EmailVerificationService.class);
+        googleIdentityService = mock(GoogleIdentityService.class);
         authSecurityProperties = new AuthSecurityProperties();
+        clientIpResolver = mock(ClientIpResolver.class);
         authSecurityProperties.setExposeDebugTokens(true);
         when(authRateLimitService.checkRegister(anyString())).thenReturn(RateLimitDecision.allowed());
         when(authRateLimitService.checkLogin(anyString(), anyString())).thenReturn(RateLimitDecision.allowed());
@@ -66,6 +72,7 @@ class AuthControllerUnitTest {
         when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         when(currentUserContext.getCurrentUserId()).thenReturn(Optional.empty());
+        when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
 
         when(refreshTokenService.issue(any(User.class), anyBoolean(), anyString(), anyString(), anyString(), any(Instant.class)))
                 .thenReturn(new RefreshTokenService.IssuedRefreshToken(
@@ -91,7 +98,9 @@ class AuthControllerUnitTest {
                 currentUserContext,
                 passwordResetService,
                 emailVerificationService,
-                authSecurityProperties);
+                googleIdentityService,
+                authSecurityProperties,
+                clientIpResolver);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -260,5 +269,41 @@ class AuthControllerUnitTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("token is required"));
+    }
+
+    @Test
+    void googleLogin_ShouldReturnUnauthorized_WhenIdTokenInvalidInStrictMode() throws Exception {
+        authSecurityProperties.setGoogleIdTokenRequired(true);
+        when(googleIdentityService.verifyIdToken(anyString()))
+                .thenThrow(new GoogleIdentityService.GoogleIdentityException(
+                        GoogleIdentityService.GoogleIdentityException.Code.INVALID_TOKEN,
+                        "invalid"));
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "idToken", "bad-token",
+                                "email", "google@test.com"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Google authentication failed"));
+    }
+
+    @Test
+    void googleLogin_ShouldReturnServiceUnavailable_WhenProviderUnavailableInStrictMode() throws Exception {
+        authSecurityProperties.setGoogleIdTokenRequired(true);
+        when(googleIdentityService.verifyIdToken(anyString()))
+                .thenThrow(new GoogleIdentityService.GoogleIdentityException(
+                        GoogleIdentityService.GoogleIdentityException.Code.PROVIDER_UNAVAILABLE,
+                        "unavailable"));
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "idToken", "token",
+                                "email", "google@test.com"))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Google login temporarily unavailable"));
     }
 }

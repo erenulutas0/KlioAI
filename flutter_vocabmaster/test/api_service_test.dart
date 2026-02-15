@@ -2,16 +2,31 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/services/api_service.dart';
+import 'package:vocabmaster/services/auth_service.dart';
 import 'package:vocabmaster/models/word.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await AuthService().saveSession('test_token', 'test_refresh', {
+      'id': 4,
+      'userId': 4,
+      'email': 'api-service@test.local',
+      'displayName': 'API Service',
+      'userTag': '#00004',
+      'role': 'USER',
+    });
+  });
   group('ApiService Tests', () {
     late ApiService apiService;
     late MockClient mockClient;
     final String testBaseUrl = 'http://localhost:8080/api';
 
-    test('getAllWords returns list of words if call completes successfully', () async {
+    test('getAllWords returns list of words if call completes successfully',
+        () async {
       final mockResponse = [
         {
           "id": 1,
@@ -64,20 +79,17 @@ void main() {
       mockClient = MockClient((request) async {
         expect(request.method, 'POST');
         expect(request.url.toString(), '$testBaseUrl/words');
-        
+
         final body = json.decode(request.body);
         expect(body['englishWord'], 'Banana');
-        
+
         return http.Response(json.encode(newWordJson), 201);
       });
 
       apiService = ApiService(client: mockClient, baseUrl: testBaseUrl);
 
       final word = await apiService.createWord(
-        english: "Banana",
-        turkish: "Muz",
-        addedDate: DateTime(2023, 1, 2)
-      );
+          english: "Banana", turkish: "Muz", addedDate: DateTime(2023, 1, 2));
 
       expect(word.englishWord, 'Banana');
       expect(word.id, 2);

@@ -1,7 +1,12 @@
 package com.ingilizce.calismaapp.controller;
 
+import com.ingilizce.calismaapp.entity.User;
+import com.ingilizce.calismaapp.repository.UserRepository;
+import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
+import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +29,15 @@ public class GrammarController {
 
     @Autowired
     private CurrentUserContext currentUserContext;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired(required = false)
+    private AiRateLimitService aiRateLimitService;
+
+    @Autowired
+    private ClientIpResolver clientIpResolver;
 
     /**
      * Check grammar for a single sentence
@@ -52,8 +66,14 @@ public class GrammarController {
      *         }
      */
     @PostMapping("/check")
-    public ResponseEntity<Map<String, Object>> checkGrammar(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> checkGrammar(@RequestBody Map<String, String> request,
+                                                            HttpServletRequest httpRequest) {
         try {
+            ResponseEntity<Map<String, Object>> aiAccessResult = enforceAiAccess(httpRequest, "grammar-check");
+            if (aiAccessResult != null) {
+                return aiAccessResult;
+            }
+
             String sentence = request.get("sentence");
 
             if (sentence == null || sentence.trim().isEmpty()) {
@@ -106,9 +126,15 @@ public class GrammarController {
      *         }
      */
     @PostMapping("/check-multiple")
-    public ResponseEntity<Map<String, List<Map<String, Object>>>> checkMultipleSentences(
-            @RequestBody Map<String, List<String>> request) {
+    public ResponseEntity<Object> checkMultipleSentences(
+            @RequestBody Map<String, List<String>> request,
+            HttpServletRequest httpRequest) {
         try {
+            ResponseEntity<Map<String, Object>> aiAccessResult = enforceAiAccess(httpRequest, "grammar-check-multiple");
+            if (aiAccessResult != null) {
+                return ResponseEntity.status(aiAccessResult.getStatusCode()).body(aiAccessResult.getBody());
+            }
+
             List<String> sentences = request.get("sentences");
 
             if (sentences == null || sentences.isEmpty()) {
@@ -122,6 +148,57 @@ public class GrammarController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of());
         }
+    }
+
+    private ResponseEntity<Map<String, Object>> enforceAiAccess(HttpServletRequest request, String scope) {
+        Long userId = currentUserContext.getCurrentUserId().orElse(null);
+
+        if (currentUserContext.shouldEnforceAuthz()) {
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized", "success", false));
+            }
+            if (!hasActiveSubscription(userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Subscription expired or not active.", "success", false));
+            }
+        }
+
+        return enforceAiRateLimit(userId, request, scope);
+    }
+
+    private boolean hasActiveSubscription(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        return userRepository.findById(userId)
+                .map(User::isSubscriptionActive)
+                .orElse(false);
+    }
+
+    private ResponseEntity<Map<String, Object>> enforceAiRateLimit(Long userId,
+                                                                    HttpServletRequest request,
+                                                                    String scope) {
+        if (aiRateLimitService == null) {
+            return null;
+        }
+
+        AiRateLimitService.Decision decision = aiRateLimitService.checkAndConsume(
+                userId,
+                clientIpResolver.resolve(request),
+                scope);
+
+        if (!decision.blocked()) {
+            return null;
+        }
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
+                .body(Map.of(
+                        "error", "AI request quota exceeded. Please retry later.",
+                        "success", false,
+                        "retryAfterSeconds", decision.retryAfterSeconds(),
+                        "reason", decision.reason()));
     }
 
     /**

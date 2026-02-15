@@ -103,3 +103,35 @@ groups:
         annotations:
           summary: "Auth rate-limit fail-closed mode is actively blocking requests"
           description: "Fail-closed blocks observed {{ $value | printf \"%.0f\" }} times in the last 5m."
+
+  - name: ai-rate-limit-observability
+    rules:
+      - alert: AiRateLimitRedisFallbackActive
+        expr: max(ai_rate_limit_redis_fallback_active) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: ai-rate-limit
+        annotations:
+          summary: "AI rate-limit is running in Redis fallback mode"
+          description: "Redis-backed AI throttling is degraded to in-memory fallback for more than 2m."
+
+      - alert: AiRateLimitRedisFailuresDetected
+        expr: sum(increase(ai_rate_limit_redis_failure_total[5m])) >= 3
+        for: 0m
+        labels:
+          severity: warning
+          component: ai-rate-limit
+        annotations:
+          summary: "AI rate-limit Redis failures detected"
+          description: "AI rate-limit Redis operations failed {{ $value | printf \"%.0f\" }} times in the last 5m."
+
+      - alert: AiRateLimitBlocksSpike
+        expr: sum(increase(ai_rate_limit_block_total[5m])) >= 50
+        for: 0m
+        labels:
+          severity: warning
+          component: ai-rate-limit
+        annotations:
+          summary: "AI rate-limit blocking spike detected"
+          description: "AI rate-limit blocks reached {{ $value | printf \"%.0f\" }} in the last 5m."

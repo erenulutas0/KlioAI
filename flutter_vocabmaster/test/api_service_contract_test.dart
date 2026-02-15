@@ -2,11 +2,25 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/services/api_service.dart';
+import 'package:vocabmaster/services/auth_service.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/models/sentence_practice.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await AuthService().saveSession('test_token', 'test_refresh', {
+      'id': 4,
+      'userId': 4,
+      'email': 'api-contract@test.local',
+      'displayName': 'API Contract',
+      'userTag': '#00004',
+      'role': 'USER',
+    });
+  });
   const testBaseUrl = 'http://localhost:8080/api';
 
   group('ApiService Contract Tests', () {

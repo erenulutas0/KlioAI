@@ -11,23 +11,32 @@ class GroqApiClient {
   static const String _defaultModel = 'llama-3.3-70b-versatile';
   
   static final ApiKeyManager _keyManager = ApiKeyManager();
+  static const String _allowEmbeddedKeyEnv = 'ALLOW_EMBEDDED_GROQ_KEY';
+
+  static bool get _allowEmbeddedKey {
+    final raw = dotenv.env[_allowEmbeddedKeyEnv] ?? 'false';
+    return raw.trim().toLowerCase() == 'true';
+  }
   
   /// Aktif API key'i alır (BYOK veya Default)
   static Future<String> _getApiKey() async {
-    // 1. Kullanıcı kendi key'ini girmişse onu kullan
+    // 1) Kullanıcı kendi key'ini girmişse onu kullan
     final userKey = await _keyManager.getActiveApiKey();
     if (userKey != null && userKey.isNotEmpty) {
       return userKey;
     }
-    
-    // 2. Fallback: Projenin varsayılan key'i (Pay-as-you-go)
-    final envKey = dotenv.env['GROQ_API_KEY'] ?? '';
-    
-    if (envKey.isEmpty) {
-      throw ApiKeyNotFoundException('Groq API anahtarı bulunamadı.');
+
+    // 2) Embedded/demo key only when explicitly allowed.
+    if (_allowEmbeddedKey) {
+      final envKey = dotenv.env['GROQ_API_KEY'] ?? '';
+      if (envKey.isNotEmpty) {
+        return envKey;
+      }
     }
-    
-    return envKey;
+
+    throw ApiKeyNotFoundException(
+      'Groq API anahtarı bulunamadı. Profil > API Key bölümünden kendi anahtarınızı ekleyin.',
+    );
   }
   
   /// Groq API'ye chat completion isteği gönderir
@@ -185,7 +194,7 @@ class GroqApiClient {
         isConfigured: true,
         message: 'Kendi API anahtarınız kullanılıyor',
       );
-    } else if (envKey.isNotEmpty) {
+    } else if (_allowEmbeddedKey && envKey.isNotEmpty) {
       return ApiKeyStatus(
         source: ApiKeySource.environment,
         isConfigured: true,

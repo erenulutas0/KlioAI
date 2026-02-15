@@ -5,12 +5,29 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 class AppConfig {
   static String? _cachedBaseUrl;
-  
+
   static Future<String> get baseUrl async {
     if (_cachedBaseUrl != null) return _cachedBaseUrl!;
-    
+
     final port = dotenv.env['API_PORT'] ?? '8082';
-    
+
+    // Prefer explicit configuration if provided (works for real devices too).
+    // `BACKEND_URL` should be the server root, without `/api`.
+    // Example: http://192.168.1.102:8082
+    final explicit = (dotenv.env['BACKEND_URL'] ?? '').trim();
+    if (explicit.isNotEmpty) {
+      var normalized = explicit;
+      if (normalized.endsWith('/')) {
+        normalized = normalized.substring(0, normalized.length - 1);
+      }
+      // Be forgiving if someone set BACKEND_URL to ".../api"
+      if (normalized.endsWith('/api')) {
+        normalized = normalized.substring(0, normalized.length - 4);
+      }
+      _cachedBaseUrl = normalized;
+      return _cachedBaseUrl!;
+    }
+
     if (kIsWeb) {
       _cachedBaseUrl = 'http://${dotenv.env['LOCALHOST_IP'] ?? 'localhost'}:$port';
     } else if (Platform.isAndroid) {

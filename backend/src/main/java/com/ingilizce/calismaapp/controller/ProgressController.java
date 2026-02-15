@@ -1,7 +1,9 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.model.Achievement;
+import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.service.ProgressService;
+import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +18,14 @@ import java.util.Map;
 @RequestMapping("/api/progress")
 public class ProgressController {
 
+    private final ProgressService progressService;
+    private final CurrentUserContext currentUserContext;
+
     @Autowired
-    private ProgressService progressService;
+    public ProgressController(ProgressService progressService, CurrentUserContext currentUserContext) {
+        this.progressService = progressService;
+        this.currentUserContext = currentUserContext;
+    }
 
     /**
      * Get user progress stats (XP, level, streak)
@@ -78,6 +86,11 @@ public class ProgressController {
     @PostMapping("/award-xp")
     public ResponseEntity<Map<String, Object>> awardXp(@RequestHeader("X-User-Id") Long userId,
             @RequestBody Map<String, Object> request) {
+        if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.hasRole("ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Admin role required", "success", false));
+        }
+
         try {
             int xp = Integer.parseInt(request.get("xp").toString());
             String reason = request.getOrDefault("reason", "Manual award").toString();

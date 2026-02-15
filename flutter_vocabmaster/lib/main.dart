@@ -30,6 +30,7 @@ import 'screens/xp_history_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
+import 'services/auth_service.dart';
 import 'widgets/global_matching_indicator.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'providers/app_state_provider.dart';
@@ -37,27 +38,30 @@ import 'providers/app_state_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  
+
   // Offline sync service başlat
   final offlineSyncService = OfflineSyncService();
   await offlineSyncService.initialize();
-  await offlineSyncService.initialDataLoad();
-  
+  final authService = AuthService();
+  if (await authService.isLoggedIn()) {
+    await offlineSyncService.initialDataLoad();
+  }
+
   // Global App State Provider oluştur
   final appStateProvider = AppStateProvider();
-  
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   runApp(
     ChangeNotifierProvider.value(
       value: appStateProvider,
       child: const VocabMasterApp(),
     ),
   );
-  
+
   // Uygulama başlatıldıktan sonra veriyi yükle (non-blocking)
   appStateProvider.initialize();
 }
@@ -99,6 +103,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
   }
+
   String? _practiceInitialMode;
 
   void _onNavigate(String page) {
@@ -154,10 +159,12 @@ class _MainScreenState extends State<MainScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A).withOpacity(0.9), // Darker, glass-like
+                color: const Color(0xFF0F172A)
+                    .withOpacity(0.9), // Darker, glass-like
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: const Color(0xFF22D3EE).withOpacity(0.5), // Neon blue border
+                  color: const Color(0xFF22D3EE)
+                      .withOpacity(0.5), // Neon blue border
                   width: 1.5,
                 ),
                 boxShadow: const [
@@ -170,7 +177,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
               child: Stack(
                 children: [
-                   Column(
+                  Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Padding(
@@ -198,7 +205,8 @@ class _MainScreenState extends State<MainScreen> {
                         onTap: () {
                           Navigator.pop(context); // Close dialog
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ChatListPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const ChatListPage()),
                           );
                         },
                       ),
@@ -213,7 +221,8 @@ class _MainScreenState extends State<MainScreen> {
                         onTap: () {
                           Navigator.pop(context); // Close dialog
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const AIBotChatPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const AIBotChatPage()),
                           );
                         },
                       ),
@@ -236,7 +245,8 @@ class _MainScreenState extends State<MainScreen> {
       },
       transitionBuilder: (context, anim1, anim2, child) {
         return Transform.scale(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack).value,
+          scale:
+              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack).value,
           child: Opacity(
             opacity: anim1.value,
             child: child,
@@ -312,12 +322,14 @@ class _MainScreenState extends State<MainScreen> {
   // IndexedStack sayfaları "canlı" tutar - rebuild olmaz
   Widget _buildBody() {
     return IndexedStack(
-      index: _currentIndex == 2 ? 0 : _currentIndex, // Menu index'i atlayarak Ana Sayfa göster
+      index: _currentIndex == 2
+          ? 0
+          : _currentIndex, // Menu index'i atlayarak Ana Sayfa göster
       children: [
-        HomePage(onNavigate: _onNavigate),    // 0
-        const WordsPage(),                     // 1
-        const MenuPage(),                      // 2 (görünmez, placeholder)
-        const SentencesPage(),                 // 3
+        HomePage(onNavigate: _onNavigate), // 0
+        const WordsPage(), // 1
+        const MenuPage(), // 2 (görünmez, placeholder)
+        const SentencesPage(), // 3
         PracticePage(initialMode: _practiceInitialMode), // 4
       ],
     );
@@ -330,63 +342,63 @@ class _MainScreenState extends State<MainScreen> {
       key: _scaffoldKey,
       drawer: NavigationMenuPanel(
         activeTab: _getActiveTab(),
-        currentPage: '', 
+        currentPage: '',
         onTabChange: (id) {
-           Navigator.pop(context);
-           
-           switch (id) {
-             case 'home':
-               setState(() => _currentIndex = 0);
-               break;
-             case 'words':
-               setState(() => _currentIndex = 1);
-               break;
-             case 'sentences':
-               setState(() => _currentIndex = 3);
-               break;
-             case 'practice':
-               setState(() => _currentIndex = 4);
-               break;
-           }
+          Navigator.pop(context);
+
+          switch (id) {
+            case 'home':
+              setState(() => _currentIndex = 0);
+              break;
+            case 'words':
+              setState(() => _currentIndex = 1);
+              break;
+            case 'sentences':
+              setState(() => _currentIndex = 3);
+              break;
+            case 'practice':
+              setState(() => _currentIndex = 4);
+              break;
+          }
         },
         onNavigate: (id) {
-           Navigator.pop(context);
-           switch (id) {
-             case 'speaking':
-                setState(() {
-                  _currentIndex = 4;
-                  _practiceInitialMode = 'Konuşma';
-                });
-                break;
-             case 'repeat':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const RepeatPage()),
-                );
-                break;
-             case 'dictionary':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const QuickDictionaryPage()),
-                );
-                break;
-             case 'stats':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const StatsPage()),
-                );
-                break;
-             case 'profile-settings':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
-                );
-                break;
-             case 'chat':
-                _showChatSelectionDialog();
-                break;
-             case 'feed':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SocialFeedPage()),
-                );
-                break;
-           }
+          Navigator.pop(context);
+          switch (id) {
+            case 'speaking':
+              setState(() {
+                _currentIndex = 4;
+                _practiceInitialMode = 'Konuşma';
+              });
+              break;
+            case 'repeat':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const RepeatPage()),
+              );
+              break;
+            case 'dictionary':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QuickDictionaryPage()),
+              );
+              break;
+            case 'stats':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StatsPage()),
+              );
+              break;
+            case 'profile-settings':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
+              break;
+            case 'chat':
+              _showChatSelectionDialog();
+              break;
+            case 'feed':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SocialFeedPage()),
+              );
+              break;
+          }
         },
       ),
       body: _buildBody(),
@@ -424,11 +436,16 @@ class _MainScreenState extends State<MainScreen> {
 
   String _getActiveTab() {
     switch (_currentIndex) {
-      case 0: return 'home';
-      case 1: return 'words';
-      case 3: return 'sentences';
-      case 4: return 'practice';
-      default: return '';
+      case 0:
+        return 'home';
+      case 1:
+        return 'words';
+      case 3:
+        return 'sentences';
+      case 4:
+        return 'practice';
+      default:
+        return '';
     }
   }
 }

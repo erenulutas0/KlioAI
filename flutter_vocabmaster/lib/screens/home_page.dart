@@ -2333,7 +2333,65 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
     }
 
     if (dailyWords.isEmpty) {
-      return const SizedBox.shrink(); // Hide if no words
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0f172a).withOpacity(0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x4DFACC15)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: Color(0xFFFACC15), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Günün Kelimeleri',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Şu an yüklenemedi. İnternetinizi kontrol edin veya tekrar deneyin.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.65),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () {
+                context.read<AppStateProvider>().refreshDailyWords();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFDE047),
+              ),
+              child: const Text('Yenile'),
+            ),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white70,
+              ),
+              child: const Text('Ayarlar'),
+            ),
+          ],
+        ),
+      );
     }
 
     return Column(

@@ -64,6 +64,7 @@ class Sentence {
   final String translation;
   final int wordId;
   final String? difficulty;
+  final DateTime? createdAt;
 
   Sentence({
     required this.id,
@@ -71,6 +72,7 @@ class Sentence {
     required this.translation,
     required this.wordId,
     this.difficulty,
+    this.createdAt,
   });
 
   factory Sentence.fromJson(Map<String, dynamic> json) {
@@ -85,12 +87,19 @@ class Sentence {
       wordId = (wordIdValue is int) ? wordIdValue : (wordIdValue is num) ? wordIdValue.toInt() : 0;
     }
     
+    DateTime? createdAt;
+    final createdAtRaw = json['createdAt'];
+    if (createdAtRaw != null) {
+      createdAt = DateTime.tryParse(createdAtRaw.toString());
+    }
+
     return Sentence(
       id: (json['id'] is int) ? json['id'] as int : (json['id'] as num).toInt(),
       sentence: json['sentence'] as String? ?? '',
       translation: json['translation'] as String? ?? '',
       wordId: wordId,
       difficulty: json['difficulty'] as String?,
+      createdAt: createdAt,
     );
   }
 
@@ -101,6 +110,7 @@ class Sentence {
       'translation': translation,
       'wordId': wordId,
       'difficulty': difficulty,
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
 }

@@ -26,18 +26,32 @@ class SentencePractice {
     } else {
       id = '${json['source'] ?? 'practice'}_${json['id']}';
     }
-    
+
+    final englishSentence =
+        (json['englishSentence'] ?? json['sentence'])?.toString() ?? '';
+    final turkishTranslation =
+        (json['turkishTranslation'] ?? json['translation'])?.toString() ?? '';
+    final difficulty = json['difficulty']?.toString() ?? 'easy';
+    final source = json['source']?.toString() ?? 'practice';
+    DateTime? createdDate;
+    final rawCreatedDate = json['createdDate'];
+    if (rawCreatedDate != null) {
+      try {
+        createdDate = DateTime.parse(rawCreatedDate.toString());
+      } catch (_) {
+        createdDate = null;
+      }
+    }
+
     return SentencePractice(
       id: id,
-      englishSentence: json['englishSentence'] as String,
-      turkishTranslation: json['turkishTranslation'] as String,
-      difficulty: json['difficulty'] as String? ?? 'easy',
-      createdDate: json['createdDate'] != null
-          ? DateTime.parse(json['createdDate'] as String)
-          : null,
-      source: json['source'] as String? ?? 'practice',
-      word: json['word'] as String?,
-      wordTranslation: json['wordTranslation'] as String?,
+      englishSentence: englishSentence,
+      turkishTranslation: turkishTranslation,
+      difficulty: difficulty,
+      createdDate: createdDate,
+      source: source,
+      word: json['word']?.toString(),
+      wordTranslation: json['wordTranslation']?.toString(),
     );
   }
 
@@ -53,7 +67,7 @@ class SentencePractice {
       'wordTranslation': wordTranslation,
     };
   }
-  
+
   int get numericId {
     try {
       return int.parse(id.split('_').last);

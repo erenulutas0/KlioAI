@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.repository.UserRepository;
+import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.WordService;
@@ -64,6 +65,9 @@ public class ChatbotControllerTest {
     @MockBean
     private ValueOperations<String, String> valueOperations;
 
+    @MockBean
+    private AiRateLimitService aiRateLimitService;
+
     @Autowired
     private MeterRegistry meterRegistry;
 
@@ -75,6 +79,8 @@ public class ChatbotControllerTest {
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(activeUser()));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
+        when(aiRateLimitService.checkAndConsume(anyLong(), anyString(), anyString()))
+                .thenReturn(AiRateLimitService.Decision.allowed());
     }
 
     @Test
@@ -151,6 +157,22 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void chatReturnsTooManyRequestsWhenAiRateLimitExceeded() throws Exception {
+        when(aiRateLimitService.checkAndConsume(anyLong(), anyString(), anyString()))
+                .thenReturn(AiRateLimitService.Decision.blocked("daily-quota", 120));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hello\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-quota"))
+                .andExpect(jsonPath("$.retryAfterSeconds").value(120));
+
+        verify(chatbotService, never()).chat(anyString());
     }
 
     @Test

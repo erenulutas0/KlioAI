@@ -6,14 +6,18 @@ import com.ingilizce.calismaapp.dto.PracticeSentence;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
+import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.security.ClientIpResolver;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,6 +52,12 @@ public class ChatbotController {
     @Autowired(required = false)
     private MeterRegistry meterRegistry;
 
+    @Autowired(required = false)
+    private AiRateLimitService aiRateLimitService;
+
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
     @Value("${cache.sentences.ttl:604800}") // Default: 7 days
     private long cacheTtlSeconds;
 
@@ -81,9 +91,14 @@ public class ChatbotController {
 
     @PostMapping("/generate-sentences")
     public ResponseEntity<Map<String, Object>> generateSentences(@RequestBody Map<String, Object> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "generate-sentences");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         String word = (String) request.get("word");
@@ -308,9 +323,14 @@ public class ChatbotController {
 
     @PostMapping("/check-grammar")
     public ResponseEntity<Map<String, Object>> checkGrammar(@RequestBody Map<String, String> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "check-grammar");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         String sentence = request.get("sentence");
@@ -329,9 +349,14 @@ public class ChatbotController {
 
     @PostMapping("/check-translation")
     public ResponseEntity<Map<String, Object>> checkTranslation(@RequestBody Map<String, String> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "check-translation");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         return originalCheckTranslation(request);
@@ -497,9 +522,14 @@ public class ChatbotController {
 
     @PostMapping("/chat")
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "chat");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         String message = request.get("message");
@@ -522,9 +552,14 @@ public class ChatbotController {
 
     @PostMapping("/speaking-test/generate-questions")
     public ResponseEntity<Map<String, Object>> generateSpeakingTestQuestions(@RequestBody Map<String, String> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "speaking-generate");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         String testType = request.get("testType");
@@ -554,9 +589,14 @@ public class ChatbotController {
 
     @PostMapping("/speaking-test/evaluate")
     public ResponseEntity<Map<String, Object>> evaluateSpeakingTest(@RequestBody Map<String, String> request,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "speaking-evaluate");
+        if (aiLimit != null) {
+            return aiLimit;
         }
 
         String testType = request.get("testType");
@@ -584,5 +624,34 @@ public class ChatbotController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to evaluate response: " + e.getMessage()));
         }
+    }
+
+    private ResponseEntity<Map<String, Object>> enforceAiRateLimit(Long userId,
+                                                                    HttpServletRequest httpRequest,
+                                                                    String scope) {
+        if (aiRateLimitService == null) {
+            return null;
+        }
+
+        AiRateLimitService.Decision decision = aiRateLimitService.checkAndConsume(
+                userId,
+                resolveClientIp(httpRequest),
+                scope);
+
+        if (!decision.blocked()) {
+            return null;
+        }
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
+                .body(Map.of(
+                        "error", "AI request quota exceeded. Please retry later.",
+                        "success", false,
+                        "retryAfterSeconds", decision.retryAfterSeconds(),
+                        "reason", decision.reason()));
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        return clientIpResolver.resolve(request);
     }
 }

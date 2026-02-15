@@ -9,6 +9,7 @@ import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.service.IyzicoService;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
 // iyzico SDK removed
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,8 @@ public class SubscriptionController {
     private final PaymentTransactionRepository transactionRepository;
     private final IyzicoService iyzicoService;
     private final CurrentUserContext currentUserContext;
+    @Value("${app.subscription.mock-verification-enabled:true}")
+    private boolean mockVerificationEnabled;
 
     public SubscriptionController(SubscriptionPlanRepository planRepository,
             UserRepository userRepository,
@@ -50,6 +53,10 @@ public class SubscriptionController {
     public ResponseEntity<Map<String, Object>> initializeIyzico(
             @RequestBody Map<String, Object> request,
             @RequestHeader("X-User-Id") Long userId) {
+        if (!mockVerificationEnabled) {
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                    .body(Map.of("error", "Mock payment flow is disabled in this environment."));
+        }
 
         try {
             Long planId = Long.parseLong(request.get("planId").toString());
@@ -98,6 +105,10 @@ public class SubscriptionController {
     @PostMapping("/verify/apple")
     public ResponseEntity<Map<String, Object>> verifyApplePurchase(@RequestBody Map<String, String> request,
             @RequestHeader("X-User-Id") Long userId) {
+        if (!mockVerificationEnabled) {
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                    .body(Map.of("error", "Mock Apple verification is disabled in this environment."));
+        }
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
@@ -128,6 +139,10 @@ public class SubscriptionController {
     @PostMapping("/verify/google")
     public ResponseEntity<Map<String, Object>> verifyGooglePurchase(@RequestBody Map<String, String> request,
             @RequestHeader("X-User-Id") Long userId) {
+        if (!mockVerificationEnabled) {
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                    .body(Map.of("error", "Mock Google verification is disabled in this environment."));
+        }
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
@@ -157,6 +172,9 @@ public class SubscriptionController {
     @PostMapping("/callback/iyzico")
     @Transactional
     public ResponseEntity<String> handleCallback(@RequestParam String token) {
+        if (!mockVerificationEnabled) {
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body("Mock iyzico callback is disabled.");
+        }
         // In a real scenario, we would verify the payment with iyzico using the token
         // Here we mark it as success for demonstration once iyzico calls back
         Optional<PaymentTransaction> transactionOpt = transactionRepository.findByTransactionIdWithUserAndPlan(token);
@@ -194,6 +212,10 @@ public class SubscriptionController {
     public ResponseEntity<Map<String, Object>> activateDemoSubscription(
             @RequestBody Map<String, Object> request,
             @RequestHeader("X-User-Id") Long userId) {
+        if (!mockVerificationEnabled) {
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                    .body(Map.of("error", "Demo activation is disabled in this environment."));
+        }
         if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.hasRole("ADMIN")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Admin role required"));
         }

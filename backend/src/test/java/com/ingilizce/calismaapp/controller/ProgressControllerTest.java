@@ -1,7 +1,9 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.model.Achievement;
+import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.service.ProgressService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,6 +40,14 @@ class ProgressControllerTest {
 
     @MockBean
     private ProgressService progressService;
+
+    @MockBean
+    private CurrentUserContext currentUserContext;
+
+    @BeforeEach
+    void setUp() {
+        when(currentUserContext.shouldEnforceAuthz()).thenReturn(false);
+    }
 
     @Test
     void getStatsReturnsOk() throws Exception {
@@ -129,6 +139,19 @@ class ProgressControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"missing-xp\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void awardXpReturnsForbiddenWhenAuthzEnforcedAndNotAdmin() throws Exception {
+        when(currentUserContext.shouldEnforceAuthz()).thenReturn(true);
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(false);
+
+        mockMvc.perform(post("/api/progress/award-xp")
+                .header(USER_ID_HEADER, USER_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"xp\":25,\"reason\":\"daily\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Admin role required"));
     }
 
     @Test

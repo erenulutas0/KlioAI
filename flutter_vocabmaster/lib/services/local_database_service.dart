@@ -10,7 +10,8 @@ import '../models/sentence_practice.dart';
 /// Yerel SQLite veritabanı yönetimi
 /// Offline modu destekler ve senkronizasyon için pending işlemleri takip eder
 class LocalDatabaseService {
-  static final LocalDatabaseService _instance = LocalDatabaseService._internal();
+  static final LocalDatabaseService _instance =
+      LocalDatabaseService._internal();
   factory LocalDatabaseService() => _instance;
   LocalDatabaseService._internal();
 
@@ -179,99 +180,288 @@ class LocalDatabaseService {
 
   // ==================== WORDS ====================
 
+  int? _toNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  DateTime? _tryParseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
+
+  Future<Set<int>> _getPendingDeleteIds(String tableName) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_queue',
+      columns: ['itemId'],
+      where: 'tableName = ? AND action = ? AND status = ?',
+      whereArgs: [tableName, 'delete', 'pending'],
+    );
+    final ids = <int>{};
+    for (final row in rows) {
+      final raw = row['itemId']?.toString() ?? '';
+      final parsed = int.tryParse(raw);
+      if (parsed != null && parsed != 0) {
+        ids.add(parsed);
+      }
+    }
+    return ids;
+  }
+
+  Future<Set<String>> _getPendingDeleteItemIds(String tableName) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_queue',
+      columns: ['itemId'],
+      where: 'tableName = ? AND action = ? AND status = ?',
+      whereArgs: [tableName, 'delete', 'pending'],
+    );
+    final ids = <String>{};
+    for (final row in rows) {
+      final raw = row['itemId']?.toString() ?? '';
+      if (raw.trim().isEmpty) continue;
+      ids.add(raw.trim());
+    }
+    return ids;
+  }
+
   /// Tüm kelimeleri getir (yerel)
   Future<List<Word>> getAllWords() async {
     final db = await database;
-    final List<Map<String, dynamic>> wordMaps = await db.query('words', orderBy: 'learnedDate DESC');
-    
+    final List<Map<String, dynamic>> wordMaps =
+        await db.query('words', orderBy: 'learnedDate DESC');
+
     List<Word> words = [];
     for (var wordMap in wordMaps) {
       final rawWordId = wordMap['id'];
       final rawLocalId = wordMap['localId'];
-      final intWordId = (rawWordId is int) ? rawWordId : (rawWordId is num) ? rawWordId.toInt() : 0;
-      final intLocalId = (rawLocalId is int) ? rawLocalId : (rawLocalId is num) ? rawLocalId.toInt() : intWordId;
-      final sentences = await db.query(
-        'sentences',
-        where: 'wordId = ? OR localWordId = ?',
-        whereArgs: [intWordId, intLocalId],
-      );
-      
-      words.add(Word(
-        id: intWordId != 0 ? intWordId : intLocalId,
-        englishWord: wordMap['englishWord'] ?? '',
+      final intWordId = (rawWordId is int)
+          ? rawWordId
+          : (rawWordId is num)
+              ? rawWordId.toInt()
+              : 0;
+       final intLocalId = (rawLocalId is int)
+           ? rawLocalId
+           : (rawLocalId is num)
+               ? rawLocalId.toInt()
+               : intWordId;
+       final sentences = await db.query(
+         'sentences',
+         where: 'wordId = ? OR localWordId = ?',
+         whereArgs: [intWordId, intLocalId],
+         orderBy: 'createdAt DESC',
+       );
+
+       words.add(Word(
+         id: intWordId != 0 ? intWordId : intLocalId,
+         englishWord: wordMap['englishWord'] ?? '',
         turkishMeaning: wordMap['turkishMeaning'] ?? '',
         learnedDate: DateTime.parse(wordMap['learnedDate']),
         notes: wordMap['notes'],
         difficulty: wordMap['difficulty'] ?? 'easy',
-        sentences: sentences.map((s) => Sentence(
-          id: s['id'] as int? ?? s['localId'] as int? ?? 0,
-          sentence: s['sentence'] as String? ?? '',
-          translation: s['translation'] as String? ?? '',
-          wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
-          difficulty: s['difficulty'] as String?,
-        )).toList(),
-      ));
-    }
-    
-    return words;
+         sentences: sentences
+             .map((s) => Sentence(
+                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,
+                   sentence: s['sentence'] as String? ?? '',
+                   translation: s['translation'] as String? ?? '',
+                   wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
+                   difficulty: s['difficulty'] as String?,
+                   createdAt: _tryParseDateTime(s['createdAt']),
+                 ))
+             .toList(),
+       ));
+     }
+
+     return words;
   }
 
   /// Kelime kaydet (online'dan gelen)
   Future<void> saveWord(Word word) async {
     final db = await database;
-    
-    await db.insert('words', {
-      'id': word.id,
-      'englishWord': word.englishWord,
-      'turkishMeaning': word.turkishMeaning,
-      'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
-      'notes': word.notes,
-      'difficulty': word.difficulty,
-      'syncStatus': 'synced',
-      'createdAt': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    final pendingWordDeletes = await _getPendingDeleteIds('words');
+    final pendingSentenceDeletes = await _getPendingDeleteIds('sentences');
+
+    // Do not resurrect locally-deleted content while a delete is pending in the queue.
+    if (pendingWordDeletes.contains(word.id)) {
+      await db.delete('words', where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
+      await db.delete('sentences', where: 'wordId = ? OR localWordId = ?', whereArgs: [word.id, word.id]);
+      return;
+    }
+
+    final existingWordRow = await db.query(
+      'words',
+      columns: ['localId', 'createdAt'],
+      where: 'id = ?',
+      whereArgs: [word.id],
+      limit: 1,
+    );
+    final preservedWordLocalId = existingWordRow.isNotEmpty
+        ? _toNullableInt(existingWordRow.first['localId'])
+        : null;
+    final preservedWordCreatedAt = existingWordRow.isNotEmpty
+        ? (existingWordRow.first['createdAt']?.toString())
+        : null;
+
+    await db.insert(
+        'words',
+        {
+          'id': word.id,
+          'localId': preservedWordLocalId,
+          'englishWord': word.englishWord,
+          'turkishMeaning': word.turkishMeaning,
+          'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
+          'notes': word.notes,
+          'difficulty': word.difficulty,
+          'syncStatus': 'synced',
+          'createdAt': preservedWordCreatedAt ?? DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // Reconcile server truth: remove locally-synced sentence rows that no longer exist on server.
+    // Keep pending local (offline) sentences so the user doesn't lose work while offline.
+    final linkedLocalWordId = preservedWordLocalId ?? word.id;
+    final existingSentenceRowsForWord = await db.query(
+      'sentences',
+      columns: ['id', 'localId', 'localWordId', 'createdAt'],
+      where: 'wordId = ? OR localWordId = ?',
+      whereArgs: [word.id, linkedLocalWordId],
+    );
+    final existingSentenceLocalIds = <int, int?>{};
+    final existingSentenceLocalWordIds = <int, int?>{};
+    final existingSentenceCreatedAts = <int, String?>{};
+    for (final row in existingSentenceRowsForWord) {
+      final id = _toNullableInt(row['id']);
+      if (id != null) {
+        existingSentenceLocalIds[id] = _toNullableInt(row['localId']);
+        existingSentenceLocalWordIds[id] = _toNullableInt(row['localWordId']);
+        existingSentenceCreatedAts[id] = row['createdAt']?.toString();
+      }
+    }
+    await db.delete(
+      'sentences',
+      where: '(wordId = ? OR localWordId = ?) AND syncStatus != ?',
+      whereArgs: [word.id, linkedLocalWordId, 'pending'],
+    );
 
     // Sentences kaydet
     for (var sentence in word.sentences) {
-      await db.insert('sentences', {
-        'id': sentence.id,
-        'wordId': word.id,
-        'sentence': sentence.sentence,
-        'translation': sentence.translation,
-        'difficulty': sentence.difficulty,
-        'syncStatus': 'synced',
-        'createdAt': DateTime.now().toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      if (pendingSentenceDeletes.contains(sentence.id)) {
+        // Ensure the local row stays deleted until the server delete is confirmed.
+        await db.delete('sentences', where: 'id = ?', whereArgs: [sentence.id]);
+        continue;
+      }
+      final preservedSentenceLocalId = existingSentenceLocalIds[sentence.id];
+      final preservedLocalWordId = existingSentenceLocalWordIds[sentence.id];
+      final preservedSentenceCreatedAt = existingSentenceCreatedAts[sentence.id];
+
+      await db.insert(
+          'sentences',
+          {
+            'id': sentence.id,
+            'localId': preservedSentenceLocalId,
+            'wordId': word.id,
+            'localWordId': preservedLocalWordId,
+            'sentence': sentence.sentence,
+            'translation': sentence.translation,
+            'difficulty': sentence.difficulty,
+            'syncStatus': 'synced',
+            'createdAt': preservedSentenceCreatedAt ??
+                sentence.createdAt?.toIso8601String() ??
+                DateTime.now().toIso8601String(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
   }
 
   /// Tüm kelimeleri kaydet (bulk)
   Future<void> saveAllWords(List<Word> words) async {
     final db = await database;
+    final pendingWordDeletes = await _getPendingDeleteIds('words');
+    final pendingSentenceDeletes = await _getPendingDeleteIds('sentences');
     final batch = db.batch();
+    final existingWordRows =
+        await db.query('words', columns: ['id', 'localId', 'createdAt']);
+    final existingWordLocalIds = <int, int?>{};
+    final existingWordCreatedAts = <int, String?>{};
+    for (final row in existingWordRows) {
+      final id = _toNullableInt(row['id']);
+      if (id != null) {
+        existingWordLocalIds[id] = _toNullableInt(row['localId']);
+        existingWordCreatedAts[id] = row['createdAt']?.toString();
+      }
+    }
+    final existingSentenceRows =
+        await db.query('sentences', columns: ['id', 'localId', 'localWordId', 'createdAt']);
+    final existingSentenceLocalIds = <int, int?>{};
+    final existingSentenceLocalWordIds = <int, int?>{};
+    final existingSentenceCreatedAts = <int, String?>{};
+    for (final row in existingSentenceRows) {
+      final id = _toNullableInt(row['id']);
+      if (id != null) {
+        existingSentenceLocalIds[id] = _toNullableInt(row['localId']);
+        existingSentenceLocalWordIds[id] = _toNullableInt(row['localWordId']);
+        existingSentenceCreatedAts[id] = row['createdAt']?.toString();
+      }
+    }
 
     for (var word in words) {
-      batch.insert('words', {
-        'id': word.id,
-        'englishWord': word.englishWord,
-        'turkishMeaning': word.turkishMeaning,
-        'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
-        'notes': word.notes,
-        'difficulty': word.difficulty,
-        'syncStatus': 'synced',
-        'createdAt': DateTime.now().toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      if (pendingWordDeletes.contains(word.id)) {
+        // Keep local deletion consistent while delete is pending.
+        batch.delete('words', where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
+        batch.delete('sentences', where: 'wordId = ? OR localWordId = ?', whereArgs: [word.id, word.id]);
+        continue;
+      }
+      batch.insert(
+          'words',
+          {
+            'id': word.id,
+            'localId': existingWordLocalIds[word.id],
+            'englishWord': word.englishWord,
+            'turkishMeaning': word.turkishMeaning,
+            'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
+            'notes': word.notes,
+            'difficulty': word.difficulty,
+            'syncStatus': 'synced',
+            'createdAt': existingWordCreatedAts[word.id] ??
+                DateTime.now().toIso8601String(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
+
+      // Reconcile server truth: delete locally-synced sentence rows for this word before inserting the
+      // current server set. Keep pending local (offline) sentences.
+      final linkedLocalWordId = existingWordLocalIds[word.id] ?? word.id;
+      batch.delete(
+        'sentences',
+        where: '(wordId = ? OR localWordId = ?) AND syncStatus != ?',
+        whereArgs: [word.id, linkedLocalWordId, 'pending'],
+      );
 
       for (var sentence in word.sentences) {
-        batch.insert('sentences', {
-          'id': sentence.id,
-          'wordId': word.id,
-          'sentence': sentence.sentence,
-          'translation': sentence.translation,
-          'difficulty': sentence.difficulty,
-          'syncStatus': 'synced',
-          'createdAt': DateTime.now().toIso8601String(),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        if (pendingSentenceDeletes.contains(sentence.id)) {
+          // Prevent resurrection of a sentence the user deleted offline.
+          batch.delete('sentences', where: 'id = ?', whereArgs: [sentence.id]);
+          continue;
+        }
+        batch.insert(
+            'sentences',
+            {
+              'id': sentence.id,
+              'localId': existingSentenceLocalIds[sentence.id],
+              'wordId': word.id,
+              'localWordId': existingSentenceLocalWordIds[sentence.id],
+              'sentence': sentence.sentence,
+              'translation': sentence.translation,
+              'difficulty': sentence.difficulty,
+              'syncStatus': 'synced',
+              'createdAt': existingSentenceCreatedAts[sentence.id] ??
+                  sentence.createdAt?.toIso8601String() ??
+                  DateTime.now().toIso8601String(),
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
     }
 
@@ -286,10 +476,10 @@ class LocalDatabaseService {
     String difficulty = 'easy',
   }) async {
     final db = await database;
-    
+
     // Negatif local ID kullan (sync sonrası gerçek ID alınacak)
     final localId = -DateTime.now().millisecondsSinceEpoch;
-    
+
     await db.insert('words', {
       'id': localId,
       'localId': localId,
@@ -317,25 +507,26 @@ class LocalDatabaseService {
   }
 
   /// Kelime sil (cascade: cümleleri de siler)
-  Future<void> deleteWord(int id) async {
+  Future<int> deleteWord(int id) async {
     final db = await database;
-    
+
     // Önce cümleleri sil
     await db.delete(
       'sentences',
       where: 'wordId = ? OR localWordId = ?',
       whereArgs: [id, id],
     );
-    
+
     // Sonra kelimeyi sil
-    await db.delete(
+    final deletedWords = await db.delete(
       'words',
       where: 'id = ? OR localId = ?',
       whereArgs: [id, id],
     );
-    
+
     // NOT: XP düşürme işlemi AppStateProvider/XPManager üzerinden yapılıyor
     // Burada yapılırsa UI senkronizasyonu bozulur
+    return deletedWords;
   }
 
   /// Kelimeye cümle ekle (offline)
@@ -346,9 +537,9 @@ class LocalDatabaseService {
     String difficulty = 'easy',
   }) async {
     final db = await database;
-    
+
     final localId = -DateTime.now().millisecondsSinceEpoch;
-    
+
     await db.insert('sentences', {
       'id': localId,
       'localId': localId,
@@ -375,17 +566,118 @@ class LocalDatabaseService {
   }
 
   /// Kelimeden cümle sil (local DB)
-  Future<void> deleteSentenceFromWord(int wordId, int sentenceId) async {
+  Future<int> deleteSentenceFromWord(int wordId, int sentenceId) async {
     final db = await database;
-    
+
     // Hem id hem de localId ile silmeyi dene
-    await db.delete(
+    final deleted = await db.delete(
       'sentences',
       where: '(id = ? OR localId = ?) AND (wordId = ? OR localWordId = ?)',
       whereArgs: [sentenceId, sentenceId, wordId, wordId],
     );
-    
+
     // NOT: XP düşürme işlemi AppStateProvider/XPManager üzerinden yapılıyor
+    return deleted;
+  }
+
+  /// Aynı kelime altında (sentence, translation) bazlı tekrar eden cümleleri temizle.
+  /// Offline->online ID mapping hatalarında veya double-tap gibi durumlarda UI'da aynı cümlenin
+  /// iki kez görünmesini engeller.
+  ///
+  /// Not: Burada sadece local DB ve queue temizlenir; server tarafını etkilemez.
+  Future<int> cleanupDuplicateSentencesForWord(int wordId) async {
+    final db = await database;
+
+    int? localWordId;
+    if (wordId > 0) {
+      final wordRows = await db.query(
+        'words',
+        columns: ['localId'],
+        where: 'id = ?',
+        whereArgs: [wordId],
+        limit: 1,
+      );
+      if (wordRows.isNotEmpty) {
+        localWordId = _toNullableInt(wordRows.first['localId']);
+      }
+    } else {
+      // For local-only words, the localWordId is the wordId itself (negative).
+      localWordId = wordId;
+    }
+
+    final ids = <int>{wordId};
+    if (localWordId != null) {
+      ids.add(localWordId);
+    }
+    final idList = ids.toList();
+    final placeholders = List.filled(idList.length, '?').join(',');
+
+    final rows = await db.query(
+      'sentences',
+      where:
+          'wordId IN ($placeholders) OR localWordId IN ($placeholders)',
+      whereArgs: [...idList, ...idList],
+    );
+
+    String norm(dynamic value) {
+      final raw = (value?.toString() ?? '').trim();
+      if (raw.isEmpty) return '';
+      return raw.replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+    }
+
+    int rank(Map<String, dynamic> row) {
+      int score = 0;
+      final syncStatus = row['syncStatus']?.toString() ?? '';
+      final id = _toNullableInt(row['id']) ?? 0;
+      if (syncStatus == 'synced') score += 10;
+      if (id > 0) score += 5;
+      return score;
+    }
+
+    final Map<String, List<Map<String, dynamic>>> groups = {};
+    for (final row in rows) {
+      final key = '${norm(row['sentence'])}|||${norm(row['translation'])}';
+      groups.putIfAbsent(key, () => []).add(row);
+    }
+
+    int deletedCount = 0;
+    for (final entry in groups.entries) {
+      final items = entry.value;
+      if (items.length <= 1) continue;
+
+      items.sort((a, b) {
+        final scoreDiff = rank(b) - rank(a);
+        if (scoreDiff != 0) return scoreDiff;
+        final idA = _toNullableInt(a['id']) ?? 0;
+        final idB = _toNullableInt(b['id']) ?? 0;
+        return idB.compareTo(idA);
+      });
+
+      for (final row in items.skip(1)) {
+        final id = _toNullableInt(row['id']);
+        final localId = _toNullableInt(row['localId']);
+        if (id == null) continue;
+
+        // Delete the duplicate sentence row.
+        await db.delete('sentences', where: 'id = ?', whereArgs: [id]);
+        deletedCount++;
+
+        // Remove any queued actions for this duplicate row (usually a pending create).
+        final candidateItemIds = <String>{id.toString()};
+        if (localId != null) {
+          candidateItemIds.add(localId.toString());
+        }
+        for (final itemId in candidateItemIds) {
+          await db.delete(
+            'sync_queue',
+            where: 'tableName = ? AND itemId = ?',
+            whereArgs: ['sentences', itemId],
+          );
+        }
+      }
+    }
+
+    return deletedCount;
   }
 
   // ==================== PRACTICE SENTENCES ====================
@@ -395,54 +687,117 @@ class LocalDatabaseService {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'practice_sentences',
+      where: 'source = ?',
+      whereArgs: ['practice'],
       orderBy: 'createdDate DESC',
     );
-    
-    return maps.map((map) => SentencePractice(
-      id: map['id'] ?? 'local_${map['localId']}',
-      englishSentence: map['englishSentence'] ?? '',
-      turkishTranslation: map['turkishTranslation'] ?? '',
-      difficulty: map['difficulty'] ?? 'EASY',
-      createdDate: DateTime.parse(map['createdDate']),
-      source: map['source'] ?? 'practice',
-    )).toList();
+
+    return maps
+        .map((map) => SentencePractice(
+              id: map['id'] ?? 'local_${map['localId']}',
+              englishSentence: map['englishSentence'] ?? '',
+              turkishTranslation: map['turkishTranslation'] ?? '',
+              difficulty: map['difficulty'] ?? 'EASY',
+              createdDate: DateTime.parse(map['createdDate']),
+              source: map['source'] ?? 'practice',
+            ))
+        .toList();
   }
 
   /// Practice sentence kaydet (online'dan gelen)
   Future<void> savePracticeSentence(SentencePractice sentence) async {
     final db = await database;
-    
-    await db.insert('practice_sentences', {
-      'id': sentence.id,
-      'englishSentence': sentence.englishSentence,
-      'turkishTranslation': sentence.turkishTranslation,
-      'difficulty': sentence.difficulty,
-      'createdDate': sentence.createdDate?.toIso8601String().split('T')[0] ?? DateTime.now().toIso8601String().split('T')[0],
-      'source': sentence.source,
-      'syncStatus': 'synced',
-      'createdAt': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    if (sentence.source != 'practice') {
+      // We only persist practice sentences locally; word sentences are read via words->sentences.
+      return;
+    }
+    final pendingDeletes = await _getPendingDeleteItemIds('practice_sentences');
+    if (pendingDeletes.contains(sentence.id)) {
+      await db.delete('practice_sentences', where: 'id = ?', whereArgs: [sentence.id]);
+      return;
+    }
+
+    await db.insert(
+        'practice_sentences',
+        {
+          'id': sentence.id,
+          'englishSentence': sentence.englishSentence,
+          'turkishTranslation': sentence.turkishTranslation,
+          'difficulty': sentence.difficulty,
+          'createdDate':
+              sentence.createdDate?.toIso8601String().split('T')[0] ??
+                  DateTime.now().toIso8601String().split('T')[0],
+          'source': sentence.source,
+          'syncStatus': 'synced',
+          'createdAt': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Tüm practice sentences kaydet (bulk)
-  Future<void> saveAllPracticeSentences(List<SentencePractice> sentences) async {
+  Future<void> saveAllPracticeSentences(
+      List<SentencePractice> sentences) async {
     final db = await database;
-    final batch = db.batch();
+    // Only practice sentences are persisted locally.
+    sentences = sentences.where((s) => s.source == 'practice').toList();
 
-    for (var sentence in sentences) {
-      batch.insert('practice_sentences', {
-        'id': sentence.id,
-        'englishSentence': sentence.englishSentence,
-        'turkishTranslation': sentence.turkishTranslation,
-        'difficulty': sentence.difficulty,
-        'createdDate': sentence.createdDate?.toIso8601String().split('T')[0] ?? DateTime.now().toIso8601String().split('T')[0],
-        'source': sentence.source,
-        'syncStatus': 'synced',
-        'createdAt': DateTime.now().toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-    }
+    final pendingDeletes =
+        await _getPendingDeleteItemIds('practice_sentences');
 
-    await batch.commit(noResult: true);
+    final serverIds =
+        sentences.map((s) => s.id).where((id) => id.trim().isNotEmpty).toSet();
+    final effectiveServerIds = serverIds.difference(pendingDeletes);
+
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+
+      // Reconcile server truth: remove locally-synced rows that are no longer on server.
+      // Keep pending local rows (offline-created).
+      if (effectiveServerIds.isEmpty) {
+        await txn.delete(
+          'practice_sentences',
+          where: 'syncStatus != ?',
+          whereArgs: ['pending'],
+        );
+      } else {
+        final placeholders =
+            List.filled(effectiveServerIds.length, '?').join(',');
+        await txn.delete(
+          'practice_sentences',
+          where:
+              'syncStatus != ? AND id NOT IN ($placeholders)',
+          whereArgs: ['pending', ...effectiveServerIds],
+        );
+      }
+
+      for (var sentence in sentences) {
+        if (pendingDeletes.contains(sentence.id)) {
+          batch.delete(
+            'practice_sentences',
+            where: 'id = ?',
+            whereArgs: [sentence.id],
+          );
+          continue;
+        }
+        batch.insert(
+            'practice_sentences',
+            {
+              'id': sentence.id,
+              'englishSentence': sentence.englishSentence,
+              'turkishTranslation': sentence.turkishTranslation,
+              'difficulty': sentence.difficulty,
+              'createdDate':
+                  sentence.createdDate?.toIso8601String().split('T')[0] ??
+                      DateTime.now().toIso8601String().split('T')[0],
+              'source': sentence.source,
+              'syncStatus': 'synced',
+              'createdAt': DateTime.now().toIso8601String(),
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+
+      await batch.commit(noResult: true);
+    });
   }
 
   /// Practice sentence oluştur (offline)
@@ -452,10 +807,10 @@ class LocalDatabaseService {
     required String difficulty,
   }) async {
     final db = await database;
-    
+
     final localId = DateTime.now().millisecondsSinceEpoch;
     final id = 'local_$localId';
-    
+
     await db.insert('practice_sentences', {
       'id': id,
       'localId': localId,
@@ -481,21 +836,21 @@ class LocalDatabaseService {
   }
 
   /// Practice sentence sil
-  Future<void> deletePracticeSentence(String id) async {
+  Future<int> deletePracticeSentence(String id) async {
     final db = await database;
-    await db.delete('practice_sentences', where: 'id = ?', whereArgs: [id]);
-    
+    final deleted =
+        await db.delete('practice_sentences', where: 'id = ?', whereArgs: [id]);
+
     // NOT: XP düşürme işlemi AppStateProvider/XPManager üzerinden yapılıyor
+    return deleted;
   }
 
   // ==================== XP MANAGEMENT ====================
-
 
   /// XP ekle
   Future<void> addXp(int amount) async {
     final db = await database;
 
-    
     // Check if update affects any rows
     final changes = await db.rawUpdate('''
       UPDATE user_stats 
@@ -503,7 +858,7 @@ class LocalDatabaseService {
           pendingXp = pendingXp + ?,
           lastUpdated = ?
     ''', [amount, amount, DateTime.now().toIso8601String()]);
-    
+
     // If table is empty, insert first row
     if (changes == 0) {
       await db.insert('user_stats', {
@@ -518,7 +873,7 @@ class LocalDatabaseService {
   /// XP düşür (silme işlemlerinde)
   Future<void> deductXp(int amount) async {
     final db = await database;
-    
+
     // XP'yi düşür ama 0'ın altına düşürme
     await db.rawUpdate('''
       UPDATE user_stats 
@@ -563,10 +918,10 @@ class LocalDatabaseService {
   Future<void> syncXpFromServer(int serverXp) async {
     final db = await database;
     final pendingXp = await getPendingXp();
-    
+
     // Server XP + pending XP (offline'da kazanılan)
     final newTotalXp = serverXp + pendingXp;
-    
+
     await db.update('user_stats', {
       'totalXp': newTotalXp,
       'lastSyncedXp': serverXp,
@@ -576,7 +931,8 @@ class LocalDatabaseService {
 
   // ==================== SYNC QUEUE ====================
 
-  Future<void> _addToSyncQueue(String action, String tableName, String itemId, Map<String, dynamic> data) async {
+  Future<void> _addToSyncQueue(String action, String tableName, String itemId,
+      Map<String, dynamic> data) async {
     final db = await database;
     await db.insert('sync_queue', {
       'action': action,
@@ -611,45 +967,258 @@ class LocalDatabaseService {
   }
 
   /// Pending items update after sync (lokalden sunucuya eşleşme)
-  Future<void> updateLocalIdToServerId(String tableName, int localId, int serverId) async {
+  Future<void> updateLocalIdToServerId(
+      String tableName, int localId, int serverId) async {
     final db = await database;
-    
+
     if (tableName == 'words') {
-      await db.update(
-        'words',
-        {'id': serverId, 'syncStatus': 'synced'},
-        where: 'localId = ?',
-        whereArgs: [localId],
-      );
-      // Bağlı cümleleri de güncelle
-      await db.update(
-        'sentences',
-        {'wordId': serverId},
-        where: 'localWordId = ?',
-        whereArgs: [localId],
-      );
-      // Update pending sync items
-      await db.update(
-        'sync_queue',
-        {'itemId': serverId.toString()},
-        where: 'tableName = ? AND itemId = ? AND status = ?',
-        whereArgs: [tableName, localId.toString(), 'pending'],
-      );
+      await db.transaction((txn) async {
+        // Prefer matching the true local row by `id == localId` (offline inserts use id=localId).
+        final localRowsById = await txn.query(
+          'words',
+          where: 'id = ?',
+          whereArgs: [localId],
+          limit: 1,
+        );
+        final localRows = localRowsById.isNotEmpty
+            ? localRowsById
+            : await txn.query(
+                'words',
+                where: 'localId = ?',
+                whereArgs: [localId],
+                limit: 1,
+              );
+        final serverRows = await txn.query(
+          'words',
+          where: 'id = ?',
+          whereArgs: [serverId],
+          limit: 1,
+        );
+
+        if (serverRows.isNotEmpty) {
+          // Merge: keep server row id, attach localId if missing, remove local row.
+          final serverLocalId = _toNullableInt(serverRows.first['localId']);
+          final serverCreatedAt = serverRows.first['createdAt']?.toString();
+          final localCreatedAt = localRows.isNotEmpty
+              ? localRows.first['createdAt']?.toString()
+              : null;
+
+          final updates = <String, dynamic>{
+            'syncStatus': 'synced',
+          };
+          if (serverLocalId == null) {
+            updates['localId'] = localId;
+          }
+          if (serverCreatedAt == null && localCreatedAt != null) {
+            updates['createdAt'] = localCreatedAt;
+          }
+          if (updates.length > 1) {
+            await txn.update(
+              'words',
+              updates,
+              where: 'id = ?',
+              whereArgs: [serverId],
+            );
+          }
+
+          // Ensure sentences link to the server word id.
+          await txn.update(
+            'sentences',
+            {'wordId': serverId},
+            where: 'wordId = ? OR localWordId = ?',
+            whereArgs: [localId, localId],
+          );
+
+          // Remove the old local word row (if any).
+          if (localRows.isNotEmpty) {
+            final localRowId = _toNullableInt(localRows.first['id']) ?? localId;
+            if (localRowId != serverId) {
+              await txn.delete(
+                'words',
+                where: 'id = ?',
+                whereArgs: [localRowId],
+              );
+            }
+          }
+        } else {
+          // No server row yet: safe to update the local row id -> serverId.
+          await txn.update(
+            'words',
+            {'id': serverId, 'syncStatus': 'synced'},
+            where: 'localId = ? OR id = ?',
+            whereArgs: [localId, localId],
+          );
+          await txn.update(
+            'sentences',
+            {'wordId': serverId},
+            where: 'wordId = ? OR localWordId = ?',
+            whereArgs: [localId, localId],
+          );
+        }
+
+        // Update pending sync items
+        await txn.update(
+          'sync_queue',
+          {'itemId': serverId.toString()},
+          where: 'tableName = ? AND itemId = ? AND status = ?',
+          whereArgs: [tableName, localId.toString(), 'pending'],
+        );
+      });
     } else if (tableName == 'sentences') {
-      await db.update(
-        'sentences',
-        {'id': serverId, 'syncStatus': 'synced'},
-        where: 'localId = ?',
-        whereArgs: [localId],
-      );
-      // Update pending sync items
-      await db.update(
-        'sync_queue',
-        {'itemId': serverId.toString()},
-        where: 'tableName = ? AND itemId = ? AND status = ?',
-        whereArgs: [tableName, localId.toString(), 'pending'],
-      );
+      await db.transaction((txn) async {
+        // Prefer matching the true local row by `id == localId` (offline inserts use id=localId).
+        final localRowsById = await txn.query(
+          'sentences',
+          where: 'id = ?',
+          whereArgs: [localId],
+          limit: 1,
+        );
+        final localRows = localRowsById.isNotEmpty
+            ? localRowsById
+            : await txn.query(
+                'sentences',
+                where: 'localId = ?',
+                whereArgs: [localId],
+                limit: 1,
+              );
+        final serverRows = await txn.query(
+          'sentences',
+          where: 'id = ?',
+          whereArgs: [serverId],
+          limit: 1,
+        );
+
+        if (serverRows.isNotEmpty && localRows.isNotEmpty) {
+          // Merge: keep server row id, attach localId/localWordId/createdAt if missing, remove local row.
+          final serverRow = serverRows.first;
+          final localRow = localRows.first;
+
+          final serverLocalId = _toNullableInt(serverRow['localId']);
+          final serverLocalWordId = _toNullableInt(serverRow['localWordId']);
+          final serverCreatedAt = serverRow['createdAt']?.toString();
+
+          final localLocalId = _toNullableInt(localRow['localId']);
+          final localLocalWordId = _toNullableInt(localRow['localWordId']);
+          final localCreatedAt = localRow['createdAt']?.toString();
+
+          final updates = <String, dynamic>{
+            'syncStatus': 'synced',
+          };
+          if (serverLocalId == null && localLocalId != null) {
+            updates['localId'] = localLocalId;
+          } else if (serverLocalId == null) {
+            updates['localId'] = localId;
+          }
+          if (serverLocalWordId == null && localLocalWordId != null) {
+            updates['localWordId'] = localLocalWordId;
+          }
+          // Prefer local createdAt (true creation time) when available.
+          if (localCreatedAt != null && localCreatedAt.isNotEmpty) {
+            if (serverCreatedAt == null || serverCreatedAt.isEmpty) {
+              updates['createdAt'] = localCreatedAt;
+            } else {
+              updates['createdAt'] = localCreatedAt;
+            }
+          }
+
+          if (updates.length > 1) {
+            await txn.update(
+              'sentences',
+              updates,
+              where: 'id = ?',
+              whereArgs: [serverId],
+            );
+          }
+
+          // Remove local row (old negative id).
+          final localRowId = _toNullableInt(localRow['id']) ?? localId;
+          if (localRowId != serverId) {
+            await txn.delete(
+              'sentences',
+              where: 'id = ?',
+              whereArgs: [localRowId],
+            );
+          }
+        } else if (serverRows.isNotEmpty) {
+          // Only the server row exists; just ensure it is marked synced and points to this localId for queries.
+          final serverLocalId = _toNullableInt(serverRows.first['localId']);
+          final updates = <String, dynamic>{
+            'syncStatus': 'synced',
+          };
+          if (serverLocalId == null) {
+            updates['localId'] = localId;
+          }
+          if (updates.length > 1) {
+            await txn.update(
+              'sentences',
+              updates,
+              where: 'id = ?',
+              whereArgs: [serverId],
+            );
+          }
+        } else {
+          // No server row yet: safe to update the local row id -> serverId.
+          await txn.update(
+            'sentences',
+            {'id': serverId, 'syncStatus': 'synced'},
+            where: 'localId = ? OR id = ?',
+            whereArgs: [localId, localId],
+          );
+        }
+
+        // Update pending sync items
+        await txn.update(
+          'sync_queue',
+          {'itemId': serverId.toString()},
+          where: 'tableName = ? AND itemId = ? AND status = ?',
+          whereArgs: [tableName, localId.toString(), 'pending'],
+        );
+      });
     }
+  }
+
+  /// Practice sentence local ID'sini server ID'sine günceller
+  Future<void> updatePracticeSentenceId(String localId, String serverId) async {
+    final db = await database;
+    await db.update(
+      'practice_sentences',
+      {'id': serverId, 'syncStatus': 'synced'},
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+
+    await db.update(
+      'sync_queue',
+      {'itemId': serverId},
+      where: 'tableName = ? AND itemId = ? AND status = ?',
+      whereArgs: ['practice_sentences', localId, 'pending'],
+    );
+  }
+
+  /// Negatif local wordId için sunucu tarafındaki gerçek ID'yi döndürür
+  Future<int?> resolveServerWordId(int queuedWordId) async {
+    final db = await database;
+    final rows = await db.query(
+      'words',
+      columns: ['id'],
+      where: 'localId = ? OR id = ?',
+      whereArgs: [queuedWordId, queuedWordId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    final rawId = rows.first['id'];
+    final resolvedId = rawId is int
+        ? rawId
+        : (rawId is num
+            ? rawId.toInt()
+            : int.tryParse(rawId?.toString() ?? ''));
+    if (resolvedId == null || resolvedId <= 0) {
+      return null;
+    }
+    return resolvedId;
   }
 
   // ==================== UTILITIES ====================
@@ -667,21 +1236,22 @@ class LocalDatabaseService {
   Future<List<Word>> getWordsByDate(DateTime date) async {
     final db = await database;
     final dateStr = date.toIso8601String().split('T')[0];
-    
+
     final List<Map<String, dynamic>> wordMaps = await db.query(
       'words',
       where: 'learnedDate = ?',
       whereArgs: [dateStr],
     );
-    
+
     List<Word> words = [];
     for (var wordMap in wordMaps) {
       final sentences = await db.query(
         'sentences',
         where: 'wordId = ? OR localWordId = ?',
         whereArgs: [wordMap['id'], wordMap['localId']],
+        orderBy: 'createdAt DESC',
       );
-      
+
       words.add(Word(
         id: wordMap['id'] ?? wordMap['localId'] ?? 0,
         englishWord: wordMap['englishWord'] ?? '',
@@ -689,16 +1259,19 @@ class LocalDatabaseService {
         learnedDate: DateTime.parse(wordMap['learnedDate']),
         notes: wordMap['notes'],
         difficulty: wordMap['difficulty'] ?? 'easy',
-        sentences: sentences.map((s) => Sentence(
-          id: s['id'] as int? ?? s['localId'] as int? ?? 0,
-          sentence: s['sentence'] as String? ?? '',
-          translation: s['translation'] as String? ?? '',
-          wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
-          difficulty: s['difficulty'] as String?,
-        )).toList(),
+        sentences: sentences
+            .map((s) => Sentence(
+                  id: s['id'] as int? ?? s['localId'] as int? ?? 0,
+                  sentence: s['sentence'] as String? ?? '',
+                  translation: s['translation'] as String? ?? '',
+                  wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
+                  difficulty: s['difficulty'] as String?,
+                  createdAt: _tryParseDateTime(s['createdAt']),
+                ))
+            .toList(),
       ));
     }
-    
+
     return words;
   }
 
@@ -718,29 +1291,30 @@ class LocalDatabaseService {
       'lastUpdated': DateTime.now().toIso8601String(),
     });
   }
-  
+
   // ==================== SYNC QUEUE ====================
-  
+
   /// Sync queue'daki tüm bekleyen işlemleri getir
   Future<List<Map<String, dynamic>>> getSyncQueue() async {
     final db = await database;
     return await db.query('sync_queue', orderBy: 'createdAt ASC');
   }
-  
+
   /// Sync queue'dan bir item'ı sil
   Future<void> removeSyncQueueItem(int id) async {
     final db = await database;
     await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
   }
-  
+
   /// Sync queue'ya item ekle
-  Future<int> addToSyncQueue(String action, String tableName, String itemId, Map<String, dynamic> data) async {
+  Future<int> addToSyncQueue(String action, String tableName, String itemId,
+      Map<String, dynamic> data) async {
     final db = await database;
     return await db.insert('sync_queue', {
       'action': action,
       'tableName': tableName,
       'itemId': itemId,
-      'data': data.isNotEmpty ? jsonEncode(data) : null,
+      'data': jsonEncode(data),
       'createdAt': DateTime.now().toIso8601String(),
     });
   }
@@ -771,5 +1345,4 @@ class LocalDatabaseService {
       limit: limit,
     );
   }
-
 }

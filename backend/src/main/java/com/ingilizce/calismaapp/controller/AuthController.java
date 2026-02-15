@@ -3,8 +3,10 @@ package com.ingilizce.calismaapp.controller;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.security.AuthSecurityProperties;
+import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.security.EmailVerificationService;
+import com.ingilizce.calismaapp.security.GoogleIdentityService;
 import com.ingilizce.calismaapp.security.JwtTokenService;
 import com.ingilizce.calismaapp.security.PasswordResetService;
 import com.ingilizce.calismaapp.security.RefreshTokenService;
@@ -40,7 +42,9 @@ public class AuthController {
     private final CurrentUserContext currentUserContext;
     private final PasswordResetService passwordResetService;
     private final EmailVerificationService emailVerificationService;
+    private final GoogleIdentityService googleIdentityService;
     private final AuthSecurityProperties authSecurityProperties;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(UserRepository userRepository,
                           AuthRateLimitService authRateLimitService,
@@ -48,9 +52,11 @@ public class AuthController {
                           JwtTokenService jwtTokenService,
                           RefreshTokenService refreshTokenService,
                           CurrentUserContext currentUserContext,
-                          PasswordResetService passwordResetService,
-                          EmailVerificationService emailVerificationService,
-                          AuthSecurityProperties authSecurityProperties) {
+                           PasswordResetService passwordResetService,
+                           EmailVerificationService emailVerificationService,
+                           GoogleIdentityService googleIdentityService,
+                           AuthSecurityProperties authSecurityProperties,
+                           ClientIpResolver clientIpResolver) {
         this.userRepository = userRepository;
         this.authRateLimitService = authRateLimitService;
         this.passwordEncoder = passwordEncoder;
@@ -59,7 +65,9 @@ public class AuthController {
         this.currentUserContext = currentUserContext;
         this.passwordResetService = passwordResetService;
         this.emailVerificationService = emailVerificationService;
+        this.googleIdentityService = googleIdentityService;
         this.authSecurityProperties = authSecurityProperties;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
@@ -164,17 +172,48 @@ public class AuthController {
     @PostMapping("/google-login")
     public ResponseEntity<Map<String, Object>> googleLogin(@RequestBody Map<String, String> request,
                                                            HttpServletRequest httpRequest) {
-        String email = normalizeEmail(request.get("email"));
-        log.info("Processing Google login request for email={}", email);
+        String requestedEmail = normalizeEmail(request.get("email"));
+        String email = requestedEmail;
+        log.info("Processing Google login request for email={}", requestedEmail);
         try {
+            String clientIp = resolveClientIp(httpRequest);
+            RateLimitDecision rateLimitDecision = authRateLimitService.checkLogin(
+                    requestedEmail != null ? requestedEmail : "google-login",
+                    clientIp);
+            if (rateLimitDecision.blocked()) {
+                return tooManyRequests("Too many login attempts. Please try again later.", rateLimitDecision);
+            }
+
+            GoogleIdentityService.VerifiedIdentity verifiedIdentity = null;
+            if (authSecurityProperties.isGoogleIdTokenRequired()) {
+                try {
+                    verifiedIdentity = googleIdentityService.verifyIdToken(request.get("idToken"));
+                } catch (GoogleIdentityService.GoogleIdentityException ex) {
+                    authRateLimitService.recordLoginFailure(requestedEmail, clientIp);
+                    if (ex.getCode() == GoogleIdentityService.GoogleIdentityException.Code.PROVIDER_UNAVAILABLE
+                            || ex.getCode() == GoogleIdentityService.GoogleIdentityException.Code.MISCONFIGURED) {
+                        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body(Map.of("error", "Google login temporarily unavailable", "success", false));
+                    }
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("error", "Google authentication failed", "success", false));
+                }
+                email = normalizeEmail(verifiedIdentity.email());
+                if (requestedEmail != null && !requestedEmail.equals(email)) {
+                    authRateLimitService.recordLoginFailure(requestedEmail, clientIp);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("error", "Google authentication failed", "success", false));
+                }
+            }
+
             String displayName = request.get("displayName");
             String photoUrl = request.get("photoUrl");
-            String googleId = request.get("googleId"); // Optional
-            String clientIp = resolveClientIp(httpRequest);
+            String googleId = request.get("googleId");
             String deviceId = resolveDeviceId(request, httpRequest);
             boolean rememberMe = Boolean.parseBoolean(request.getOrDefault("rememberMe", "true"));
 
             if (email == null) {
+                authRateLimitService.recordLoginFailure(requestedEmail, clientIp);
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
             }
 
@@ -182,7 +221,6 @@ public class AuthController {
             User user;
 
             if (userOpt.isPresent()) {
-                // TODO: Validate Google identity token server-side for production federation hardening.
                 user = userOpt.get();
                 log.info("Google login user found, userId={}", user.getId());
 
@@ -203,7 +241,12 @@ public class AuthController {
                 // User doesn't exist, create proper account
                 log.info("Google login user not found, creating new account for email={}", email);
                 // Use googleId as password seed or random string
-                String dummyPassword = googleId != null ? "google_auth_" + googleId : "google_auth_" + UUID.randomUUID();
+                String dummyPassword;
+                if (verifiedIdentity != null) {
+                    dummyPassword = "google_auth_" + verifiedIdentity.subject();
+                } else {
+                    dummyPassword = googleId != null ? "google_auth_" + googleId : "google_auth_" + UUID.randomUUID();
+                }
 
                 user = new User(email, passwordEncoder.encode(dummyPassword), displayName);
                 user.setEmailVerifiedAt(LocalDateTime.now());
@@ -515,27 +558,7 @@ public class AuthController {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        try {
-            if (request == null) {
-                return "unknown";
-            }
-
-            String forwardedFor = request.getHeader("X-Forwarded-For");
-            if (forwardedFor != null && !forwardedFor.isBlank()) {
-                String first = forwardedFor.split(",")[0].trim();
-                if (!first.isBlank()) {
-                    return first;
-                }
-            }
-
-            String remoteAddr = request.getRemoteAddr();
-            if (remoteAddr == null || remoteAddr.isBlank()) {
-                return "unknown";
-            }
-            return remoteAddr;
-        } catch (Exception ex) {
-            return "unknown";
-        }
+        return clientIpResolver.resolve(request);
     }
 
     private ResponseEntity<Map<String, Object>> tooManyRequests(String message, RateLimitDecision decision) {
