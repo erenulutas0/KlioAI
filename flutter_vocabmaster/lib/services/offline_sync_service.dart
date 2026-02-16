@@ -966,7 +966,17 @@ class OfflineSyncService {
         if (deletedRows <= 0) {
           return false;
         }
-        await _removeQueuedSentenceDelete(sentenceId);
+        final stillOnServer = await _isSentenceStillPresentOnServer(sentenceId);
+        if (stillOnServer) {
+          // If the server still serves this sentence (e.g. stale wordId / backend mismatch),
+          // keep a tombstone delete in queue so refreshes cannot resurrect it locally.
+          await _queueSentenceDeleteIfNeeded(
+            wordId: resolvedWordId,
+            sentenceId: sentenceId,
+          );
+        } else {
+          await _removeQueuedSentenceDelete(sentenceId);
+        }
         return true;
       } catch (e) {
         print('🔴 API hatası, offline silme yapılıyor: $e');
@@ -999,6 +1009,25 @@ class OfflineSyncService {
         wordId: resolvedWordId ?? wordId,
         sentenceId: sentenceId,
       );
+      return true;
+    }
+  }
+
+  Future<bool> _isSentenceStillPresentOnServer(int sentenceId) async {
+    try {
+      final serverWords = await _apiService.getAllWords();
+      for (final word in serverWords) {
+        if (word.sentences.any((s) => s.id == sentenceId)) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print(
+        '⚠️ Server sentence doğrulaması başarısız '
+        '(sentenceId=$sentenceId): $e',
+      );
+      // Conservatively assume it may still exist so tombstone behavior remains safe.
       return true;
     }
   }

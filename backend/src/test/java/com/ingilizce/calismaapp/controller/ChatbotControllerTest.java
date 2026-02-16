@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.repository.UserRepository;
+import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiTokenQuotaService;
+import com.ingilizce.calismaapp.service.AiProxyService;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.WordService;
@@ -27,6 +30,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
@@ -68,6 +72,15 @@ public class ChatbotControllerTest {
     @MockBean
     private AiRateLimitService aiRateLimitService;
 
+    @MockBean
+    private AiTokenQuotaService aiTokenQuotaService;
+
+    @MockBean
+    private AiProxyService aiProxyService;
+
+    @MockBean
+    private ClientIpResolver clientIpResolver;
+
     @Autowired
     private MeterRegistry meterRegistry;
 
@@ -79,8 +92,13 @@ public class ChatbotControllerTest {
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(activeUser()));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
+        when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
         when(aiRateLimitService.checkAndConsume(anyLong(), anyString(), anyString()))
                 .thenReturn(AiRateLimitService.Decision.allowed());
+        when(aiTokenQuotaService.check(anyLong(), anyString()))
+                .thenReturn(AiTokenQuotaService.Decision.allowed());
+        when(aiTokenQuotaService.consume(anyLong(), anyString(), anyLong()))
+                .thenReturn(new AiTokenQuotaService.Usage(0L, 0L, 0L));
     }
 
     @Test
@@ -689,6 +707,122 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"testType\":\"IELTS\",\"question\":\"Q\",\"response\":\"A\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void proxiedAiEndpointsReturnTooManyRequestsWhenDailyTokenQuotaExceeded() throws Exception {
+        when(aiTokenQuotaService.check(anyLong(), anyString()))
+                .thenReturn(AiTokenQuotaService.Decision.blocked("daily-token-quota", 180, 50000, 50000));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/lookup")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/lookup-detailed")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/explain")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"run\",\"sentence\":\"I run every day.\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/generate-specific-sentence")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"run\",\"translation\":\"kosmak\",\"context\":\"exercise\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/reading/generate")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"level\":\"Intermediate\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/writing/generate-topic")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"level\":\"B2\",\"wordCount\":\"150-200\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/writing/evaluate")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "text":"This is my essay.",
+                          "level":"B2",
+                          "topic":{"topic":"Technology","description":"AI in daily life"}
+                        }
+                        """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        mockMvc.perform(post("/api/chatbot/exam/generate")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "examType":"YDS/YOKDIL",
+                          "mode":"category",
+                          "category":"grammar",
+                          "questionCount":10
+                        }
+                        """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        verifyNoInteractions(aiProxyService);
+    }
+
+    @Test
+    void proxiedAiEndpointsShareSameUserDailyTokenQuota() throws Exception {
+        AtomicInteger checkCount = new AtomicInteger(0);
+        when(aiTokenQuotaService.check(eq(1L), anyString()))
+                .thenAnswer(invocation -> {
+                    if (checkCount.incrementAndGet() == 1) {
+                        return AiTokenQuotaService.Decision.allowed();
+                    }
+                    return AiTokenQuotaService.Decision.blocked("daily-token-quota", 300, 50000, 50000);
+                });
+        when(aiProxyService.dictionaryLookup("apple"))
+                .thenReturn(new AiProxyService.AiJsonResult(
+                        Map.of("word", "apple", "meanings", List.of()),
+                        120,
+                        80,
+                        40));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/lookup")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.word").value("apple"));
+
+        mockMvc.perform(post("/api/chatbot/reading/generate")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"level\":\"Intermediate\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
+
+        verify(aiTokenQuotaService).check(1L, "dictionary-lookup");
+        verify(aiTokenQuotaService).check(1L, "reading-generate");
+        verify(aiTokenQuotaService).consume(1L, "dictionary-lookup", 120L);
+        verify(aiTokenQuotaService, never()).consume(eq(1L), eq("reading-generate"), anyLong());
+        verify(aiProxyService, times(1)).dictionaryLookup("apple");
+        verify(aiProxyService, never()).generateReadingPassage(anyString());
     }
 
     private static User activeUser() {

@@ -9,6 +9,11 @@ import 'api_service.dart';
 class GroqService {
   static final ApiService _api = ApiService();
 
+  /// Backward-compatible daily words entry point.
+  static Future<List<Map<String, dynamic>>> getDailyWords() async {
+    return await _api.getDailyWords();
+  }
+
   /// Kelime anlamlarını, bağlamlarını ve örnek cümleleri getirir
   static Future<Map<String, dynamic>?> lookupWord(String word) async {
     return await _api.chatbotDictionaryLookup(word: word);
@@ -101,4 +106,3 @@ class GroqService {
     return ExamBundle.fromJson(result);
   }
 }
-

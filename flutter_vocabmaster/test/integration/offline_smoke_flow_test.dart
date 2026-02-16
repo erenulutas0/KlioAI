@@ -196,6 +196,25 @@ class FakeSyncApiService extends ApiService {
   Future<void> deleteWord(int id) async {
     _serverWords.remove(id);
   }
+
+  void seedServerWord(Word word) {
+    _serverWords[word.id] = word;
+    if (word.id > _wordSeq) {
+      _wordSeq = word.id;
+    }
+    for (final sentence in word.sentences) {
+      if (sentence.id > _sentenceSeq) {
+        _sentenceSeq = sentence.id;
+      }
+    }
+  }
+}
+
+class NoOpDeleteSyncApiService extends FakeSyncApiService {
+  @override
+  Future<void> deleteSentenceFromWord(int wordId, int sentenceId) async {
+    // Simulate backend mismatch behavior where delete responds but sentence remains.
+  }
 }
 
 void main() {
@@ -599,6 +618,138 @@ void main() {
       wordsAfter.first.sentences.any((s) => s.id == serverSentenceId),
       isFalse,
       reason: 'Pending delete should prevent local resurrection until server delete succeeds',
+    );
+  });
+
+  test(
+      'Online delete keeps sentence tombstone when server delete is a no-op',
+      () async {
+    final localDb = LocalDatabaseService();
+    final api = NoOpDeleteSyncApiService();
+    syncService.setDependenciesForTesting(
+      apiService: api,
+      connectivity: connectivity,
+    );
+    syncService.resetStatusForTesting();
+    connectivity.online = true;
+
+    const serverWordId = 91001;
+    const serverSentenceId = 91002;
+    final serverWord = Word(
+      id: serverWordId,
+      englishWord: 'MismatchWord',
+      turkishMeaning: 'Uyumsuz Kelime',
+      learnedDate: DateTime.now(),
+      difficulty: 'easy',
+      notes: '',
+      sentences: [
+        Sentence(
+          id: serverSentenceId,
+          sentence: 'This sentence should not resurrect.',
+          translation: 'Bu cumle geri dirilmemeli.',
+          wordId: serverWordId,
+          difficulty: 'easy',
+        ),
+      ],
+    );
+
+    api.seedServerWord(serverWord);
+    await localDb.saveWord(serverWord);
+
+    await appState.refreshWords();
+    await appState.refreshSentences();
+    expect(
+      appState.allSentences.any((s) => !s.isPractice && s.id == serverSentenceId),
+      isTrue,
+    );
+
+    final deleted = await appState.deleteSentenceFromWord(
+      wordId: serverWordId,
+      sentenceId: serverSentenceId,
+    );
+    expect(deleted, isTrue);
+
+    final localAfterDelete = await localDb.getAllWords();
+    expect(localAfterDelete.length, 1);
+    expect(
+      localAfterDelete.first.sentences.any((s) => s.id == serverSentenceId),
+      isFalse,
+    );
+
+    final queueAfterDelete = await localDb.getPendingSyncItems();
+    final hasSentenceDeleteTombstone = queueAfterDelete.any((item) =>
+        item['tableName']?.toString() == 'sentences' &&
+        item['action']?.toString() == 'delete' &&
+        item['itemId']?.toString() == serverSentenceId.toString());
+    expect(hasSentenceDeleteTombstone, isTrue,
+        reason: 'Server still keeps the sentence, so delete must stay queued');
+
+    await localDb.saveAllWords(await api.getAllWords());
+    await appState.refreshWords();
+    await appState.refreshSentences();
+
+    expect(
+      appState.allSentences.any((s) => !s.isPractice && s.id == serverSentenceId),
+      isFalse,
+      reason: 'Pending delete tombstone should block resurrection on refresh',
+    );
+  });
+
+  test(
+      'Online delete clears sentence tombstone when server delete succeeds',
+      () async {
+    final localDb = LocalDatabaseService();
+    final api = FakeSyncApiService();
+    syncService.setDependenciesForTesting(
+      apiService: api,
+      connectivity: connectivity,
+    );
+    syncService.resetStatusForTesting();
+    connectivity.online = true;
+
+    const serverWordId = 92001;
+    const serverSentenceId = 92002;
+    final serverWord = Word(
+      id: serverWordId,
+      englishWord: 'HappyPathWord',
+      turkishMeaning: 'Mutlu Yol',
+      learnedDate: DateTime.now(),
+      difficulty: 'easy',
+      notes: '',
+      sentences: [
+        Sentence(
+          id: serverSentenceId,
+          sentence: 'This sentence should stay deleted.',
+          translation: 'Bu cumle silinmis kalmali.',
+          wordId: serverWordId,
+          difficulty: 'easy',
+        ),
+      ],
+    );
+
+    api.seedServerWord(serverWord);
+    await localDb.saveWord(serverWord);
+
+    final deleted = await appState.deleteSentenceFromWord(
+      wordId: serverWordId,
+      sentenceId: serverSentenceId,
+    );
+    expect(deleted, isTrue);
+
+    final queueAfterDelete = await localDb.getPendingSyncItems();
+    final hasSentenceDeleteTombstone = queueAfterDelete.any((item) =>
+        item['tableName']?.toString() == 'sentences' &&
+        item['action']?.toString() == 'delete' &&
+        item['itemId']?.toString() == serverSentenceId.toString());
+    expect(hasSentenceDeleteTombstone, isFalse,
+        reason: 'Delete succeeded on server; tombstone should be removed');
+
+    await localDb.saveAllWords(await api.getAllWords());
+    await appState.refreshWords();
+    await appState.refreshSentences();
+    expect(
+      appState.allSentences.any((s) => !s.isPractice && s.id == serverSentenceId),
+      isFalse,
     );
   });
 
