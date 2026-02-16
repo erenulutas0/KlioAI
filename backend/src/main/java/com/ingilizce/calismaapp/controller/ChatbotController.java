@@ -685,7 +685,7 @@ public class ChatbotController {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
                 .body(Map.of(
-                        "error", "AI request quota exceeded. Please retry later.",
+                        "error", "AI istek limitiniz doldu. Lütfen daha sonra tekrar deneyin.",
                         "success", false,
                         "retryAfterSeconds", decision.retryAfterSeconds(),
                         "reason", decision.reason()));
