@@ -14,6 +14,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/voice_selection_modal.dart';
 import '../services/chatbot_service.dart';
+import '../services/api_service.dart';
 import '../services/piper_tts_service.dart';
 import '../models/voice_model.dart';
 
@@ -376,11 +377,25 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     } catch (e) {
       if (mounted) {
         setState(() => _isTyping = false);
-        // User-friendly error message
-        String errorMsg = 'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.';
-        if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        if (e is ApiQuotaExceededException) {
+          _addBotMessage(e.message);
+          return;
+        }
+
+        final errorText = e.toString();
+        if (errorText.contains('Günlük AI hakkınız bitti') ||
+            errorText.contains('AI istek limitiniz doldu')) {
+          _addBotMessage(errorText);
+          return;
+        }
+
+        // User-friendly connection error message
+        String errorMsg =
+            'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+        if (errorText.contains('SocketException') ||
+            errorText.contains('Failed host lookup')) {
           errorMsg = 'İnternet bağlantısı yok. WiFi veya mobil veriyi kontrol et!';
-        } else if (e.toString().contains('TimeoutException')) {
+        } else if (errorText.contains('TimeoutException')) {
           errorMsg = 'Sunucu yanıt vermiyor. Biraz sonra tekrar dene!';
         }
         _addBotMessage(errorMsg);
