@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -317,6 +318,58 @@ class AiRateLimitServiceTest {
         assertTrue(service.checkAndConsume(7L, "10.0.0.7", "chat").blocked());
         // Other scopes should still be allowed (scope quota is specific).
         assertFalse(service.checkAndConsume(7L, "10.0.0.7", "speaking-evaluate").blocked());
+    }
+
+    @Test
+    void getAbusePenaltyStatus_ShouldReportActiveUserPenalty() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+        assertFalse(service.checkAndConsume(14L, "10.0.0.14", "chat").blocked());
+        assertTrue(service.checkAndConsume(14L, "10.0.0.14", "chat").blocked());
+
+        AiRateLimitService.AbusePenaltyStatus status = service.getAbusePenaltyStatus(14L, null);
+
+        assertTrue(status.userSubjectRequested());
+        assertEquals("u:14", status.userSubject());
+        assertTrue(status.userPenaltyActive());
+        assertEquals(30L, status.userRetryAfterSeconds());
+        assertFalse(status.ipPenaltyActive());
+    }
+
+    @Test
+    void getAbuseStats_ShouldExposeMemoryPenaltyCounters() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+        assertFalse(service.checkAndConsume(15L, "10.0.0.15", "chat").blocked());
+        assertTrue(service.checkAndConsume(15L, "10.0.0.15", "chat").blocked());
+
+        AiRateLimitService.AbuseStats stats = service.getAbuseStats();
+        assertTrue(stats.enabled());
+        assertTrue(stats.abusePenaltyEnabled());
+        assertNotNull(stats.abusePenaltySeconds());
+        assertEquals(3, stats.abusePenaltySeconds().size());
+        assertEquals(1, stats.memoryPenaltySubjects());
+        assertEquals(1, stats.memoryActivePenaltySubjects());
     }
 
     private static final class TestableAiRateLimitService extends AiRateLimitService {

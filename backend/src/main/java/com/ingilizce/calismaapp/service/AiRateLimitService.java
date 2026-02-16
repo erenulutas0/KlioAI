@@ -2,6 +2,8 @@ package com.ingilizce.calismaapp.service;
 
 import com.ingilizce.calismaapp.config.AiRateLimitProperties;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AiRateLimitService {
+    private static final Logger log = LoggerFactory.getLogger(AiRateLimitService.class);
 
     public record Decision(boolean blocked,
                            long retryAfterSeconds,
@@ -51,6 +55,30 @@ public class AiRateLimitService {
                               String ipSubject) {
     }
 
+    public record AbusePenaltyStatus(boolean userSubjectRequested,
+                                     boolean ipSubjectRequested,
+                                     boolean userPenaltyActive,
+                                     boolean ipPenaltyActive,
+                                     long userRetryAfterSeconds,
+                                     long ipRetryAfterSeconds,
+                                     String userSubject,
+                                     String ipSubject) {
+    }
+
+    public record AbuseStats(boolean enabled,
+                             boolean redisEnabled,
+                             String redisFallbackMode,
+                             boolean redisFallbackActive,
+                             boolean abusePenaltyEnabled,
+                             long abuseStrikeResetSeconds,
+                             List<Long> abusePenaltySeconds,
+                             int configuredScopeCount,
+                             int memoryPenaltySubjects,
+                             int memoryActivePenaltySubjects,
+                             int memoryUserWindowSubjects,
+                             int memoryIpWindowSubjects) {
+    }
+
     private static final String USER_PREFIX = "ai:rl:user:";
     private static final String IP_PREFIX = "ai:rl:ip:";
     private static final String DAILY_PREFIX = "ai:quota:day:";
@@ -60,9 +88,13 @@ public class AiRateLimitService {
     private static final String ABUSE_BAN_REASON = "abuse-ban";
 
     private static final String METRIC_BLOCK_TOTAL = "ai.rate.limit.block.total";
+    private static final String METRIC_PENALTY_APPLY_TOTAL = "ai.rate.limit.abuse.penalty.apply.total";
+    private static final String METRIC_UNBAN_TOTAL = "ai.rate.limit.abuse.unban.total";
     private static final String METRIC_REDIS_FAILURE_TOTAL = "ai.rate.limit.redis.failure.total";
     private static final String METRIC_REDIS_FALLBACK_ACTIVE = "ai.rate.limit.redis.fallback.active";
     private static final String METRIC_REDIS_FALLBACK_TRANSITION_TOTAL = "ai.rate.limit.redis.fallback.transition.total";
+    private static final String METRIC_MEMORY_PENALTY_SUBJECTS = "ai.rate.limit.abuse.memory.subjects";
+    private static final String METRIC_MEMORY_ACTIVE_PENALTY_SUBJECTS = "ai.rate.limit.abuse.memory.active.subjects";
 
     private final AiRateLimitProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
@@ -84,6 +116,9 @@ public class AiRateLimitService {
         this.meterRegistry = meterRegistry;
         if (meterRegistry != null) {
             meterRegistry.gauge(METRIC_REDIS_FALLBACK_ACTIVE, redisFallbackActive);
+            meterRegistry.gauge(METRIC_MEMORY_PENALTY_SUBJECTS, penaltyCounters, map -> map.size());
+            meterRegistry.gauge(METRIC_MEMORY_ACTIVE_PENALTY_SUBJECTS, penaltyCounters,
+                    ignored -> countActivePenaltySubjectsSnapshot());
         }
     }
 
@@ -126,6 +161,13 @@ public class AiRateLimitService {
         boolean userCleared = clearPenaltyForSubject(userSubject);
         boolean ipCleared = clearPenaltyForSubject(ipSubject);
 
+        if (userSubject != null) {
+            onUnban(userCleared, "user", userSubject);
+        }
+        if (ipSubject != null) {
+            onUnban(ipCleared, "ip", ipSubject);
+        }
+
         return new UnbanResult(
                 userSubject != null,
                 ipSubject != null,
@@ -133,6 +175,43 @@ public class AiRateLimitService {
                 ipCleared,
                 userSubject,
                 ipSubject);
+    }
+
+    public AbusePenaltyStatus getAbusePenaltyStatus(Long userId, String clientIp) {
+        String normalizedUser = userId == null ? null : normalize(String.valueOf(userId));
+        String normalizedIp = (clientIp == null || clientIp.isBlank()) ? null : normalize(clientIp);
+
+        String userSubject = (normalizedUser == null || normalizedUser.isBlank()) ? null : ("u:" + normalizedUser);
+        String ipSubject = (normalizedIp == null || normalizedIp.isBlank()) ? null : penaltySubjectForIp(normalizedIp);
+
+        PenaltyState userPenalty = readPenaltyState(userSubject);
+        PenaltyState ipPenalty = readPenaltyState(ipSubject);
+
+        return new AbusePenaltyStatus(
+                userSubject != null,
+                ipSubject != null,
+                userPenalty.active,
+                ipPenalty.active,
+                userPenalty.retryAfterSeconds,
+                ipPenalty.retryAfterSeconds,
+                userSubject,
+                ipSubject);
+    }
+
+    public AbuseStats getAbuseStats() {
+        return new AbuseStats(
+                properties.isEnabled(),
+                canUseRedis(),
+                properties.getRedisFallbackMode(),
+                redisFallbackActive.get() == 1,
+                properties.isAbusePenaltyEnabled(),
+                properties.getAbuseStrikeResetSeconds(),
+                List.copyOf(properties.getAbusePenaltySeconds()),
+                properties.getScopes() != null ? properties.getScopes().size() : 0,
+                penaltyCounters.size(),
+                countActivePenaltySubjectsSnapshot(),
+                userCounters.size(),
+                ipCounters.size());
     }
 
     protected long currentTimeMillis() {
@@ -371,6 +450,7 @@ public class AiRateLimitService {
 
         int level = penaltyLevelForStrike(normalizedStrikes);
         long nextPenalty = penaltyForStrike(normalizedStrikes + 1);
+        onPenaltyApplied("redis", penaltySubject, burstReason, scope, level, penaltySeconds);
         return blockWithPenalty(burstReason, penaltySeconds, level, nextPenalty, scope);
     }
 
@@ -440,6 +520,7 @@ public class AiRateLimitService {
 
             int level = penaltyLevelForStrike(counter.strikes);
             long nextPenalty = penaltyForStrike((long) counter.strikes + 1L);
+            onPenaltyApplied("memory", penaltySubject, burstReason, scope, level, penaltySeconds);
             return blockWithPenalty(burstReason, penaltySeconds, level, nextPenalty, scope);
         }
     }
@@ -506,6 +587,7 @@ public class AiRateLimitService {
             if (meterRegistry != null) {
                 meterRegistry.counter(METRIC_REDIS_FALLBACK_TRANSITION_TOTAL, "state", "activated").increment();
             }
+            log.warn("Redis AI rate-limit path failed, falling back to local memory (operation={})", operation);
         }
     }
 
@@ -515,7 +597,121 @@ public class AiRateLimitService {
             if (meterRegistry != null) {
                 meterRegistry.counter(METRIC_REDIS_FALLBACK_TRANSITION_TOTAL, "state", "recovered").increment();
             }
+            log.info("Redis AI rate-limit path recovered");
         }
+    }
+
+    private PenaltyState readPenaltyState(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return PenaltyState.inactive();
+        }
+
+        if (canUseRedis()) {
+            try {
+                Long ttl = stringRedisTemplate.getExpire(PENALTY_BAN_PREFIX + subject, TimeUnit.SECONDS);
+                onRedisSuccess();
+                if (ttl != null && ttl > 0) {
+                    return PenaltyState.active(ttl);
+                }
+            } catch (Exception ex) {
+                onRedisFailure("getAbusePenaltyStatus");
+            }
+        }
+
+        return readPenaltyStateFromMemory(subject);
+    }
+
+    private PenaltyState readPenaltyStateFromMemory(String subject) {
+        PenaltyCounter counter = penaltyCounters.get(subject);
+        if (counter == null) {
+            return PenaltyState.inactive();
+        }
+
+        long now = currentTimeMillis();
+        synchronized (counter) {
+            if (counter.blockedUntilMs <= now) {
+                return PenaltyState.inactive();
+            }
+            long retry = Math.max(1L, (counter.blockedUntilMs - now + 999L) / 1000L);
+            return PenaltyState.active(retry);
+        }
+    }
+
+    private int countActivePenaltySubjectsSnapshot() {
+        long now = currentTimeMillis();
+        int active = 0;
+        for (PenaltyCounter counter : penaltyCounters.values()) {
+            synchronized (counter) {
+                if (counter.blockedUntilMs > now) {
+                    active++;
+                }
+            }
+        }
+        return active;
+    }
+
+    private void onPenaltyApplied(String backend,
+                                  String penaltySubject,
+                                  String reason,
+                                  String scope,
+                                  int level,
+                                  long penaltySeconds) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(
+                    METRIC_PENALTY_APPLY_TOTAL,
+                    "backend", normalizeMetricTag(backend),
+                    "reason", normalizeMetricTag(reason),
+                    "scope", normalizeMetricTag(scope),
+                    "level", String.valueOf(Math.max(1, level)))
+                    .increment();
+        }
+        log.warn("AI abuse penalty applied (backend={}, subject={}, reason={}, scope={}, level={}, durationSec={})",
+                backend,
+                redactPenaltySubject(penaltySubject),
+                reason,
+                scope,
+                level,
+                Math.max(1L, penaltySeconds));
+    }
+
+    private void onUnban(boolean cleared, String subjectType, String subject) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(
+                    METRIC_UNBAN_TOTAL,
+                    "subjectType", normalizeMetricTag(subjectType),
+                    "result", cleared ? "cleared" : "noop")
+                    .increment();
+        }
+        log.info("AI abuse penalty clear requested (subjectType={}, subject={}, cleared={})",
+                subjectType,
+                redactPenaltySubject(subject),
+                cleared);
+    }
+
+    private String normalizeMetricTag(String value) {
+        if (value == null) {
+            return "unknown";
+        }
+        String normalized = value.trim().toLowerCase();
+        return normalized.isEmpty() ? "unknown" : normalized;
+    }
+
+    private String redactPenaltySubject(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return "unknown";
+        }
+        if (subject.startsWith("u:")) {
+            return subject;
+        }
+        if (subject.startsWith("ip:")) {
+            String ip = subject.substring(3);
+            int lastDot = ip.lastIndexOf('.');
+            if (lastDot > 0) {
+                return "ip:" + ip.substring(0, lastDot) + ".*";
+            }
+            return "ip:*";
+        }
+        return "unknown";
     }
 
     private boolean canUseRedis() {
@@ -606,5 +802,23 @@ public class AiRateLimitService {
         private int strikes;
         private long strikeResetAtMs;
         private long blockedUntilMs;
+    }
+
+    private static final class PenaltyState {
+        private final boolean active;
+        private final long retryAfterSeconds;
+
+        private PenaltyState(boolean active, long retryAfterSeconds) {
+            this.active = active;
+            this.retryAfterSeconds = retryAfterSeconds;
+        }
+
+        private static PenaltyState inactive() {
+            return new PenaltyState(false, 0L);
+        }
+
+        private static PenaltyState active(long retryAfterSeconds) {
+            return new PenaltyState(true, Math.max(1L, retryAfterSeconds));
+        }
     }
 }

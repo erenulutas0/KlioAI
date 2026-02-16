@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -111,5 +112,54 @@ class AdminControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"userId\":4}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aiAbuseStatus_ShouldReturnActiveStatus() throws Exception {
+        when(aiRateLimitService.getAbusePenaltyStatus(4L, "10.0.0.4"))
+                .thenReturn(new AiRateLimitService.AbusePenaltyStatus(
+                        true, true, true, false, 30, 0, "u:4", "ip:10.0.0.4"));
+
+        mockMvc.perform(post("/api/admin/ai-abuse/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":4,\"clientIp\":\"10.0.0.4\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.userPenaltyActive").value(true))
+                .andExpect(jsonPath("$.ipPenaltyActive").value(false))
+                .andExpect(jsonPath("$.anyPenaltyActive").value(true))
+                .andExpect(jsonPath("$.userRetryAfterSeconds").value(30))
+                .andExpect(jsonPath("$.userSubject").value("u:4"));
+
+        verify(aiRateLimitService).getAbusePenaltyStatus(4L, "10.0.0.4");
+    }
+
+    @Test
+    void aiAbuseStats_ShouldReturnSnapshot() throws Exception {
+        when(aiRateLimitService.getAbuseStats())
+                .thenReturn(new AiRateLimitService.AbuseStats(
+                        true,
+                        true,
+                        "memory",
+                        false,
+                        true,
+                        900,
+                        java.util.List.of(30L, 60L, 150L),
+                        3,
+                        1,
+                        1,
+                        20,
+                        10));
+
+        mockMvc.perform(get("/api/admin/ai-abuse/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.redisEnabled").value(true))
+                .andExpect(jsonPath("$.memoryPenaltySubjects").value(1))
+                .andExpect(jsonPath("$.memoryActivePenaltySubjects").value(1))
+                .andExpect(jsonPath("$.configuredScopeCount").value(3));
+
+        verify(aiRateLimitService).getAbuseStats();
     }
 }
