@@ -427,10 +427,22 @@ class XPManager {
   }
 
   /// XP düşür (silme işlemleri için)
-  Future<void> deductXP(int amount, String reason) async {
+  /// [transactionId]: Benzersiz işlem ID'si - aynı ID ile tekrar XP düşülmez (idempotency)
+  Future<void> deductXP(int amount, String reason, {String? transactionId}) async {
     if (amount <= 0) return;
     
     try {
+      // 🆔 İdempotency kontrolü - SharedPreferences'tan yükle
+      await _loadTransactions();
+
+      if (transactionId != null) {
+        if (_processedTransactions.contains(transactionId)) {
+          print('⚠️ XP düşürme işlemi zaten işlenmiş (idempotent): $transactionId');
+          return;
+        }
+        await _saveTransaction(transactionId);
+      }
+
       // 🔥 Önce mevcut XP değerini al (cache 0 olabileceği için)
       final currentXP = await getTotalXP(forceRefresh: true);
       final newTotalXP = (currentXP - amount) > 0 ? (currentXP - amount) : 0;

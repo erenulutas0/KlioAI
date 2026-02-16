@@ -1002,7 +1002,12 @@ class AppStateProvider extends ChangeNotifier {
       // 🔥 XP düşür: cümle başına 5 XP
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
       if (shouldDeductXp) {
-        await _xpManager.deductXP(5, 'Cümle silindi');
+        final contentKey =
+            (targetSentenceKey != null && targetSentenceKey!.isNotEmpty)
+                ? '${targetSentenceKey ?? ''}|${targetTranslationKey ?? ''}'
+                : 'id:$sentenceId';
+        final txId = 'deduct_sentence_${effectiveWordId}_${contentKey.hashCode}';
+        await _xpManager.deductXP(5, 'Cümle silindi', transactionId: txId);
       }
 
       // UI state'i de güncelle
@@ -1063,7 +1068,11 @@ class AppStateProvider extends ChangeNotifier {
 
       // 🔥 XP düşür: pratik cümlesi başına 5 XP
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
-      await _xpManager.deductXP(5, 'Pratik cümlesi silindi');
+      final contentKey = targetSentence.isNotEmpty
+          ? '$targetSentence|$targetTranslation'
+          : 'id:${sentenceId.toString()}';
+      final txId = 'deduct_practice_${contentKey.hashCode}';
+      await _xpManager.deductXP(5, 'Pratik cümlesi silindi', transactionId: txId);
 
       // UI state'i de güncelle
       final newTotalXp = await _xpManager.getTotalXP(forceRefresh: true);
