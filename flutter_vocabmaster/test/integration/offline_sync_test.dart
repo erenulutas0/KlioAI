@@ -216,5 +216,38 @@ void main() {
           await db.query('sentences', where: 'id = ?', whereArgs: [9001]);
       expect(after, isEmpty);
     });
+
+    test('Sync queue health snapshot reports counts by action and table',
+        () async {
+      when(mockConnectivity.checkConnectivity())
+          .thenAnswer((_) async => [ConnectivityResult.none]);
+
+      await syncService.createWord(
+        english: 'HealthWord',
+        turkish: 'Saglik',
+        addedDate: DateTime.now(),
+        difficulty: 'easy',
+      );
+
+      await localDb.addToSyncQueue(
+        'delete',
+        'sentences',
+        '777',
+        {'wordId': 1},
+      );
+
+      final health = await syncService.getSyncQueueHealth();
+      final byTable =
+          Map<String, dynamic>.from(health['byTable'] as Map<dynamic, dynamic>);
+
+      expect(health['pendingTotal'], 2);
+      expect(health['createCount'], 1);
+      expect(health['deleteCount'], 1);
+      expect(byTable['words'], 1);
+      expect(byTable['sentences'], 1);
+      expect(health['isOnline'], isFalse);
+      expect(health['isSyncing'], isFalse);
+      expect(health['oldestPendingSeconds'], isA<int>());
+    });
   });
 }

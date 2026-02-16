@@ -63,6 +63,17 @@ class OfflineSyncService {
   /// Anlık online durumu
   bool get isOnline => _isOnline;
 
+  /// Sync queue ve bağlantı durumu için özet sağlık verisi döndürür.
+  Future<Map<String, dynamic>> getSyncQueueHealth() async {
+    await _checkConnectivity();
+    final snapshot = await _localDb.getSyncQueueHealthSnapshot();
+    return <String, dynamic>{
+      ...snapshot,
+      'isOnline': _isOnline,
+      'isSyncing': _isSyncing,
+    };
+  }
+
   /// Servisi başlat
   Future<void> initialize() async {
     // İlk durum kontrolü
@@ -271,8 +282,10 @@ class OfflineSyncService {
         if (!await _hasAuthenticatedUser()) {
           return;
         }
+        await _logSyncQueueHealth('before');
         // Sync queue'daki bekleyen işlemleri gönder
         await _processSyncQueue();
+        await _logSyncQueueHealth('after');
         // API'den güncel verileri çek
         _syncWordsInBackground();
         // Not: Sentences API sync henüz implementasyonda değil
@@ -313,6 +326,20 @@ class OfflineSyncService {
       }
     } catch (e) {
       print('Process sync queue error: $e');
+    }
+  }
+
+  Future<void> _logSyncQueueHealth(String phase) async {
+    try {
+      final snapshot = await _localDb.getSyncQueueHealthSnapshot();
+      final payload = <String, dynamic>{
+        ...snapshot,
+        'isOnline': _isOnline,
+        'isSyncing': _isSyncing,
+      };
+      print('SYNC_QUEUE_HEALTH[$phase]: ${jsonEncode(payload)}');
+    } catch (e) {
+      print('SYNC_QUEUE_HEALTH[$phase] log error: $e');
     }
   }
 

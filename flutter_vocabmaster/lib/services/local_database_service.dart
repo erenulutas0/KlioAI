@@ -955,6 +955,58 @@ class LocalDatabaseService {
     );
   }
 
+  /// Sync queue için özet sağlık verisi döndürür.
+  Future<Map<String, dynamic>> getSyncQueueHealthSnapshot({
+    Duration staleThreshold = const Duration(minutes: 10),
+  }) async {
+    final pendingItems = await getPendingSyncItems();
+    final now = DateTime.now();
+
+    int createCount = 0;
+    int deleteCount = 0;
+    int stalePendingCount = 0;
+    DateTime? oldestCreatedAt;
+    final Map<String, int> byTable = <String, int>{};
+
+    for (final item in pendingItems) {
+      final action = item['action']?.toString().toLowerCase();
+      if (action == 'create') {
+        createCount++;
+      } else if (action == 'delete') {
+        deleteCount++;
+      }
+
+      final tableName = item['tableName']?.toString() ?? 'unknown';
+      byTable[tableName] = (byTable[tableName] ?? 0) + 1;
+
+      final createdAtRaw = item['createdAt']?.toString() ?? '';
+      final createdAt = DateTime.tryParse(createdAtRaw);
+      if (createdAt == null) {
+        continue;
+      }
+
+      if (oldestCreatedAt == null || createdAt.isBefore(oldestCreatedAt)) {
+        oldestCreatedAt = createdAt;
+      }
+      if (now.difference(createdAt) >= staleThreshold) {
+        stalePendingCount++;
+      }
+    }
+
+    final oldestPendingSeconds =
+        oldestCreatedAt == null ? null : now.difference(oldestCreatedAt).inSeconds;
+
+    return <String, dynamic>{
+      'pendingTotal': pendingItems.length,
+      'createCount': createCount,
+      'deleteCount': deleteCount,
+      'stalePendingCount': stalePendingCount,
+      'oldestPendingSeconds': oldestPendingSeconds,
+      'byTable': byTable,
+      'generatedAt': now.toIso8601String(),
+    };
+  }
+
   /// Sync işlemi tamamlandı olarak işaretle
   Future<void> markSyncItemCompleted(int id) async {
     final db = await database;
