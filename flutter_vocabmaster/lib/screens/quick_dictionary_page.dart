@@ -77,8 +77,11 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiQuotaExceededException
+            ? e.message
+            : 'Arama başarısız: $e';
         setState(() {
-          _errorMessage = 'Arama başarısız: $e';
+          _errorMessage = msg;
           _isSearching = false;
         });
       }

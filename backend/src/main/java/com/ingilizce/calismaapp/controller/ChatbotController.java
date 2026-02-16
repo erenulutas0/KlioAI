@@ -8,6 +8,7 @@ import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
+import com.ingilizce.calismaapp.service.AiProxyService;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -58,6 +59,9 @@ public class ChatbotController {
 
     @Autowired(required = false)
     private AiTokenQuotaService aiTokenQuotaService;
+
+    @Autowired
+    private AiProxyService aiProxyService;
 
     @Autowired
     private ClientIpResolver clientIpResolver;
@@ -663,6 +667,221 @@ public class ChatbotController {
             log.error("Failed to evaluate speaking test for userId={}", userId, e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to evaluate response: " + e.getMessage()));
+        }
+    }
+
+    // ==================== DICTIONARY / READING / WRITING / EXAMS (Server-side AI Proxy) ====================
+
+    @PostMapping("/dictionary/lookup")
+    public ResponseEntity<Map<String, Object>> dictionaryLookup(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "dictionary-lookup");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "dictionary-lookup");
+        if (aiLimit != null) return aiLimit;
+
+        String word = request.get("word") != null ? request.get("word").toString() : null;
+        if (word == null || word.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
+        }
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookup(word.trim());
+            consumeAiTokens(userId, "dictionary-lookup", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("dictionaryLookup failed userId={} word={}", userId, word, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Dictionary lookup failed."));
+        }
+    }
+
+    @PostMapping("/dictionary/lookup-detailed")
+    public ResponseEntity<Map<String, Object>> dictionaryLookupDetailed(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "dictionary-lookup-detailed");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "dictionary-lookup-detailed");
+        if (aiLimit != null) return aiLimit;
+
+        String word = request.get("word") != null ? request.get("word").toString() : null;
+        if (word == null || word.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
+        }
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookupDetailed(word.trim());
+            consumeAiTokens(userId, "dictionary-lookup-detailed", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("dictionaryLookupDetailed failed userId={} word={}", userId, word, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Dictionary lookup failed."));
+        }
+    }
+
+    @PostMapping("/dictionary/explain")
+    public ResponseEntity<Map<String, Object>> dictionaryExplain(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "dictionary-explain");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "dictionary-explain");
+        if (aiLimit != null) return aiLimit;
+
+        String word = request.get("word") != null ? request.get("word").toString() : null;
+        String sentence = request.get("sentence") != null ? request.get("sentence").toString() : null;
+        if (word == null || word.trim().isEmpty() || sentence == null || sentence.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "word and sentence are required"));
+        }
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryExplainWordInSentence(word.trim(), sentence.trim());
+            consumeAiTokens(userId, "dictionary-explain", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("dictionaryExplain failed userId={} word={}", userId, word, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Dictionary explain failed."));
+        }
+    }
+
+    @PostMapping("/dictionary/generate-specific-sentence")
+    public ResponseEntity<Map<String, Object>> dictionaryGenerateSpecificSentence(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "dictionary-specific-sentence");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "dictionary-specific-sentence");
+        if (aiLimit != null) return aiLimit;
+
+        String word = request.get("word") != null ? request.get("word").toString() : null;
+        String translation = request.get("translation") != null ? request.get("translation").toString() : null;
+        String context = request.get("context") != null ? request.get("context").toString() : null;
+        if (word == null || word.trim().isEmpty() || translation == null || translation.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "word and translation are required"));
+        }
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryGenerateSpecificSentence(
+                    word.trim(),
+                    translation.trim(),
+                    context != null ? context.trim() : "");
+            consumeAiTokens(userId, "dictionary-specific-sentence", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("dictionaryGenerateSpecificSentence failed userId={} word={}", userId, word, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Sentence generation failed."));
+        }
+    }
+
+    @PostMapping("/reading/generate")
+    public ResponseEntity<Map<String, Object>> generateReadingPassage(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "reading-generate");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "reading-generate");
+        if (aiLimit != null) return aiLimit;
+
+        String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(level);
+            consumeAiTokens(userId, "reading-generate", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("generateReadingPassage failed userId={} level={}", userId, level, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Reading generation failed."));
+        }
+    }
+
+    @PostMapping("/writing/generate-topic")
+    public ResponseEntity<Map<String, Object>> generateWritingTopic(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "writing-topic");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "writing-topic");
+        if (aiLimit != null) return aiLimit;
+
+        String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
+        String wordCount = request.get("wordCount") != null ? request.get("wordCount").toString() : "150-200";
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.generateWritingTopic(level, wordCount);
+            consumeAiTokens(userId, "writing-topic", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("generateWritingTopic failed userId={} level={}", userId, level, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Writing topic generation failed."));
+        }
+    }
+
+    @PostMapping("/writing/evaluate")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> evaluateWriting(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "writing-evaluate");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "writing-evaluate");
+        if (aiLimit != null) return aiLimit;
+
+        String text = request.get("text") != null ? request.get("text").toString() : null;
+        String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
+        Map<String, Object> topic = request.get("topic") instanceof Map ? (Map<String, Object>) request.get("topic") : null;
+        if (text == null || text.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.evaluateWriting(text, level, topic);
+            consumeAiTokens(userId, "writing-evaluate", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("evaluateWriting failed userId={} level={}", userId, level, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Writing evaluation failed."));
+        }
+    }
+
+    @PostMapping("/exam/generate")
+    public ResponseEntity<Map<String, Object>> generateExamBundle(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        if (!checkSubscription(userId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
+        }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "exam-generate");
+        if (tokenLimit != null) return tokenLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "exam-generate");
+        if (aiLimit != null) return aiLimit;
+
+        try {
+            AiProxyService.AiJsonResult result = aiProxyService.generateExamBundle(request);
+            consumeAiTokens(userId, "exam-generate", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("generateExamBundle failed userId={}", userId, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Exam generation failed."));
         }
     }
 

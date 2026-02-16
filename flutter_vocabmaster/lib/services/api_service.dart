@@ -506,6 +506,176 @@ class ApiService {
     }
     throw Exception('AI speaking değerlendirme başarısız: ${response.statusCode}');
   }
+
+  // ==================== AI (DICTIONARY / READING / WRITING / EXAM) ====================
+
+  Future<Map<String, dynamic>> chatbotDictionaryLookup({
+    required String word,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/dictionary/lookup'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'word': word}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Sözlük araması başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotDictionaryLookupDetailed({
+    required String word,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/dictionary/lookup-detailed'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'word': word}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Detayli sözlük araması başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotDictionaryExplainWordInSentence({
+    required String word,
+    required String sentence,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/dictionary/explain'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'word': word, 'sentence': sentence}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Sözlük açıklama başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotDictionaryGenerateSpecificSentence({
+    required String word,
+    required String translation,
+    required String context,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/dictionary/generate-specific-sentence'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'word': word,
+        'translation': translation,
+        'context': context,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Örnek cümle üretimi başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotGenerateReadingPassage({
+    required String level,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/reading/generate'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'level': level}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Reading üretimi başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotGenerateWritingTopic({
+    required String level,
+    required String wordCount,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/writing/generate-topic'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'level': level, 'wordCount': wordCount}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Writing konusu üretimi başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotEvaluateWriting({
+    required String text,
+    required String level,
+    required Map<String, dynamic> topic,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/writing/evaluate'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'text': text, 'level': level, 'topic': topic}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Writing değerlendirme başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotGenerateExamBundle({
+    required String examType,
+    required String category,
+    required int questionCount,
+    required String userLevel,
+    String targetScore = '60-80',
+    String mode = 'category',
+    String track = 'general',
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/exam/generate'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'examType': examType,
+        'mode': mode,
+        'category': category,
+        'track': track,
+        'questionCount': questionCount,
+        'userLevel': userLevel,
+        'targetScore': targetScore,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Sınav üretimi başarısız: ${response.statusCode}');
+  }
 }
 
 class ApiQuotaExceededException implements Exception {

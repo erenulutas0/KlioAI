@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../widgets/animated_background.dart';
 import '../services/chatbot_service.dart';
+import '../services/api_service.dart';
 import '../services/piper_tts_service.dart';
 
 class ExamChatPage extends StatefulWidget {
@@ -110,7 +111,11 @@ class _ExamChatPageState extends State<ExamChatPage> with TickerProviderStateMix
     } catch (e) {
       if (mounted) {
         setState(() => _isTyping = false);
-        _addBotMessage('Error loading question. Let\'s try a general question:\n\nTell me about your hometown. What do you like about living there?', speak: true);
+        if (e is ApiQuotaExceededException) {
+          _addBotMessage(e.message, speak: true);
+        } else {
+          _addBotMessage('Error loading question. Let\'s try a general question:\n\nTell me about your hometown. What do you like about living there?', speak: true);
+        }
       }
     }
   }
@@ -324,7 +329,11 @@ class _ExamChatPageState extends State<ExamChatPage> with TickerProviderStateMix
     } catch (e) {
       if (mounted) {
         setState(() => _isTyping = false);
-        _addBotMessage('Good effort! Keep practicing. Your answer shows understanding of the topic.\n\nWould you like another question?');
+        if (e is ApiQuotaExceededException) {
+          _addBotMessage(e.message, speak: true);
+        } else {
+          _addBotMessage('Good effort! Keep practicing. Your answer shows understanding of the topic.\n\nWould you like another question?');
+        }
       }
     }
   }

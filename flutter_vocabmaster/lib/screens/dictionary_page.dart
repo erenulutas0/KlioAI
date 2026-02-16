@@ -97,8 +97,11 @@ class _DictionaryPageState extends State<DictionaryPage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiQuotaExceededException
+            ? e.message
+            : 'Kelime aranamadı: $e';
         setState(() {
-          errorMessage = 'Kelime aranamadı: $e';
+          errorMessage = msg;
           isLoading = false;
         });
       }
