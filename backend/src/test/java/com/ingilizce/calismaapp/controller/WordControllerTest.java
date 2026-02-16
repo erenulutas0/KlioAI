@@ -128,7 +128,7 @@ public class WordControllerTest {
                 word.setId(5L);
                 word.setEnglishWord("House");
 
-                when(wordService.getWordByIdAndUser(5L, 1L)).thenReturn(Optional.of(word));
+                when(wordService.getWordByIdAndUserWithSentences(5L, 1L)).thenReturn(Optional.of(word));
 
                 mockMvc.perform(get("/api/words/5").header("X-User-Id", "1"))
                                 .andExpect(status().isOk())
@@ -138,7 +138,7 @@ public class WordControllerTest {
 
         @Test
         void testGetWordByIdNotFound() throws Exception {
-                when(wordService.getWordByIdAndUser(99L, 1L)).thenReturn(Optional.empty());
+                when(wordService.getWordByIdAndUserWithSentences(99L, 1L)).thenReturn(Optional.empty());
 
                 mockMvc.perform(get("/api/words/99").header("X-User-Id", "1"))
                                 .andExpect(status().isNotFound());
@@ -154,7 +154,7 @@ public class WordControllerTest {
                 sentence.setWord(word);
                 word.setSentences(List.of(sentence));
 
-                when(wordService.getWordByIdAndUser(7L, 1L)).thenReturn(Optional.of(word));
+                when(wordService.getWordByIdAndUserWithSentences(7L, 1L)).thenReturn(Optional.of(word));
 
                 mockMvc.perform(get("/api/words/7/sentences").header("X-User-Id", "1"))
                                 .andExpect(status().isOk())
@@ -164,7 +164,7 @@ public class WordControllerTest {
 
         @Test
         void testGetWordSentencesNotFound() throws Exception {
-                when(wordService.getWordByIdAndUser(8L, 1L)).thenReturn(Optional.empty());
+                when(wordService.getWordByIdAndUserWithSentences(8L, 1L)).thenReturn(Optional.empty());
 
                 mockMvc.perform(get("/api/words/8/sentences").header("X-User-Id", "1"))
                                 .andExpect(status().isNotFound());

@@ -27,6 +27,9 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     Optional<Word> findByIdAndUserId(Long id, Long userId);
 
+    @Query("SELECT DISTINCT w FROM Word w LEFT JOIN FETCH w.sentences WHERE w.id = :id AND w.userId = :userId")
+    Optional<Word> findByIdAndUserIdWithSentences(@Param("id") Long id, @Param("userId") Long userId);
+
     Optional<Word> findByUserIdAndEnglishWord(Long userId, String englishWord);
 
     @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.learnedDate BETWEEN :startDate AND :endDate ORDER BY w.learnedDate DESC")

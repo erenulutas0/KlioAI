@@ -51,7 +51,7 @@ public class Word {
     @Column(name = "last_review_date")
     private LocalDate lastReviewDate;
 
-    @OneToMany(mappedBy = "word", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "word", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Sentence> sentences = new ArrayList<>();
 

@@ -18,6 +18,9 @@ public interface SentenceRepository extends JpaRepository<Sentence, Long> {
     @Query("SELECT s FROM Sentence s WHERE s.word.id = :wordId")
     List<Sentence> findByWordId(@Param("wordId") Long wordId);
 
+    @Query("SELECT s FROM Sentence s WHERE s.word.id IN :wordIds ORDER BY s.id ASC")
+    List<Sentence> findByWordIdIn(@Param("wordIds") List<Long> wordIds);
+
     Optional<Sentence> findByIdAndWordUserId(Long id, Long userId);
 
     @Query("SELECT s FROM Sentence s WHERE s.word.id = :wordId AND s.sentence = :sentence AND (s.translation = :translation OR (s.translation IS NULL AND :translation IS NULL))")

@@ -12,9 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -38,19 +41,27 @@ public class WordService {
     private ActivityPublisher activityPublisher;
 
     public List<Word> getAllWords(Long userId) {
-        return wordRepository.findByUserId(userId);
+        List<Word> words = wordRepository.findByUserId(userId);
+        hydrateSentencesForWords(words);
+        return words;
     }
 
     public Page<Word> getWordsPage(Long userId, int page, int size) {
-        return wordRepository.findByUserId(userId, PageRequest.of(page, size));
+        Page<Word> wordsPage = wordRepository.findByUserId(userId, PageRequest.of(page, size));
+        hydrateSentencesForWords(wordsPage.getContent());
+        return wordsPage;
     }
 
     public List<Word> getWordsByDate(Long userId, LocalDate date) {
-        return wordRepository.findByUserIdAndLearnedDate(userId, date);
+        List<Word> words = wordRepository.findByUserIdAndLearnedDate(userId, date);
+        hydrateSentencesForWords(words);
+        return words;
     }
 
     public List<Word> getWordsByDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        return wordRepository.findByUserIdAndDateRange(userId, startDate, endDate);
+        List<Word> words = wordRepository.findByUserIdAndDateRange(userId, startDate, endDate);
+        hydrateSentencesForWords(words);
+        return words;
     }
 
     public List<LocalDate> getAllDistinctDates(Long userId) {
@@ -73,7 +84,7 @@ public class WordService {
                 word.getEnglishWord()
             );
             if (existing.isPresent()) {
-                return existing.get();
+                return hydrateSentences(existing.get());
             }
         }
 
@@ -99,7 +110,7 @@ public class WordService {
             progressService.updateStreak(savedWord.getUserId());
         }
 
-        return savedWord;
+        return hydrateSentences(savedWord);
     }
 
     // Overload for convenience if needed, though usually verification happens at
@@ -127,6 +138,12 @@ public class WordService {
         return wordRepository.findByIdAndUserId(id, userId);
     }
 
+    public Optional<Word> getWordByIdAndUserWithSentences(Long id, Long userId) {
+        Optional<Word> word = wordRepository.findByIdAndUserIdWithSentences(id, userId);
+        word.ifPresent(this::normalizeLoadedSentences);
+        return word;
+    }
+
     public void deleteWord(Long id, Long userId) {
         Optional<Word> word = getWordByIdAndUser(id, userId);
         if (word.isPresent()) {
@@ -144,7 +161,8 @@ public class WordService {
             word.setTurkishMeaning(wordDetails.getTurkishMeaning());
             word.setLearnedDate(wordDetails.getLearnedDate());
             word.setNotes(wordDetails.getNotes());
-            return wordRepository.save(word);
+            Word updatedWord = wordRepository.save(word);
+            return hydrateSentences(updatedWord);
         }
         return null;
     }
@@ -161,14 +179,15 @@ public class WordService {
                 List<Sentence> existingSentences = sentenceRepository
                         .findByWordIdAndSentenceAndTranslation(wordId, sentence, translation);
                 if (!existingSentences.isEmpty()) {
-                    return word;
+                    return hydrateSentences(word);
                 }
             }
 
             Sentence newSentence = new Sentence(sentence, translation, difficulty != null ? difficulty : "easy", word);
             word.addSentence(newSentence);
             progressService.awardXp(userId, XP_NEW_WORD_SENTENCE, "New Sentence for: " + word.getEnglishWord());
-            return wordRepository.save(word);
+            Word updatedWord = wordRepository.save(word);
+            return hydrateSentences(updatedWord);
         }
         return null;
     }
@@ -191,6 +210,59 @@ public class WordService {
         // Keep response consistent even if the caller used a different wordId.
         owningWord.removeSentence(sentence);
         sentenceRepository.delete(sentence);
-        return owningWord;
+        return hydrateSentences(owningWord);
+    }
+
+    private Word hydrateSentences(Word word) {
+        if (word == null) {
+            return null;
+        }
+        hydrateSentencesForWords(List.of(word));
+        return word;
+    }
+
+    private void hydrateSentencesForWords(List<Word> words) {
+        if (words == null || words.isEmpty()) {
+            return;
+        }
+
+        List<Long> wordIds = words.stream()
+                .map(Word::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (wordIds.isEmpty()) {
+            for (Word word : words) {
+                word.setSentences(new ArrayList<>());
+            }
+            return;
+        }
+
+        List<Sentence> allSentences = sentenceRepository.findByWordIdIn(wordIds);
+        if (allSentences == null) {
+            allSentences = List.of();
+        }
+
+        Map<Long, List<Sentence>> sentencesByWordId = allSentences.stream()
+                .filter(sentence -> sentence.getWord() != null && sentence.getWord().getId() != null)
+                .collect(Collectors.groupingBy(
+                        sentence -> sentence.getWord().getId(),
+                        Collectors.toList()));
+
+        for (Word word : words) {
+            List<Sentence> sentences = new ArrayList<>(sentencesByWordId.getOrDefault(word.getId(), List.of()));
+            for (Sentence sentence : sentences) {
+                sentence.setWord(word);
+            }
+            word.setSentences(sentences);
+        }
+    }
+
+    private void normalizeLoadedSentences(Word word) {
+        List<Sentence> sentences = new ArrayList<>(word.getSentences());
+        for (Sentence sentence : sentences) {
+            sentence.setWord(word);
+        }
+        word.setSentences(sentences);
     }
 }

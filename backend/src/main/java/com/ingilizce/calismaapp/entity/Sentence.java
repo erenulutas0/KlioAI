@@ -22,7 +22,7 @@ public class Sentence {
     @Column
     private String difficulty;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "word_id", nullable = false)
     @JsonBackReference
     private Word word;

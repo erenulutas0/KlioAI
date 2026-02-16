@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -51,6 +52,7 @@ class WordServiceTest {
         MockitoAnnotations.openMocks(this);
         when(wordRepository.findByUserIdAndEnglishWord(anyLong(), anyString()))
                 .thenReturn(Optional.empty());
+        when(sentenceRepository.findByWordIdIn(anyList())).thenReturn(List.of());
     }
 
     @Test
@@ -320,9 +322,12 @@ class WordServiceTest {
         word.setUserId(1L);
         word.setId(1L);
         word.setEnglishWord("hello");
+        Sentence savedSentence = new Sentence("Hello world", "Merhaba dunya", "easy", word);
+        savedSentence.setId(100L);
 
         when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(word));
         when(wordRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sentenceRepository.findByWordIdIn(anyList())).thenReturn(List.of(savedSentence));
 
         Word result = wordService.addSentence(1L, "Hello world", "Merhaba dunya", null, 1L);
 

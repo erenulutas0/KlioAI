@@ -44,7 +44,7 @@ public class WordController {
     @GetMapping("/{id}")
     public ResponseEntity<Word> getWordById(@PathVariable Long id,
             @RequestHeader("X-User-Id") Long userId) {
-        Optional<Word> word = wordService.getWordByIdAndUser(id, userId);
+        Optional<Word> word = wordService.getWordByIdAndUserWithSentences(id, userId);
         return word.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -52,7 +52,7 @@ public class WordController {
     @GetMapping("/{id}/sentences")
     public ResponseEntity<List<com.ingilizce.calismaapp.entity.Sentence>> getWordSentences(@PathVariable Long id,
             @RequestHeader("X-User-Id") Long userId) {
-        Optional<Word> word = wordService.getWordByIdAndUser(id, userId);
+        Optional<Word> word = wordService.getWordByIdAndUserWithSentences(id, userId);
         if (word.isPresent()) {
             return ResponseEntity.ok(word.get().getSentences());
         }
