@@ -558,7 +558,14 @@ public class ChatbotController {
         }
 
         try {
-            ChatbotService.AiCallResult llm = chatbotService.chat(message.trim());
+            String scenario = request.get("scenario");
+            String scenarioContext = request.get("scenarioContext");
+            ChatbotService.AiCallResult llm;
+            if (scenario != null || scenarioContext != null) {
+                llm = chatbotService.chat(message.trim(), scenario, scenarioContext);
+            } else {
+                llm = chatbotService.chat(message.trim());
+            }
             consumeAiTokens(userId, "chat", llm.totalTokens());
             Map<String, Object> result = new HashMap<>();
             result.put("response", llm.content());

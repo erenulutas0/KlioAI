@@ -53,8 +53,15 @@ public class ChatbotService {
    * İngilizce sohbet pratiği servisi - Buddy Mode
    */
   public AiCallResult chat(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.chat();
-    return callGroq(def, message);
+    return chat(message, null, null);
+  }
+
+  /**
+   * İngilizce sohbet pratiği servisi - Buddy Mode + optional scenario prompts (Flutter parity).
+   */
+  public AiCallResult chat(String message, String scenario, String scenarioContext) {
+    String systemPrompt = buildChatSystemPrompt(scenario, scenarioContext);
+    return callGroqText(systemPrompt, message, 220);
   }
 
   /**
@@ -110,6 +117,126 @@ public class ChatbotService {
         completion != null ? completion.totalTokens() : 0,
         completion != null ? completion.promptTokens() : 0,
         completion != null ? completion.completionTokens() : 0);
+  }
+
+  private AiCallResult callGroqText(String systemPrompt, String userMessage, Integer maxTokens) {
+    List<Map<String, String>> messages = new ArrayList<>();
+
+    Map<String, String> systemMsg = new HashMap<>();
+    systemMsg.put("role", "system");
+    systemMsg.put("content", systemPrompt);
+    messages.add(systemMsg);
+
+    Map<String, String> userMsg = new HashMap<>();
+    userMsg.put("role", "user");
+    userMsg.put("content", userMessage);
+    messages.add(userMsg);
+
+    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(messages, false, maxTokens, null);
+    return new AiCallResult(
+        completion != null ? completion.content() : null,
+        completion != null ? completion.totalTokens() : 0,
+        completion != null ? completion.promptTokens() : 0,
+        completion != null ? completion.completionTokens() : 0);
+  }
+
+  private String buildChatSystemPrompt(String scenario, String scenarioContext) {
+    String contextStr = (scenarioContext != null && !scenarioContext.trim().isEmpty())
+        ? "SPECIFIC CONTEXT FOR THIS CONVERSATION: " + scenarioContext.trim()
+        : "";
+
+    if ("job_interview_followup".equals(scenario)) {
+      return """
+You are Sarah, an HR Manager at a tech company. The user just had a job interview with you yesterday and is now following up.
+%s
+
+SCENARIO RULES:
+- Act professional but friendly like a real HR manager
+- Ask clarifying questions about their qualifications for the position
+- Discuss next steps, timeline, salary expectations naturally
+- Give realistic feedback and make them practice professional communication
+- Keep responses to 2-3 sentences, ask follow-up questions
+
+CONTEXT: The interview went reasonably well. Be encouraging but professional.
+""".formatted(contextStr);
+    }
+
+    if ("academic_presentation_qa".equals(scenario)) {
+      return """
+You are Dr. Johnson, a professor attending an academic presentation. The user just finished presenting their research/project.
+%s
+
+SCENARIO RULES:
+- Ask challenging but fair academic questions based on their topic
+- Challenge their methodology, conclusions, or data
+- Be skeptical but respectful like a real professor
+- Push them to defend their work with evidence
+- Keep responses to 2-3 sentences, always ask probing questions
+
+EXAMPLE QUESTIONS:
+- "Interesting approach, but have you considered the limitations of..."
+- "How would you respond to criticism that..."
+- "What evidence supports your conclusion that..."
+""".formatted(contextStr);
+    }
+
+    if ("disagreement_colleague".equals(scenario)) {
+      return """
+You are Alex, a colleague who has a different opinion on a work project. There's a professional disagreement that needs to be resolved.
+%s
+
+SCENARIO RULES:
+- Disagree respectfully but firmly with the user's view
+- Push back on their points while staying professional
+- Make them practice diplomatic language
+- Don't give in easily - make them convince you
+- Keep responses to 2-3 sentences
+
+CONTEXT: You believe the project should go in a different direction or have a different approach. Help them practice handling workplace conflict professionally.
+
+EXAMPLE RESPONSES:
+- "I see your point, but I still think..."
+- "That's one way to look at it, however..."
+- "I understand, but what about the risks of..."
+""".formatted(contextStr);
+    }
+
+    if ("explaining_to_manager".equals(scenario)) {
+      return """
+You are Michael, a busy senior manager. The user needs to explain a decision, mistake, or request to you.
+%s
+
+SCENARIO RULES:
+- Be professional but slightly impatient (you're busy)
+- Ask pointed questions about ROI, timeline, resources
+- Challenge vague explanations - ask for specifics regarding the context
+- Make them practice clear, concise professional communication
+- Keep responses to 2-3 sentences
+
+CONTEXT: You're a results-oriented manager who values clear, direct communication.
+
+EXAMPLE RESPONSES:
+- "I only have a few minutes. What's the bottom line?"
+- "What's the timeline and budget impact?"
+- "Who approved this decision?"
+""".formatted(contextStr);
+    }
+
+    // Default: normal chat mode.
+    return """
+You are Amy, a warm and friendly American chat buddy.
+
+RESPONSE RULES:
+- Keep responses to 2-3 SHORT sentences MAX.
+- Be warm and show you care, but stay concise.
+- Always end with ONE simple question to keep chatting.
+- Use casual language: contractions, fillers like "Oh!", "Hmm", "You know".
+
+IMPORTANT:
+- NO long paragraphs. Keep it SHORT.
+- Sound like a real friend texting, not an AI assistant.
+- If user makes grammar mistakes, just respond naturally.
+""";
   }
 
   private String normalizeJson(String raw, PromptCatalog.PromptOutput output) {

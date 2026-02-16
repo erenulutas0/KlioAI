@@ -319,4 +319,212 @@ class ApiService {
       return {};
     }
   }
+
+  // ==================== AI (CHATBOT) ====================
+
+  /// Thrown when backend returns HTTP 429 for AI endpoints (daily quota or rate limit).
+  static ApiQuotaExceededException _quotaFromResponse(http.Response response) {
+    try {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded as Map);
+        return ApiQuotaExceededException(
+          message: (map['error'] ?? 'Günlük AI hakkınız bitti.').toString(),
+          retryAfterSeconds: _toNullableInt(map['retryAfterSeconds']),
+          reason: map['reason']?.toString(),
+          tokenLimit: _toNullableInt(map['tokenLimit']),
+          tokensUsed: _toNullableInt(map['tokensUsed']),
+          tokensRemaining: _toNullableInt(map['tokensRemaining']),
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+    return ApiQuotaExceededException(
+      message: 'Günlük AI hakkınız bitti. Lütfen daha sonra tekrar deneyin.',
+    );
+  }
+
+  static int? _toNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  Future<Map<String, dynamic>> chatbotGenerateSentences({
+    required String word,
+    List<String> levels = const ['B1'],
+    List<String> lengths = const ['medium'],
+    bool checkGrammar = false,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/generate-sentences'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'word': word,
+        'levels': levels,
+        'lengths': lengths,
+        'checkGrammar': checkGrammar,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI cümle üretimi başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotSaveWordToToday({
+    required String englishWord,
+    List<String> meanings = const [],
+    List<String> sentences = const [],
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/save-to-today'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'englishWord': englishWord,
+        'meanings': meanings,
+        'sentences': sentences,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('Kelime kaydetme başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotCheckTranslation({
+    required String direction, // EN_TO_TR or TR_TO_EN
+    required String userTranslation,
+    String? englishSentence,
+    String? turkishSentence,
+    String? referenceEnglishSentence,
+  }) async {
+    final url = await baseUrl;
+    final body = <String, dynamic>{
+      'direction': direction,
+      'userTranslation': userTranslation,
+    };
+    if (englishSentence != null) body['englishSentence'] = englishSentence;
+    if (turkishSentence != null) body['turkishSentence'] = turkishSentence;
+    if (referenceEnglishSentence != null &&
+        (englishSentence == null || englishSentence.isEmpty)) {
+      // Backend uses `englishSentence` as optional reference for TR_TO_EN checks.
+      body['englishSentence'] = referenceEnglishSentence;
+    }
+
+    final response = await client.post(
+      Uri.parse('$url/chatbot/check-translation'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI çeviri kontrolü başarısız: ${response.statusCode}');
+  }
+
+  Future<String> chatbotChat({
+    required String message,
+    String? scenario,
+    String? scenarioContext,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/chat'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'message': message,
+        if (scenario != null) 'scenario': scenario,
+        if (scenarioContext != null) 'scenarioContext': scenarioContext,
+      }),
+    );
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body);
+      if (decoded is Map && decoded['response'] != null) {
+        return decoded['response'].toString();
+      }
+      return '';
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI sohbet başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotGenerateSpeakingTestQuestions({
+    required String testType,
+    required String part,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/speaking-test/generate-questions'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({'testType': testType, 'part': part}),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI speaking soruları başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotEvaluateSpeakingTest({
+    required String testType,
+    required String question,
+    required String responseText,
+  }) async {
+    final url = await baseUrl;
+    final response = await client.post(
+      Uri.parse('$url/chatbot/speaking-test/evaluate'),
+      headers: await _protectedHeaders(json: true),
+      body: json.encode({
+        'testType': testType,
+        'question': question,
+        'response': responseText,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI speaking değerlendirme başarısız: ${response.statusCode}');
+  }
+}
+
+class ApiQuotaExceededException implements Exception {
+  final String message;
+  final int? retryAfterSeconds;
+  final String? reason;
+  final int? tokenLimit;
+  final int? tokensUsed;
+  final int? tokensRemaining;
+
+  ApiQuotaExceededException({
+    required this.message,
+    this.retryAfterSeconds,
+    this.reason,
+    this.tokenLimit,
+    this.tokensUsed,
+    this.tokensRemaining,
+  });
+
+  @override
+  String toString() => message;
 }

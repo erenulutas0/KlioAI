@@ -1,52 +1,26 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
+import 'api_service.dart';
 import 'groq_api_client.dart';
 
-/// Chatbot servisi - Direkt Groq API kullanır (backend bağımsız)
-/// Cümle üretimi, çeviri kontrolü ve chatbot işlemleri için kullanılır.
-/// BYOK (Bring Your Own Key) destekli - GroqApiClient kullanır
+/// Chatbot servisi
+/// - Core AI flows (chat/translation/sentence generation/speaking) go through backend to enforce quotas.
+/// - Some legacy generators still call Groq directly (BYOK) until backend endpoints are added.
 class ChatbotService {
+  final ApiService _api = ApiService();
 
-  /// Kelime için pratik cümleleri üretir - DİREKT GROQ API (BYOK destekli)
+  /// Kelime için pratik cümleleri üretir (BACKEND - kota uygulanır)
   Future<Map<String, dynamic>> generateSentences({
     required String word,
     List<String> levels = const ['B1'],
     List<String> lengths = const ['medium'],
     bool checkGrammar = false,
   }) async {
-    // Random seed for variety
-    final randomSeed = DateTime.now().millisecondsSinceEpoch;
-
-    final prompt = '''
-Generate 3 COMPLETELY NEW and UNIQUE English sentences using the word/phrase "$word".
-Target levels: ${levels.join(', ')}
-Target lengths: ${lengths.join(', ')} (short=5-8 words, medium=9-15 words, long=16+ words)
-
-IMPORTANT: 
-- Generate DIFFERENT sentences each time - be creative and varied!
-- Use different contexts, scenarios, and sentence structures.
-- Random seed for this request: $randomSeed
-
-For each sentence, provide:
-1. The English sentence
-2. A natural, fluent Turkish translation (NOT word-for-word)
-
-Return ONLY a valid JSON object in this exact format:
-{
-  "sentences": ["English sentence 1", "English sentence 2", "English sentence 3"],
-  "translations": ["Türkçe çeviri 1", "Türkçe çeviri 2", "Türkçe çeviri 3"]
-}
-''';
-
     try {
-      return await GroqApiClient.getJsonResponse(
-        messages: [
-          {'role': 'system', 'content': 'You are an expert English-Turkish translator. Generate NEW, CREATIVE, and UNIQUE sentences each time. Never repeat the same sentences. Return ONLY valid JSON.'},
-          {'role': 'user', 'content': prompt}
-        ],
-        temperature: 1.0,
-        timeout: const Duration(seconds: 30),
+      return await _api.chatbotGenerateSentences(
+        word: word,
+        levels: levels,
+        lengths: lengths,
+        checkGrammar: checkGrammar,
       );
     } catch (e) {
       print('ChatbotService.generateSentences error: $e');
@@ -54,59 +28,27 @@ Return ONLY a valid JSON object in this exact format:
     }
   }
 
-  /// Kullanıcının çevirisini kontrol eder - DİREKT GROQ API (BYOK destekli)
+  /// Kullanıcının çevirisini kontrol eder (BACKEND - kota uygulanır)
   Future<Map<String, dynamic>> checkTranslation({
     required String originalSentence,
     required String userTranslation,
     required String direction, // 'EN_TO_TR' or 'TR_TO_EN'
     String? referenceSentence,
   }) async {
-    String prompt;
-    if (direction == 'EN_TO_TR') {
-      prompt = '''
-Check this English to Turkish translation:
-
-English: "$originalSentence"
-User's Turkish translation: "$userTranslation"
-
-Be GENEROUS - if the meaning is correct and grammar is mostly right, mark as correct.
-Ignore minor typos or spelling errors.
-
-Return ONLY a JSON object:
-{
-  "isCorrect": true or false,
-  "correctTranslation": "doğru Türkçe çeviri",
-  "feedback": "Türkçe açıklama - teşvik edici olun"
-}
-''';
-    } else {
-      prompt = '''
-Check this Turkish to English translation:
-
-Turkish: "$originalSentence"
-User's English translation: "$userTranslation"
-${referenceSentence != null ? 'Reference: "$referenceSentence"' : ''}
-
-Be GENEROUS - if the meaning is correct and grammar is mostly right, mark as correct.
-Ignore minor typos.
-
-Return ONLY a JSON object:
-{
-  "isCorrect": true or false,
-  "correctTranslation": "correct English translation",
-  "feedback": "explanation in Turkish"
-}
-''';
-    }
-
     try {
-      return await GroqApiClient.getJsonResponse(
-        messages: [
-          {'role': 'system', 'content': 'You are a supportive translation checker. Return ONLY valid JSON.'},
-          {'role': 'user', 'content': prompt}
-        ],
-        temperature: 0.3,
-        timeout: const Duration(seconds: 20),
+      if (direction == 'TR_TO_EN') {
+        return await _api.chatbotCheckTranslation(
+          direction: direction,
+          userTranslation: userTranslation,
+          turkishSentence: originalSentence,
+          referenceEnglishSentence: referenceSentence,
+        );
+      }
+
+      return await _api.chatbotCheckTranslation(
+        direction: direction,
+        userTranslation: userTranslation,
+        englishSentence: originalSentence,
       );
     } catch (e) {
       print('ChatbotService.checkTranslation error: $e');
@@ -114,139 +56,16 @@ Return ONLY a JSON object:
     }
   }
 
-  /// AI Bot ile sohbet - DİREKT GROQ API (BYOK destekli)
+  /// AI Bot ile sohbet (BACKEND - kota uygulanır)
   /// [scenario] parametresi ile profesyonel senaryolar desteklenir
   /// [scenarioContext] ile senaryoya özel bağlam (örn: pozisyon adı, sunum konusu) eklenir
   Future<String> chat(String message, {String? scenario, String? scenarioContext}) async {
-    String systemPrompt;
-    
-    // Bağlam metni varsa prompt'a ekle
-    String contextStr = scenarioContext != null && scenarioContext.isNotEmpty 
-        ? "SPECIFIC CONTEXT FOR THIS CONVERSATION: $scenarioContext" 
-        : "";
-
-    // Senaryo bazlı system prompt seçimi
-    switch (scenario) {
-      case 'job_interview_followup':
-        systemPrompt = '''
-You are Sarah, an HR Manager at a tech company. The user just had a job interview with you yesterday and is now following up.
-$contextStr
-
-SCENARIO RULES:
-- Act professional but friendly like a real HR manager
-- Ask clarifying questions about their qualifications for the position
-- Discuss next steps, timeline, salary expectations naturally
-- Give realistic feedback and make them practice professional communication
-- Keep responses to 2-3 sentences, ask follow-up questions
-
-CONTEXT: The interview went reasonably well. Be encouraging but professional.
-''';
-        break;
-        
-      case 'academic_presentation_qa':
-        systemPrompt = '''
-You are Dr. Johnson, a professor attending an academic presentation. The user just finished presenting their research/project.
-$contextStr
-
-SCENARIO RULES:
-- Ask challenging but fair academic questions based on their topic
-- Challenge their methodology, conclusions, or data
-- Be skeptical but respectful like a real professor
-- Push them to defend their work with evidence
-- Keep responses to 2-3 sentences, always ask probing questions
-
-EXAMPLE QUESTIONS:
-- "Interesting approach, but have you considered the limitations of..."
-- "How would you respond to criticism that..."
-- "What evidence supports your conclusion that..."
-''';
-        break;
-        
-      case 'disagreement_colleague':
-        systemPrompt = '''
-You are Alex, a colleague who has a different opinion on a work project. There's a professional disagreement that needs to be resolved.
-$contextStr
-
-SCENARIO RULES:
-- Disagree respectfully but firmly with the user's view
-- Push back on their points while staying professional
-- Make them practice diplomatic language
-- Don't give in easily - make them convince you
-- Keep responses to 2-3 sentences
-
-CONTEXT: You believe the project should go in a different direction or have a different approach. Help them practice handling workplace conflict professionally.
-
-EXAMPLE RESPONSES:
-- "I see your point, but I still think..."
-- "That's one way to look at it, however..."
-- "I understand, but what about the risks of..."
-''';
-        break;
-        
-      case 'explaining_to_manager':
-        systemPrompt = '''
-You are Michael, a busy senior manager. The user needs to explain a decision, mistake, or request to you.
-$contextStr
-
-SCENARIO RULES:
-- Be professional but slightly impatient (you're busy)
-- Ask pointed questions about ROI, timeline, resources
-- Challenge vague explanations - ask for specifics regarding the context
-- Make them practice clear, concise professional communication
-- Keep responses to 2-3 sentences
-
-CONTEXT: You're a results-oriented manager who values clear, direct communication.
-
-EXAMPLE RESPONSES:
-- "I only have a few minutes. What's the bottom line?"
-- "What's the timeline and budget impact?"
-- "Who approved this decision?"
-''';
-        break;
-        
-      default:
-        // Normal sohbet modu
-        systemPrompt = '''
-You are Amy, a warm and friendly American chat buddy.
-
-RESPONSE RULES:
-- Keep responses to 2-3 SHORT sentences MAX.
-- Be warm and show you care, but stay concise.
-- Always end with ONE simple question to keep chatting.
-- Use casual language: contractions, fillers like "Oh!", "Hmm", "You know".
-
-EXAMPLES:
-User: "hello how are you"
-Amy: "Hey! I'm good, thanks for asking! How about you - what's up today?"
-
-User: "I have a problem"
-Amy: "Oh no, I'm sorry to hear that! What's going on?"
-
-User: "I'm stressed about exams"
-Amy: "Ugh, exam stress is the worst! What subject is giving you trouble?"
-
-User: "I don't know what you should recommend to me"
-Amy: "Hmm, depends on what you're into! Movies, music, or something else?"
-
-IMPORTANT:
-- NO long paragraphs. Keep it SHORT.
-- Sound like a real friend texting, not an AI assistant.
-- If user makes grammar mistakes, just respond naturally.
-''';
-    }
-
     try {
-      final content = await GroqApiClient.getCompletionContent(
-        messages: [
-          {'role': 'system', 'content': systemPrompt},
-          {'role': 'user', 'content': message}
-        ],
-        temperature: 0.8,
-        maxTokens: 120,
-        timeout: const Duration(seconds: 20),
+      return await _api.chatbotChat(
+        message: message,
+        scenario: scenario,
+        scenarioContext: scenarioContext,
       );
-      
-      return content;
     } catch (e) {
       print('ChatbotService.chat error: $e');
       rethrow;
@@ -259,106 +78,73 @@ IMPORTANT:
     List<String> meanings = const [],
     List<String> sentences = const [],
   }) async {
-    final baseUrl = await AppConfig.apiBaseUrl;
-    
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/chatbot/save-to-today'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'englishWord': englishWord,
-          'meanings': meanings,
-          'sentences': sentences,
-        }),
-      ).timeout(const Duration(seconds: 15));
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Kelime kaydedilemedi: ${response.statusCode}');
-      }
+      return await _api.chatbotSaveWordToToday(
+        englishWord: englishWord,
+        meanings: meanings,
+        sentences: sentences,
+      );
     } catch (e) {
       print('ChatbotService.saveWordToToday error: $e');
       rethrow;
     }
   }
 
-  /// IELTS/TOEFL Speaking test soruları oluştur - DİREKT GROQ API (BYOK destekli)
+  /// IELTS/TOEFL Speaking test soruları oluştur (BACKEND - kota uygulanır)
   Future<Map<String, dynamic>> generateSpeakingTestQuestions({
     required String testType, // 'IELTS' or 'TOEFL'
     required String part,
   }) async {
-    final prompt = '''
-Generate authentic $testType Speaking test questions for $part.
-
-For IELTS:
-- Part 1: Personal questions (3-4 questions about everyday topics)
-- Part 2: Cue card topic with sub-points
-- Part 3: Abstract discussion questions (3-4 questions)
-
-For TOEFL:
-- Task 1: Independent speaking (personal opinion question)
-- Task 2-4: Integrated speaking questions
-
-Return ONLY a JSON object:
-{
-  "question": "The main question to ask",
-  "questions": ["question1", "question2", ...],
-  "instructions": "specific instructions for this part",
-  "timeLimit": 60
-}
-''';
-
     try {
-      return await GroqApiClient.getJsonResponse(
-        messages: [
-          {'role': 'system', 'content': 'You are an expert $testType examiner. Return ONLY valid JSON.'},
-          {'role': 'user', 'content': prompt}
-        ],
-        temperature: 0.7,
-        timeout: const Duration(seconds: 30),
+      final result = await _api.chatbotGenerateSpeakingTestQuestions(
+        testType: testType,
+        part: part,
       );
+
+      // UI compatibility: ensure `question` exists.
+      if (!result.containsKey('question') &&
+          result['questions'] is List &&
+          (result['questions'] as List).isNotEmpty) {
+        result['question'] = (result['questions'] as List).first.toString();
+      }
+
+      return result;
     } catch (e) {
       print('ChatbotService.generateSpeakingTestQuestions error: $e');
       rethrow;
     }
   }
 
-  /// Speaking test cevabını değerlendir - DİREKT GROQ API (BYOK destekli)
+  /// Speaking test cevabını değerlendir (BACKEND - kota uygulanır)
   Future<Map<String, dynamic>> evaluateSpeakingTest({
     required String testType,
     required String question,
     required String response,
   }) async {
-    final prompt = '''
-Evaluate this $testType Speaking test response:
-
-Question: "$question"
-Candidate's Response: "$response"
-
-For IELTS, score 0-9 on: Fluency, Lexical Resource, Grammar, Pronunciation
-For TOEFL, score 0-30 total on: Delivery, Language Use, Topic Development
-
-Be fair and encouraging. Provide constructive feedback.
-
-Return ONLY a JSON object:
-{
-  "score": number (IELTS: 0-9, TOEFL: 0-30),
-  "band": "score as string",
-  "feedback": "detailed feedback in Turkish",
-  "suggestions": "improvement suggestions in Turkish"
-}
-''';
-
     try {
-      return await GroqApiClient.getJsonResponse(
-        messages: [
-          {'role': 'system', 'content': 'You are an expert $testType examiner. Return ONLY valid JSON.'},
-          {'role': 'user', 'content': prompt}
-        ],
-        temperature: 0.5,
-        timeout: const Duration(seconds: 30),
+      final server = await _api.chatbotEvaluateSpeakingTest(
+        testType: testType,
+        question: question,
+        responseText: response,
       );
+
+      // Normalize backend schema to older UI expectations.
+      final normalized = Map<String, dynamic>.from(server);
+      final overall = normalized['overallScore'];
+      if (!normalized.containsKey('score') && overall != null) {
+        normalized['score'] = overall;
+      }
+      if (!normalized.containsKey('band') && overall != null) {
+        normalized['band'] = overall.toString();
+      }
+      if (!normalized.containsKey('suggestions')) {
+        final improvements = normalized['improvements'];
+        if (improvements is List) {
+          normalized['suggestions'] = improvements.map((e) => '- ${e.toString()}').join('\n');
+        }
+      }
+
+      return normalized;
     } catch (e) {
       print('ChatbotService.evaluateSpeakingTest error: $e');
       rethrow;
