@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Table(name = "sentences", indexes = {
-        @Index(name = "idx_sentence_content", columnList = "sentence")
+        @Index(name = "idx_sentence_content", columnList = "sentence"),
+        @Index(name = "idx_sentence_word_id", columnList = "word_id, id")
 })
 public class Sentence {
 
