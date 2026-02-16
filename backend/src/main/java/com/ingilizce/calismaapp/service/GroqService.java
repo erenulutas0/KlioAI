@@ -29,6 +29,16 @@ public class GroqService {
 
     private static final Logger logger = LoggerFactory.getLogger(GroqService.class);
 
+    public record ChatCompletionResult(String content, int promptTokens, int completionTokens, int totalTokens) {
+        public static ChatCompletionResult of(String content, int promptTokens, int completionTokens, int totalTokens) {
+            return new ChatCompletionResult(content, promptTokens, completionTokens, totalTokens);
+        }
+
+        public static ChatCompletionResult empty() {
+            return new ChatCompletionResult(null, 0, 0, 0);
+        }
+    }
+
     @Value("${groq.api.key}")
     private String apiKey;
 
@@ -148,6 +158,23 @@ public class GroqService {
      * @return Content string from the response
      */
     public String chatCompletion(List<Map<String, String>> messages, boolean jsonResponse) {
+        ChatCompletionResult result = chatCompletionWithUsage(messages, jsonResponse, null, null);
+        return result != null ? result.content() : null;
+    }
+
+    /**
+     * Send a completion request to Groq API and return both content and token usage.
+     *
+     * @param messages     List of messages (role, content)
+     * @param jsonResponse If true, enforces JSON object response format
+     * @param maxTokens    Optional max tokens for completion
+     * @param temperature  Optional temperature override
+     * @return Result including content and token usage (prompt/completion/total). Missing usage is returned as zeros.
+     */
+    public ChatCompletionResult chatCompletionWithUsage(List<Map<String, String>> messages,
+                                                       boolean jsonResponse,
+                                                       Integer maxTokens,
+                                                       Double temperature) {
         logger.info("Groq Request - Model: {}, URL: {}, Key present: {}", model, apiUrl,
                 (apiKey != null && !apiKey.isEmpty()));
 
@@ -163,9 +190,9 @@ public class GroqService {
 
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
-                String content = executeChatCompletion(messages, jsonResponse);
+                ChatCompletionResult completion = executeChatCompletion(messages, jsonResponse, maxTokens, temperature);
                 recordSuccess();
-                return content;
+                return completion;
             } catch (NonRetryableGroqException e) {
                 recordFailure();
                 throw e;
@@ -192,7 +219,10 @@ public class GroqService {
         throw new RuntimeException("Groq API Error: retry budget exhausted");
     }
 
-    private String executeChatCompletion(List<Map<String, String>> messages, boolean jsonResponse) {
+    private ChatCompletionResult executeChatCompletion(List<Map<String, String>> messages,
+                                                      boolean jsonResponse,
+                                                      Integer maxTokens,
+                                                      Double temperature) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -203,7 +233,10 @@ public class GroqService {
             requestBody.put("messages", messages);
             // Pratik modunda cümle üretirken çeşitlilik için temperature yüksek olmalı
             // JSON formatı genelde bozulmaz, gerekirse 0.6-0.8 arası iyidir
-            requestBody.put("temperature", 0.7);
+            requestBody.put("temperature", temperature != null ? temperature : 0.7);
+            if (maxTokens != null && maxTokens > 0) {
+                requestBody.put("max_tokens", maxTokens);
+            }
 
             if (jsonResponse) {
                 Map<String, String> responseFormat = new HashMap<>();
@@ -223,7 +256,22 @@ public class GroqService {
                 if (choices != null && !choices.isEmpty()) {
                     Map choice = (Map) choices.get(0);
                     Map message = (Map) choice.get("message");
-                    return (String) message.get("content");
+                    String content = (String) message.get("content");
+
+                    int promptTokens = 0;
+                    int completionTokens = 0;
+                    int totalTokens = 0;
+                    Object usageObj = body.get("usage");
+                    if (usageObj instanceof Map usage) {
+                        Object pt = usage.get("prompt_tokens");
+                        Object ct = usage.get("completion_tokens");
+                        Object tt = usage.get("total_tokens");
+                        if (pt instanceof Number n) promptTokens = n.intValue();
+                        if (ct instanceof Number n) completionTokens = n.intValue();
+                        if (tt instanceof Number n) totalTokens = n.intValue();
+                    }
+
+                    return ChatCompletionResult.of(content, promptTokens, completionTokens, totalTokens);
                 }
             }
         } catch (HttpClientErrorException e) {
@@ -239,7 +287,7 @@ public class GroqService {
             logger.error("Error calling Groq API", e);
             throw new RetryableGroqException("Failed to communicate with AI service: " + e.getMessage(), e);
         }
-        return null;
+        return ChatCompletionResult.empty();
     }
 
     private long computeBackoffMs(int attempt, long baseBackoffMs, long backoffCapMs) {

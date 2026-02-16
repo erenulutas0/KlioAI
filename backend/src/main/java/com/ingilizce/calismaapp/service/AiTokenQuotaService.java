@@ -1,0 +1,360 @@
+package com.ingilizce.calismaapp.service;
+
+import com.ingilizce.calismaapp.config.AiTokenQuotaProperties;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Service
+public class AiTokenQuotaService {
+
+    public record Decision(boolean blocked,
+                           long retryAfterSeconds,
+                           String reason,
+                           long tokensUsed,
+                           long tokenLimit,
+                           long tokensRemaining) {
+        public static Decision allowed() {
+            return new Decision(false, 0, "allowed", 0, 0, 0);
+        }
+
+        public static Decision blocked(String reason, long retryAfterSeconds,
+                                       long used, long limit) {
+            long remaining = Math.max(0L, limit - used);
+            return new Decision(true, Math.max(1L, retryAfterSeconds), reason, used, limit, remaining);
+        }
+    }
+
+    public record Usage(long tokensUsed, long tokensRemaining, long tokenLimit) {
+    }
+
+    private static final String DAILY_TOKEN_PREFIX = "ai:tokens:day:";
+    private static final String DAILY_SCOPE_TOKEN_PREFIX = "ai:tokens:day:scope:";
+
+    private static final String METRIC_BLOCK_TOTAL = "ai.token.quota.block.total";
+    private static final String METRIC_REDIS_FAILURE_TOTAL = "ai.token.quota.redis.failure.total";
+    private static final String METRIC_REDIS_FALLBACK_ACTIVE = "ai.token.quota.redis.fallback.active";
+    private static final String METRIC_REDIS_FALLBACK_TRANSITION_TOTAL = "ai.token.quota.redis.fallback.transition.total";
+
+    private final AiTokenQuotaProperties properties;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final MeterRegistry meterRegistry;
+
+    private final AtomicBoolean redisFailureLogged = new AtomicBoolean(false);
+    private final AtomicInteger redisFallbackActive = new AtomicInteger(0);
+
+    private final Map<String, DailyTokenCounter> dailyCounters = new ConcurrentHashMap<>();
+
+    @Autowired
+    public AiTokenQuotaService(AiTokenQuotaProperties properties,
+                               @Autowired(required = false) StringRedisTemplate stringRedisTemplate,
+                               @Autowired(required = false) MeterRegistry meterRegistry) {
+        this.properties = properties;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.meterRegistry = meterRegistry;
+        if (meterRegistry != null) {
+            meterRegistry.gauge(METRIC_REDIS_FALLBACK_ACTIVE, redisFallbackActive);
+        }
+    }
+
+    AiTokenQuotaService(AiTokenQuotaProperties properties) {
+        this(properties, null, null);
+    }
+
+    public Decision check(Long userId, String scope) {
+        if (!properties.isEnabled()) {
+            return Decision.allowed();
+        }
+
+        String normalizedScope = normalize(scope);
+        String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
+
+        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        Long scopeLimit = resolveScopeLimit(normalizedScope);
+
+        if (canUseRedis()) {
+            try {
+                return checkRedis(normalizedUser, normalizedScope, globalLimit, scopeLimit);
+            } catch (Exception ex) {
+                onRedisFailure("check");
+                if (isFailClosedMode()) {
+                    return Decision.blocked("redis-fail-closed", properties.getRedisFailureBlockSeconds(), 0, 0);
+                }
+            }
+        }
+
+        return checkMemory(normalizedUser, normalizedScope, globalLimit, scopeLimit);
+    }
+
+    public Usage consume(Long userId, String scope, long tokens) {
+        if (!properties.isEnabled()) {
+            return new Usage(0L, 0L, 0L);
+        }
+
+        long delta = Math.max(0L, tokens);
+        if (delta == 0L) {
+            Decision check = check(userId, scope);
+            return new Usage(check.tokensUsed(), check.tokensRemaining(), check.tokenLimit());
+        }
+
+        String normalizedScope = normalize(scope);
+        String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
+
+        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        Long scopeLimit = resolveScopeLimit(normalizedScope);
+
+        if (canUseRedis()) {
+            try {
+                Usage usage = consumeRedis(normalizedUser, normalizedScope, delta, globalLimit, scopeLimit);
+                onRedisSuccess();
+                return usage;
+            } catch (Exception ex) {
+                onRedisFailure("consume");
+                if (isFailClosedMode()) {
+                    return new Usage(0L, 0L, 0L);
+                }
+            }
+        }
+
+        return consumeMemory(normalizedUser, normalizedScope, delta, globalLimit, scopeLimit);
+    }
+
+    protected long currentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
+    private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
+        String day = LocalDate.now(ZoneOffset.UTC).toString();
+        String globalKey = DAILY_TOKEN_PREFIX + day + ":" + userId;
+        String scopeKey = DAILY_SCOPE_TOKEN_PREFIX + day + ":" + scope + ":" + userId;
+
+        if (globalLimit > 0) {
+            long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(globalKey));
+            if (used >= globalLimit) {
+                long retry = ttlOrDaySeconds(globalKey);
+                onBlock("daily-token-quota", scope);
+                return Decision.blocked("daily-token-quota", retry, used, globalLimit);
+            }
+        }
+
+        if (scopeLimit != null && scopeLimit > 0) {
+            long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(scopeKey));
+            if (used >= scopeLimit) {
+                long retry = ttlOrDaySeconds(scopeKey);
+                onBlock("daily-token-quota", scope);
+                return Decision.blocked("daily-token-quota", retry, used, scopeLimit);
+            }
+        }
+
+        onRedisSuccess();
+        return Decision.allowed();
+    }
+
+    private Usage consumeRedis(String userId, String scope, long tokens, long globalLimit, Long scopeLimit) {
+        String day = LocalDate.now(ZoneOffset.UTC).toString();
+        long ttlSeconds = Math.max(1L, secondsUntilNextUtcDay());
+
+        String globalKey = DAILY_TOKEN_PREFIX + day + ":" + userId;
+        Long globalUsed = stringRedisTemplate.opsForValue().increment(globalKey, tokens);
+        if (globalUsed != null && globalUsed == tokens) {
+            stringRedisTemplate.expire(globalKey, Duration.ofSeconds(ttlSeconds));
+        }
+
+        Long scopeUsed = null;
+        if (scopeLimit != null && scopeLimit > 0) {
+            String scopeKey = DAILY_SCOPE_TOKEN_PREFIX + day + ":" + scope + ":" + userId;
+            scopeUsed = stringRedisTemplate.opsForValue().increment(scopeKey, tokens);
+            if (scopeUsed != null && scopeUsed == tokens) {
+                stringRedisTemplate.expire(scopeKey, Duration.ofSeconds(ttlSeconds));
+            }
+        }
+
+        if (scopeLimit != null && scopeLimit > 0) {
+            long used = scopeUsed != null ? scopeUsed : 0L;
+            long remaining = Math.max(0L, scopeLimit - used);
+            return new Usage(used, remaining, scopeLimit);
+        }
+        if (globalLimit > 0) {
+            long used = globalUsed != null ? globalUsed : 0L;
+            long remaining = Math.max(0L, globalLimit - used);
+            return new Usage(used, remaining, globalLimit);
+        }
+        long used = globalUsed != null ? globalUsed : 0L;
+        return new Usage(used, 0L, 0L);
+    }
+
+    private Decision checkMemory(String userId, String scope, long globalLimit, Long scopeLimit) {
+        long now = currentTimeMillis();
+
+        if (globalLimit > 0) {
+            DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
+            synchronized (global) {
+                global.rollIfNeeded(now);
+                if (global.tokensUsed >= globalLimit) {
+                    long retry = global.retryAfterSeconds(now);
+                    onBlock("daily-token-quota", scope);
+                    return Decision.blocked("daily-token-quota", retry, global.tokensUsed, globalLimit);
+                }
+            }
+        }
+
+        if (scopeLimit != null && scopeLimit > 0) {
+            DailyTokenCounter scoped = dailyCounters.computeIfAbsent("scope:" + userId + ":" + scope, ignored -> new DailyTokenCounter());
+            synchronized (scoped) {
+                scoped.rollIfNeeded(now);
+                if (scoped.tokensUsed >= scopeLimit) {
+                    long retry = scoped.retryAfterSeconds(now);
+                    onBlock("daily-token-quota", scope);
+                    return Decision.blocked("daily-token-quota", retry, scoped.tokensUsed, scopeLimit);
+                }
+            }
+        }
+
+        return Decision.allowed();
+    }
+
+    private Usage consumeMemory(String userId, String scope, long tokens, long globalLimit, Long scopeLimit) {
+        long now = currentTimeMillis();
+
+        DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
+        synchronized (global) {
+            global.rollIfNeeded(now);
+            global.tokensUsed += tokens;
+        }
+
+        if (scopeLimit != null && scopeLimit > 0) {
+            DailyTokenCounter scoped = dailyCounters.computeIfAbsent("scope:" + userId + ":" + scope, ignored -> new DailyTokenCounter());
+            synchronized (scoped) {
+                scoped.rollIfNeeded(now);
+                scoped.tokensUsed += tokens;
+                long remaining = Math.max(0L, scopeLimit - scoped.tokensUsed);
+                return new Usage(scoped.tokensUsed, remaining, scopeLimit);
+            }
+        }
+
+        if (globalLimit > 0) {
+            long remaining = Math.max(0L, globalLimit - global.tokensUsed);
+            return new Usage(global.tokensUsed, remaining, globalLimit);
+        }
+
+        return new Usage(global.tokensUsed, 0L, 0L);
+    }
+
+    private Long resolveScopeLimit(String normalizedScope) {
+        if (properties.getScopes() == null || normalizedScope == null || normalizedScope.isBlank()) {
+            return null;
+        }
+        AiTokenQuotaProperties.ScopeLimits limits = properties.getScopes().get(normalizedScope);
+        if (limits == null) {
+            return null;
+        }
+        return limits.getDailyTokenQuotaPerUser();
+    }
+
+    private boolean canUseRedis() {
+        return properties.isRedisEnabled() && stringRedisTemplate != null;
+    }
+
+    private boolean isFailClosedMode() {
+        String mode = properties.getRedisFallbackMode();
+        return mode != null && "deny".equalsIgnoreCase(mode.trim());
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return "unknown";
+        }
+        String trimmed = value.trim().toLowerCase();
+        return trimmed.isEmpty() ? "unknown" : trimmed;
+    }
+
+    private long secondsUntilNextUtcDay() {
+        long now = currentTimeMillis();
+        long dayStart = startOfUtcDay(now);
+        long nextDay = dayStart + TimeUnit.DAYS.toMillis(1);
+        return Math.max(1L, (nextDay - now + 999L) / 1000L);
+    }
+
+    private long startOfUtcDay(long epochMillis) {
+        long dayMillis = TimeUnit.DAYS.toMillis(1);
+        long daysSinceEpoch = Math.floorDiv(epochMillis, dayMillis);
+        return daysSinceEpoch * dayMillis;
+    }
+
+    private long ttlOrDaySeconds(String key) {
+        Long ttl = stringRedisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (ttl == null || ttl < 1) {
+            return secondsUntilNextUtcDay();
+        }
+        return ttl;
+    }
+
+    private long parseLongOrZero(String value) {
+        if (value == null || value.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
+    }
+
+    private void onBlock(String reason, String scope) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", reason, "scope", scope).increment();
+        }
+    }
+
+    private void onRedisFailure(String operation) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(METRIC_REDIS_FAILURE_TOTAL, "operation", operation).increment();
+        }
+        if (redisFailureLogged.compareAndSet(false, true)) {
+            redisFallbackActive.set(1);
+            if (meterRegistry != null) {
+                meterRegistry.counter(METRIC_REDIS_FALLBACK_TRANSITION_TOTAL, "state", "activated").increment();
+            }
+        }
+    }
+
+    private void onRedisSuccess() {
+        if (redisFailureLogged.compareAndSet(true, false)) {
+            redisFallbackActive.set(0);
+            if (meterRegistry != null) {
+                meterRegistry.counter(METRIC_REDIS_FALLBACK_TRANSITION_TOTAL, "state", "recovered").increment();
+            }
+        }
+    }
+
+    private static final class DailyTokenCounter {
+        private long dayStartMs = -1;
+        private long dayEndMs = -1;
+        private long tokensUsed = 0L;
+
+        void rollIfNeeded(long nowMs) {
+            if (dayStartMs < 0 || nowMs >= dayEndMs) {
+                long dayMillis = TimeUnit.DAYS.toMillis(1);
+                long daysSinceEpoch = Math.floorDiv(nowMs, dayMillis);
+                dayStartMs = daysSinceEpoch * dayMillis;
+                dayEndMs = dayStartMs + dayMillis;
+                tokensUsed = 0L;
+            }
+        }
+
+        long retryAfterSeconds(long nowMs) {
+            return Math.max(1L, (dayEndMs - nowMs + 999L) / 1000L);
+        }
+    }
+}
+

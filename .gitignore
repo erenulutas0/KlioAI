@@ -36,6 +36,8 @@ npm-debug.log
 # Java / Maven
 **/target/
 .mvn/
+.m2/
+**/.m2/
 *.jar
 *.war
 *.ear
@@ -60,3 +62,6 @@ backend/output*.txt
 *.log
 run_log*.txt
 push_error.txt
+flutter_vocabmaster/WORKLOG_*.md
+flutter_vocabmaster/.tool-shims/
+tmp_flutter_version.txt

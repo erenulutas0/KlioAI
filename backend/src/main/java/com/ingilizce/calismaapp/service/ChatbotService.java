@@ -21,10 +21,13 @@ public class ChatbotService {
     this.objectMapper = new ObjectMapper();
   }
 
+  public record AiCallResult(String content, int totalTokens, int promptTokens, int completionTokens) {
+  }
+
   /**
    * Cümle üretme servisi - UNIVERSAL MODE
    */
-  public String generateSentences(String message) {
+  public AiCallResult generateSentences(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.generateSentences();
     return callGroq(def,
         "Target word: '" + message + "'. Return ONLY pure, minified JSON. No other text.");
@@ -33,7 +36,7 @@ public class ChatbotService {
   /**
    * Çeviri kontrolü servisi
    */
-  public String checkTranslation(String message) {
+  public AiCallResult checkTranslation(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.checkTranslation();
     return callGroq(def, message);
   }
@@ -41,7 +44,7 @@ public class ChatbotService {
   /**
    * İngilizce Çeviri kontrolü servisi (TR -> EN)
    */
-  public String checkEnglishTranslation(String message) {
+  public AiCallResult checkEnglishTranslation(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.checkEnglishTranslation();
     return callGroq(def, message);
   }
@@ -49,7 +52,7 @@ public class ChatbotService {
   /**
    * İngilizce sohbet pratiği servisi - Buddy Mode
    */
-  public String chat(String message) {
+  public AiCallResult chat(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.chat();
     return callGroq(def, message);
   }
@@ -57,7 +60,7 @@ public class ChatbotService {
   /**
    * IELTS/TOEFL Speaking test soruları üretme servisi
    */
-  public String generateSpeakingTestQuestions(String message) {
+  public AiCallResult generateSpeakingTestQuestions(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.generateSpeakingTestQuestions();
     return callGroq(def, "Generate " + message + ". Return ONLY JSON.");
   }
@@ -65,12 +68,12 @@ public class ChatbotService {
   /**
    * IELTS/TOEFL Speaking test puanlama servisi
    */
-  public String evaluateSpeakingTest(String message) {
+  public AiCallResult evaluateSpeakingTest(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.evaluateSpeakingTest();
     return callGroq(def, message + " Return ONLY JSON.");
   }
 
-  private String callGroq(PromptCatalog.PromptDef def, String userMessage) {
+  private AiCallResult callGroq(PromptCatalog.PromptDef def, String userMessage) {
     List<Map<String, String>> messages = new ArrayList<>();
 
     Map<String, String> systemMsg = new HashMap<>();
@@ -84,9 +87,29 @@ public class ChatbotService {
     messages.add(userMsg);
 
     logger.info("Prompt {} v{}", def.id(), def.version());
-    boolean jsonMode = def.output() != PromptCatalog.PromptOutput.TEXT;
-    String raw = groqService.chatCompletion(messages, jsonMode);
-    return normalizeJson(raw, def.output());
+    boolean jsonMode = def.output() == PromptCatalog.PromptOutput.JSON_OBJECT;
+
+    Integer maxTokens = null;
+    if ("chat_buddy".equals(def.id())) {
+      maxTokens = 220;
+    } else if ("generate_sentences".equals(def.id())) {
+      maxTokens = 900;
+    } else if ("check_translation_tr".equals(def.id()) || "check_translation_en".equals(def.id())) {
+      maxTokens = 500;
+    } else if ("speaking_questions".equals(def.id())) {
+      maxTokens = 600;
+    } else if ("speaking_evaluation".equals(def.id())) {
+      maxTokens = 900;
+    }
+
+    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(messages, jsonMode, maxTokens, null);
+    String raw = completion != null ? completion.content() : null;
+    String normalized = normalizeJson(raw, def.output());
+    return new AiCallResult(
+        normalized,
+        completion != null ? completion.totalTokens() : 0,
+        completion != null ? completion.promptTokens() : 0,
+        completion != null ? completion.completionTokens() : 0);
   }
 
   private String normalizeJson(String raw, PromptCatalog.PromptOutput output) {

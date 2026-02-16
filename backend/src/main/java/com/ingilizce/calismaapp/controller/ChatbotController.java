@@ -7,6 +7,7 @@ import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -54,6 +55,9 @@ public class ChatbotController {
 
     @Autowired(required = false)
     private AiRateLimitService aiRateLimitService;
+
+    @Autowired(required = false)
+    private AiTokenQuotaService aiTokenQuotaService;
 
     @Autowired
     private ClientIpResolver clientIpResolver;
@@ -151,6 +155,11 @@ public class ChatbotController {
                 allSentences = cachedSentences.get();
                 cached = true;
             } else {
+                ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "generate-sentences");
+                if (tokenLimit != null) {
+                    return tokenLimit;
+                }
+
                 StringBuilder levelLengthInfo = new StringBuilder();
                 levelLengthInfo.append("Generate 5 diverse sentences total, covering these combinations:\n");
                 for (String level : levels) {
@@ -163,7 +172,9 @@ public class ChatbotController {
 
                 String message = String.format("Target word: '%s'.\n%s", normalizedWord, levelLengthInfo.toString());
 
-                String jsonResponse = chatbotService.generateSentences(message);
+                ChatbotService.AiCallResult llm = chatbotService.generateSentences(message);
+                consumeAiTokens(userId, "generate-sentences", llm.totalTokens());
+                String jsonResponse = llm.content();
 
                 // ... (Existing Parsing Logic)
                 jsonResponse = jsonResponse.trim();
@@ -354,16 +365,20 @@ public class ChatbotController {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
         }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "check-translation");
+        if (tokenLimit != null) {
+            return tokenLimit;
+        }
         ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "check-translation");
         if (aiLimit != null) {
             return aiLimit;
         }
 
-        return originalCheckTranslation(request);
+        return originalCheckTranslation(request, userId);
     }
 
     // Helper to keep existing logic cleaner while wrapping with auth check
-    private ResponseEntity<Map<String, Object>> originalCheckTranslation(Map<String, String> request) {
+    private ResponseEntity<Map<String, Object>> originalCheckTranslation(Map<String, String> request, Long userId) {
         String direction = request.getOrDefault("direction", "EN_TO_TR");
         String userTranslation = request.get("userTranslation");
 
@@ -372,7 +387,7 @@ public class ChatbotController {
         }
 
         try {
-            String response;
+            ChatbotService.AiCallResult response;
             if ("TR_TO_EN".equals(direction)) {
                 String turkishSentence = request.get("turkishSentence");
                 String englishRef = request.get("englishSentence");
@@ -394,7 +409,8 @@ public class ChatbotController {
                         + userTranslation + ". Evaluate this translation generously. Return ONLY JSON.";
                 response = chatbotService.checkTranslation(combinedMessage);
             }
-            return ResponseEntity.ok(parseJsonResponse(response));
+            consumeAiTokens(userId, "check-translation", response != null ? response.totalTokens() : 0);
+            return ResponseEntity.ok(parseJsonResponse(response != null ? response.content() : null));
         } catch (Exception e) {
             log.error("Failed to check translation", e);
             return ResponseEntity.internalServerError()
@@ -527,6 +543,10 @@ public class ChatbotController {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
         }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "chat");
+        if (tokenLimit != null) {
+            return tokenLimit;
+        }
         ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "chat");
         if (aiLimit != null) {
             return aiLimit;
@@ -538,9 +558,10 @@ public class ChatbotController {
         }
 
         try {
-            String response = chatbotService.chat(message.trim());
+            ChatbotService.AiCallResult llm = chatbotService.chat(message.trim());
+            consumeAiTokens(userId, "chat", llm.totalTokens());
             Map<String, Object> result = new HashMap<>();
-            result.put("response", response);
+            result.put("response", llm.content());
             result.put("timestamp", System.currentTimeMillis());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
@@ -557,6 +578,10 @@ public class ChatbotController {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
         }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "speaking-generate");
+        if (tokenLimit != null) {
+            return tokenLimit;
+        }
         ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "speaking-generate");
         if (aiLimit != null) {
             return aiLimit;
@@ -572,7 +597,9 @@ public class ChatbotController {
         try {
             String message = String.format("Generate %s Speaking test questions for %s. Return ONLY JSON.", testType,
                     part);
-            String response = chatbotService.generateSpeakingTestQuestions(message);
+            ChatbotService.AiCallResult llm = chatbotService.generateSpeakingTestQuestions(message);
+            String response = llm.content();
+            consumeAiTokens(userId, "speaking-generate", llm.totalTokens());
 
             response = response.trim();
             response = response.replaceAll("```json", "").replaceAll("```", "").trim();
@@ -594,6 +621,10 @@ public class ChatbotController {
         if (!checkSubscription(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "Subscription expired or not active."));
         }
+        ResponseEntity<Map<String, Object>> tokenLimit = enforceAiTokenQuota(userId, "speaking-evaluate");
+        if (tokenLimit != null) {
+            return tokenLimit;
+        }
         ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "speaking-evaluate");
         if (aiLimit != null) {
             return aiLimit;
@@ -611,7 +642,9 @@ public class ChatbotController {
             String message = String.format(
                     "Evaluate this %s Speaking test response. Question: %s. Candidate's response: %s. Return ONLY JSON.",
                     testType, question, response);
-            String llmResponse = chatbotService.evaluateSpeakingTest(message);
+            ChatbotService.AiCallResult llm = chatbotService.evaluateSpeakingTest(message);
+            String llmResponse = llm.content();
+            consumeAiTokens(userId, "speaking-evaluate", llm.totalTokens());
 
             llmResponse = llmResponse.trim();
             llmResponse = llmResponse.replaceAll("```json", "").replaceAll("```", "").trim();
@@ -649,6 +682,40 @@ public class ChatbotController {
                         "success", false,
                         "retryAfterSeconds", decision.retryAfterSeconds(),
                         "reason", decision.reason()));
+    }
+
+    private ResponseEntity<Map<String, Object>> enforceAiTokenQuota(Long userId, String scope) {
+        if (aiTokenQuotaService == null) {
+            return null;
+        }
+
+        AiTokenQuotaService.Decision decision = aiTokenQuotaService.check(userId, scope);
+        if (!decision.blocked()) {
+            return null;
+        }
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
+                .body(Map.of(
+                        "error", "Günlük AI hakkınız bitti. Lütfen daha sonra tekrar deneyin.",
+                        "success", false,
+                        "retryAfterSeconds", decision.retryAfterSeconds(),
+                        "reason", decision.reason(),
+                        "tokenLimit", decision.tokenLimit(),
+                        "tokensUsed", decision.tokensUsed(),
+                        "tokensRemaining", decision.tokensRemaining()
+                ));
+    }
+
+    private void consumeAiTokens(Long userId, String scope, int tokens) {
+        if (aiTokenQuotaService == null) {
+            return;
+        }
+        // Best-effort: do not throw if quota bookkeeping fails.
+        try {
+            aiTokenQuotaService.consume(userId, scope, Math.max(0, tokens));
+        } catch (Exception ignored) {
+        }
     }
 
     private String resolveClientIp(HttpServletRequest request) {

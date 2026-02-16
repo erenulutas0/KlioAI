@@ -128,9 +128,14 @@ public class Word {
     }
 
     public void removeSentence(Sentence sentence) {
-        // Sentences are deleted at the repository level; setting word=null would
-        // attempt to null out a non-nullable FK (sentences.word_id) before delete.
+        // Sentences are deleted at the repository level; setting word=null for a
+        // persisted Sentence would attempt to null out a non-nullable FK
+        // (sentences.word_id) before delete. For transient sentences (id==null),
+        // clear the back-reference to keep the in-memory object graph consistent.
         sentences.remove(sentence);
+        if (sentence != null && sentence.getId() == null) {
+            sentence.setWord(null);
+        }
     }
 
     public String getDifficulty() {

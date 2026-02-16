@@ -116,7 +116,7 @@ public class ChatbotControllerTest {
 
     @Test
     void chatReturnsOkWhenValid() throws Exception {
-        when(chatbotService.chat("Hello")).thenReturn("Hi there!");
+        when(chatbotService.chat("Hello")).thenReturn(ai("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
@@ -212,7 +212,7 @@ public class ChatbotControllerTest {
         double beforeWriteStored = counterValue("chatbot.sentences.cache.write.total", "stored");
 
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]");
+                .thenReturn(ai("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -234,7 +234,7 @@ public class ChatbotControllerTest {
 
         when(valueOperations.get(anyString())).thenThrow(new RuntimeException("redis-down"));
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]");
+                .thenReturn(ai("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -266,7 +266,7 @@ public class ChatbotControllerTest {
                 "lengths", List.of("verylong"));
 
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]");
+                .thenReturn(ai("[{\"englishSentence\":\"I eat apple\",\"turkishFullTranslation\":\"Elma yerim\"}]"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -281,7 +281,7 @@ public class ChatbotControllerTest {
 
     @Test
     void generateSentencesTrimsResultToFive() throws Exception {
-        when(chatbotService.generateSentences(anyString())).thenReturn("""
+        when(chatbotService.generateSentences(anyString())).thenReturn(ai("""
                 [
                   {"englishSentence":"s1","turkishFullTranslation":"t1"},
                   {"englishSentence":"s2","turkishFullTranslation":"t2"},
@@ -290,7 +290,7 @@ public class ChatbotControllerTest {
                   {"englishSentence":"s5","turkishFullTranslation":"t5"},
                   {"englishSentence":"s6","turkishFullTranslation":"t6"}
                 ]
-                """);
+                """));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -303,7 +303,7 @@ public class ChatbotControllerTest {
     @Test
     void generateSentencesParsesWrappedSentencesObject() throws Exception {
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("{\"sentences\":[{\"englishSentence\":\"I read\",\"turkishFullTranslation\":\"Okurum\"}]}");
+                .thenReturn(ai("{\"sentences\":[{\"englishSentence\":\"I read\",\"turkishFullTranslation\":\"Okurum\"}]}"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -317,7 +317,7 @@ public class ChatbotControllerTest {
     @Test
     void generateSentencesParsesSingleSentenceObject() throws Exception {
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("{\"englishSentence\":\"I run\",\"turkishFullTranslation\":\"Koşarım\"}");
+                .thenReturn(ai("{\"englishSentence\":\"I run\",\"turkishFullTranslation\":\"Koşarım\"}"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -330,7 +330,7 @@ public class ChatbotControllerTest {
 
     @Test
     void generateSentencesReturnsInternalServerErrorWhenParsingFails() throws Exception {
-        when(chatbotService.generateSentences(anyString())).thenReturn("not-json-at-all");
+        when(chatbotService.generateSentences(anyString())).thenReturn(ai("not-json-at-all"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -342,7 +342,7 @@ public class ChatbotControllerTest {
     @Test
     void generateSentencesParsesCheckGrammarFlagWhenProvided() throws Exception {
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("[{\"englishSentence\":\"I read\",\"turkishFullTranslation\":\"Okurum\"}]");
+                .thenReturn(ai("[{\"englishSentence\":\"I read\",\"turkishFullTranslation\":\"Okurum\"}]"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -355,7 +355,7 @@ public class ChatbotControllerTest {
     @Test
     void generateSentencesParsesMapWithoutSentencesKey_AsSingleSentenceFallback() throws Exception {
         when(chatbotService.generateSentences(anyString()))
-                .thenReturn("{\"englishSentence\":\"Fallback\",\"turkishFullTranslation\":null}");
+                .thenReturn(ai("{\"englishSentence\":\"Fallback\",\"turkishFullTranslation\":null}"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
@@ -440,7 +440,7 @@ public class ChatbotControllerTest {
     @Test
     void checkTranslationReturnsParsedJsonResponse() throws Exception {
         when(chatbotService.checkTranslation(anyString()))
-                .thenReturn("{\"isCorrect\":true,\"correctTranslation\":\"Kodlamayı seviyorum\",\"feedback\":\"İyi\"}");
+                .thenReturn(ai("{\"isCorrect\":true,\"correctTranslation\":\"Kodlamayı seviyorum\",\"feedback\":\"İyi\"}"));
 
         mockMvc.perform(post("/api/chatbot/check-translation")
                 .header("X-User-Id", "1")
@@ -454,7 +454,7 @@ public class ChatbotControllerTest {
     @Test
     void checkTranslationUsesFallbackParserWhenResponseIsNotJson() throws Exception {
         when(chatbotService.checkTranslation(anyString()))
-                .thenReturn("Bu ceviri dogru gorunuyor.");
+                .thenReturn(ai("Bu ceviri dogru gorunuyor."));
 
         mockMvc.perform(post("/api/chatbot/check-translation")
                 .header("X-User-Id", "1")
@@ -481,7 +481,7 @@ public class ChatbotControllerTest {
     @Test
     void checkTranslationUsesTrToEnPathAndIncludesReferenceWhenProvided() throws Exception {
         when(chatbotService.checkEnglishTranslation(anyString()))
-                .thenReturn("{\"isCorrect\":true,\"correctTranslation\":\"I am learning\",\"feedback\":\"Good\"}");
+                .thenReturn(ai("{\"isCorrect\":true,\"correctTranslation\":\"I am learning\",\"feedback\":\"Good\"}"));
 
         mockMvc.perform(post("/api/chatbot/check-translation")
                 .header("X-User-Id", "1")
@@ -525,7 +525,7 @@ public class ChatbotControllerTest {
 
     @Test
     void checkTranslationUsesDefaultFieldsWhenJsonHasNoExpectedKeys() throws Exception {
-        when(chatbotService.checkTranslation(anyString())).thenReturn("{}");
+        when(chatbotService.checkTranslation(anyString())).thenReturn(ai("{}"));
 
         mockMvc.perform(post("/api/chatbot/check-translation")
                 .header("X-User-Id", "1")
@@ -616,7 +616,7 @@ public class ChatbotControllerTest {
     @Test
     void generateSpeakingTestQuestionsReturnsOkWhenValid() throws Exception {
         when(chatbotService.generateSpeakingTestQuestions(anyString()))
-                .thenReturn("{\"questions\":[\"Q1\",\"Q2\"]}");
+                .thenReturn(ai("{\"questions\":[\"Q1\",\"Q2\"]}"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/generate-questions")
                 .header("X-User-Id", "1")
@@ -628,7 +628,7 @@ public class ChatbotControllerTest {
 
     @Test
     void generateSpeakingTestQuestionsReturnsInternalServerErrorWhenInvalidJson() throws Exception {
-        when(chatbotService.generateSpeakingTestQuestions(anyString())).thenReturn("not-json");
+        when(chatbotService.generateSpeakingTestQuestions(anyString())).thenReturn(ai("not-json"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/generate-questions")
                 .header("X-User-Id", "1")
@@ -659,7 +659,7 @@ public class ChatbotControllerTest {
 
     @Test
     void evaluateSpeakingTestReturnsOkWhenValid() throws Exception {
-        when(chatbotService.evaluateSpeakingTest(anyString())).thenReturn("{\"score\":80}");
+        when(chatbotService.evaluateSpeakingTest(anyString())).thenReturn(ai("{\"score\":80}"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/evaluate")
                 .header("X-User-Id", "1")
@@ -671,7 +671,7 @@ public class ChatbotControllerTest {
 
     @Test
     void evaluateSpeakingTestReturnsInternalServerErrorWhenInvalidJson() throws Exception {
-        when(chatbotService.evaluateSpeakingTest(anyString())).thenReturn("bad-json");
+        when(chatbotService.evaluateSpeakingTest(anyString())).thenReturn(ai("bad-json"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/evaluate")
                 .header("X-User-Id", "1")
@@ -717,5 +717,10 @@ public class ChatbotControllerTest {
         } catch (MeterNotFoundException ignored) {
             return 0L;
         }
+    }
+
+    private static ChatbotService.AiCallResult ai(String content) {
+        // Token values are not asserted in these controller tests.
+        return new ChatbotService.AiCallResult(content, 123, 100, 23);
     }
 }
