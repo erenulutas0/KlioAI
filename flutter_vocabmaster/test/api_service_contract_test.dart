@@ -78,6 +78,28 @@ void main() {
       await api.deleteSentenceFromWord(10, 77);
     });
 
+    test('deleteSentenceFromWord treats 404 as idempotent success', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'DELETE');
+        expect(request.url.toString(), '$testBaseUrl/words/10/sentences/77');
+        return http.Response('', 404);
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+      await api.deleteSentenceFromWord(10, 77);
+    });
+
+    test('deleteSentence treats 404 as idempotent success', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'DELETE');
+        expect(request.url.toString(), '$testBaseUrl/sentences/123');
+        return http.Response('', 404);
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+      await api.deleteSentence('123');
+    });
+
     test('createSentence uses expected payload and maps response', () async {
       final mockClient = MockClient((request) async {
         expect(request.method, 'POST');

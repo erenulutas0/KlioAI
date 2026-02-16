@@ -295,7 +295,9 @@ class ApiService {
         Uri.parse('$url/sentences/$id'),
         headers: await _protectedHeaders(),
       );
-      if (response.statusCode != 200 && response.statusCode != 204) {
+      if (response.statusCode != 200 &&
+          response.statusCode != 204 &&
+          response.statusCode != 404) {
         throw Exception('Failed to delete sentence: ${response.statusCode}');
       }
     } catch (e) {
