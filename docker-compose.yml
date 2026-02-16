@@ -34,6 +34,22 @@ services:
     networks:
       - app-network
 
+  # Redis Security Store (rate-limit / abuse / auth quota keys)
+  redis-security:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_SECURITY_PORT:-6380}:6379"
+    volumes:
+      - redis_security_data:/data
+    command: redis-server --appendonly yes --maxmemory ${REDIS_SECURITY_MAXMEMORY:-128mb} --maxmemory-policy ${REDIS_SECURITY_MAXMEMORY_POLICY:-noeviction}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+
   # Spring Boot Backend
   backend:
     build:
@@ -68,6 +84,10 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ""
       SPRING_DATA_REDIS_TIMEOUT: 2000ms
+      SPRING_DATA_REDIS_SECURITY_HOST: redis-security
+      SPRING_DATA_REDIS_SECURITY_PORT: 6379
+      SPRING_DATA_REDIS_SECURITY_PASSWORD: ""
+      SPRING_DATA_REDIS_SECURITY_TIMEOUT: 2000ms
       
       # Cache
       CACHE_SENTENCES_TTL: 604800
@@ -113,6 +133,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-security:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 15s
@@ -141,6 +163,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  redis_security_data:
     driver: local
 
 networks:
