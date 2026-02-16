@@ -37,7 +37,10 @@ class GroqService {
         context: context,
       );
       return result['sentence']?.toString() ?? 'Cümle oluşturulamadı.';
-    } catch (_) {
+    } catch (e) {
+      if (e is ApiQuotaExceededException) {
+        rethrow;
+      }
       return 'Cümle oluşturulamadı.';
     }
   }
@@ -50,7 +53,10 @@ class GroqService {
         sentence: sentence,
       );
       return result['definition']?.toString() ?? 'Anlam bulunamadı.';
-    } catch (_) {
+    } catch (e) {
+      if (e is ApiQuotaExceededException) {
+        rethrow;
+      }
       return 'Anlam bulunamadı.';
     }
   }

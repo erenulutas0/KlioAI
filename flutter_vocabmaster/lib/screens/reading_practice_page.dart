@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/animated_background.dart';
 import '../services/groq_service.dart';
+import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../providers/app_state_provider.dart';
 import '../services/xp_manager.dart';
 
@@ -69,8 +71,11 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Pasaj yüklenemedi: $e';
         setState(() {
-          _errorMessage = 'Pasaj yüklenemedi: $e';
+          _errorMessage = msg;
           _isLoading = false;
         });
       }

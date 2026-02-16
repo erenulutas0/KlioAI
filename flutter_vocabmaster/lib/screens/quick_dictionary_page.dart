@@ -6,6 +6,7 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/global_matchmaking_sheet.dart';
 import '../services/groq_service.dart';
 import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
@@ -78,7 +79,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
     } catch (e) {
       if (mounted) {
         final msg = e is ApiQuotaExceededException
-            ? e.message
+            ? AiErrorMessageFormatter.forQuota(e)
             : 'Arama başarısız: $e';
         setState(() {
           _errorMessage = msg;
@@ -255,9 +256,12 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Hata: $e';
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     }

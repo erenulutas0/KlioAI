@@ -15,6 +15,7 @@ import '../widgets/animated_background.dart';
 import '../widgets/voice_selection_modal.dart';
 import '../services/chatbot_service.dart';
 import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../services/piper_tts_service.dart';
 import '../models/voice_model.dart';
 
@@ -378,17 +379,11 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       if (mounted) {
         setState(() => _isTyping = false);
         if (e is ApiQuotaExceededException) {
-          _addBotMessage(e.message);
+          _addBotMessage(AiErrorMessageFormatter.forQuota(e));
           return;
         }
 
         final errorText = e.toString();
-        if (errorText.contains('Günlük AI hakkınız bitti') ||
-            errorText.contains('AI istek limitiniz doldu')) {
-          _addBotMessage(errorText);
-          return;
-        }
-
         // User-friendly connection error message
         String errorMsg =
             'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.';

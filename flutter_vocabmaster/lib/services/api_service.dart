@@ -335,6 +335,9 @@ class ApiService {
           tokenLimit: _toNullableInt(map['tokenLimit']),
           tokensUsed: _toNullableInt(map['tokensUsed']),
           tokensRemaining: _toNullableInt(map['tokensRemaining']),
+          banLevel: _toNullableInt(map['banLevel']),
+          nextBanSeconds: _toNullableInt(map['nextBanSeconds']),
+          abuseWarning: map['abuseWarning']?.toString(),
         );
       }
     } catch (_) {
@@ -685,6 +688,9 @@ class ApiQuotaExceededException implements Exception {
   final int? tokenLimit;
   final int? tokensUsed;
   final int? tokensRemaining;
+  final int? banLevel;
+  final int? nextBanSeconds;
+  final String? abuseWarning;
 
   ApiQuotaExceededException({
     required this.message,
@@ -693,6 +699,9 @@ class ApiQuotaExceededException implements Exception {
     this.tokenLimit,
     this.tokensUsed,
     this.tokensRemaining,
+    this.banLevel,
+    this.nextBanSeconds,
+    this.abuseWarning,
   });
 
   @override

@@ -5,6 +5,7 @@ import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../models/word.dart';
 import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../services/chatbot_service.dart';
 
 class TranslationPracticePage extends StatefulWidget {
@@ -140,8 +141,11 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isGenerating = false);
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Hata: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     }
@@ -178,8 +182,11 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
     } catch (e) {
       if (mounted) {
         setState(() => _translationResults[index].isChecking = false);
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Kontrol hatası: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kontrol hatası: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     }

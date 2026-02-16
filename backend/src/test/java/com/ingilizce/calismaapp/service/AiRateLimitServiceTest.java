@@ -244,6 +244,35 @@ class AiRateLimitServiceTest {
     }
 
     @Test
+    void clearAbusePenalty_ShouldRemoveActiveUserBanInMemory() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+        assertFalse(service.checkAndConsume(13L, "10.0.0.13", "chat").blocked());
+        AiRateLimitService.Decision blocked = service.checkAndConsume(13L, "10.0.0.13", "chat");
+        assertTrue(blocked.blocked());
+        assertEquals("user-burst", blocked.reason());
+
+        AiRateLimitService.UnbanResult cleared = service.clearAbusePenalty(13L, null);
+        assertTrue(cleared.userPenaltyCleared());
+        assertFalse(cleared.ipPenaltyCleared());
+        assertEquals("u:13", cleared.userSubject());
+
+        AiRateLimitService.Decision afterClear = service.checkAndConsume(13L, "10.0.0.13", "chat");
+        assertTrue(afterClear.blocked());
+        assertEquals("user-burst", afterClear.reason());
+    }
+
+    @Test
     void anonymousUsers_ShouldEscalateBanFromIpBurst() {
         AiRateLimitProperties properties = new AiRateLimitProperties();
         properties.setEnabled(true);

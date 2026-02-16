@@ -43,6 +43,14 @@ public class AiRateLimitService {
         }
     }
 
+    public record UnbanResult(boolean userSubjectRequested,
+                              boolean ipSubjectRequested,
+                              boolean userPenaltyCleared,
+                              boolean ipPenaltyCleared,
+                              String userSubject,
+                              String ipSubject) {
+    }
+
     private static final String USER_PREFIX = "ai:rl:user:";
     private static final String IP_PREFIX = "ai:rl:ip:";
     private static final String DAILY_PREFIX = "ai:quota:day:";
@@ -106,6 +114,25 @@ public class AiRateLimitService {
         }
 
         return checkAndConsumeMemory(normalizedUser, normalizedIp, normalizedScope, limits);
+    }
+
+    public UnbanResult clearAbusePenalty(Long userId, String clientIp) {
+        String normalizedUser = userId == null ? null : normalize(String.valueOf(userId));
+        String normalizedIp = (clientIp == null || clientIp.isBlank()) ? null : normalize(clientIp);
+
+        String userSubject = (normalizedUser == null || normalizedUser.isBlank()) ? null : ("u:" + normalizedUser);
+        String ipSubject = (normalizedIp == null || normalizedIp.isBlank()) ? null : penaltySubjectForIp(normalizedIp);
+
+        boolean userCleared = clearPenaltyForSubject(userSubject);
+        boolean ipCleared = clearPenaltyForSubject(ipSubject);
+
+        return new UnbanResult(
+                userSubject != null,
+                ipSubject != null,
+                userCleared,
+                ipCleared,
+                userSubject,
+                ipSubject);
     }
 
     protected long currentTimeMillis() {
@@ -431,6 +458,28 @@ public class AiRateLimitService {
     private String penaltySubjectForIp(String normalizedIp) {
         String value = (normalizedIp == null || normalizedIp.isBlank()) ? "unknown" : normalizedIp;
         return "ip:" + value;
+    }
+
+    private boolean clearPenaltyForSubject(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return false;
+        }
+
+        boolean memoryCleared = penaltyCounters.remove(subject) != null;
+        boolean redisCleared = false;
+
+        if (canUseRedis()) {
+            try {
+                Boolean banDeleted = stringRedisTemplate.delete(PENALTY_BAN_PREFIX + subject);
+                Boolean strikeDeleted = stringRedisTemplate.delete(PENALTY_STRIKE_PREFIX + subject);
+                redisCleared = Boolean.TRUE.equals(banDeleted) || Boolean.TRUE.equals(strikeDeleted);
+                onRedisSuccess();
+            } catch (Exception ex) {
+                onRedisFailure("clearAbusePenalty");
+            }
+        }
+
+        return memoryCleared || redisCleared;
     }
 
     private int penaltyLevelForStrike(long strikes) {

@@ -3,6 +3,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../widgets/animated_background.dart';
 import '../models/word.dart';
 import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../services/groq_service.dart';
 import '../services/chatbot_service.dart';
 import '../widgets/global_matchmaking_sheet.dart';
@@ -98,7 +99,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
     } catch (e) {
       if (mounted) {
         final msg = e is ApiQuotaExceededException
-            ? e.message
+            ? AiErrorMessageFormatter.forQuota(e)
             : 'Kelime aranamadı: $e';
         setState(() {
           errorMessage = msg;
@@ -152,9 +153,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Hata: $e';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hata: $e'),
+            content: Text(msg),
             backgroundColor: Colors.red,
           ),
         );

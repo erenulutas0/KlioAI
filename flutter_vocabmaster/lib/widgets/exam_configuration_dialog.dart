@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/groq_service.dart';
+import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../models/exam_models.dart';
 import '../screens/exam_runner_page.dart';
 
@@ -55,8 +57,11 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
       );
     } catch (e) {
       if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

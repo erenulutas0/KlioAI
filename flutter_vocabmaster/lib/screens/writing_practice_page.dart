@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../models/writing_practice_models.dart';
 import '../services/groq_service.dart';
+import '../services/api_service.dart';
+import '../services/ai_error_message_formatter.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/animated_background.dart';
@@ -368,7 +370,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     } catch (e) {
       if (mounted) {
          setState(() => _isLoading = false);
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+         final msg = e is ApiQuotaExceededException
+             ? AiErrorMessageFormatter.forQuota(e)
+             : 'Hata: $e';
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -768,7 +773,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Hata: $e';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
