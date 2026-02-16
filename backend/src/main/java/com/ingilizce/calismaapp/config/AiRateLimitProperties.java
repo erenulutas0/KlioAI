@@ -3,7 +3,9 @@ package com.ingilizce.calismaapp.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -19,6 +21,9 @@ public class AiRateLimitProperties {
     private int ipWindowMaxRequests = 80;
     private long windowSeconds = 60;
     private int dailyQuotaPerUser = 200;
+    private boolean abusePenaltyEnabled = true;
+    private List<Long> abusePenaltySeconds = new ArrayList<>(List.of(30L, 60L, 150L));
+    private long abuseStrikeResetSeconds = 900;
 
     /**
      * Optional per-scope overrides, keyed by normalized scope (lowercase, trimmed).
@@ -129,6 +134,39 @@ public class AiRateLimitProperties {
 
     public void setDailyQuotaPerUser(int dailyQuotaPerUser) {
         this.dailyQuotaPerUser = dailyQuotaPerUser;
+    }
+
+    public boolean isAbusePenaltyEnabled() {
+        return abusePenaltyEnabled;
+    }
+
+    public void setAbusePenaltyEnabled(boolean abusePenaltyEnabled) {
+        this.abusePenaltyEnabled = abusePenaltyEnabled;
+    }
+
+    public List<Long> getAbusePenaltySeconds() {
+        return abusePenaltySeconds;
+    }
+
+    public void setAbusePenaltySeconds(List<Long> abusePenaltySeconds) {
+        if (abusePenaltySeconds == null || abusePenaltySeconds.isEmpty()) {
+            this.abusePenaltySeconds = new ArrayList<>(List.of(30L, 60L, 150L));
+            return;
+        }
+
+        List<Long> normalized = new ArrayList<>();
+        for (Long value : abusePenaltySeconds) {
+            normalized.add(Math.max(1L, value == null ? 1L : value));
+        }
+        this.abusePenaltySeconds = normalized;
+    }
+
+    public long getAbuseStrikeResetSeconds() {
+        return abuseStrikeResetSeconds;
+    }
+
+    public void setAbuseStrikeResetSeconds(long abuseStrikeResetSeconds) {
+        this.abuseStrikeResetSeconds = Math.max(1L, abuseStrikeResetSeconds);
     }
 
     public Map<String, ScopeLimits> getScopes() {

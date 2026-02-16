@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,6 +106,7 @@ class AiRateLimitServiceTest {
         AiRateLimitProperties properties = new AiRateLimitProperties();
         properties.setEnabled(true);
         properties.setRedisEnabled(true);
+        properties.setAbusePenaltyEnabled(false);
         properties.setUserWindowMaxRequests(1);
         properties.setIpWindowMaxRequests(50);
         properties.setDailyQuotaPerUser(100);
@@ -121,6 +123,149 @@ class AiRateLimitServiceTest {
         assertTrue(decision.blocked());
         assertEquals("user-burst", decision.reason());
         assertEquals(15, decision.retryAfterSeconds());
+    }
+
+    @Test
+    void checkAndConsume_ShouldApplyProgressiveAbusePenaltyInMemoryMode() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(3600);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+
+        assertFalse(service.checkAndConsume(8L, "10.0.0.8", "chat").blocked());
+
+        AiRateLimitService.Decision firstBlock = service.checkAndConsume(8L, "10.0.0.8", "chat");
+        assertTrue(firstBlock.blocked());
+        assertEquals("user-burst", firstBlock.reason());
+        assertEquals(30, firstBlock.retryAfterSeconds());
+        assertEquals(1, firstBlock.penaltyLevel());
+        assertEquals(60, firstBlock.nextPenaltySeconds());
+
+        service.advanceSeconds(30);
+        AiRateLimitService.Decision secondBlock = service.checkAndConsume(8L, "10.0.0.8", "chat");
+        assertTrue(secondBlock.blocked());
+        assertEquals("user-burst", secondBlock.reason());
+        assertEquals(60, secondBlock.retryAfterSeconds());
+        assertEquals(2, secondBlock.penaltyLevel());
+        assertEquals(150, secondBlock.nextPenaltySeconds());
+
+        service.advanceSeconds(60);
+        assertFalse(service.checkAndConsume(8L, "10.0.0.8", "chat").blocked());
+        AiRateLimitService.Decision thirdBlock = service.checkAndConsume(8L, "10.0.0.8", "chat");
+        assertTrue(thirdBlock.blocked());
+        assertEquals("user-burst", thirdBlock.reason());
+        assertEquals(150, thirdBlock.retryAfterSeconds());
+        assertEquals(3, thirdBlock.penaltyLevel());
+        assertEquals(150, thirdBlock.nextPenaltySeconds());
+    }
+
+    @Test
+    void checkAndConsume_ShouldReturnAbuseBanWhilePenaltyWindowActive() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(3600);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+        assertFalse(service.checkAndConsume(9L, "10.0.0.9", "chat").blocked());
+        assertTrue(service.checkAndConsume(9L, "10.0.0.9", "chat").blocked());
+
+        AiRateLimitService.Decision activeBan = service.checkAndConsume(9L, "10.0.0.9", "chat");
+        assertTrue(activeBan.blocked());
+        assertEquals("abuse-ban", activeBan.reason());
+        assertEquals(1, activeBan.penaltyLevel());
+        assertEquals(60, activeBan.nextPenaltySeconds());
+    }
+
+    @Test
+    void checkAndConsume_ShouldResetPenaltyLevelAfterStrikeWindowExpires() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(100);
+        properties.setWindowSeconds(1);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(10);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+        assertFalse(service.checkAndConsume(10L, "10.0.0.10", "chat").blocked());
+        assertTrue(service.checkAndConsume(10L, "10.0.0.10", "chat").blocked());
+
+        service.advanceSeconds(31);
+        service.advanceSeconds(11);
+
+        assertFalse(service.checkAndConsume(10L, "10.0.0.10", "chat").blocked());
+        AiRateLimitService.Decision blockAfterReset = service.checkAndConsume(10L, "10.0.0.10", "chat");
+        assertTrue(blockAfterReset.blocked());
+        assertEquals("user-burst", blockAfterReset.reason());
+        assertEquals(1, blockAfterReset.penaltyLevel());
+        assertEquals(30, blockAfterReset.retryAfterSeconds());
+    }
+
+    @Test
+    void authenticatedUsers_ShouldNotEscalateBanFromIpBurstOnly() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(100);
+        properties.setIpWindowMaxRequests(1);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+
+        assertFalse(service.checkAndConsume(11L, "10.0.0.11", "chat").blocked());
+
+        AiRateLimitService.Decision ipBlocked = service.checkAndConsume(12L, "10.0.0.11", "chat");
+        assertTrue(ipBlocked.blocked());
+        assertEquals("ip-burst", ipBlocked.reason());
+        assertEquals(0, ipBlocked.penaltyLevel());
+        assertEquals(0, ipBlocked.nextPenaltySeconds());
+    }
+
+    @Test
+    void anonymousUsers_ShouldEscalateBanFromIpBurst() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(100);
+        properties.setIpWindowMaxRequests(1);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+
+        assertFalse(service.checkAndConsume(null, "10.0.0.12", "chat").blocked());
+        AiRateLimitService.Decision ipBlocked = service.checkAndConsume(null, "10.0.0.12", "chat");
+
+        assertTrue(ipBlocked.blocked());
+        assertEquals("ip-burst", ipBlocked.reason());
+        assertEquals(1, ipBlocked.penaltyLevel());
+        assertEquals(30, ipBlocked.retryAfterSeconds());
+        assertEquals(60, ipBlocked.nextPenaltySeconds());
     }
 
     @Test
@@ -155,6 +300,10 @@ class AiRateLimitServiceTest {
         @Override
         protected long currentTimeMillis() {
             return nowMs;
+        }
+
+        private void advanceSeconds(long seconds) {
+            nowMs += TimeUnit.SECONDS.toMillis(seconds);
         }
     }
 }

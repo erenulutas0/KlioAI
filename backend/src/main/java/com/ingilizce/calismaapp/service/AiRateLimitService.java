@@ -18,13 +18,28 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class AiRateLimitService {
 
-    public record Decision(boolean blocked, long retryAfterSeconds, String reason) {
+    public record Decision(boolean blocked,
+                           long retryAfterSeconds,
+                           String reason,
+                           int penaltyLevel,
+                           long nextPenaltySeconds) {
         public static Decision allowed() {
-            return new Decision(false, 0, "allowed");
+            return new Decision(false, 0, "allowed", 0, 0);
         }
 
         public static Decision blocked(String reason, long retryAfterSeconds) {
-            return new Decision(true, Math.max(1, retryAfterSeconds), reason);
+            return new Decision(true, Math.max(1, retryAfterSeconds), reason, 0, 0);
+        }
+
+        public static Decision blockedWithPenalty(String reason,
+                                                  long retryAfterSeconds,
+                                                  int penaltyLevel,
+                                                  long nextPenaltySeconds) {
+            return new Decision(true,
+                    Math.max(1, retryAfterSeconds),
+                    reason,
+                    Math.max(1, penaltyLevel),
+                    Math.max(1, nextPenaltySeconds));
         }
     }
 
@@ -32,6 +47,9 @@ public class AiRateLimitService {
     private static final String IP_PREFIX = "ai:rl:ip:";
     private static final String DAILY_PREFIX = "ai:quota:day:";
     private static final String DAILY_SCOPE_PREFIX = "ai:quota:day:scope:";
+    private static final String PENALTY_BAN_PREFIX = "ai:rl:penalty:ban:";
+    private static final String PENALTY_STRIKE_PREFIX = "ai:rl:penalty:strike:";
+    private static final String ABUSE_BAN_REASON = "abuse-ban";
 
     private static final String METRIC_BLOCK_TOTAL = "ai.rate.limit.block.total";
     private static final String METRIC_REDIS_FAILURE_TOTAL = "ai.rate.limit.redis.failure.total";
@@ -47,6 +65,7 @@ public class AiRateLimitService {
     private final Map<String, WindowCounter> userCounters = new ConcurrentHashMap<>();
     private final Map<String, WindowCounter> ipCounters = new ConcurrentHashMap<>();
     private final Map<String, DailyCounter> dailyCounters = new ConcurrentHashMap<>();
+    private final Map<String, PenaltyCounter> penaltyCounters = new ConcurrentHashMap<>();
 
     @Autowired
     public AiRateLimitService(AiRateLimitProperties properties,
@@ -99,15 +118,39 @@ public class AiRateLimitService {
         String ipKey = IP_PREFIX + scope + ":" + clientIp;
         String dayKey = DAILY_PREFIX + LocalDate.now(ZoneOffset.UTC) + ":" + userId;
         String scopeDayKey = DAILY_SCOPE_PREFIX + LocalDate.now(ZoneOffset.UTC) + ":" + scope + ":" + userId;
+        boolean authenticatedUser = isAuthenticatedUserKey(userId);
+        String userPenaltySubject = penaltySubjectForUser(userId, clientIp);
+        String ipPenaltySubject = authenticatedUser ? null : penaltySubjectForIp(clientIp);
 
-        Decision userDecision = incrementAndCheckRedisWindow(userKey, windowSeconds, limits.userWindowMaxRequests,
-                "user-burst", scope);
+        Decision activeUserPenalty = checkActivePenaltyRedis(userPenaltySubject, scope);
+        if (activeUserPenalty.blocked()) {
+            return activeUserPenalty;
+        }
+        if (ipPenaltySubject != null && !userPenaltySubject.equals(ipPenaltySubject)) {
+            Decision activeIpPenalty = checkActivePenaltyRedis(ipPenaltySubject, scope);
+            if (activeIpPenalty.blocked()) {
+                return activeIpPenalty;
+            }
+        }
+
+        Decision userDecision = incrementAndCheckRedisWindow(
+                userKey,
+                windowSeconds,
+                limits.userWindowMaxRequests,
+                "user-burst",
+                scope,
+                userPenaltySubject);
         if (userDecision.blocked()) {
             return userDecision;
         }
 
-        Decision ipDecision = incrementAndCheckRedisWindow(ipKey, windowSeconds, limits.ipWindowMaxRequests,
-                "ip-burst", scope);
+        Decision ipDecision = incrementAndCheckRedisWindow(
+                ipKey,
+                windowSeconds,
+                limits.ipWindowMaxRequests,
+                "ip-burst",
+                scope,
+                ipPenaltySubject);
         if (ipDecision.blocked()) {
             return ipDecision;
         }
@@ -128,7 +171,12 @@ public class AiRateLimitService {
         return Decision.allowed();
     }
 
-    private Decision incrementAndCheckRedisWindow(String key, long windowSeconds, int maxRequests, String reason, String scope) {
+    private Decision incrementAndCheckRedisWindow(String key,
+                                                  long windowSeconds,
+                                                  int maxRequests,
+                                                  String reason,
+                                                  String scope,
+                                                  String penaltySubject) {
         Long count = stringRedisTemplate.opsForValue().increment(key);
         if (count == null) {
             return Decision.allowed();
@@ -140,7 +188,7 @@ public class AiRateLimitService {
             Long ttl = stringRedisTemplate.getExpire(key, TimeUnit.SECONDS);
             long retryAfter = (ttl == null || ttl < 1) ? 1 : ttl;
             onRedisSuccess();
-            return block(reason, retryAfter, scope);
+            return applyPenaltyRedis(penaltySubject, reason, retryAfter, scope);
         }
         return Decision.allowed();
     }
@@ -166,15 +214,29 @@ public class AiRateLimitService {
     private Decision checkAndConsumeMemory(String userId, String clientIp, String scope, EffectiveLimits limits) {
         long now = currentTimeMillis();
         long windowMs = Math.max(1000L, limits.windowSeconds * 1000L);
+        boolean authenticatedUser = isAuthenticatedUserKey(userId);
+        String userPenaltySubject = penaltySubjectForUser(userId, clientIp);
+        String ipPenaltySubject = authenticatedUser ? null : penaltySubjectForIp(clientIp);
+
+        Decision activeUserPenalty = checkActivePenaltyMemory(userPenaltySubject, now, scope);
+        if (activeUserPenalty.blocked()) {
+            return activeUserPenalty;
+        }
+        if (ipPenaltySubject != null && !userPenaltySubject.equals(ipPenaltySubject)) {
+            Decision activeIpPenalty = checkActivePenaltyMemory(ipPenaltySubject, now, scope);
+            if (activeIpPenalty.blocked()) {
+                return activeIpPenalty;
+            }
+        }
 
         Decision userBurst = checkWindowCounter(userCounters, USER_PREFIX + scope + ":" + userId, now, windowMs,
-                Math.max(1, limits.userWindowMaxRequests), "user-burst", scope);
+                Math.max(1, limits.userWindowMaxRequests), "user-burst", scope, userPenaltySubject);
         if (userBurst.blocked()) {
             return userBurst;
         }
 
         Decision ipBurst = checkWindowCounter(ipCounters, IP_PREFIX + scope + ":" + clientIp, now, windowMs,
-                Math.max(1, limits.ipWindowMaxRequests), "ip-burst", scope);
+                Math.max(1, limits.ipWindowMaxRequests), "ip-burst", scope, ipPenaltySubject);
         if (ipBurst.blocked()) {
             return ipBurst;
         }
@@ -213,7 +275,7 @@ public class AiRateLimitService {
     }
 
     private Decision checkWindowCounter(Map<String, WindowCounter> map, String key, long now, long windowMs,
-                                        int maxRequests, String reason, String scope) {
+                                        int maxRequests, String reason, String scope, String penaltySubject) {
         WindowCounter counter = map.computeIfAbsent(key, ignored -> new WindowCounter());
         synchronized (counter) {
             if (counter.windowStartMs == 0 || now - counter.windowStartMs >= windowMs) {
@@ -222,7 +284,7 @@ public class AiRateLimitService {
             }
             if (counter.count >= maxRequests) {
                 long retry = Math.max(1L, (windowMs - (now - counter.windowStartMs) + 999L) / 1000L);
-                return block(reason, retry, scope);
+                return applyPenaltyMemory(penaltySubject, reason, retry, now, scope);
             }
             counter.count++;
             return Decision.allowed();
@@ -234,6 +296,156 @@ public class AiRateLimitService {
             meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", reason, "scope", scope).increment();
         }
         return Decision.blocked(reason, retryAfterSeconds);
+    }
+
+    private Decision blockWithPenalty(String reason,
+                                      long retryAfterSeconds,
+                                      int penaltyLevel,
+                                      long nextPenaltySeconds,
+                                      String scope) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", reason, "scope", scope).increment();
+        }
+        return Decision.blockedWithPenalty(reason, retryAfterSeconds, penaltyLevel, nextPenaltySeconds);
+    }
+
+    private Decision checkActivePenaltyRedis(String penaltySubject, String scope) {
+        if (!properties.isAbusePenaltyEnabled() || penaltySubject == null || penaltySubject.isBlank()) {
+            return Decision.allowed();
+        }
+
+        String banKey = PENALTY_BAN_PREFIX + penaltySubject;
+        Long ttl = stringRedisTemplate.getExpire(banKey, TimeUnit.SECONDS);
+        if (ttl == null || ttl < 1L) {
+            return Decision.allowed();
+        }
+
+        long strikes = currentPenaltyStrikeRedis(penaltySubject);
+        int level = penaltyLevelForStrike(strikes);
+        long nextPenalty = penaltyForStrike(strikes + 1);
+        return blockWithPenalty(ABUSE_BAN_REASON, ttl, level, nextPenalty, scope);
+    }
+
+    private Decision applyPenaltyRedis(String penaltySubject, String burstReason, long burstRetryAfter, String scope) {
+        if (!properties.isAbusePenaltyEnabled() || penaltySubject == null || penaltySubject.isBlank()) {
+            return block(burstReason, burstRetryAfter, scope);
+        }
+
+        String strikeKey = PENALTY_STRIKE_PREFIX + penaltySubject;
+        Long strikes = stringRedisTemplate.opsForValue().increment(strikeKey);
+        long normalizedStrikes = strikes == null ? 1L : strikes;
+        stringRedisTemplate.expire(
+                strikeKey,
+                Duration.ofSeconds(Math.max(1L, properties.getAbuseStrikeResetSeconds())));
+
+        long penaltySeconds = penaltyForStrike(normalizedStrikes);
+        String banKey = PENALTY_BAN_PREFIX + penaltySubject;
+        stringRedisTemplate.opsForValue().set(banKey, "1", Duration.ofSeconds(penaltySeconds));
+
+        int level = penaltyLevelForStrike(normalizedStrikes);
+        long nextPenalty = penaltyForStrike(normalizedStrikes + 1);
+        return blockWithPenalty(burstReason, penaltySeconds, level, nextPenalty, scope);
+    }
+
+    private long currentPenaltyStrikeRedis(String penaltySubject) {
+        String strikeValue = stringRedisTemplate.opsForValue().get(PENALTY_STRIKE_PREFIX + penaltySubject);
+        if (strikeValue == null || strikeValue.isBlank()) {
+            return 1L;
+        }
+
+        try {
+            return Math.max(1L, Long.parseLong(strikeValue.trim()));
+        } catch (NumberFormatException ignored) {
+            return 1L;
+        }
+    }
+
+    private Decision checkActivePenaltyMemory(String penaltySubject, long now, String scope) {
+        if (!properties.isAbusePenaltyEnabled()) {
+            return Decision.allowed();
+        }
+
+        PenaltyCounter counter = penaltyCounters.get(penaltySubject);
+        if (counter == null) {
+            return Decision.allowed();
+        }
+
+        synchronized (counter) {
+            if (counter.strikeResetAtMs > 0 && now >= counter.strikeResetAtMs) {
+                counter.strikes = 0;
+                counter.blockedUntilMs = 0;
+                counter.strikeResetAtMs = 0;
+            }
+
+            if (counter.blockedUntilMs <= now) {
+                return Decision.allowed();
+            }
+
+            long retry = Math.max(1L, (counter.blockedUntilMs - now + 999L) / 1000L);
+            int level = penaltyLevelForStrike(counter.strikes);
+            long nextPenalty = penaltyForStrike((long) counter.strikes + 1L);
+            return blockWithPenalty(ABUSE_BAN_REASON, retry, level, nextPenalty, scope);
+        }
+    }
+
+    private Decision applyPenaltyMemory(String penaltySubject,
+                                        String burstReason,
+                                        long burstRetryAfter,
+                                        long now,
+                                        String scope) {
+        if (!properties.isAbusePenaltyEnabled() || penaltySubject == null || penaltySubject.isBlank()) {
+            return block(burstReason, burstRetryAfter, scope);
+        }
+
+        PenaltyCounter counter = penaltyCounters.computeIfAbsent(penaltySubject, ignored -> new PenaltyCounter());
+        synchronized (counter) {
+            if (counter.strikeResetAtMs > 0 && now >= counter.strikeResetAtMs) {
+                counter.strikes = 0;
+                counter.blockedUntilMs = 0;
+            }
+
+            counter.strikes++;
+            long resetMs = TimeUnit.SECONDS.toMillis(Math.max(1L, properties.getAbuseStrikeResetSeconds()));
+            counter.strikeResetAtMs = now + resetMs;
+
+            long penaltySeconds = penaltyForStrike(counter.strikes);
+            counter.blockedUntilMs = now + TimeUnit.SECONDS.toMillis(penaltySeconds);
+
+            int level = penaltyLevelForStrike(counter.strikes);
+            long nextPenalty = penaltyForStrike((long) counter.strikes + 1L);
+            return blockWithPenalty(burstReason, penaltySeconds, level, nextPenalty, scope);
+        }
+    }
+
+    private String penaltySubjectForUser(String normalizedUser, String normalizedIp) {
+        if (normalizedUser != null && !normalizedUser.isBlank() && !"anonymous".equals(normalizedUser)) {
+            return "u:" + normalizedUser;
+        }
+        return penaltySubjectForIp(normalizedIp);
+    }
+
+    private boolean isAuthenticatedUserKey(String normalizedUser) {
+        return normalizedUser != null && !normalizedUser.isBlank() && !"anonymous".equals(normalizedUser);
+    }
+
+    private String penaltySubjectForIp(String normalizedIp) {
+        String value = (normalizedIp == null || normalizedIp.isBlank()) ? "unknown" : normalizedIp;
+        return "ip:" + value;
+    }
+
+    private int penaltyLevelForStrike(long strikes) {
+        int size = Math.max(1, properties.getAbusePenaltySeconds().size());
+        return (int) Math.max(1L, Math.min(strikes, (long) size));
+    }
+
+    private long penaltyForStrike(long strikes) {
+        if (properties.getAbusePenaltySeconds() == null || properties.getAbusePenaltySeconds().isEmpty()) {
+            return 30L;
+        }
+
+        int idx = (int) Math.max(0L, Math.min(strikes - 1L, properties.getAbusePenaltySeconds().size() - 1L));
+        Long configured = properties.getAbusePenaltySeconds().get(idx);
+        return Math.max(1L, configured == null ? 1L : configured);
     }
 
     private void onRedisFailure(String operation) {
@@ -339,5 +551,11 @@ public class AiRateLimitService {
         private long dayStartMs = -1;
         private long dayEndMs = -1;
         private int count;
+    }
+
+    private static final class PenaltyCounter {
+        private int strikes;
+        private long strikeResetAtMs;
+        private long blockedUntilMs;
     }
 }

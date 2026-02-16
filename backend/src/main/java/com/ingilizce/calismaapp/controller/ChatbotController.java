@@ -901,13 +901,24 @@ public class ChatbotController {
             return null;
         }
 
+        boolean abusePenalty = ABUSE_BAN_REASON.equals(decision.reason()) || decision.penaltyLevel() > 0;
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("error", abusePenalty
+                ? String.format("Anormal hizda AI istegi algilandi. Gecici erisim kisitlandi (%d sn).",
+                decision.retryAfterSeconds())
+                : "AI istek limitiniz doldu. Lütfen daha sonra tekrar deneyin.");
+        payload.put("success", false);
+        payload.put("retryAfterSeconds", decision.retryAfterSeconds());
+        payload.put("reason", decision.reason());
+        if (abusePenalty) {
+            payload.put("abuseWarning", "Tekrar ihlalde gecici ban suresi artar.");
+            payload.put("banLevel", decision.penaltyLevel());
+            payload.put("nextBanSeconds", decision.nextPenaltySeconds());
+        }
+
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
-                .body(Map.of(
-                        "error", "AI istek limitiniz doldu. Lütfen daha sonra tekrar deneyin.",
-                        "success", false,
-                        "retryAfterSeconds", decision.retryAfterSeconds(),
-                        "reason", decision.reason()));
+                .body(payload);
     }
 
     private ResponseEntity<Map<String, Object>> enforceAiTokenQuota(Long userId, String scope) {
@@ -947,4 +958,6 @@ public class ChatbotController {
     private String resolveClientIp(HttpServletRequest request) {
         return clientIpResolver.resolve(request);
     }
+
+    private static final String ABUSE_BAN_REASON = "abuse-ban";
 }

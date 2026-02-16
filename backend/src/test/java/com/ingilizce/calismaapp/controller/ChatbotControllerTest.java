@@ -194,6 +194,24 @@ public class ChatbotControllerTest {
     }
 
     @Test
+    void chatReturnsPenaltyMetadataWhenAbuseBanApplied() throws Exception {
+        when(aiRateLimitService.checkAndConsume(anyLong(), anyString(), anyString()))
+                .thenReturn(AiRateLimitService.Decision.blockedWithPenalty("user-burst", 30, 1, 60));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hello\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.reason").value("user-burst"))
+                .andExpect(jsonPath("$.banLevel").value(1))
+                .andExpect(jsonPath("$.nextBanSeconds").value(60))
+                .andExpect(jsonPath("$.abuseWarning").exists());
+
+        verify(chatbotService, never()).chat(anyString());
+    }
+
+    @Test
     void generateSentencesReturnsBadRequestWhenWordMissing() throws Exception {
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")

@@ -192,13 +192,24 @@ public class GrammarController {
             return null;
         }
 
+        boolean abusePenalty = ABUSE_BAN_REASON.equals(decision.reason()) || decision.penaltyLevel() > 0;
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("error", abusePenalty
+                ? String.format("Abusive AI traffic detected. Temporary ban applied (%d sec).",
+                decision.retryAfterSeconds())
+                : "AI request quota exceeded. Please retry later.");
+        payload.put("success", false);
+        payload.put("retryAfterSeconds", decision.retryAfterSeconds());
+        payload.put("reason", decision.reason());
+        if (abusePenalty) {
+            payload.put("abuseWarning", "Repeated abuse attempts will increase temporary ban duration.");
+            payload.put("banLevel", decision.penaltyLevel());
+            payload.put("nextBanSeconds", decision.nextPenaltySeconds());
+        }
+
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
-                .body(Map.of(
-                        "error", "AI request quota exceeded. Please retry later.",
-                        "success", false,
-                        "retryAfterSeconds", decision.retryAfterSeconds(),
-                        "reason", decision.reason()));
+                .body(payload);
     }
 
     /**
@@ -240,4 +251,6 @@ public class GrammarController {
         status.put("message", currentEnabled ? "Grammar checking enabled" : "Grammar checking disabled");
         return ResponseEntity.ok(status);
     }
+
+    private static final String ABUSE_BAN_REASON = "abuse-ban";
 }
