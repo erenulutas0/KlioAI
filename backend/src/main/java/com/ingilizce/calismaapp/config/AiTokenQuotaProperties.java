@@ -14,6 +14,8 @@ public class AiTokenQuotaProperties {
     private boolean redisEnabled = true;
     private String redisFallbackMode = "memory";
     private long redisFailureBlockSeconds = 60;
+    private int memoryMaxEntries = 100_000;
+    private long memoryCleanupIntervalSeconds = 30;
 
     /**
      * Global daily token budget per user (prompt + completion tokens).
@@ -72,6 +74,22 @@ public class AiTokenQuotaProperties {
         this.redisFailureBlockSeconds = redisFailureBlockSeconds;
     }
 
+    public int getMemoryMaxEntries() {
+        return memoryMaxEntries;
+    }
+
+    public void setMemoryMaxEntries(int memoryMaxEntries) {
+        this.memoryMaxEntries = Math.max(1_000, memoryMaxEntries);
+    }
+
+    public long getMemoryCleanupIntervalSeconds() {
+        return memoryCleanupIntervalSeconds;
+    }
+
+    public void setMemoryCleanupIntervalSeconds(long memoryCleanupIntervalSeconds) {
+        this.memoryCleanupIntervalSeconds = Math.max(5L, memoryCleanupIntervalSeconds);
+    }
+
     public long getDailyTokenQuotaPerUser() {
         return dailyTokenQuotaPerUser;
     }
@@ -88,4 +106,3 @@ public class AiTokenQuotaProperties {
         this.scopes = scopes != null ? scopes : new HashMap<>();
     }
 }
-

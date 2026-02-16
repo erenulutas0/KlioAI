@@ -2,6 +2,8 @@ package com.ingilizce.calismaapp.service;
 
 import com.ingilizce.calismaapp.config.AiTokenQuotaProperties;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -14,9 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AiTokenQuotaService {
+    private static final Logger log = LoggerFactory.getLogger(AiTokenQuotaService.class);
 
     public record Decision(boolean blocked,
                            long retryAfterSeconds,
@@ -45,6 +49,8 @@ public class AiTokenQuotaService {
     private static final String METRIC_REDIS_FAILURE_TOTAL = "ai.token.quota.redis.failure.total";
     private static final String METRIC_REDIS_FALLBACK_ACTIVE = "ai.token.quota.redis.fallback.active";
     private static final String METRIC_REDIS_FALLBACK_TRANSITION_TOTAL = "ai.token.quota.redis.fallback.transition.total";
+    private static final String METRIC_MEMORY_SUBJECTS = "ai.token.quota.memory.subjects";
+    private static final String METRIC_MEMORY_TRIM_TOTAL = "ai.token.quota.memory.trim.total";
 
     private final AiTokenQuotaProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
@@ -52,6 +58,7 @@ public class AiTokenQuotaService {
 
     private final AtomicBoolean redisFailureLogged = new AtomicBoolean(false);
     private final AtomicInteger redisFallbackActive = new AtomicInteger(0);
+    private final AtomicLong lastMemoryCleanupEpochMs = new AtomicLong(0L);
 
     private final Map<String, DailyTokenCounter> dailyCounters = new ConcurrentHashMap<>();
 
@@ -64,6 +71,7 @@ public class AiTokenQuotaService {
         this.meterRegistry = meterRegistry;
         if (meterRegistry != null) {
             meterRegistry.gauge(METRIC_REDIS_FALLBACK_ACTIVE, redisFallbackActive);
+            meterRegistry.gauge(METRIC_MEMORY_SUBJECTS, dailyCounters, map -> map.size());
         }
     }
 
@@ -195,11 +203,13 @@ public class AiTokenQuotaService {
 
     private Decision checkMemory(String userId, String scope, long globalLimit, Long scopeLimit) {
         long now = currentTimeMillis();
+        runMemoryCleanupIfNeeded(now);
 
         if (globalLimit > 0) {
             DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
             synchronized (global) {
                 global.rollIfNeeded(now);
+                global.lastTouchedMs = now;
                 if (global.tokensUsed >= globalLimit) {
                     long retry = global.retryAfterSeconds(now);
                     onBlock("daily-token-quota", scope);
@@ -212,6 +222,7 @@ public class AiTokenQuotaService {
             DailyTokenCounter scoped = dailyCounters.computeIfAbsent("scope:" + userId + ":" + scope, ignored -> new DailyTokenCounter());
             synchronized (scoped) {
                 scoped.rollIfNeeded(now);
+                scoped.lastTouchedMs = now;
                 if (scoped.tokensUsed >= scopeLimit) {
                     long retry = scoped.retryAfterSeconds(now);
                     onBlock("daily-token-quota", scope);
@@ -225,10 +236,12 @@ public class AiTokenQuotaService {
 
     private Usage consumeMemory(String userId, String scope, long tokens, long globalLimit, Long scopeLimit) {
         long now = currentTimeMillis();
+        runMemoryCleanupIfNeeded(now);
 
         DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
         synchronized (global) {
             global.rollIfNeeded(now);
+            global.lastTouchedMs = now;
             global.tokensUsed += tokens;
         }
 
@@ -236,6 +249,7 @@ public class AiTokenQuotaService {
             DailyTokenCounter scoped = dailyCounters.computeIfAbsent("scope:" + userId + ":" + scope, ignored -> new DailyTokenCounter());
             synchronized (scoped) {
                 scoped.rollIfNeeded(now);
+                scoped.lastTouchedMs = now;
                 scoped.tokensUsed += tokens;
                 long remaining = Math.max(0L, scopeLimit - scoped.tokensUsed);
                 return new Usage(scoped.tokensUsed, remaining, scopeLimit);
@@ -337,10 +351,71 @@ public class AiTokenQuotaService {
         }
     }
 
+    private void runMemoryCleanupIfNeeded(long nowMs) {
+        long intervalMs = TimeUnit.SECONDS.toMillis(Math.max(5L, properties.getMemoryCleanupIntervalSeconds()));
+        long previous = lastMemoryCleanupEpochMs.get();
+        if (nowMs - previous < intervalMs) {
+            return;
+        }
+        if (!lastMemoryCleanupEpochMs.compareAndSet(previous, nowMs)) {
+            return;
+        }
+
+        cleanupDailyTokenCounters(nowMs);
+        trimDailyCountersToMax();
+    }
+
+    private void cleanupDailyTokenCounters(long nowMs) {
+        for (String key : dailyCounters.keySet()) {
+            DailyTokenCounter counter = dailyCounters.get(key);
+            if (counter == null) {
+                continue;
+            }
+
+            boolean remove;
+            synchronized (counter) {
+                long grace = TimeUnit.HOURS.toMillis(1);
+                remove = (counter.dayEndMs > 0 && nowMs >= (counter.dayEndMs + grace))
+                        || (counter.lastTouchedMs > 0 && nowMs - counter.lastTouchedMs > TimeUnit.DAYS.toMillis(2));
+            }
+
+            if (remove) {
+                dailyCounters.remove(key, counter);
+            }
+        }
+    }
+
+    private void trimDailyCountersToMax() {
+        int maxEntries = Math.max(1_000, properties.getMemoryMaxEntries());
+        int currentSize = dailyCounters.size();
+        if (currentSize <= maxEntries) {
+            return;
+        }
+
+        int targetRemovals = currentSize - maxEntries;
+        int removed = 0;
+        for (String key : dailyCounters.keySet()) {
+            if (removed >= targetRemovals) {
+                break;
+            }
+            if (dailyCounters.remove(key) != null) {
+                removed++;
+            }
+        }
+
+        if (removed > 0) {
+            if (meterRegistry != null) {
+                meterRegistry.counter(METRIC_MEMORY_TRIM_TOTAL).increment(removed);
+            }
+            log.warn("AI token quota memory map trimmed (removed={}, maxEntries={})", removed, maxEntries);
+        }
+    }
+
     private static final class DailyTokenCounter {
         private long dayStartMs = -1;
         private long dayEndMs = -1;
         private long tokensUsed = 0L;
+        private long lastTouchedMs = 0L;
 
         void rollIfNeeded(long nowMs) {
             if (dayStartMs < 0 || nowMs >= dayEndMs) {
@@ -357,4 +432,3 @@ public class AiTokenQuotaService {
         }
     }
 }
-

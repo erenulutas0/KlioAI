@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AiRateLimitService {
@@ -95,12 +96,14 @@ public class AiRateLimitService {
     private static final String METRIC_REDIS_FALLBACK_TRANSITION_TOTAL = "ai.rate.limit.redis.fallback.transition.total";
     private static final String METRIC_MEMORY_PENALTY_SUBJECTS = "ai.rate.limit.abuse.memory.subjects";
     private static final String METRIC_MEMORY_ACTIVE_PENALTY_SUBJECTS = "ai.rate.limit.abuse.memory.active.subjects";
+    private static final String METRIC_MEMORY_TRIM_TOTAL = "ai.rate.limit.memory.trim.total";
 
     private final AiRateLimitProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
     private final MeterRegistry meterRegistry;
     private final AtomicBoolean redisFailureLogged = new AtomicBoolean(false);
     private final AtomicInteger redisFallbackActive = new AtomicInteger(0);
+    private final AtomicLong lastMemoryCleanupEpochMs = new AtomicLong(0L);
 
     private final Map<String, WindowCounter> userCounters = new ConcurrentHashMap<>();
     private final Map<String, WindowCounter> ipCounters = new ConcurrentHashMap<>();
@@ -320,6 +323,7 @@ public class AiRateLimitService {
     private Decision checkAndConsumeMemory(String userId, String clientIp, String scope, EffectiveLimits limits) {
         long now = currentTimeMillis();
         long windowMs = Math.max(1000L, limits.windowSeconds * 1000L);
+        runMemoryCleanupIfNeeded(now);
         boolean authenticatedUser = isAuthenticatedUserKey(userId);
         String userPenaltySubject = penaltySubjectForUser(userId, clientIp);
         String ipPenaltySubject = authenticatedUser ? null : penaltySubjectForIp(clientIp);
@@ -354,6 +358,7 @@ public class AiRateLimitService {
                 dailyCounter.dayEndMs = dailyCounter.dayStartMs + TimeUnit.DAYS.toMillis(1);
                 dailyCounter.count = 0;
             }
+            dailyCounter.lastTouchedMs = now;
             if (dailyCounter.count >= Math.max(1, properties.getDailyQuotaPerUser())) {
                 long retry = Math.max(1L, (dailyCounter.dayEndMs - now + 999L) / 1000L);
                 return block("daily-quota", retry, scope);
@@ -369,6 +374,7 @@ public class AiRateLimitService {
                     scopeDaily.dayEndMs = scopeDaily.dayStartMs + TimeUnit.DAYS.toMillis(1);
                     scopeDaily.count = 0;
                 }
+                scopeDaily.lastTouchedMs = now;
                 if (scopeDaily.count >= Math.max(1, limits.scopeDailyQuotaPerUser)) {
                     long retry = Math.max(1L, (scopeDaily.dayEndMs - now + 999L) / 1000L);
                     return block("daily-quota", retry, scope);
@@ -384,6 +390,8 @@ public class AiRateLimitService {
                                         int maxRequests, String reason, String scope, String penaltySubject) {
         WindowCounter counter = map.computeIfAbsent(key, ignored -> new WindowCounter());
         synchronized (counter) {
+            counter.windowMs = windowMs;
+            counter.lastTouchedMs = now;
             if (counter.windowStartMs == 0 || now - counter.windowStartMs >= windowMs) {
                 counter.windowStartMs = now;
                 counter.count = 0;
@@ -478,6 +486,7 @@ public class AiRateLimitService {
         }
 
         synchronized (counter) {
+            counter.lastTouchedMs = now;
             if (counter.strikeResetAtMs > 0 && now >= counter.strikeResetAtMs) {
                 counter.strikes = 0;
                 counter.blockedUntilMs = 0;
@@ -506,6 +515,7 @@ public class AiRateLimitService {
 
         PenaltyCounter counter = penaltyCounters.computeIfAbsent(penaltySubject, ignored -> new PenaltyCounter());
         synchronized (counter) {
+            counter.lastTouchedMs = now;
             if (counter.strikeResetAtMs > 0 && now >= counter.strikeResetAtMs) {
                 counter.strikes = 0;
                 counter.blockedUntilMs = 0;
@@ -714,6 +724,120 @@ public class AiRateLimitService {
         return "unknown";
     }
 
+    private void runMemoryCleanupIfNeeded(long nowMs) {
+        long intervalMs = TimeUnit.SECONDS.toMillis(Math.max(5L, properties.getMemoryCleanupIntervalSeconds()));
+        long previous = lastMemoryCleanupEpochMs.get();
+        if (nowMs - previous < intervalMs) {
+            return;
+        }
+        if (!lastMemoryCleanupEpochMs.compareAndSet(previous, nowMs)) {
+            return;
+        }
+
+        cleanupWindowCounters(userCounters, nowMs);
+        cleanupWindowCounters(ipCounters, nowMs);
+        cleanupDailyCounters(dailyCounters, nowMs);
+        cleanupPenaltyCounters(penaltyCounters, nowMs);
+
+        int maxEntries = Math.max(1_000, properties.getMemoryMaxEntriesPerMap());
+        trimToMaxSize(userCounters, maxEntries, "user-window");
+        trimToMaxSize(ipCounters, maxEntries, "ip-window");
+        trimToMaxSize(dailyCounters, maxEntries, "daily");
+        trimToMaxSize(penaltyCounters, maxEntries, "penalty");
+    }
+
+    private void cleanupWindowCounters(Map<String, WindowCounter> counters, long nowMs) {
+        for (String key : counters.keySet()) {
+            WindowCounter counter = counters.get(key);
+            if (counter == null) {
+                continue;
+            }
+
+            boolean remove;
+            synchronized (counter) {
+                long effectiveWindowMs = Math.max(1_000L, counter.windowMs);
+                long sinceWindowStart = nowMs - counter.windowStartMs;
+                long sinceTouch = nowMs - counter.lastTouchedMs;
+                remove = (counter.windowStartMs > 0 && sinceWindowStart > (effectiveWindowMs * 2))
+                        || (counter.lastTouchedMs > 0 && sinceTouch > (effectiveWindowMs * 2));
+            }
+
+            if (remove) {
+                counters.remove(key, counter);
+            }
+        }
+    }
+
+    private void cleanupDailyCounters(Map<String, DailyCounter> counters, long nowMs) {
+        for (String key : counters.keySet()) {
+            DailyCounter counter = counters.get(key);
+            if (counter == null) {
+                continue;
+            }
+
+            boolean remove;
+            synchronized (counter) {
+                long grace = TimeUnit.HOURS.toMillis(1);
+                remove = (counter.dayEndMs > 0 && nowMs >= (counter.dayEndMs + grace))
+                        || (counter.lastTouchedMs > 0 && nowMs - counter.lastTouchedMs > TimeUnit.DAYS.toMillis(2));
+            }
+
+            if (remove) {
+                counters.remove(key, counter);
+            }
+        }
+    }
+
+    private void cleanupPenaltyCounters(Map<String, PenaltyCounter> counters, long nowMs) {
+        for (String key : counters.keySet()) {
+            PenaltyCounter counter = counters.get(key);
+            if (counter == null) {
+                continue;
+            }
+
+            boolean remove;
+            synchronized (counter) {
+                long expiry = Math.max(counter.blockedUntilMs, counter.strikeResetAtMs);
+                if (expiry <= 0) {
+                    expiry = counter.lastTouchedMs + TimeUnit.HOURS.toMillis(1);
+                }
+                remove = expiry > 0 && nowMs > expiry;
+            }
+
+            if (remove) {
+                counters.remove(key, counter);
+            }
+        }
+    }
+
+    private void trimToMaxSize(Map<String, ?> map, int maxEntries, String mapName) {
+        int currentSize = map.size();
+        if (currentSize <= maxEntries) {
+            return;
+        }
+
+        int targetRemovals = currentSize - maxEntries;
+        int removed = 0;
+        for (String key : map.keySet()) {
+            if (removed >= targetRemovals) {
+                break;
+            }
+            if (map.remove(key) != null) {
+                removed++;
+            }
+        }
+
+        if (removed > 0) {
+            if (meterRegistry != null) {
+                meterRegistry.counter(METRIC_MEMORY_TRIM_TOTAL, "map", mapName).increment(removed);
+            }
+            log.warn("AI rate-limit memory map trimmed (map={}, removed={}, maxEntries={})",
+                    mapName,
+                    removed,
+                    maxEntries);
+        }
+    }
+
     private boolean canUseRedis() {
         return properties.isRedisEnabled() && stringRedisTemplate != null;
     }
@@ -789,12 +913,15 @@ public class AiRateLimitService {
 
     private static final class WindowCounter {
         private long windowStartMs;
+        private long windowMs = 1000L;
+        private long lastTouchedMs;
         private int count;
     }
 
     private static final class DailyCounter {
         private long dayStartMs = -1;
         private long dayEndMs = -1;
+        private long lastTouchedMs;
         private int count;
     }
 
@@ -802,6 +929,7 @@ public class AiRateLimitService {
         private int strikes;
         private long strikeResetAtMs;
         private long blockedUntilMs;
+        private long lastTouchedMs;
     }
 
     private static final class PenaltyState {

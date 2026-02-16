@@ -24,6 +24,8 @@ public class AiRateLimitProperties {
     private boolean abusePenaltyEnabled = true;
     private List<Long> abusePenaltySeconds = new ArrayList<>(List.of(30L, 60L, 150L));
     private long abuseStrikeResetSeconds = 900;
+    private int memoryMaxEntriesPerMap = 100_000;
+    private long memoryCleanupIntervalSeconds = 30;
 
     /**
      * Optional per-scope overrides, keyed by normalized scope (lowercase, trimmed).
@@ -167,6 +169,22 @@ public class AiRateLimitProperties {
 
     public void setAbuseStrikeResetSeconds(long abuseStrikeResetSeconds) {
         this.abuseStrikeResetSeconds = Math.max(1L, abuseStrikeResetSeconds);
+    }
+
+    public int getMemoryMaxEntriesPerMap() {
+        return memoryMaxEntriesPerMap;
+    }
+
+    public void setMemoryMaxEntriesPerMap(int memoryMaxEntriesPerMap) {
+        this.memoryMaxEntriesPerMap = Math.max(1_000, memoryMaxEntriesPerMap);
+    }
+
+    public long getMemoryCleanupIntervalSeconds() {
+        return memoryCleanupIntervalSeconds;
+    }
+
+    public void setMemoryCleanupIntervalSeconds(long memoryCleanupIntervalSeconds) {
+        this.memoryCleanupIntervalSeconds = Math.max(5L, memoryCleanupIntervalSeconds);
     }
 
     public Map<String, ScopeLimits> getScopes() {
