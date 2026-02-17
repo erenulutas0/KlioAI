@@ -52,6 +52,9 @@ class OfflineSyncService {
   DateTime? _lastConnectivityCheck; // Son kontrol zamanı
   static const Duration _connectivityCacheDuration =
       Duration(minutes: 2); // 2 dakika cache - daha az kontrol
+  static const int _maxSyncRetries = 5;
+  static const Duration _retryBaseDelay = Duration(seconds: 30);
+  static const Duration _retryMaxDelay = Duration(minutes: 15);
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final StreamController<bool> _onlineStatusController =
@@ -305,7 +308,7 @@ class OfflineSyncService {
         print('Sync queue skipped: missing authenticated user context');
         return;
       }
-      final queue = await _localDb.getPendingSyncItems();
+      final queue = await _localDb.getRetryableSyncItems();
       final prioritizedQueue = [...queue]
         ..sort((a, b) => _syncPriority(a).compareTo(_syncPriority(b)));
       for (var item in prioritizedQueue) {
@@ -315,13 +318,7 @@ class OfflineSyncService {
           // Başarılıysa queue'dan sil
           await _localDb.removeSyncQueueItem(item['id']);
         } catch (e) {
-          if (_isDeferredSyncError(e)) {
-            continue;
-          }
-          print('Sync item error: $e');
-          if (_isUnrecoverableSyncError(e)) {
-            await _localDb.removeSyncQueueItem(item['id']);
-          }
+          await _handleSyncQueueFailure(item, e);
         }
       }
     } catch (e) {
@@ -341,6 +338,56 @@ class OfflineSyncService {
     } catch (e) {
       print('SYNC_QUEUE_HEALTH[$phase] log error: $e');
     }
+  }
+
+  Future<void> _handleSyncQueueFailure(
+    Map<String, dynamic> item,
+    Object error,
+  ) async {
+    final queueId = _parseIntFlexible(item['id']);
+    if (queueId == null) {
+      return;
+    }
+
+    final retryCount = _parseIntFlexible(item['retryCount']) ?? 0;
+    final nextRetryCount = retryCount + 1;
+    final errorMessage = error.toString();
+    final unrecoverable = _isUnrecoverableSyncError(error);
+    final deferred = _isDeferredSyncError(error);
+    final deadLetter = unrecoverable || nextRetryCount >= _maxSyncRetries;
+    final nextRetryAt = deadLetter
+        ? null
+        : DateTime.now().add(_retryDelayFor(nextRetryCount, deferred));
+
+    await _localDb.markSyncItemFailed(
+      queueId,
+      retryCount: nextRetryCount,
+      lastError: errorMessage,
+      nextRetryAt: nextRetryAt,
+      deadLetter: deadLetter,
+    );
+
+    if (deadLetter) {
+      print(
+          'SYNC_QUEUE dead-letter id=$queueId retries=$nextRetryCount error=$errorMessage');
+    } else {
+      print(
+        'Sync item error id=$queueId retry=$nextRetryCount'
+        ' nextRetryAt=${nextRetryAt?.toIso8601String()}'
+        ' deferred=$deferred error=$errorMessage',
+      );
+    }
+  }
+
+  Duration _retryDelayFor(int retryCount, bool deferred) {
+    final exponent = retryCount.clamp(1, 10) - 1;
+    final multiplier = 1 << exponent;
+    final base = deferred ? const Duration(seconds: 10) : _retryBaseDelay;
+    final delay = Duration(seconds: base.inSeconds * multiplier);
+    if (delay > _retryMaxDelay) {
+      return _retryMaxDelay;
+    }
+    return delay;
   }
 
   /// Tek bir sync item'ı işle
@@ -1444,18 +1491,9 @@ class OfflineSyncService {
       // 1. Bekleyen işlemleri gönder
       final pendingItems = await _localDb.getPendingSyncItems();
       print('📝 ${pendingItems.length} bekleyen işlem bulundu');
-
-      for (var item in pendingItems) {
-        try {
-          await _processSyncItem(item);
-          await _localDb.markSyncItemCompleted(item['id'] as int);
-        } catch (e) {
-          print('🔴 Sync item hatası: $e');
-          if (_isUnrecoverableSyncError(e)) {
-            await _localDb.removeSyncQueueItem(item['id'] as int);
-          }
-        }
-      }
+      await _logSyncQueueHealth('syncWithServer-before');
+      await _processSyncQueue();
+      await _logSyncQueueHealth('syncWithServer-after');
 
       // 2. Sunucudan güncel verileri al
       final serverWords = await _apiService.getAllWords();

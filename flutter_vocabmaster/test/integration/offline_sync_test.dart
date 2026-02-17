@@ -249,5 +249,52 @@ void main() {
       expect(health['isSyncing'], isFalse);
       expect(health['oldestPendingSeconds'], isA<int>());
     });
+
+    test('Retry scheduling excludes future failed items and skips dead-letter',
+        () async {
+      final now = DateTime.now();
+      final id1 = await localDb.addToSyncQueue(
+        'create',
+        'words',
+        '-1',
+        {'english': 'retry-word'},
+      );
+      final id2 = await localDb.addToSyncQueue(
+        'delete',
+        'sentences',
+        '991',
+        {'wordId': 1},
+      );
+
+      await localDb.markSyncItemFailed(
+        id1,
+        retryCount: 1,
+        lastError: 'temporary',
+        nextRetryAt: now.add(const Duration(minutes: 5)),
+      );
+      await localDb.markSyncItemFailed(
+        id2,
+        retryCount: 5,
+        lastError: 'dead-letter',
+        deadLetter: true,
+      );
+
+      final retryable = await localDb.getRetryableSyncItems();
+      expect(retryable, isEmpty);
+
+      await localDb.markSyncItemFailed(
+        id1,
+        retryCount: 2,
+        lastError: 'ready',
+        nextRetryAt: now.subtract(const Duration(seconds: 1)),
+      );
+      final retryableAfter = await localDb.getRetryableSyncItems();
+      expect(retryableAfter.length, 1);
+      expect(retryableAfter.first['id'], id1);
+
+      final health = await localDb.getSyncQueueHealthSnapshot();
+      expect(health['failedCount'], 1);
+      expect(health['deadLetterCount'], 1);
+    });
   });
 }

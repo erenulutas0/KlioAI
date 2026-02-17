@@ -41,7 +41,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       singleInstance: !isTest,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -135,7 +135,11 @@ class LocalDatabaseService {
         itemId TEXT NOT NULL,
         data TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        status TEXT DEFAULT 'pending'
+        status TEXT DEFAULT 'pending',
+        retryCount INTEGER DEFAULT 0,
+        lastError TEXT,
+        lastTriedAt TEXT,
+        nextRetryAt TEXT
       )
     ''');
 
@@ -165,6 +169,16 @@ class LocalDatabaseService {
       // Yeni tablolar ekle
       await _onCreate(db, newVersion);
     }
+    if (oldVersion < 3) {
+      await _ensureColumnExists(db, 'sync_queue', 'retryCount',
+          "ALTER TABLE sync_queue ADD COLUMN retryCount INTEGER DEFAULT 0");
+      await _ensureColumnExists(db, 'sync_queue', 'lastError',
+          "ALTER TABLE sync_queue ADD COLUMN lastError TEXT");
+      await _ensureColumnExists(db, 'sync_queue', 'lastTriedAt',
+          "ALTER TABLE sync_queue ADD COLUMN lastTriedAt TEXT");
+      await _ensureColumnExists(db, 'sync_queue', 'nextRetryAt',
+          "ALTER TABLE sync_queue ADD COLUMN nextRetryAt TEXT");
+    }
     // XP history tablosu eksikse ekle (korumalı)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS xp_history (
@@ -176,6 +190,19 @@ class LocalDatabaseService {
         createdAt TEXT NOT NULL
       )
     ''');
+  }
+
+  Future<void> _ensureColumnExists(
+    Database db,
+    String tableName,
+    String columnName,
+    String alterStatement,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($tableName)');
+    final exists = columns.any((row) => row['name']?.toString() == columnName);
+    if (!exists) {
+      await db.execute(alterStatement);
+    }
   }
 
   // ==================== WORDS ====================
@@ -198,8 +225,8 @@ class LocalDatabaseService {
     final rows = await db.query(
       'sync_queue',
       columns: ['itemId'],
-      where: 'tableName = ? AND action = ? AND status = ?',
-      whereArgs: [tableName, 'delete', 'pending'],
+      where: 'tableName = ? AND action = ? AND status != ?',
+      whereArgs: [tableName, 'delete', 'completed'],
     );
     final ids = <int>{};
     for (final row in rows) {
@@ -217,8 +244,8 @@ class LocalDatabaseService {
     final rows = await db.query(
       'sync_queue',
       columns: ['itemId'],
-      where: 'tableName = ? AND action = ? AND status = ?',
-      whereArgs: [tableName, 'delete', 'pending'],
+      where: 'tableName = ? AND action = ? AND status != ?',
+      whereArgs: [tableName, 'delete', 'completed'],
     );
     final ids = <String>{};
     for (final row in rows) {
@@ -934,13 +961,18 @@ class LocalDatabaseService {
   Future<void> _addToSyncQueue(String action, String tableName, String itemId,
       Map<String, dynamic> data) async {
     final db = await database;
+    final now = DateTime.now().toIso8601String();
     await db.insert('sync_queue', {
       'action': action,
       'tableName': tableName,
       'itemId': itemId,
       'data': jsonEncode(data), // JSON olarak saklanabilir
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': now,
       'status': 'pending',
+      'retryCount': 0,
+      'lastError': null,
+      'lastTriedAt': null,
+      'nextRetryAt': null,
     });
   }
 
@@ -949,9 +981,25 @@ class LocalDatabaseService {
     final db = await database;
     return await db.query(
       'sync_queue',
-      where: 'status = ?',
-      whereArgs: ['pending'],
+      where: 'status = ? OR status = ?',
+      whereArgs: ['pending', 'failed'],
       orderBy: 'createdAt ASC',
+    );
+  }
+
+  /// Şu an denenebilir durumda olan sync item'larını döndürür.
+  Future<List<Map<String, dynamic>>> getRetryableSyncItems({
+    int limit = 500,
+  }) async {
+    final db = await database;
+    final nowIso = DateTime.now().toIso8601String();
+    return await db.query(
+      'sync_queue',
+      where:
+          '(status = ? OR status = ?) AND (nextRetryAt IS NULL OR nextRetryAt <= ?)',
+      whereArgs: ['pending', 'failed', nowIso],
+      orderBy: 'createdAt ASC',
+      limit: limit,
     );
   }
 
@@ -959,12 +1007,20 @@ class LocalDatabaseService {
   Future<Map<String, dynamic>> getSyncQueueHealthSnapshot({
     Duration staleThreshold = const Duration(minutes: 10),
   }) async {
-    final pendingItems = await getPendingSyncItems();
+    final db = await database;
+    final pendingItems = await db.query(
+      'sync_queue',
+      where: 'status != ?',
+      whereArgs: ['completed'],
+      orderBy: 'createdAt ASC',
+    );
     final now = DateTime.now();
 
     int createCount = 0;
     int deleteCount = 0;
     int stalePendingCount = 0;
+    int failedCount = 0;
+    int deadLetterCount = 0;
     DateTime? oldestCreatedAt;
     final Map<String, int> byTable = <String, int>{};
 
@@ -974,6 +1030,12 @@ class LocalDatabaseService {
         createCount++;
       } else if (action == 'delete') {
         deleteCount++;
+      }
+      final status = item['status']?.toString().toLowerCase() ?? 'pending';
+      if (status == 'failed') {
+        failedCount++;
+      } else if (status == 'dead_letter') {
+        deadLetterCount++;
       }
 
       final tableName = item['tableName']?.toString() ?? 'unknown';
@@ -1001,6 +1063,8 @@ class LocalDatabaseService {
       'createCount': createCount,
       'deleteCount': deleteCount,
       'stalePendingCount': stalePendingCount,
+      'failedCount': failedCount,
+      'deadLetterCount': deadLetterCount,
       'oldestPendingSeconds': oldestPendingSeconds,
       'byTable': byTable,
       'generatedAt': now.toIso8601String(),
@@ -1012,7 +1076,37 @@ class LocalDatabaseService {
     final db = await database;
     await db.update(
       'sync_queue',
-      {'status': 'completed'},
+      {
+        'status': 'completed',
+        'lastError': null,
+        'nextRetryAt': null,
+        'lastTriedAt': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Sync item'ını başarısız olarak işaretler, retry/backoff bilgisini günceller.
+  Future<void> markSyncItemFailed(
+    int id, {
+    required int retryCount,
+    required String lastError,
+    DateTime? nextRetryAt,
+    bool deadLetter = false,
+  }) async {
+    final db = await database;
+    final sanitizedError =
+        lastError.length > 500 ? lastError.substring(0, 500) : lastError;
+    await db.update(
+      'sync_queue',
+      {
+        'status': deadLetter ? 'dead_letter' : 'failed',
+        'retryCount': retryCount,
+        'lastError': sanitizedError,
+        'lastTriedAt': DateTime.now().toIso8601String(),
+        'nextRetryAt': nextRetryAt?.toIso8601String(),
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -1112,8 +1206,8 @@ class LocalDatabaseService {
         await txn.update(
           'sync_queue',
           {'itemId': serverId.toString()},
-          where: 'tableName = ? AND itemId = ? AND status = ?',
-          whereArgs: [tableName, localId.toString(), 'pending'],
+          where: 'tableName = ? AND itemId = ? AND status != ?',
+          whereArgs: [tableName, localId.toString(), 'completed'],
         );
       });
     } else if (tableName == 'sentences') {
@@ -1222,8 +1316,8 @@ class LocalDatabaseService {
         await txn.update(
           'sync_queue',
           {'itemId': serverId.toString()},
-          where: 'tableName = ? AND itemId = ? AND status = ?',
-          whereArgs: [tableName, localId.toString(), 'pending'],
+          where: 'tableName = ? AND itemId = ? AND status != ?',
+          whereArgs: [tableName, localId.toString(), 'completed'],
         );
       });
     }
@@ -1242,8 +1336,8 @@ class LocalDatabaseService {
     await db.update(
       'sync_queue',
       {'itemId': serverId},
-      where: 'tableName = ? AND itemId = ? AND status = ?',
-      whereArgs: ['practice_sentences', localId, 'pending'],
+      where: 'tableName = ? AND itemId = ? AND status != ?',
+      whereArgs: ['practice_sentences', localId, 'completed'],
     );
   }
 
@@ -1362,12 +1456,18 @@ class LocalDatabaseService {
   Future<int> addToSyncQueue(String action, String tableName, String itemId,
       Map<String, dynamic> data) async {
     final db = await database;
+    final now = DateTime.now().toIso8601String();
     return await db.insert('sync_queue', {
       'action': action,
       'tableName': tableName,
       'itemId': itemId,
       'data': jsonEncode(data),
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': now,
+      'status': 'pending',
+      'retryCount': 0,
+      'lastError': null,
+      'lastTriedAt': null,
+      'nextRetryAt': null,
     });
   }
 
