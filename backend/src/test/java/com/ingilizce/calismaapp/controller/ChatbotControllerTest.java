@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -99,6 +100,8 @@ public class ChatbotControllerTest {
                 .thenReturn(AiTokenQuotaService.Decision.allowed());
         when(aiTokenQuotaService.consume(anyLong(), anyString(), anyLong()))
                 .thenReturn(new AiTokenQuotaService.Usage(0L, 0L, 0L));
+        when(aiTokenQuotaService.getGlobalUsage(anyLong()))
+                .thenReturn(new AiTokenQuotaService.Usage(0L, 50_000L, 50_000L));
     }
 
     @Test
@@ -841,6 +844,22 @@ public class ChatbotControllerTest {
         verify(aiTokenQuotaService, never()).consume(eq(1L), eq("reading-generate"), anyLong());
         verify(aiProxyService, times(1)).dictionaryLookup("apple");
         verify(aiProxyService, never()).generateReadingPassage(anyString());
+    }
+
+    @Test
+    void quotaStatusReturnsCurrentTokenUsage() throws Exception {
+        when(aiTokenQuotaService.getGlobalUsage(1L))
+                .thenReturn(new AiTokenQuotaService.Usage(12_500L, 37_500L, 50_000L));
+
+        mockMvc.perform(get("/api/chatbot/quota/status")
+                .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.tokenLimit").value(50000))
+                .andExpect(jsonPath("$.tokensUsed").value(12500))
+                .andExpect(jsonPath("$.tokensRemaining").value(37500))
+                .andExpect(jsonPath("$.usagePercent").value(25.0))
+                .andExpect(jsonPath("$.remainingPercent").value(75.0));
     }
 
     private static User activeUser() {

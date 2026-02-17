@@ -139,6 +139,26 @@ public class AiTokenQuotaService {
         return consumeMemory(normalizedUser, normalizedScope, delta, globalLimit, scopeLimit);
     }
 
+    public Usage getGlobalUsage(Long userId) {
+        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        if (!properties.isEnabled()) {
+            return new Usage(0L, globalLimit > 0 ? globalLimit : 0L, globalLimit);
+        }
+
+        String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
+        if (canUseRedis()) {
+            try {
+                Usage usage = getGlobalUsageRedis(normalizedUser, globalLimit);
+                onRedisSuccess();
+                return usage;
+            } catch (Exception ex) {
+                onRedisFailure("usage");
+            }
+        }
+
+        return getGlobalUsageMemory(normalizedUser, globalLimit);
+    }
+
     protected long currentTimeMillis() {
         return System.currentTimeMillis();
     }
@@ -264,6 +284,31 @@ public class AiTokenQuotaService {
         }
 
         return new Usage(global.tokensUsed, 0L, 0L);
+    }
+
+    private Usage getGlobalUsageRedis(String userId, long globalLimit) {
+        String day = LocalDate.now(ZoneOffset.UTC).toString();
+        String globalKey = DAILY_TOKEN_PREFIX + day + ":" + userId;
+        long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(globalKey));
+        long remaining = globalLimit > 0 ? Math.max(0L, globalLimit - used) : 0L;
+        return new Usage(used, remaining, globalLimit);
+    }
+
+    private Usage getGlobalUsageMemory(String userId, long globalLimit) {
+        long now = currentTimeMillis();
+        runMemoryCleanupIfNeeded(now);
+
+        DailyTokenCounter global = dailyCounters.get("global:" + userId);
+        if (global == null) {
+            return new Usage(0L, globalLimit > 0 ? globalLimit : 0L, globalLimit);
+        }
+
+        synchronized (global) {
+            global.rollIfNeeded(now);
+            global.lastTouchedMs = now;
+            long remaining = globalLimit > 0 ? Math.max(0L, globalLimit - global.tokensUsed) : 0L;
+            return new Usage(global.tokensUsed, remaining, globalLimit);
+        }
     }
 
     private Long resolveScopeLimit(String normalizedScope) {

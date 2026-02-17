@@ -83,6 +83,22 @@ class AiTokenQuotaServiceTest {
         assertEquals(77, decision.retryAfterSeconds());
     }
 
+    @Test
+    void globalUsage_ShouldReturnUsedAndRemainingInMemoryMode() {
+        AiTokenQuotaProperties properties = new AiTokenQuotaProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setDailyTokenQuotaPerUser(50_000);
+
+        TestableAiTokenQuotaService service = new TestableAiTokenQuotaService(properties);
+        service.consume(7L, "chat", 12_345);
+
+        AiTokenQuotaService.Usage usage = service.getGlobalUsage(7L);
+        assertEquals(50_000, usage.tokenLimit());
+        assertEquals(12_345, usage.tokensUsed());
+        assertEquals(37_655, usage.tokensRemaining());
+    }
+
     private static final class TestableAiTokenQuotaService extends AiTokenQuotaService {
         private long nowMs = 1_000_000L;
 

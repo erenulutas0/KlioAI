@@ -13,9 +13,11 @@ import '../services/user_data_service.dart';
 import '../services/api_key_manager.dart';
 import '../services/groq_api_client.dart';
 import '../providers/app_state_provider.dart';
+import '../services/api_service.dart';
 import 'login_page.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
+import '../widgets/ai_token_quota_card.dart';
 import '../services/subscription_service.dart';
 import 'subscription_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -51,11 +53,18 @@ class _ProfilePageState extends State<ProfilePage> {
   
   // Gerçek veriler - Provider'dan başlangıç değerlerini al
   final UserDataService _userDataService = UserDataService();
+  final ApiService _apiService = ApiService();
   int _totalWords = 0;
   int _streak = 0;
   int _totalXp = 0;
   int _level = 1;
   List<Map<String, dynamic>> _friends = [];
+  bool _isAiQuotaLoading = false;
+  int _aiTokenLimit = 0;
+  int _aiTokensUsed = 0;
+  int _aiTokensRemaining = 0;
+  double _aiRemainingRatio = 1.0;
+  String? _aiQuotaDateUtc;
 
   // BYOK (Bring Your Own Key) State
   final ApiKeyManager _apiKeyManager = ApiKeyManager();
@@ -76,6 +85,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadApiKeyStatus();
     _loadFriends(); // Arkadaşları ayrıca yükle
     _loadSubscriptionInfo();
+    _loadAiTokenQuotaStatus();
   }
 
   void _loadSubscriptionInfo() async {
@@ -164,6 +174,51 @@ class _ProfilePageState extends State<ProfilePage> {
         _useOwnKey = useOwn;
         _apiKeyStatus = status;
       });
+    }
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  Future<void> _loadAiTokenQuotaStatus() async {
+    if (mounted) {
+      setState(() {
+        _isAiQuotaLoading = true;
+      });
+    }
+
+    try {
+      final data = await _apiService.chatbotQuotaStatus();
+      final limit = _toInt(data['tokenLimit']);
+      final used = _toInt(data['tokensUsed']);
+      final remainingFromApi = _toInt(data['tokensRemaining']);
+      final int remaining = limit > 0
+          ? ((limit - used).clamp(0, limit) as int)
+          : remainingFromApi;
+      final double ratio = limit > 0
+          ? (remaining / limit).clamp(0.0, 1.0).toDouble()
+          : 1.0;
+
+      if (mounted) {
+        setState(() {
+          _aiTokenLimit = limit;
+          _aiTokensUsed = used;
+          _aiTokensRemaining = remaining;
+          _aiRemainingRatio = ratio;
+          _aiQuotaDateUtc = data['dateUtc']?.toString();
+          _isAiQuotaLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('AI token quota yuklenemedi: $e');
+      if (mounted) {
+        setState(() {
+          _isAiQuotaLoading = false;
+        });
+      }
     }
   }
 
@@ -906,6 +961,17 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
+
+          const SizedBox(height: 16),
+          AiTokenQuotaCard(
+            isLoading: _isAiQuotaLoading,
+            tokenLimit: _aiTokenLimit,
+            tokensUsed: _aiTokensUsed,
+            tokensRemaining: _aiTokensRemaining,
+            remainingRatio: _aiRemainingRatio,
+            quotaDateUtc: _aiQuotaDateUtc,
+            onRefresh: _loadAiTokenQuotaStatus,
+          ),
               
           const SizedBox(height: 24),
           Row(
@@ -921,7 +987,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
 
   Widget _buildStatItem(IconData icon, String value, String label, Color color) {
     return Container(

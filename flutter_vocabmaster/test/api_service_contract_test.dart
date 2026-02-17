@@ -159,5 +159,61 @@ void main() {
       final stats = await api.getSentenceStats();
       expect(stats['total'], 7);
     });
+
+    test('chatbotQuotaStatus hits correct endpoint and parses payload', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.toString(), '$testBaseUrl/chatbot/quota/status');
+        return http.Response(
+          json.encode({
+            'success': true,
+            'tokenLimit': 50000,
+            'tokensUsed': 5000,
+            'tokensRemaining': 45000,
+            'remainingPercent': 90.0,
+          }),
+          200,
+        );
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+      final quota = await api.chatbotQuotaStatus();
+
+      expect(quota['success'], true);
+      expect(quota['tokenLimit'], 50000);
+      expect(quota['tokensUsed'], 5000);
+      expect(quota['tokensRemaining'], 45000);
+    });
+
+    test('chatbotQuotaStatus maps 429 payload to ApiQuotaExceededException', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.toString(), '$testBaseUrl/chatbot/quota/status');
+        return http.Response(
+          json.encode({
+            'error': 'Gunluk AI hakkiniz bitti.',
+            'retryAfterSeconds': 123,
+            'reason': 'daily-token-quota',
+            'tokenLimit': 50000,
+            'tokensUsed': 50000,
+            'tokensRemaining': 0,
+          }),
+          429,
+        );
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+
+      expect(
+        api.chatbotQuotaStatus(),
+        throwsA(
+          isA<ApiQuotaExceededException>()
+              .having((e) => e.reason, 'reason', 'daily-token-quota')
+              .having((e) => e.retryAfterSeconds, 'retryAfterSeconds', 123)
+              .having((e) => e.tokenLimit, 'tokenLimit', 50000)
+              .having((e) => e.tokensRemaining, 'tokensRemaining', 0),
+        ),
+      );
+    });
   });
 }

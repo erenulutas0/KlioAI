@@ -357,6 +357,21 @@ class ApiService {
     return int.tryParse(value.toString());
   }
 
+  Future<Map<String, dynamic>> chatbotQuotaStatus() async {
+    final url = await baseUrl;
+    final response = await client.get(
+      Uri.parse('$url/chatbot/quota/status'),
+      headers: await _protectedHeaders(),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    throw Exception('AI token durumu alınamadı: ${response.statusCode}');
+  }
+
   Future<Map<String, dynamic>> chatbotGenerateSentences({
     required String word,
     List<String> levels = const ['B1'],

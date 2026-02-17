@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -882,6 +883,55 @@ public class ChatbotController {
         } catch (Exception e) {
             log.error("generateExamBundle failed userId={}", userId, e);
             return ResponseEntity.internalServerError().body(Map.of("error", "Exam generation failed."));
+        }
+    }
+
+    @GetMapping("/quota/status")
+    public ResponseEntity<Map<String, Object>> getQuotaStatus(@RequestHeader("X-User-Id") Long userId) {
+        if (aiTokenQuotaService == null) {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "quotaEnabled", false,
+                    "dateUtc", LocalDate.now(ZoneOffset.UTC).toString(),
+                    "tokenLimit", 0,
+                    "tokensUsed", 0,
+                    "tokensRemaining", 0,
+                    "usagePercent", 0.0,
+                    "remainingPercent", 0.0
+            ));
+        }
+
+        try {
+            AiTokenQuotaService.Usage usage = aiTokenQuotaService.getGlobalUsage(userId);
+            long tokenLimit = Math.max(0L, usage.tokenLimit());
+            long tokensUsed = Math.max(0L, usage.tokensUsed());
+            long tokensRemaining = tokenLimit > 0 ? Math.max(0L, tokenLimit - tokensUsed) : Math.max(0L, usage.tokensRemaining());
+
+            double usagePercent = tokenLimit > 0 ? Math.min(100.0, (tokensUsed * 100.0) / tokenLimit) : 0.0;
+            double remainingPercent = tokenLimit > 0 ? Math.max(0.0, 100.0 - usagePercent) : 0.0;
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "quotaEnabled", true,
+                    "dateUtc", LocalDate.now(ZoneOffset.UTC).toString(),
+                    "tokenLimit", tokenLimit,
+                    "tokensUsed", tokensUsed,
+                    "tokensRemaining", tokensRemaining,
+                    "usagePercent", usagePercent,
+                    "remainingPercent", remainingPercent
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to read AI token quota status for userId={}", userId, e);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "quotaEnabled", true,
+                    "dateUtc", LocalDate.now(ZoneOffset.UTC).toString(),
+                    "tokenLimit", 0,
+                    "tokensUsed", 0,
+                    "tokensRemaining", 0,
+                    "usagePercent", 0.0,
+                    "remainingPercent", 0.0
+            ));
         }
     }
 
