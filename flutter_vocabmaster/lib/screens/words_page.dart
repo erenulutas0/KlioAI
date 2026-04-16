@@ -5,7 +5,6 @@ import '../models/word.dart';
 import '../services/offline_sync_service.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../widgets/info_dialog.dart';
-import '../services/global_state.dart';
 import '../widgets/neon_button.dart';
 import '../widgets/word_sentences_modal.dart';
 import '../widgets/add_sentence_modal.dart';
@@ -13,9 +12,12 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class WordsPage extends StatefulWidget {
-  const WordsPage({Key? key}) : super(key: key);
+  const WordsPage({super.key});
 
   @override
   State<WordsPage> createState() => _WordsPageState();
@@ -28,7 +30,6 @@ class _WordsPageState extends State<WordsPage> {
   List<Word> _wordsForSelectedDate = [];
   Set<String> _datesWithWords = {}; // Dates that have words (YYYY-MM-DD format)
   bool _isLoading = false;
-  bool _isOnline = true;
 
   final List<String> _weekDays = [
     'Pzt',
@@ -45,19 +46,30 @@ class _WordsPageState extends State<WordsPage> {
   final TextEditingController _turkishMeaningController =
       TextEditingController();
   String _selectedDifficulty = 'Kolay';
-  bool _isAddingWord = false;
+  final bool _isAddingWord = false;
+
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
+  Color _mix(Color from, Color to, double amount) {
+    return Color.lerp(from, to, amount) ?? from;
+  }
 
   @override
   void initState() {
     super.initState();
-    _isOnline = _offlineSyncService.isOnline;
     _loadDatesWithWords();
     _loadWordsForDate(_selectedDate);
 
     // Online durumu dinle
     _offlineSyncService.onlineStatus.listen((isOnline) {
       if (mounted) {
-        setState(() => _isOnline = isOnline);
         if (isOnline) {
           // Online olunca yenile
           _loadDatesWithWords();
@@ -162,6 +174,7 @@ class _WordsPageState extends State<WordsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     // AppStateProvider entegrasyonu (Anlık güncelleme)
     final appState = context.watch<AppStateProvider>();
     final allWords = appState.allWords;
@@ -322,21 +335,28 @@ class _WordsPageState extends State<WordsPage> {
                     Container(
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1e3a8a).withOpacity(0.3),
+                        color: selectedTheme.colors.cardBackground
+                            .withOpacity(0.62),
                         borderRadius: BorderRadius.circular(24),
-                        border:
-                            Border.all(color: Colors.white.withOpacity(0.1)),
+                        border: Border.all(
+                          color: selectedTheme.colors.glassBorder
+                              .withOpacity(0.72),
+                        ),
                       ),
                       child: Column(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.2),
+                              color:
+                                  selectedTheme.colors.accent.withOpacity(0.20),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(Icons.history_edu,
-                                color: Colors.blue, size: 32),
+                            child: Icon(
+                              Icons.history_edu,
+                              color: selectedTheme.colors.accent,
+                              size: 32,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -377,14 +397,12 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   Widget _buildCalendarGrid() {
+    final selectedTheme = _currentTheme();
     final daysInMonth =
         DateUtils.getDaysInMonth(_selectedDate.year, _selectedDate.month);
     final firstDayOfMonth =
         DateTime(_selectedDate.year, _selectedDate.month, 1);
     final weekdayOffset = firstDayOfMonth.weekday - 1; // 0 for Mon
-
-    // Total cells = offset + days.
-    final totalCells = 35; // Fixed 5 rows for aesthetics or 42 for 6 rows
 
     List<Widget> dayWidgets = [];
 
@@ -411,14 +429,14 @@ class _WordsPageState extends State<WordsPage> {
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: isSelected
-                  ? const Color(0xFF06b6d4) // Cyan for selected
+                  ? selectedTheme.colors.accent
                   : (hasWords
-                      ? const Color(0xFF3b82f6).withOpacity(0.6)
+                      ? selectedTheme.colors.primary.withOpacity(0.55)
                       : Colors.white.withOpacity(0.1)),
               shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: const Color(0xFF06b6d4), width: 2)
+                  ? Border.all(color: selectedTheme.colors.accent, width: 2)
                   : null,
             ),
             child: Center(
@@ -450,6 +468,7 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   void _showDeleteWordConfirmDialog(Word word) {
+    final selectedTheme = _currentTheme(listen: false);
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -470,14 +489,18 @@ class _WordsPageState extends State<WordsPage> {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0f172a).withOpacity(0.9),
+                      color: selectedTheme.colors.background.withOpacity(0.90),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                          color: const Color(0xFF06b6d4).withOpacity(0.3)),
+                        color:
+                            selectedTheme.colors.glassBorder.withOpacity(0.70),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                            color: const Color(0xFF06b6d4).withOpacity(0.1),
-                            blurRadius: 20),
+                          color:
+                              selectedTheme.colors.accentGlow.withOpacity(0.30),
+                          blurRadius: 20,
+                        ),
                       ],
                     ),
                     child: Column(
@@ -526,13 +549,13 @@ class _WordsPageState extends State<WordsPage> {
                                   try {
                                     // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
                                     final appState =
-                                        context.read<AppStateProvider>();
+                                        this.context.read<AppStateProvider>();
                                     final deleted =
                                         await appState.deleteWord(word.id);
 
                                     if (mounted) {
                                       if (deleted) {
-                                        ScaffoldMessenger.of(context)
+                                        ScaffoldMessenger.of(this.context)
                                             .showSnackBar(
                                           const SnackBar(
                                             content: Text(
@@ -541,7 +564,7 @@ class _WordsPageState extends State<WordsPage> {
                                           ),
                                         );
                                       } else {
-                                        ScaffoldMessenger.of(context)
+                                        ScaffoldMessenger.of(this.context)
                                             .showSnackBar(
                                           const SnackBar(
                                             content: Text(
@@ -553,7 +576,7 @@ class _WordsPageState extends State<WordsPage> {
                                     }
                                   } catch (e) {
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context)
+                                      ScaffoldMessenger.of(this.context)
                                           .showSnackBar(SnackBar(
                                               content: Text('Hata: $e'),
                                               backgroundColor: Colors.red));
@@ -711,99 +734,33 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   Widget _buildSmallSpeakButton(String label, VoidCallback onTap) {
+    final selectedTheme = _currentTheme();
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFF06b6d4).withOpacity(0.15),
+          color: selectedTheme.colors.accent.withOpacity(0.16),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+          border: Border.all(
+            color: selectedTheme.colors.accent.withOpacity(0.36),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.volume_up, size: 14, color: Color(0xFF06b6d4)),
+            Icon(Icons.volume_up, size: 14, color: selectedTheme.colors.accent),
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF06b6d4),
+              style: TextStyle(
+                color: selectedTheme.colors.accent,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)], // Cyan to Blue
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF22D3EE).withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18, color: Colors.white),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDifficultyDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: 'Kolay',
-          isExpanded: true,
-          dropdownColor: const Color(0xFF1e1b4b),
-          style: const TextStyle(color: Colors.white),
-          items: ['Kolay', 'Orta', 'Zor'].map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
-          onChanged: (_) {},
         ),
       ),
     );
@@ -838,24 +795,6 @@ class _WordsPageState extends State<WordsPage> {
     );
   }
 
-  Widget _buildUnilabeledDot(Color color, String label) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
   void _showAddSentenceDialog(Word word) {
     showModalBottomSheet(
       context: context,
@@ -867,7 +806,7 @@ class _WordsPageState extends State<WordsPage> {
           await _loadWordsForDate(_selectedDate);
           // Global listeyi de yenile
           if (mounted) {
-            context.read<AppStateProvider>().refreshWords();
+            this.context.read<AppStateProvider>().refreshWords();
           }
         },
       ),
@@ -928,6 +867,7 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   Widget _buildTextField(TextEditingController controller, String hint) {
+    final selectedTheme = _currentTheme();
     return TextField(
       controller: controller,
       style: const TextStyle(color: Colors.white),
@@ -948,13 +888,14 @@ class _WordsPageState extends State<WordsPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF06b6d4)),
+          borderSide: BorderSide(color: selectedTheme.colors.accent),
         ),
       ),
     );
   }
 
   Widget _buildFormDifficultyDropdown() {
+    final selectedTheme = _currentTheme();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -966,7 +907,8 @@ class _WordsPageState extends State<WordsPage> {
         child: DropdownButton<String>(
           value: _selectedDifficulty,
           isExpanded: true,
-          dropdownColor: const Color(0xFF1e1b4b),
+          dropdownColor:
+              _mix(selectedTheme.colors.background, Colors.black, 0.20),
           style: const TextStyle(color: Colors.white),
           items: ['Kolay', 'Orta', 'Zor'].map((String value) {
             Color itemColor = Colors.white;
@@ -1000,3 +942,4 @@ class _WordsPageState extends State<WordsPage> {
     );
   }
 }
+

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Klio AI | English That Sticks</title>
+    <meta
+      name="description"
+      content="Klio AI is a focused English learning experience built around AI conversation, writing feedback, vocabulary retention, and daily momentum."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="hero">
+        <nav class="topbar">
+          <a class="brand" href="/">
+            <span class="brand-mark">K</span>
+            <span class="brand-text">Klio AI</span>
+          </a>
+          <div class="topbar-links">
+            <a href="#product">Product</a>
+            <a href="#workflow">Workflow</a>
+            <a href="/privacy.html">Privacy</a>
+            <a href="/terms.html">Terms</a>
+            <a href="https://api.klioai.app/actuator/health">API Status</a>
+          </div>
+        </nav>
+
+        <div class="hero-grid">
+          <section class="hero-copy">
+            <p class="eyebrow">AI-guided English practice</p>
+            <h1>Build fluent habits, not random streaks.</h1>
+            <p class="hero-lead">
+              Klio AI turns daily English study into a guided loop of speaking,
+              writing, vocabulary, and review. Less clutter. More usable
+              progress.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="https://api.klioai.app/actuator/health"
+                >See live backend</a
+              >
+              <a class="button button-secondary" href="#product">Explore product</a>
+            </div>
+            <ul class="hero-signals">
+              <li>AI conversation and sentence practice</li>
+              <li>Daily reading and writing prompts</li>
+              <li>Progress, streak, and quota-aware backend</li>
+            </ul>
+          </section>
+
+          <aside class="hero-panel">
+            <div class="signal-card signal-card-primary">
+              <span class="signal-label">Daily loop</span>
+              <strong>Learn</strong>
+              <strong>Practice</strong>
+              <strong>Repeat</strong>
+            </div>
+            <div class="signal-card">
+              <span class="signal-label">Practice modes</span>
+              <p>Speaking, translation, reading, writing, exam prep.</p>
+            </div>
+            <div class="signal-card">
+              <span class="signal-label">Delivery</span>
+              <p>Mobile-first experience with a dedicated production API.</p>
+            </div>
+          </aside>
+        </div>
+      </header>
+
+      <main>
+        <section class="metrics" id="product">
+          <article>
+            <span>01</span>
+            <strong>Mobile-first</strong>
+            <p>Built around a private mobile rollout, not a generic dashboard.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>AI where it matters</strong>
+            <p>Conversation, feedback, generation, and review backed by quota control.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Production backbone</strong>
+            <p>HTTPS, isolated cache layers, PostgreSQL backups, and runtime health checks.</p>
+          </article>
+        </section>
+
+        <section class="feature-band">
+          <div class="feature-intro">
+            <p class="eyebrow">What Klio focuses on</p>
+            <h2>Structured repetition with enough intelligence to stay useful.</h2>
+          </div>
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h3>Speaking practice</h3>
+              <p>
+                Prompted sessions and AI-supported speaking flows designed to push
+                you past passive recognition.
+              </p>
+            </article>
+            <article class="feature-card">
+              <h3>Vocabulary retention</h3>
+              <p>
+                Save words, attach sentences, revisit difficult items, and keep
+                the review cycle anchored to your own learning history.
+              </p>
+            </article>
+            <article class="feature-card">
+              <h3>Writing feedback</h3>
+              <p>
+                Generate level-aware prompts, write against a target, and get
+                immediate structured evaluation.
+              </p>
+            </article>
+            <article class="feature-card">
+              <h3>Daily momentum</h3>
+              <p>
+                Reading, writing, and review are framed as a repeatable daily
+                loop instead of disconnected screens.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="workflow" id="workflow">
+          <div class="workflow-copy">
+            <p class="eyebrow">Workflow</p>
+            <h2>One system, four clear moves.</h2>
+          </div>
+          <div class="workflow-steps">
+            <article>
+              <span>1</span>
+              <h3>Capture</h3>
+              <p>Add words, save examples, and create context while motivation is high.</p>
+            </article>
+            <article>
+              <span>2</span>
+              <h3>Generate</h3>
+              <p>Use AI to create sentences, prompts, and guided practice at the right level.</p>
+            </article>
+            <article>
+              <span>3</span>
+              <h3>Evaluate</h3>
+              <p>Check translations, review writing, and tighten weak spots before they fossilize.</p>
+            </article>
+            <article>
+              <span>4</span>
+              <h3>Repeat</h3>
+              <p>Return through a daily loop with stored history and measurable continuity.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="infrastructure">
+          <div class="infrastructure-copy">
+            <p class="eyebrow">Infrastructure</p>
+            <h2>Shipping discipline behind the product.</h2>
+          </div>
+          <div class="infra-grid">
+            <article>
+              <h3>Secure delivery</h3>
+              <p>Cloudflare DNS, Caddy TLS, and a dedicated API host on `api.klioai.app`.</p>
+            </article>
+            <article>
+              <h3>Protected runtime</h3>
+              <p>Internal-only backend port, split Redis roles, JWT auth, and production headers.</p>
+            </article>
+            <article>
+              <h3>Recoverability</h3>
+              <p>Scheduled PostgreSQL backups plus restore smoke validation, not snapshot hope.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="cta-block">
+          <div>
+            <p class="eyebrow">Current status</p>
+            <h2>Klio AI is live on production infrastructure.</h2>
+            <p>
+              The mobile experience is the primary product surface. The public web
+              layer exists to present the product and expose a stable production entrypoint.
+            </p>
+          </div>
+          <div class="cta-actions">
+            <a class="button button-primary" href="https://api.klioai.app/actuator/health"
+              >Open API health</a
+            >
+            <a class="button button-secondary" href="https://api.klioai.app"
+              >Open API root</a
+            >
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="site-footer-copy">
+          <strong>Klio AI</strong>
+          <p>
+            AI-guided English learning with a production-backed mobile core.
+          </p>
+        </div>
+        <div class="site-footer-links">
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Use</a>
+          <a href="https://api.klioai.app/actuator/health">API Status</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

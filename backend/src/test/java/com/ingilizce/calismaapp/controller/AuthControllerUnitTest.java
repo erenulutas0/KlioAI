@@ -2,6 +2,7 @@ package com.ingilizce.calismaapp.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.entity.User;
+import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.security.AuthSecurityProperties;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
@@ -10,9 +11,9 @@ import com.ingilizce.calismaapp.security.GoogleIdentityService;
 import com.ingilizce.calismaapp.security.JwtTokenService;
 import com.ingilizce.calismaapp.security.PasswordResetService;
 import com.ingilizce.calismaapp.security.RefreshTokenService;
-import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.service.AuthRateLimitService;
 import com.ingilizce.calismaapp.service.AuthRateLimitService.RateLimitDecision;
+import com.ingilizce.calismaapp.service.TrialAbuseProtectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -50,6 +51,7 @@ class AuthControllerUnitTest {
     private GoogleIdentityService googleIdentityService;
     private AuthSecurityProperties authSecurityProperties;
     private ClientIpResolver clientIpResolver;
+    private TrialAbuseProtectionService trialAbuseProtectionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
@@ -65,6 +67,7 @@ class AuthControllerUnitTest {
         googleIdentityService = mock(GoogleIdentityService.class);
         authSecurityProperties = new AuthSecurityProperties();
         clientIpResolver = mock(ClientIpResolver.class);
+        trialAbuseProtectionService = mock(TrialAbuseProtectionService.class);
         authSecurityProperties.setExposeDebugTokens(true);
         when(authRateLimitService.checkRegister(anyString())).thenReturn(RateLimitDecision.allowed());
         when(authRateLimitService.checkLogin(anyString(), anyString())).thenReturn(RateLimitDecision.allowed());
@@ -73,6 +76,8 @@ class AuthControllerUnitTest {
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         when(currentUserContext.getCurrentUserId()).thenReturn(Optional.empty());
         when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
+        when(trialAbuseProtectionService.evaluate(anyString(), anyString()))
+                .thenReturn(TrialAbuseProtectionService.TrialDecision.allowed());
 
         when(refreshTokenService.issue(any(User.class), anyBoolean(), anyString(), anyString(), anyString(), any(Instant.class)))
                 .thenReturn(new RefreshTokenService.IssuedRefreshToken(
@@ -100,7 +105,8 @@ class AuthControllerUnitTest {
                 emailVerificationService,
                 googleIdentityService,
                 authSecurityProperties,
-                clientIpResolver);
+                clientIpResolver,
+                trialAbuseProtectionService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -143,6 +149,31 @@ class AuthControllerUnitTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Internal server error"));
+    }
+
+    @Test
+    void register_ShouldDisableTrial_WhenTrialAbuseProtectionBlocks() throws Exception {
+        when(userRepository.existsByEmail("abuse@test.com")).thenReturn(false);
+        when(trialAbuseProtectionService.evaluate(anyString(), anyString()))
+                .thenReturn(TrialAbuseProtectionService.TrialDecision.blocked("device-limit"));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(99L);
+            return user;
+        });
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "abuse@test.com",
+                                "password", "pass123",
+                                "displayName", "Abuse User",
+                                "deviceId", "device-1"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trialEligible").value(false))
+                .andExpect(jsonPath("$.trialBlockedReason").value("device-limit"));
+
+        verify(trialAbuseProtectionService, never()).recordTrialGrant(anyString(), anyString());
     }
 
     @Test
@@ -214,7 +245,7 @@ class AuthControllerUnitTest {
 
         mockMvc.perform(post("/api/auth/google-login")
                         .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
+                        .content(objectMapper.writeValueAsString(Map.of(
                                 "email", "google@test.com",
                                 "displayName", "Name"))))
                 .andExpect(status().isInternalServerError())
@@ -241,6 +272,31 @@ class AuthControllerUnitTest {
                 .andExpect(jsonPath("$.userId").value(42))
                 .andExpect(jsonPath("$.email").value("new@test.com"))
                 .andExpect(jsonPath("$.emailVerified").value(true));
+    }
+
+    @Test
+    void googleLogin_ShouldDisableTrial_WhenTrialAbuseProtectionBlocksNewUser() throws Exception {
+        when(userRepository.findByEmail("google-new@test.com")).thenReturn(Optional.empty());
+        when(trialAbuseProtectionService.evaluate(anyString(), anyString()))
+                .thenReturn(TrialAbuseProtectionService.TrialDecision.blocked("ip-limit"));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(77L);
+            return u;
+        });
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "google-new@test.com",
+                                "displayName", "Google User",
+                                "googleId", "gid-777",
+                                "deviceId", "device-77"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trialEligible").value(false))
+                .andExpect(jsonPath("$.trialBlockedReason").value("ip-limit"));
+
+        verify(trialAbuseProtectionService, never()).recordTrialGrant(anyString(), anyString());
     }
 
     @Test

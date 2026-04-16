@@ -3,13 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/global_matchmaking_sheet.dart';
-import '../widgets/navigation_menu_panel.dart';
 import '../main.dart';
-import 'chat_list_page.dart';
-import 'quick_dictionary_page.dart';
-import 'review_page.dart';
-import 'profile_page.dart';
-import 'stats_page.dart';
 import '../services/social_service.dart';
 import 'friend_list_page.dart';
 import 'notifications_page.dart';
@@ -87,9 +81,13 @@ class Post {
       try {
         final dt = DateTime.parse(json['createdAt']);
         final diff = DateTime.now().difference(dt);
-        if (diff.inMinutes < 60) timeStr = '${diff.inMinutes} dk önce';
-        else if (diff.inHours < 24) timeStr = '${diff.inHours} saat önce';
-        else timeStr = '${diff.inDays} gün önce';
+        if (diff.inMinutes < 60) {
+          timeStr = '${diff.inMinutes} dk önce';
+        } else if (diff.inHours < 24) {
+          timeStr = '${diff.inHours} saat önce';
+        } else {
+          timeStr = '${diff.inDays} gün önce';
+        }
       } catch (_) {}
     }
 
@@ -114,10 +112,10 @@ class Post {
 // ---------------------------------------------------------------------------
 
 class SocialFeedPage extends StatefulWidget {
-  const SocialFeedPage({Key? key}) : super(key: key);
+  const SocialFeedPage({super.key});
 
   @override
-  _SocialFeedPageState createState() => _SocialFeedPageState();
+  State<SocialFeedPage> createState() => _SocialFeedPageState();
 }
 
 class _SocialFeedPageState extends State<SocialFeedPage> 
@@ -156,13 +154,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     }
   }
 
-  String _formatTimestamp(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
-    if (diff.inHours < 24) return '${diff.inHours} saat önce';
-    return '${diff.inDays} gün önce';
-  }
-
   @override
   void dispose() {
     newPostController.dispose();
@@ -199,10 +190,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
 
   // Awards removed
 
-
-  void _initPosts() {
-    posts = []; // Removed mockup data
-  }
 
   Future<void> _createPost() async {
     if (newPostController.text.trim().isEmpty) return;
@@ -594,11 +581,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     );
   }
 
-  Widget _buildAwardsDisplay(Post post) {
-    // Disabled Awards for MVP
-    return const SizedBox.shrink(); 
-  }
-
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -652,11 +634,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
         ),
       ),
     );
-  }
-
-  Widget _buildAwardButton(Post post) {
-    // Disabled Awards for MVP
-    return const SizedBox.shrink();
   }
 
   Widget _buildCommentItem(Comment comment) {
@@ -797,11 +774,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
   }
 
   Widget _buildActionButtons(Post post) {
-    // Calculate total count (comments count is now int in class)
-    final commentCount = post.comments.length > post.commentCount 
-        ? post.comments.length 
-        : post.commentCount; // Use whichever is larger (optimistic update vs initial load)
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute space evenly
       children: [
@@ -1233,3 +1205,4 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     );
   }
 }
+

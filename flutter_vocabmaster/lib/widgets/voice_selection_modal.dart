@@ -17,10 +17,10 @@ class VoiceSelectionModal extends StatefulWidget {
   final Function(VoiceModel) onVoiceSelected;
 
   const VoiceSelectionModal({
-    Key? key,
+    super.key,
     this.currentVoice,
     required this.onVoiceSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<VoiceSelectionModal> createState() => _VoiceSelectionModalState();
@@ -46,11 +46,9 @@ class VoiceSelectionModal extends StatefulWidget {
         );
       },
       pageBuilder: (context, anim1, anim2) {
-        VoiceModel? selectedVoice;
         return VoiceSelectionModal(
           currentVoice: currentVoice,
           onVoiceSelected: (voice) {
-            selectedVoice = voice;
             Navigator.of(context).pop(voice);
           },
         );
@@ -71,7 +69,6 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
   int _currentPage = 0;
   VoiceModel? _selectedVoice;
   bool _isPlaying = false;
-  bool _isTtsAvailable = false;
   
   final List<VoiceModel> _voices = VoiceModel.availableVoices;
 
@@ -96,15 +93,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
       duration: const Duration(milliseconds: 1000),
     );
     
-    _checkTtsAvailability();
     _initFlutterTts(); // Fallback TTS hazırla
-  }
-
-  Future<void> _checkTtsAvailability() async {
-    final available = await _ttsService.isAvailable();
-    if (mounted) {
-      setState(() => _isTtsAvailable = available);
-    }
   }
 
   Future<void> _initFlutterTts() async {
@@ -810,3 +799,4 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
     );
   }
 }
+

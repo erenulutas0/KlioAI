@@ -3,7 +3,7 @@ import '../widgets/animated_background.dart';
 import 'profile_page.dart';
 
 class MenuPage extends StatelessWidget {
-  const MenuPage({Key? key}) : super(key: key);
+  const MenuPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -59,3 +59,4 @@ class MenuPage extends StatelessWidget {
     );
   }
 }
+

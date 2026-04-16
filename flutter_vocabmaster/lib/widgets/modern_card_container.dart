@@ -8,12 +8,12 @@ class ModernCardContainer extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
 
   const ModernCardContainer({
-    Key? key,
+    super.key,
     required this.child,
     this.title,
     this.padding,
     this.margin,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,3 +80,4 @@ class ModernCardContainer extends StatelessWidget {
     );
   }
 }
+

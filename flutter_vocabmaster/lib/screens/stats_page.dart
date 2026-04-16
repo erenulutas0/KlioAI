@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/global_matchmaking_sheet.dart';
 import '../services/user_data_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 
 import '../widgets/navigation_menu_panel.dart';
 import '../main.dart'; // Import MainScreen
-import '../screens/repeat_page.dart'; // Import RepeatPage if not already
 import '../screens/profile_page.dart';
 import '../screens/chat_list_page.dart';
 import '../screens/quick_dictionary_page.dart';
@@ -18,7 +16,7 @@ import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 
 class StatsPage extends StatefulWidget {
-  const StatsPage({Key? key}) : super(key: key);
+  const StatsPage({super.key});
 
   @override
   State<StatsPage> createState() => _StatsPageState();
@@ -635,3 +633,4 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 }
+

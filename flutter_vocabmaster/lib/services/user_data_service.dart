@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/offline_sync_service.dart';
 import '../services/local_database_service.dart';
@@ -24,18 +25,18 @@ class UserDataService {
   Future<bool> isMainAccount() async {
     final user = await _authService.getUser();
     if (user == null) {
-      print('🔴 UserDataService: User is null!');
+      debugPrint('🔴 UserDataService: User is null!');
       return false;
     }
     
     final email = user['email'] as String?;
     final userTag = user['userTag'] as String?;
     
-    print('🔍 UserDataService: Checking account - email: $email, userTag: $userTag');
-    print('🔍 UserDataService: Main account email: $mainAccountEmail, tag: $mainAccountUserTag');
+    debugPrint('🔍 UserDataService: Checking account - email: $email, userTag: $userTag');
+    debugPrint('🔍 UserDataService: Main account email: $mainAccountEmail, tag: $mainAccountUserTag');
     
     final isMain = email == mainAccountEmail || userTag == mainAccountUserTag;
-    print('🔍 UserDataService: isMainAccount = $isMain');
+    debugPrint('🔍 UserDataService: isMainAccount = $isMain');
     
     return isMain;
   }
@@ -44,14 +45,14 @@ class UserDataService {
   /// OFFLINE DESTEKLI
   Future<List<Word>> getWords() async {
     final isMain = await isMainAccount();
-    print('📚 UserDataService.getWords: isMainAccount = $isMain');
+    debugPrint('📚 UserDataService.getWords: isMainAccount = $isMain');
     
     if (isMain) {
       final words = await _offlineSyncService.getAllWords();
-      print('📚 UserDataService.getWords: Found ${words.length} words');
+      debugPrint('📚 UserDataService.getWords: Found ${words.length} words');
       return words;
     }
-    print('📚 UserDataService.getWords: Not main account, returning empty list');
+    debugPrint('📚 UserDataService.getWords: Not main account, returning empty list');
     return []; // Diğer hesaplar için boş liste
   }
 
@@ -310,3 +311,4 @@ class UserDataService {
     return await _offlineSyncService.syncWithServer();
   }
 }
+

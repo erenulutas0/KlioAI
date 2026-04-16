@@ -66,12 +66,19 @@ $results = 1..$TotalRequests | ForEach-Object -Parallel {
 } -ThrottleLimit $Concurrency
 $all.Stop()
 
-$okCount = ($results | Where-Object { $_.ok }).Count
-$errorCount = $TotalRequests - $okCount
-$latencies = [double[]]($results | Select-Object -ExpandProperty ms)
-$avg = [Math]::Round((($latencies | Measure-Object -Average).Average), 2)
-$min = [Math]::Round((($latencies | Measure-Object -Minimum).Minimum), 2)
-$max = [Math]::Round((($latencies | Measure-Object -Maximum).Maximum), 2)
+$resultList = @($results)
+$okCount = @($resultList | Where-Object { $_.ok }).Count
+$errorCount = $resultList.Count - $okCount
+$latencies = [double[]](@($resultList | Select-Object -ExpandProperty ms))
+if ($latencies.Count -gt 0) {
+    $avg = [Math]::Round((($latencies | Measure-Object -Average).Average), 2)
+    $min = [Math]::Round((($latencies | Measure-Object -Minimum).Minimum), 2)
+    $max = [Math]::Round((($latencies | Measure-Object -Maximum).Maximum), 2)
+} else {
+    $avg = 0
+    $min = 0
+    $max = 0
+}
 $p95 = Get-Percentile -Values $latencies -Percentile 95
 $p99 = Get-Percentile -Values $latencies -Percentile 99
 $durationSec = [Math]::Round($all.Elapsed.TotalSeconds, 2)
@@ -82,7 +89,7 @@ Write-Host "[load-smoke] target=$Uri total=$TotalRequests concurrency=$Concurren
 Write-Host "[load-smoke] ok=$okCount err=$errorCount success_rate=$successRate% duration_s=$durationSec rps=$rps"
 Write-Host "[load-smoke] latency_ms min=$min avg=$avg p95=$p95 p99=$p99 max=$max"
 
-$results |
+$resultList |
     Group-Object code |
     Sort-Object Name |
     ForEach-Object {

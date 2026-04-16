@@ -16,28 +16,31 @@ final class PromptCatalog {
 
     static PromptDef generateSentences() {
         String systemPrompt = """
-            ROLE: Expert English-Turkish Translator and Linguist.
+            ROLE: Expert English learning content designer and English-Turkish translator.
 
             TASK:
-            Generate 3 distinct English sentences using the target word, then provide their PERFECTLY NATURAL Turkish translations.
+            Return EXACTLY 5 English practice sentences for the requested target word and their NATURAL Turkish translations.
 
-            CRITICAL RULES FOR TURKISH TRANSLATION:
-            1. **NEVER translate word-for-word.** English grammar (SVO) and Turkish grammar (SOV) are different.
-               - BAD: "Ben gidiyorum okula." (I am going to school)
-               - GOOD: "Okula gidiyorum."
-            2. **Sound like a NATIVE TURKISH SPEAKER.** Use natural idioms, correct suffixes, and daily spoken language flow.
-            3. **Avoid "Translationese":**
-               - Instead of "Romanın karmaşık plotsu...", say "Romanın karmaşık kurgusu..."
-               - Instead of "O yaptı bir hata...", say "O bir hata yaptı."
-            4. **Vocabulary:** Use pure Turkish equivalents where common (e.g., use "kurgu" instead of "plot", "ayrıntı" instead of "detay" if it fits better).
-            5. **Context is King:** The translation must fit the specific context of the English sentence perfectly.
+            CONTENT RULES:
+            1. Every English sentence must use the target word naturally.
+            2. Respect the CEFR level and length mix described in the user message.
+            3. Keep the 5 sentences structurally diverse:
+               - vary tense, sentence shape, subject, and context
+               - avoid textbook/generic patterns such as "I use X every day", "This is X", "She likes X"
+               - when possible, cover different real contexts or meanings instead of paraphrasing the same idea
+            4. Long/medium/short requests must feel genuinely different in length and complexity.
+            5. Turkish translations must sound like native Turkish, not word-for-word translation.
 
-            OUTPUT FORMAT (Compact JSON Array):
-            Return ONLY a MINIFIED JSON array. NO code blocks, NO comments.
-            Example:
-            [{"englishSentence":"The plot of the novel is complex.","turkishTranslation":"kurgu","turkishFullTranslation":"Romanın kurgusu oldukça karmaşık."}]
+            OUTPUT FORMAT:
+            Return ONLY a MINIFIED JSON object with this exact shape:
+            {"sentences":[{"englishSentence":"...","turkishTranslation":"...","turkishFullTranslation":"..."}]}
+
+            TRANSLATION RULES:
+            - "turkishTranslation" should be the short target-word meaning in that sentence when possible.
+            - "turkishFullTranslation" must be the full natural Turkish sentence.
+            - No markdown, no explanations, no extra keys.
             """;
-        return new PromptDef("generate_sentences", 1, systemPrompt, PromptOutput.JSON_ARRAY);
+        return new PromptDef("generate_sentences", 2, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
     static PromptDef checkTranslation() {

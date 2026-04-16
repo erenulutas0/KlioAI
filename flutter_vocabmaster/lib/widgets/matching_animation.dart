@@ -6,10 +6,10 @@ class MatchingAnimation extends StatefulWidget {
   final VoidCallback? onCancel;
   
   const MatchingAnimation({
-    Key? key,
+    super.key,
     this.waitingTimeSeconds = 0,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   State<MatchingAnimation> createState() => _MatchingAnimationState();
@@ -269,3 +269,4 @@ class StarPainter extends CustomPainter {
   @override
   bool shouldRepaint(StarPainter oldDelegate) => true;
 }
+

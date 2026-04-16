@@ -9,11 +9,11 @@ class ExamResultPage extends StatelessWidget {
   final int timeElapsedSeconds;
 
   const ExamResultPage({
-    Key? key,
+    super.key,
     required this.examBundle,
     required this.userAnswers,
     required this.timeElapsedSeconds,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +256,7 @@ class ExamResultPage extends StatelessWidget {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                   
                   const SizedBox(height: 32),
                   
@@ -361,3 +361,4 @@ class _SectionResult {
   final int total;
   _SectionResult(this.correct, this.total);
 }
+

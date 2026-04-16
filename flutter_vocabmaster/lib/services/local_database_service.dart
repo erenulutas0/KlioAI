@@ -16,7 +16,6 @@ class LocalDatabaseService {
   LocalDatabaseService._internal();
 
   Database? _database;
-  String? _dbPath;
   static bool _forceTestMode = false;
 
   @visibleForTesting
@@ -37,7 +36,6 @@ class LocalDatabaseService {
         ? 'vocabmaster_offline_test_${Isolate.current.hashCode}.db'
         : 'vocabmaster_offline.db';
     final path = join(dbPath, dbName);
-    _dbPath = path;
 
     return await openDatabase(
       path,

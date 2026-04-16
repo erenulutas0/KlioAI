@@ -1,16 +1,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/app_tour_service.dart';
 import '../providers/app_state_provider.dart';
 import '../main.dart'; 
 import 'landing_page.dart';
-import 'login_page.dart';
+import 'onboarding_screen.dart';
 import '../widgets/animated_background.dart';
+import '../l10n/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -45,11 +46,14 @@ class _SplashScreenState extends State<SplashScreen> {
         );
       }
     } else {
-      // Giriş yapmamış -> Landing Page veya Login Page
-      // User talebi: Giriş yapmadıysa (landing) ekranı görsün.
+      final shouldShowTour = !await AppTourService().isCompleted();
+      if (!mounted) return;
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LandingPage()),
+          MaterialPageRoute(
+            builder: (_) =>
+                shouldShowTour ? const OnboardingScreen() : const LandingPage(),
+          ),
         );
       }
     }
@@ -98,7 +102,15 @@ class _SplashScreenState extends State<SplashScreen> {
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 20),
+                Text(
+                  context.tr('splash.loading'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.72),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const CircularProgressIndicator(color: Colors.cyan),
               ],
             ),
@@ -108,3 +120,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
+

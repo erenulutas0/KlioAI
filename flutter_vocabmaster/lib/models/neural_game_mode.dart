@@ -1,0 +1,4 @@
+enum NeuralGameMode {
+  relatedWords,
+  turkishTranslation,
+}

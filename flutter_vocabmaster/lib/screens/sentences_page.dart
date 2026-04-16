@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../widgets/animated_background.dart';
 import '../models/word.dart';
 import '../models/sentence_view_model.dart';
-import '../services/offline_sync_service.dart';
 import '../widgets/add_sentence_from_sentences_modal.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class SentencesPage extends StatefulWidget {
   const SentencesPage({super.key});
@@ -18,9 +20,21 @@ class SentencesPage extends StatefulWidget {
 }
 
 class _SentencesPageState extends State<SentencesPage> {
-  final OfflineSyncService _offlineSyncService = OfflineSyncService();
   String _activeFilter = 'Tümü'; // Tümü, Kolay, Orta, Zor
   final TextEditingController _searchController = TextEditingController();
+
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
+  Color _mix(Color from, Color to, double amount) {
+    return Color.lerp(from, to, amount) ?? from;
+  }
 
   @override
   void initState() {
@@ -73,6 +87,7 @@ class _SentencesPageState extends State<SentencesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     // AppStateProvider'dan cümleleri al
     final appState = context.watch<AppStateProvider>();
     final allSentences = appState.allSentences;
@@ -94,15 +109,18 @@ class _SentencesPageState extends State<SentencesPage> {
           width: 65,
           height: 65,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF00c6ff), Color(0xFF0072ff)],
+            gradient: LinearGradient(
+              colors: [
+                selectedTheme.colors.accent,
+                selectedTheme.colors.primary,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(35),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0072ff).withOpacity(0.4),
+                color: selectedTheme.colors.accentGlow.withOpacity(0.42),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -145,7 +163,9 @@ class _SentencesPageState extends State<SentencesPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withOpacity(0.6),
+                      color: _mix(selectedTheme.colors.background, Colors.black,
+                              0.12)
+                          .withOpacity(0.72),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.1),
@@ -224,7 +244,7 @@ class _SentencesPageState extends State<SentencesPage> {
                                   onDelete: () async {
                                     try {
                                       final appState =
-                                          context.read<AppStateProvider>();
+                                          this.context.read<AppStateProvider>();
 
                                       // 🔧 ID'yi int'e çevir (dynamic olabilir)
                                       // ID'yi direkt kullan (String veya int olabilir)
@@ -260,14 +280,14 @@ class _SentencesPageState extends State<SentencesPage> {
                                       }
 
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context)
+                                        ScaffoldMessenger.of(this.context)
                                             .showSnackBar(const SnackBar(
                                                 content: Text('Cümle silindi!'),
                                                 backgroundColor: Colors.green));
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context)
+                                        ScaffoldMessenger.of(this.context)
                                             .showSnackBar(SnackBar(
                                                 content: Text('Hata: $e'),
                                                 backgroundColor: Colors.red));
@@ -289,12 +309,16 @@ class _SentencesPageState extends State<SentencesPage> {
   // ... (Keep _buildStatItem and others same, delete _buildSentenceCard)
 
   Widget _buildStatItem(String label, String value, Color color) {
+    final selectedTheme = _currentTheme();
     return Container(
       width: 80,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e3a8a).withOpacity(0.5),
+        color: selectedTheme.colors.cardBackground.withOpacity(0.66),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selectedTheme.colors.glassBorder.withOpacity(0.52),
+        ),
       ),
       child: Column(
         children: [
@@ -429,11 +453,11 @@ class SentenceCard extends StatefulWidget {
   final VoidCallback? onDelete;
 
   const SentenceCard({
-    Key? key,
+    super.key,
     required this.vm,
     required this.mapDifficulty,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   State<SentenceCard> createState() => _SentenceCardState();
@@ -442,8 +466,22 @@ class SentenceCard extends StatefulWidget {
 class _SentenceCardState extends State<SentenceCard> {
   bool _isMeaningVisible = false;
 
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
+  Color _mix(Color from, Color to, double amount) {
+    return Color.lerp(from, to, amount) ?? from;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     final wordText = widget.vm.word?.englishWord ?? '';
     final difficulty = widget.mapDifficulty(widget.vm.difficulty);
 
@@ -471,20 +509,21 @@ class _SentenceCardState extends State<SentenceCard> {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF0ea5e9).withOpacity(0.3),
+            color: selectedTheme.colors.accent.withOpacity(0.30),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.5)),
+            border:
+                Border.all(color: selectedTheme.colors.accent.withOpacity(0.5)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0ea5e9).withOpacity(0.2),
+                color: selectedTheme.colors.accentGlow.withOpacity(0.26),
                 blurRadius: 8,
               ),
             ],
           ),
           child: Text(
             sentenceText.substring(index, index + wordText.length),
-            style: const TextStyle(
-              color: Colors.cyanAccent,
+            style: TextStyle(
+              color: Color.lerp(selectedTheme.colors.accent, Colors.white, 0.2),
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -529,7 +568,7 @@ class _SentenceCardState extends State<SentenceCard> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF06b6d4).withOpacity(0.05),
+            color: selectedTheme.colors.accentGlow.withOpacity(0.12),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -542,10 +581,11 @@ class _SentenceCardState extends State<SentenceCard> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF0f172a).withOpacity(0.6),
+              color: _mix(selectedTheme.colors.background, Colors.black, 0.08)
+                  .withOpacity(0.68),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: const Color(0xFF06b6d4).withOpacity(0.3),
+                color: selectedTheme.colors.glassBorder.withOpacity(0.72),
                 width: 1.5,
               ),
             ),
@@ -582,7 +622,11 @@ class _SentenceCardState extends State<SentenceCard> {
                               showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
-                                  backgroundColor: const Color(0xFF1e1b4b),
+                                  backgroundColor: _mix(
+                                    selectedTheme.colors.background,
+                                    Colors.black,
+                                    0.22,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16)),
                                   title: Row(
@@ -706,14 +750,14 @@ class _SentenceCardState extends State<SentenceCard> {
                           _isMeaningVisible
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: const Color(0xFF22d3ee),
+                          color: selectedTheme.colors.accent,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           _isMeaningVisible ? "Anlamı Gizle" : "Anlamı Göster",
-                          style: const TextStyle(
-                              color: Color(0xFF22d3ee),
+                          style: TextStyle(
+                              color: selectedTheme.colors.accent,
                               fontWeight: FontWeight.bold,
                               fontSize: 14),
                         ),
@@ -729,3 +773,4 @@ class _SentenceCardState extends State<SentenceCard> {
     );
   }
 }
+

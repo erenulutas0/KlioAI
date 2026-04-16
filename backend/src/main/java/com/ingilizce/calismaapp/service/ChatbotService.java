@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,8 @@ public class ChatbotService {
   private static final Logger logger = LoggerFactory.getLogger(ChatbotService.class);
   private final GroqService groqService;
   private final ObjectMapper objectMapper;
+  @Autowired(required = false)
+  private AiModelRoutingService aiModelRoutingService;
 
   public ChatbotService(GroqService groqService) {
     this.groqService = groqService;
@@ -29,8 +32,7 @@ public class ChatbotService {
    */
   public AiCallResult generateSentences(String message) {
     PromptCatalog.PromptDef def = PromptCatalog.generateSentences();
-    return callGroq(def,
-        "Target word: '" + message + "'. Return ONLY pure, minified JSON. No other text.");
+    return callGroq(def, message);
   }
 
   /**
@@ -61,7 +63,7 @@ public class ChatbotService {
    */
   public AiCallResult chat(String message, String scenario, String scenarioContext) {
     String systemPrompt = buildChatSystemPrompt(scenario, scenarioContext);
-    return callGroqText(systemPrompt, message, 220);
+    return callGroqText(systemPrompt, message, 220, "chat");
   }
 
   /**
@@ -97,19 +99,30 @@ public class ChatbotService {
     boolean jsonMode = def.output() == PromptCatalog.PromptOutput.JSON_OBJECT;
 
     Integer maxTokens = null;
+    String scope = "chat";
     if ("chat_buddy".equals(def.id())) {
       maxTokens = 220;
+      scope = "chat";
     } else if ("generate_sentences".equals(def.id())) {
       maxTokens = 900;
+      scope = "generate-sentences";
     } else if ("check_translation_tr".equals(def.id()) || "check_translation_en".equals(def.id())) {
       maxTokens = 500;
+      scope = "check-translation";
     } else if ("speaking_questions".equals(def.id())) {
       maxTokens = 600;
+      scope = "speaking-generate";
     } else if ("speaking_evaluation".equals(def.id())) {
       maxTokens = 900;
+      scope = "speaking-evaluate";
     }
 
-    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(messages, jsonMode, maxTokens, null);
+    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(
+        messages,
+        jsonMode,
+        maxTokens,
+        null,
+        resolveModelForScope(scope));
     String raw = completion != null ? completion.content() : null;
     String normalized = normalizeJson(raw, def.output());
     return new AiCallResult(
@@ -119,7 +132,7 @@ public class ChatbotService {
         completion != null ? completion.completionTokens() : 0);
   }
 
-  private AiCallResult callGroqText(String systemPrompt, String userMessage, Integer maxTokens) {
+  private AiCallResult callGroqText(String systemPrompt, String userMessage, Integer maxTokens, String scope) {
     List<Map<String, String>> messages = new ArrayList<>();
 
     Map<String, String> systemMsg = new HashMap<>();
@@ -132,7 +145,12 @@ public class ChatbotService {
     userMsg.put("content", userMessage);
     messages.add(userMsg);
 
-    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(messages, false, maxTokens, null);
+    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(
+        messages,
+        false,
+        maxTokens,
+        null,
+        resolveModelForScope(scope));
     return new AiCallResult(
         completion != null ? completion.content() : null,
         completion != null ? completion.totalTokens() : 0,
@@ -237,6 +255,13 @@ IMPORTANT:
 - Sound like a real friend texting, not an AI assistant.
 - If user makes grammar mistakes, just respond naturally.
 """;
+  }
+
+  private String resolveModelForScope(String scope) {
+    if (aiModelRoutingService == null) {
+      return null;
+    }
+    return aiModelRoutingService.resolveModelForScope(scope);
   }
 
   private String normalizeJson(String raw, PromptCatalog.PromptOutput output) {

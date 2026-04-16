@@ -4,7 +4,7 @@ import 'exam_chat_page.dart';
 import 'turkey_exams_page.dart';
 
 class ExamSelectionPage extends StatelessWidget {
-  const ExamSelectionPage({Key? key}) : super(key: key);
+  const ExamSelectionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -269,3 +269,4 @@ class ExamSelectionPage extends StatelessWidget {
     );
   }
 }
+

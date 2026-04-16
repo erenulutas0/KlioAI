@@ -9,13 +9,13 @@ class ModernCardBackground extends StatelessWidget {
   final bool useBlur; // Blur kullanılsın mı?
 
   const ModernCardBackground({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.margin,
     this.borderRadius = 24.0, // Increased to 24 to match ModernCard
     this.useBlur = true, // Default true for premium look
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -68,3 +68,4 @@ class ModernCardBackground extends StatelessWidget {
     );
   }
 }
+

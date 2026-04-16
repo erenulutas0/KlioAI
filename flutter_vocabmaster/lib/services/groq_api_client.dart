@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'api_key_manager.dart';
+import '../config/dotenv_safe.dart';
 
 /// Merkezi Groq API istemcisi
 /// BYOK (Bring Your Own Key) desteği ile API çağrılarını yönetir.
@@ -14,7 +15,10 @@ class GroqApiClient {
   static const String _allowEmbeddedKeyEnv = 'ALLOW_EMBEDDED_GROQ_KEY';
 
   static bool get _allowEmbeddedKey {
-    final raw = dotenv.env[_allowEmbeddedKeyEnv] ?? 'false';
+    if (kReleaseMode) {
+      return false;
+    }
+    final raw = readDotEnvOrDefault(_allowEmbeddedKeyEnv, 'false');
     return raw.trim().toLowerCase() == 'true';
   }
   
@@ -28,7 +32,7 @@ class GroqApiClient {
 
     // 2) Embedded/demo key only when explicitly allowed.
     if (_allowEmbeddedKey) {
-      final envKey = dotenv.env['GROQ_API_KEY'] ?? '';
+      final envKey = readDotEnvOrDefault('GROQ_API_KEY');
       if (envKey.isNotEmpty) {
         return envKey;
       }
@@ -186,7 +190,7 @@ class GroqApiClient {
     final keyManager = ApiKeyManager();
     final useOwnKey = await keyManager.useOwnKey;
     final hasOwnKey = await keyManager.hasApiKey();
-    final envKey = dotenv.env['GROQ_API_KEY'] ?? '';
+    final envKey = readDotEnvOrDefault('GROQ_API_KEY');
     
     if (useOwnKey && hasOwnKey) {
       return ApiKeyStatus(

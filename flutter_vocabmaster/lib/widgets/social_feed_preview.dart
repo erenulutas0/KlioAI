@@ -6,7 +6,7 @@ import 'modern_background.dart';
 import '../services/feed_service.dart';
 
 class SocialFeedPreview extends StatefulWidget {
-  const SocialFeedPreview({Key? key}) : super(key: key);
+  const SocialFeedPreview({super.key});
 
   @override
   State<SocialFeedPreview> createState() => _SocialFeedPreviewState();
@@ -92,21 +92,21 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.trending_up_rounded,
               color: SocialFeedColors.avatarCyan,
               size: 28,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'Social Feed',
                   style: TextStyle(
@@ -274,9 +274,9 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
         borderRadius: BorderRadius.circular(16),
         variant: BackgroundVariant.secondary,
         showBorder: false,
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(
               Icons.trending_up,
               color: Colors.white,
@@ -297,3 +297,4 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
     );
   }
 }
+

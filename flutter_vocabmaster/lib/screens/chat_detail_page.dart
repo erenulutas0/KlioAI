@@ -13,12 +13,12 @@ class ChatDetailPage extends StatefulWidget {
   final String status;
 
   const ChatDetailPage({
-    Key? key,
+    super.key,
     required this.userId,
     required this.name,
     required this.avatar,
     required this.status,
-  }) : super(key: key);
+  });
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -84,6 +84,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       await _loadMessages();
       _scrollToBottom();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Mesaj gönderilemedi: $e')),
       );
@@ -324,3 +325,4 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 }
+

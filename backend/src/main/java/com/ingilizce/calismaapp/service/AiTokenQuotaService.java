@@ -43,6 +43,13 @@ public class AiTokenQuotaService {
     public record Usage(long tokensUsed, long tokensRemaining, long tokenLimit) {
     }
 
+    public record Entitlement(String planCode,
+                              boolean aiAccessEnabled,
+                              long dailyTokenLimit,
+                              boolean trialActive,
+                              int trialDaysRemaining) {
+    }
+
     private static final String DAILY_TOKEN_PREFIX = "ai:tokens:day:";
     private static final String DAILY_SCOPE_TOKEN_PREFIX = "ai:tokens:day:scope:";
 
@@ -56,6 +63,7 @@ public class AiTokenQuotaService {
     private final AiTokenQuotaProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
     private final MeterRegistry meterRegistry;
+    private final AiEntitlementService aiEntitlementService;
 
     private final AtomicBoolean redisFailureLogged = new AtomicBoolean(false);
     private final AtomicInteger redisFallbackActive = new AtomicInteger(0);
@@ -67,18 +75,26 @@ public class AiTokenQuotaService {
     public AiTokenQuotaService(AiTokenQuotaProperties properties,
                                @Qualifier("securityStringRedisTemplate")
                                @Autowired(required = false) StringRedisTemplate stringRedisTemplate,
-                               @Autowired(required = false) MeterRegistry meterRegistry) {
+                               @Autowired(required = false) MeterRegistry meterRegistry,
+                               @Autowired(required = false) AiEntitlementService aiEntitlementService) {
         this.properties = properties;
         this.stringRedisTemplate = stringRedisTemplate;
         this.meterRegistry = meterRegistry;
+        this.aiEntitlementService = aiEntitlementService;
         if (meterRegistry != null) {
             meterRegistry.gauge(METRIC_REDIS_FALLBACK_ACTIVE, redisFallbackActive);
             meterRegistry.gauge(METRIC_MEMORY_SUBJECTS, dailyCounters, map -> map.size());
         }
     }
 
+    AiTokenQuotaService(AiTokenQuotaProperties properties,
+                        StringRedisTemplate stringRedisTemplate,
+                        MeterRegistry meterRegistry) {
+        this(properties, stringRedisTemplate, meterRegistry, null);
+    }
+
     AiTokenQuotaService(AiTokenQuotaProperties properties) {
-        this(properties, null, null);
+        this(properties, null, null, null);
     }
 
     public Decision check(Long userId, String scope) {
@@ -86,10 +102,15 @@ public class AiTokenQuotaService {
             return Decision.allowed();
         }
 
+        Entitlement entitlement = resolveEntitlement(userId);
+        if (!entitlement.aiAccessEnabled()) {
+            return Decision.blocked("ai-access-disabled", secondsUntilNextUtcDay(), 0L, entitlement.dailyTokenLimit());
+        }
+
         String normalizedScope = normalize(scope);
         String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
 
-        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        long globalLimit = Math.max(0L, entitlement.dailyTokenLimit());
         Long scopeLimit = resolveScopeLimit(normalizedScope);
 
         if (canUseRedis()) {
@@ -111,6 +132,11 @@ public class AiTokenQuotaService {
             return new Usage(0L, 0L, 0L);
         }
 
+        Entitlement entitlement = resolveEntitlement(userId);
+        if (!entitlement.aiAccessEnabled()) {
+            return new Usage(0L, 0L, entitlement.dailyTokenLimit());
+        }
+
         long delta = Math.max(0L, tokens);
         if (delta == 0L) {
             Decision check = check(userId, scope);
@@ -120,7 +146,7 @@ public class AiTokenQuotaService {
         String normalizedScope = normalize(scope);
         String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
 
-        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        long globalLimit = Math.max(0L, entitlement.dailyTokenLimit());
         Long scopeLimit = resolveScopeLimit(normalizedScope);
 
         if (canUseRedis()) {
@@ -140,9 +166,13 @@ public class AiTokenQuotaService {
     }
 
     public Usage getGlobalUsage(Long userId) {
-        long globalLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+        Entitlement entitlement = resolveEntitlement(userId);
+        long globalLimit = Math.max(0L, entitlement.dailyTokenLimit());
         if (!properties.isEnabled()) {
             return new Usage(0L, globalLimit > 0 ? globalLimit : 0L, globalLimit);
+        }
+        if (!entitlement.aiAccessEnabled()) {
+            return new Usage(0L, 0L, globalLimit);
         }
 
         String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
@@ -161,6 +191,10 @@ public class AiTokenQuotaService {
 
     protected long currentTimeMillis() {
         return System.currentTimeMillis();
+    }
+
+    public Entitlement getEntitlement(Long userId) {
+        return resolveEntitlement(userId);
     }
 
     private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
@@ -320,6 +354,31 @@ public class AiTokenQuotaService {
             return null;
         }
         return limits.getDailyTokenQuotaPerUser();
+    }
+
+    private Entitlement resolveEntitlement(Long userId) {
+        if (aiEntitlementService == null) {
+            long legacyLimit = Math.max(0L, properties.getDailyTokenQuotaPerUser());
+            boolean scopeConfigured = properties.getScopes() != null
+                    && properties.getScopes().values().stream()
+                    .anyMatch(scope -> scope != null && scope.getDailyTokenQuotaPerUser() != null
+                            && scope.getDailyTokenQuotaPerUser() > 0);
+            boolean accessEnabled = legacyLimit > 0 || scopeConfigured;
+            return new Entitlement(
+                    accessEnabled ? "LEGACY" : "FREE",
+                    accessEnabled,
+                    legacyLimit,
+                    false,
+                    0);
+        }
+
+        AiEntitlementService.Entitlement entitlement = aiEntitlementService.resolve(userId);
+        return new Entitlement(
+                entitlement.planCode(),
+                entitlement.aiAccessEnabled(),
+                Math.max(0L, entitlement.dailyTokenLimit()),
+                entitlement.trialActive(),
+                Math.max(0, entitlement.trialDaysRemaining()));
     }
 
     private boolean canUseRedis() {

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async'; // Completer için gerekli
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../config/app_config.dart';
 
 /// Eşleşme durumu
@@ -27,7 +27,7 @@ class MatchInfo {
 
 /// Socket.IO ile eşleşme servisi
 class MatchmakingService extends ChangeNotifier {
-  IO.Socket? _socket;
+  io.Socket? _socket;
   MatchStatus _status = MatchStatus.idle;
   MatchInfo? _matchInfo;
   String? _userId;
@@ -49,7 +49,7 @@ class MatchmakingService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   int get waitingTimeSeconds => _waitingTimeSeconds;
   bool get isConnected => _socket?.connected ?? false;
-  IO.Socket? get socket => _socket;
+  io.Socket? get socket => _socket;
   String? get userId => _userId;
 
   // Connection lock için
@@ -79,7 +79,7 @@ class MatchmakingService extends ChangeNotifier {
 
       // Socket yoksa oluştur
       if (_socket == null) {
-      _socket = IO.io(socketUrl, <String, dynamic>{
+      _socket = io.io(socketUrl, <String, dynamic>{
         'transports': ['websocket'],
         'autoConnect': false,
         'forceNew': true,
@@ -258,7 +258,7 @@ class MatchmakingService extends ChangeNotifier {
     _stopHeartbeat(); // Önce varsa durdur
     
     _heartbeatTimer = Timer.periodic(
-      Duration(milliseconds: _heartbeatIntervalMs),
+      const Duration(milliseconds: _heartbeatIntervalMs),
       (_) {
         if (_socket != null && _socket!.connected && _status == MatchStatus.searching) {
           _socket!.emit('heartbeat', {'userId': _userId});

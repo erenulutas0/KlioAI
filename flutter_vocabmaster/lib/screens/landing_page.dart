@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:math' as math;
-import '../main.dart'; // Import MainScreen
 import 'login_page.dart'; // Import LoginPage
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
+import '../l10n/app_localizations.dart';
 
 class LandingPage extends StatefulWidget {
-  const LandingPage({Key? key}) : super(key: key);
+  const LandingPage({super.key});
 
   @override
-  _LandingPageState createState() => _LandingPageState();
+  State<LandingPage> createState() => _LandingPageState();
 }
 
 class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin {
@@ -305,7 +303,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
 
   Widget _buildSubtitle() {
     return Text(
-      'Yapay zeka destekli yeni nesil dil öğrenme deneyimi',
+      context.tr('landing.subtitle'),
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 16,
@@ -319,10 +317,10 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
 
   Widget _buildStatsGrid() {
     final stats = [
-      {'value': '6+', 'label': 'AI Modeller', 'icon': Icons.psychology},
-      {'value': '5K+', 'label': 'Aktif Kullanıcı', 'icon': Icons.people},
-      {'value': '10+', 'label': 'Özellik', 'icon': Icons.star},
-      {'value': '99%', 'label': 'Memnuniyet', 'icon': Icons.favorite},
+      {'value': '6+', 'label': context.tr('landing.stat.aiModels'), 'icon': Icons.psychology},
+      {'value': '5K+', 'label': context.tr('landing.stat.activeUsers'), 'icon': Icons.people},
+      {'value': '10+', 'label': context.tr('landing.stat.features'), 'icon': Icons.star},
+      {'value': '99%', 'label': context.tr('landing.stat.satisfaction'), 'icon': Icons.favorite},
     ];
 
     return GridView.builder(
@@ -381,66 +379,66 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     final features = [
       {
         'icon': Icons.psychology,
-        'title': 'AI-Powered Konuşma',
-        'subtitle': '6 Farklı Konuşmacı Modeli',
-        'description': 'Sarah, James, Emma ve diğer gerçekçi AI botlarla doğal İngilizce sohbet edin',
-        'stats': '6 Bot Modeli',
+        'title': context.tr('landing.feature.speaking.title'),
+        'subtitle': context.tr('landing.feature.speaking.subtitle'),
+        'description': context.tr('landing.feature.speaking.description'),
+        'stats': context.tr('landing.feature.speaking.stats'),
         'highlights': [
-          'TTS Ses Desteği',
-          'Gerçek Zamanlı Yanıt',
-          'Kişiselleştirilmiş Profiller',
+          context.tr('landing.feature.speaking.h1'),
+          context.tr('landing.feature.speaking.h2'),
+          context.tr('landing.feature.speaking.h3'),
         ],
         'gradient': [const Color(0xFF22D3EE), const Color(0xFF3B82F6)],
       },
       {
         'icon': Icons.edit,
-        'title': 'Yapay Zeka Yazma Asistanı',
-        'subtitle': 'A1-C2 Seviye Desteği',
-        'description': 'AI destekli yazma egzersizleri ile yaratıcı yazım becerilerinizi geliştirin',
-        'stats': '6 Seviye',
+        'title': context.tr('landing.feature.writing.title'),
+        'subtitle': context.tr('landing.feature.writing.subtitle'),
+        'description': context.tr('landing.feature.writing.description'),
+        'stats': context.tr('landing.feature.writing.stats'),
         'highlights': [
-          'Konu Oluşturma',
-          'Gerçek Zamanlı Değerlendirme',
-          'Kısa/Orta/Uzun Format',
+          context.tr('landing.feature.writing.h1'),
+          context.tr('landing.feature.writing.h2'),
+          context.tr('landing.feature.writing.h3'),
         ],
         'gradient': [const Color(0xFF3B82F6), const Color(0xFFA855F7)],
       },
       {
         'icon': Icons.people,
-        'title': 'Sosyal Öğrenme Platformu',
-        'subtitle': 'Global Topluluk',
-        'description': 'Dünya çapında kullanıcılarla bağlan, paylaş ve birlikte öğren',
-        'stats': '5000+ Kullanıcı',
+        'title': context.tr('landing.feature.social.title'),
+        'subtitle': context.tr('landing.feature.social.subtitle'),
+        'description': context.tr('landing.feature.social.description'),
+        'stats': context.tr('landing.feature.social.stats'),
         'highlights': [
-          'Canlı Feed',
-          'Etkileşimli Gönderiler',
-          'Arkadaşlık Sistemi',
+          context.tr('landing.feature.social.h1'),
+          context.tr('landing.feature.social.h2'),
+          context.tr('landing.feature.social.h3'),
         ],
         'gradient': [const Color(0xFFA855F7), const Color(0xFFEC4899)],
       },
       {
         'icon': Icons.track_changes,
-        'title': 'Akıllı İlerleme Takibi',
-        'subtitle': 'Günlük & Haftalık Hedefler',
-        'description': 'Gelişmiş analitik ve neon tasarımlı kartlarla motivasyonunuzu koruyun',
-        'stats': '7 Gün Streak',
+        'title': context.tr('landing.feature.progress.title'),
+        'subtitle': context.tr('landing.feature.progress.subtitle'),
+        'description': context.tr('landing.feature.progress.description'),
+        'stats': context.tr('landing.feature.progress.stats'),
         'highlights': [
-          'Circular Progress',
-          'Animated Stats',
-          'Glow Effects',
+          context.tr('landing.feature.progress.h1'),
+          context.tr('landing.feature.progress.h2'),
+          context.tr('landing.feature.progress.h3'),
         ],
         'gradient': [const Color(0xFFEC4899), const Color(0xFFEF4444)],
       },
       {
         'icon': Icons.mic,
-        'title': 'Konuşma Pratiği',
-        'subtitle': 'Gerçek Zamanlı Feedback',
-        'description': 'Telaffuz, akıcılık ve doğruluk üzerine anında geri bildirim alın',
-        'stats': 'Real-time TTS',
+        'title': context.tr('landing.feature.speechPractice.title'),
+        'subtitle': context.tr('landing.feature.speechPractice.subtitle'),
+        'description': context.tr('landing.feature.speechPractice.description'),
+        'stats': context.tr('landing.feature.speechPractice.stats'),
         'highlights': [
-          'Voice Selection',
-          'Pronunciation Check',
-          'Conversation Flow',
+          context.tr('landing.feature.speechPractice.h1'),
+          context.tr('landing.feature.speechPractice.h2'),
+          context.tr('landing.feature.speechPractice.h3'),
         ],
         'gradient': [const Color(0xFFEF4444), const Color(0xFFF97316)],
       },
@@ -595,7 +593,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -641,12 +639,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
 
   Widget _buildCTAButton() {
     return GestureDetector(
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('onboardingCompleted', true);
-        
+      onTap: () {
         if (mounted) {
-          // Navigate to LoginPage
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -658,21 +652,21 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         borderRadius: BorderRadius.circular(16),
         padding: const EdgeInsets.symmetric(vertical: 20),
         showGlow: true,
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.auto_awesome, color: Colors.white, size: 22),
-            SizedBox(width: 12),
+            const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
             Text(
-              'Hemen Başla',
-              style: TextStyle(
+              context.tr('landing.cta'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward, color: Colors.white, size: 22),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward, color: Colors.white, size: 22),
           ],
         ),
       ),
@@ -683,11 +677,11 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildTrustIndicator(Icons.shield, 'Güvenli'),
+        _buildTrustIndicator(Icons.shield, context.tr('landing.trust.secure')),
         const SizedBox(width: 24),
-        _buildTrustIndicator(Icons.flash_on, 'Hızlı'),
+        _buildTrustIndicator(Icons.flash_on, context.tr('landing.trust.fast')),
         const SizedBox(width: 24),
-        _buildTrustIndicator(Icons.public, 'Global'),
+        _buildTrustIndicator(Icons.public, context.tr('landing.trust.global')),
       ],
     );
   }
@@ -720,7 +714,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       child: Column(
         children: [
           Text(
-            '© 2025 VocabMaster. Tüm hakları saklıdır.',
+            context.tr('landing.footer.copy'),
             style: TextStyle(
               color: const Color(0xFF67E8F9).withOpacity(0.6),
               fontSize: 14,
@@ -729,7 +723,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           ),
           const SizedBox(height: 4),
           Text(
-            'Yapay zeka destekli yeni nesil dil öğrenme deneyimi',
+            context.tr('landing.footer.subtitle'),
             style: TextStyle(
               color: const Color(0xFF67E8F9).withOpacity(0.4),
               fontSize: 12,
@@ -743,3 +737,4 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
 
 
 }
+

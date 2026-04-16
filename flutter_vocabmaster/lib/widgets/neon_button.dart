@@ -1,5 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class NeonButton extends StatefulWidget {
   final String label;
@@ -8,15 +11,15 @@ class NeonButton extends StatefulWidget {
   final VoidCallback onTap;
 
   const NeonButton({
-    Key? key,
+    super.key,
     required this.label,
     required this.icon,
     required this.isCyan,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
-  _NeonButtonState createState() => _NeonButtonState();
+  State<NeonButton> createState() => _NeonButtonState();
 }
 
 class _NeonButtonState extends State<NeonButton> {
@@ -24,26 +27,28 @@ class _NeonButtonState extends State<NeonButton> {
 
   @override
   Widget build(BuildContext context) {
-    // Color definitions based on button type
-    final primaryColor = widget.isCyan 
-      ? const Color(0x3306B6D4)  // cyan-500/20
-      : const Color(0x333B82F6); // blue-500/20
-      
-    final secondaryColor = widget.isCyan 
-      ? const Color(0x333B82F6)  // blue-500/20
-      : const Color(0x3306B6D4); // cyan-500/20
-      
-    final borderColor = widget.isCyan 
-      ? const Color(0xFF22D3EE)  // cyan-400
-      : const Color(0xFF60A5FA); // blue-400
-      
-    final glowColor = widget.isCyan 
-      ? const Color(0xFF22D3EE)  // cyan-400
-      : const Color(0xFF3B82F6); // blue-500
-      
-    final textColor = widget.isCyan 
-      ? const Color(0xFF67E8F9)  // cyan-300
-      : const Color(0xFF93C5FD); // blue-300
+    ThemeProvider? themeProvider;
+    try {
+      themeProvider = Provider.of<ThemeProvider?>(context, listen: true);
+    } catch (_) {
+      themeProvider = null;
+    }
+    final selectedTheme =
+        themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+
+    final baseA = widget.isCyan
+        ? selectedTheme.colors.primary
+        : selectedTheme.colors.accent;
+    final baseB = widget.isCyan
+        ? selectedTheme.colors.accent
+        : selectedTheme.colors.primary;
+
+    final primaryColor = baseA.withOpacity(0.24);
+    final secondaryColor = baseB.withOpacity(0.18);
+    final borderColor = Color.lerp(baseA, Colors.white, 0.20) ?? baseA;
+    final glowColor =
+        Color.lerp(baseB, selectedTheme.colors.accentGlow, 0.55) ?? baseB;
+    final textColor = Color.lerp(baseA, Colors.white, 0.36) ?? baseA;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -58,16 +63,14 @@ class _NeonButtonState extends State<NeonButton> {
           ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: _isHovered 
-              ? borderColor 
-              : borderColor.withOpacity(0.5),
+            color: _isHovered ? borderColor : borderColor.withOpacity(0.5),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: _isHovered 
-                ? glowColor.withOpacity(0.6)
-                : glowColor.withOpacity(0.3),
+              color: _isHovered
+                  ? glowColor.withOpacity(0.6)
+                  : glowColor.withOpacity(0.3),
               blurRadius: _isHovered ? 25 : 15,
               spreadRadius: 0,
             ),
@@ -86,7 +89,8 @@ class _NeonButtonState extends State<NeonButton> {
                     splashColor: glowColor.withOpacity(0.2),
                     highlightColor: glowColor.withOpacity(0.1),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -139,3 +143,4 @@ class _NeonButtonState extends State<NeonButton> {
     );
   }
 }
+

@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:vocabmaster/services/offline_sync_service.dart';
 import 'package:vocabmaster/services/api_service.dart';
 import 'package:vocabmaster/services/xp_manager.dart';
@@ -105,7 +105,7 @@ void main() {
 
       // 4. Verify Sync Queue has the item
       // Background sync takes a moment
-      await Future.delayed(Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 200));
 
       final queue = await localDb.getSyncQueue();
       expect(queue.length, 1, reason: 'Queue should have 1 pending item');
@@ -156,11 +156,11 @@ void main() {
 
       // 4. Verify Local DB also has it
       // Wait for background sync to finish - may take longer on slow CI or Windows
-      await Future.delayed(Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       final words = await localDb.getAllWords();
       expect(words.length, 1);
-      print('DEBUG: words.first.id=${words.first.id}');
+      debugPrint('DEBUG: words.first.id=${words.first.id}');
       expect(words.first.englishWord, 'OnlineWord');
       expect(words.first.id, 1001); // Check if serverId was updated in local DB
 
@@ -298,3 +298,4 @@ void main() {
     });
   });
 }
+

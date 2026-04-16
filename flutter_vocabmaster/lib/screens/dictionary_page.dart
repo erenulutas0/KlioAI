@@ -6,10 +6,10 @@ import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
 import '../services/groq_service.dart';
 import '../services/chatbot_service.dart';
-import '../widgets/global_matchmaking_sheet.dart';
+import '../services/ai_paywall_handler.dart';
 
 class DictionaryPage extends StatefulWidget {
-  const DictionaryPage({Key? key}) : super(key: key);
+  const DictionaryPage({super.key});
 
   @override
   State<DictionaryPage> createState() => _DictionaryPageState();
@@ -20,14 +20,14 @@ class _DictionaryPageState extends State<DictionaryPage> {
   final ApiService _apiService = ApiService();
   final ChatbotService _chatbotService = ChatbotService();
   final FlutterTts _flutterTts = FlutterTts();
-  
+
   Word? searchResultWord; // Kayıtlı kelimelerden bulunan sonuç
   Map<String, dynamic>? groqResult; // Groq API'den gelen zengin anlam sonucu
   List<Word> allWords = [];
   bool isLoading = false;
   bool isSaving = false;
   String? errorMessage;
-  
+
   // Seçilen cümleler (Bugüne Kaydet için)
   Set<int> selectedMeaningIndices = {};
 
@@ -50,7 +50,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
         setState(() => allWords = words);
       }
     } catch (e) {
-      print('Error loading words: $e');
+      debugPrint('Error loading words: $e');
     }
   }
 
@@ -98,6 +98,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
       }
     } catch (e) {
       if (mounted) {
+        if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+          setState(() {
+            errorMessage = AiErrorMessageFormatter.forError(e);
+            isLoading = false;
+          });
+          return;
+        }
         final msg = e is ApiQuotaExceededException
             ? AiErrorMessageFormatter.forQuota(e)
             : 'Kelime aranamadı: $e';
@@ -115,32 +122,33 @@ class _DictionaryPageState extends State<DictionaryPage> {
 
   Future<void> _saveToToday() async {
     if (groqResult == null) return;
-    
+
     setState(() => isSaving = true);
-    
+
     try {
       final word = groqResult!['word'] as String;
       final meanings = groqResult!['meanings'] as List;
-      
+
       // Seçilen anlamları topla
       List<String> selectedMeanings = [];
       List<String> selectedSentences = [];
-      
+
       for (int i = 0; i < meanings.length; i++) {
-        if (selectedMeaningIndices.isEmpty || selectedMeaningIndices.contains(i)) {
+        if (selectedMeaningIndices.isEmpty ||
+            selectedMeaningIndices.contains(i)) {
           selectedMeanings.add(meanings[i]['translation'] ?? '');
           if (meanings[i]['example'] != null) {
             selectedSentences.add(meanings[i]['example']);
           }
         }
       }
-      
+
       await _chatbotService.saveWordToToday(
         englishWord: word,
         meanings: selectedMeanings,
         sentences: selectedSentences,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -152,17 +160,20 @@ class _DictionaryPageState extends State<DictionaryPage> {
         _loadWords();
       }
     } catch (e) {
-      if (mounted) {
-        final msg = e is ApiQuotaExceededException
-            ? AiErrorMessageFormatter.forQuota(e)
-            : 'Hata: $e';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!mounted) return;
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
       }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => isSaving = false);
@@ -197,7 +208,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         children: [
                           IconButton(
                             onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                           ),
                           const Expanded(
                             child: Text(
@@ -227,10 +239,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'İngilizce kelime yazın (örn: apple)',
-                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                            prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
+                            hintStyle:
+                                TextStyle(color: Colors.white.withOpacity(0.5)),
+                            prefixIcon: Icon(Icons.search,
+                                color: Colors.white.withOpacity(0.5)),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 20),
                           ),
                           onSubmitted: (_) => handleSearch(),
                         ),
@@ -255,27 +270,27 @@ class _DictionaryPageState extends State<DictionaryPage> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: isLoading 
+                          child: isLoading
                               ? const SizedBox(
-                                  height: 20, 
-                                  width: 20, 
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                                )
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
                               : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.search, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text(
-                                'Ara',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.search, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Ara',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ],
@@ -313,7 +328,9 @@ class _DictionaryPageState extends State<DictionaryPage> {
     }
 
     // Empty State
-    if (searchResultWord == null && groqResult == null && _searchController.text.isEmpty) {
+    if (searchResultWord == null &&
+        groqResult == null &&
+        _searchController.text.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -334,12 +351,14 @@ class _DictionaryPageState extends State<DictionaryPage> {
             const SizedBox(height: 24),
             Text(
               'Herhangi bir İngilizce kelime arayın',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
               'AI ile detaylı anlamları getirin',
-              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
             ),
           ],
         ),
@@ -365,7 +384,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
           const SizedBox(height: 16),
           Text(
             'Sonuç bulunamadı',
-            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
           ),
         ],
       ),
@@ -373,8 +393,11 @@ class _DictionaryPageState extends State<DictionaryPage> {
   }
 
   Widget _buildLocalWordResult(Word word) {
-    final example = word.sentences.isNotEmpty ? word.sentences.first.sentence : 'Örnek cümle yok';
-    final exampleTr = word.sentences.isNotEmpty ? word.sentences.first.translation : '';
+    final example = word.sentences.isNotEmpty
+        ? word.sentences.first.sentence
+        : 'Örnek cümle yok';
+    final exampleTr =
+        word.sentences.isNotEmpty ? word.sentences.first.translation : '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -394,7 +417,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 Expanded(
                   child: Text(
                     word.englishWord,
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
@@ -402,7 +428,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                   icon: const Icon(Icons.volume_up, color: Colors.white),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -413,14 +440,15 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     children: [
                       Icon(Icons.check, color: Colors.green, size: 16),
                       SizedBox(width: 4),
-                      Text('Kayıtlı', style: TextStyle(color: Colors.green, fontSize: 12)),
+                      Text('Kayıtlı',
+                          style: TextStyle(color: Colors.green, fontSize: 12)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            
+
             // Meaning
             Container(
               width: double.infinity,
@@ -434,7 +462,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            
+
             // Example
             if (example != 'Örnek cümle yok') ...[
               const SizedBox(height: 16),
@@ -443,17 +471,25 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF0ea5e9).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.3)),
+                  border: Border.all(
+                      color: const Color(0xFF0ea5e9).withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Example:', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                    Text('Example:',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 12)),
                     const SizedBox(height: 4),
-                    Text('"$example"', style: const TextStyle(color: Colors.white, fontStyle: FontStyle.italic)),
+                    Text('"$example"',
+                        style: const TextStyle(
+                            color: Colors.white, fontStyle: FontStyle.italic)),
                     if (exampleTr.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text('"$exampleTr"', style: TextStyle(color: Colors.white.withOpacity(0.6))),
+                      Text('"$exampleTr"',
+                          style:
+                              TextStyle(color: Colors.white.withOpacity(0.6))),
                     ],
                   ],
                 ),
@@ -480,10 +516,14 @@ class _DictionaryPageState extends State<DictionaryPage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF0ea5e9).withOpacity(0.2), const Color(0xFF3b82f6).withOpacity(0.2)],
+                colors: [
+                  const Color(0xFF0ea5e9).withOpacity(0.2),
+                  const Color(0xFF3b82f6).withOpacity(0.2)
+                ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.3)),
+              border:
+                  Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -493,30 +533,38 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     children: [
                       Text(
                         word,
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold),
                       ),
                       if (type.isNotEmpty)
-                        Text(type, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14)),
+                        Text(type,
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.6),
+                                fontSize: 14)),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: () => _speakWord(word),
-                  icon: const Icon(Icons.volume_up, color: Colors.white, size: 28),
+                  icon: const Icon(Icons.volume_up,
+                      color: Colors.white, size: 28),
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Meanings
           Text(
             'Anlamlar (${meanings.length})',
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          
+
           ...meanings.asMap().entries.map((entry) {
             final index = entry.key;
             final meaning = entry.value as Map<String, dynamic>;
@@ -524,7 +572,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
             final context = meaning['context'] ?? '';
             final example = meaning['example'] ?? '';
             final isSelected = selectedMeaningIndices.contains(index);
-            
+
             return GestureDetector(
               onTap: () {
                 setState(() {
@@ -539,12 +587,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSelected 
+                  color: isSelected
                       ? const Color(0xFF0ea5e9).withOpacity(0.15)
                       : Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected 
+                    color: isSelected
                         ? const Color(0xFF0ea5e9)
                         : Colors.white.withOpacity(0.1),
                   ),
@@ -558,17 +606,20 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: isSelected 
+                            color: isSelected
                                 ? const Color(0xFF0ea5e9)
                                 : Colors.white.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
-                          child: isSelected 
-                              ? const Icon(Icons.check, color: Colors.white, size: 16)
+                          child: isSelected
+                              ? const Icon(Icons.check,
+                                  color: Colors.white, size: 16)
                               : Text(
                                   '${index + 1}',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold),
                                 ),
                         ),
                         const SizedBox(width: 12),
@@ -587,14 +638,16 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     if (context.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFF8b5cf6).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           context,
-                          style: const TextStyle(color: Color(0xFFa78bfa), fontSize: 12),
+                          style: const TextStyle(
+                              color: Color(0xFFa78bfa), fontSize: 12),
                         ),
                       ),
                     ],
@@ -609,7 +662,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.format_quote, color: Color(0xFF0ea5e9), size: 18),
+                            const Icon(Icons.format_quote,
+                                color: Color(0xFF0ea5e9), size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -630,9 +684,9 @@ class _DictionaryPageState extends State<DictionaryPage> {
               ),
             );
           }),
-          
+
           const SizedBox(height: 24),
-          
+
           // Save to Today Button
           Container(
             width: double.infinity,
@@ -656,12 +710,14 @@ class _DictionaryPageState extends State<DictionaryPage> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_circle_outline, color: Colors.white),
+                        const Icon(Icons.add_circle_outline,
+                            color: Colors.white),
                         const SizedBox(width: 8),
                         Text(
                           selectedMeaningIndices.isEmpty
@@ -677,17 +733,20 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
           Text(
             'Kaydetmek istediğiniz anlamları seçebilirsiniz',
-            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 40),
         ],
       ),
     );
   }
 }
+
+

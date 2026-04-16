@@ -19,21 +19,13 @@ function Invoke-Http {
     )
 
     try {
-        $response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -UseBasicParsing
+        $response = Invoke-WebRequest -Method $Method -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSec -UseBasicParsing -SkipHttpErrorCheck
         return [PSCustomObject]@{
             StatusCode = [int]$response.StatusCode
             Headers = $response.Headers
             Body = $response.Content
         }
     } catch {
-        if ($_.Exception.Response) {
-            $resp = $_.Exception.Response
-            return [PSCustomObject]@{
-                StatusCode = [int]$resp.StatusCode.value__
-                Headers = $resp.Headers
-                Body = ""
-            }
-        }
         throw
     }
 }

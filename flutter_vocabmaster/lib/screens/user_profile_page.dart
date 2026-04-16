@@ -11,11 +11,11 @@ class UserProfilePage extends StatefulWidget {
   final String? initialAvatar;
 
   const UserProfilePage({
-    Key? key,
+    super.key,
     required this.userId,
     this.initialName,
     this.initialAvatar,
-  }) : super(key: key);
+  });
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -428,3 +428,4 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 }
+

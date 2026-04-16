@@ -7,23 +7,25 @@ import '../models/word.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
 import '../services/chatbot_service.dart';
+import '../services/ai_paywall_handler.dart';
 
 class TranslationPracticePage extends StatefulWidget {
   final Word? selectedWord;
   final List<String> selectedLevels;
   final List<String> selectedLengths;
   final String subMode; // 'select', 'manual', 'random'
-  
+
   const TranslationPracticePage({
-    Key? key, 
+    super.key,
     this.selectedWord,
     this.selectedLevels = const ['B1'],
     this.selectedLengths = const ['medium'],
     this.subMode = 'select',
-  }) : super(key: key);
+  });
 
   @override
-  State<TranslationPracticePage> createState() => _TranslationPracticePageState();
+  State<TranslationPracticePage> createState() =>
+      _TranslationPracticePageState();
 }
 
 class _TranslationPracticePageState extends State<TranslationPracticePage> {
@@ -31,13 +33,13 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
   final ApiService _apiService = ApiService();
   final TextEditingController _wordController = TextEditingController();
   final Map<int, TextEditingController> _translationControllers = {};
-  
+
   List<String> _generatedSentences = [];
   List<String> _aiTranslations = [];
   List<TranslationResult> _translationResults = [];
   bool _isGenerating = false;
   String _questionDirection = 'EN_TO_TR'; // EN_TO_TR, TR_TO_EN, MIXED
-  
+
   Word? _selectedWord;
 
   @override
@@ -60,12 +62,15 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
 
   Future<void> _generateSentences() async {
     String wordToUse = '';
-    
+
     if (widget.subMode == 'random') {
       final words = await _apiService.getAllWords();
+      if (!mounted) return;
       if (words.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Henüz kelime listeniz boş.'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('Henüz kelime listeniz boş.'),
+              backgroundColor: Colors.red),
         );
         return;
       }
@@ -76,7 +81,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       wordToUse = _selectedWord?.englishWord ?? _wordController.text.trim();
       if (wordToUse.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen bir kelime seçin veya yazın'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('Lütfen bir kelime seçin veya yazın'),
+              backgroundColor: Colors.red),
         );
         return;
       }
@@ -94,19 +101,20 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         word: wordToUse,
         levels: widget.selectedLevels,
         lengths: widget.selectedLengths,
+        fresh: true,
       );
 
       if (!mounted) return;
 
       final sentences = List<String>.from(result['sentences'] ?? []);
       final translations = List<String>.from(result['translations'] ?? []);
-      
+
       // Dispose old controllers
       for (var controller in _translationControllers.values) {
         controller.dispose();
       }
       _translationControllers.clear();
-      
+
       setState(() {
         _generatedSentences = sentences;
         _aiTranslations = translations;
@@ -115,7 +123,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
           (index) {
             final controller = TextEditingController();
             _translationControllers[index] = controller;
-            
+
             // Determine direction for this sentence
             bool isReverse = false;
             if (_questionDirection == 'TR_TO_EN') {
@@ -123,10 +131,11 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
             } else if (_questionDirection == 'MIXED') {
               isReverse = Random().nextBool();
             }
-            
+
             return TranslationResult(
               sentence: sentences[index],
-              aiTranslation: index < translations.length ? translations[index] : '',
+              aiTranslation:
+                  index < translations.length ? translations[index] : '',
               userTranslation: '',
               isCorrect: null,
               feedback: '',
@@ -139,15 +148,18 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         _isGenerating = false;
       });
     } catch (e) {
-      if (mounted) {
-        setState(() => _isGenerating = false);
-        final msg = e is ApiQuotaExceededException
-            ? AiErrorMessageFormatter.forQuota(e)
-            : 'Hata: $e';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
       }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -163,9 +175,10 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
     try {
       final result = _translationResults[index];
       final isReverse = result.isReverse;
-      
+
       final resultData = await _chatbotService.checkTranslation(
-        originalSentence: isReverse ? _aiTranslations[index] : _generatedSentences[index],
+        originalSentence:
+            isReverse ? _aiTranslations[index] : _generatedSentences[index],
         userTranslation: userTranslation,
         direction: isReverse ? 'TR_TO_EN' : 'EN_TO_TR',
         referenceSentence: isReverse ? _generatedSentences[index] : null,
@@ -173,22 +186,27 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
 
       if (mounted) {
         setState(() {
-          _translationResults[index].isCorrect = resultData['isCorrect'] as bool?;
+          _translationResults[index].isCorrect =
+              resultData['isCorrect'] as bool?;
           _translationResults[index].feedback = resultData['feedback'] ?? '';
-          _translationResults[index].correctTranslation = resultData['correctTranslation'] ?? '';
+          _translationResults[index].correctTranslation =
+              resultData['correctTranslation'] ?? '';
           _translationResults[index].isChecking = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _translationResults[index].isChecking = false);
-        final msg = e is ApiQuotaExceededException
-            ? AiErrorMessageFormatter.forQuota(e)
-            : 'Kontrol hatası: $e';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
+      if (!mounted) return;
+      setState(() => _translationResults[index].isChecking = false);
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
       }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Kontrol hatası: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -203,7 +221,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
               children: [
                 // Header
                 _buildHeader(),
-                
+
                 // Content
                 Expanded(
                   child: SingleChildScrollView(
@@ -213,28 +231,29 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                       children: [
                         // Word Input or Display
                         _buildWordSection(),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Direction Selection
                         _buildDirectionSelector(),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Generate Button
                         _buildGenerateButton(),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Generated Sentences
                         if (_generatedSentences.isNotEmpty) ...[
                           _buildSentencesHeader(),
                           const SizedBox(height: 16),
                           ..._translationResults.asMap().entries.map(
-                            (entry) => _buildSentenceCard(entry.key, entry.value),
-                          ),
+                                (entry) =>
+                                    _buildSentenceCard(entry.key, entry.value),
+                              ),
                         ],
-                        
+
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -286,7 +305,10 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
             SizedBox(height: 12),
             Text(
               'Karışık Mod',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16),
             ),
             SizedBox(height: 4),
             Text(
@@ -317,7 +339,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0ea5e9).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -325,7 +348,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   ),
                   child: Text(
                     _selectedWord!.englishWord,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -392,7 +416,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected 
+            color: isSelected
                 ? const Color(0xFF0ea5e9).withOpacity(0.2)
                 : Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
@@ -402,7 +426,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
           ),
           child: Column(
             children: [
-              Icon(icon, color: isSelected ? const Color(0xFF0ea5e9) : Colors.white54, size: 20),
+              Icon(icon,
+                  color: isSelected ? const Color(0xFF0ea5e9) : Colors.white54,
+                  size: 20),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -435,10 +461,12 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   ),
                   SizedBox(width: 12),
-                  Text('Owen cümle üretiyor...', style: TextStyle(color: Colors.white)),
+                  Text('Owen cümle üretiyor...',
+                      style: TextStyle(color: Colors.white)),
                 ],
               )
             : const Row(
@@ -448,7 +476,10 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   SizedBox(width: 8),
                   Text(
                     'Cümle Üret',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
                   ),
                 ],
               ),
@@ -463,7 +494,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         const SizedBox(width: 8),
         Text(
           'Cümleler (${_generatedSentences.length})',
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -473,7 +505,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
     final isReverse = result.isReverse;
     final displaySentence = isReverse ? result.aiTranslation : result.sentence;
     final direction = isReverse ? 'TR → EN' : 'EN → TR';
-    
+
     Color? resultColor;
     if (result.isCorrect == true) {
       resultColor = const Color(0xFF10b981);
@@ -507,7 +539,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                 alignment: Alignment.center,
                 child: Text(
                   '${index + 1}',
-                  style: const TextStyle(color: Color(0xFF8b5cf6), fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Color(0xFF8b5cf6), fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 10),
@@ -519,20 +552,22 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                 ),
                 child: Text(
                   direction,
-                  style: const TextStyle(color: Color(0xFF0ea5e9), fontSize: 11),
+                  style:
+                      const TextStyle(color: Color(0xFF0ea5e9), fontSize: 11),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Sentence
           Text(
             displaySentence,
-            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
+            style:
+                const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
           ),
           const SizedBox(height: 16),
-          
+
           // Translation Input
           Row(
             children: [
@@ -541,7 +576,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   controller: _translationControllers[index],
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: isReverse ? 'İngilizce çevirinizi yazın...' : 'Türkçe çevirinizi yazın...',
+                    hintText: isReverse
+                        ? 'İngilizce çevirinizi yazın...'
+                        : 'Türkçe çevirinizi yazın...',
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
@@ -549,7 +586,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                   ),
                   onSubmitted: (_) => _checkTranslation(index),
                 ),
@@ -561,19 +599,21 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
-                  onPressed: result.isChecking ? null : () => _checkTranslation(index),
+                  onPressed:
+                      result.isChecking ? null : () => _checkTranslation(index),
                   icon: result.isChecking
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.check, color: Colors.white),
                 ),
               ),
             ],
           ),
-          
+
           // Result
           if (result.isCorrect != null) ...[
             const SizedBox(height: 16),
@@ -608,14 +648,17 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                     const SizedBox(height: 8),
                     Text(
                       result.feedback,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
-                  if (result.correctTranslation.isNotEmpty && !result.isCorrect!) ...[
+                  if (result.correctTranslation.isNotEmpty &&
+                      !result.isCorrect!) ...[
                     const SizedBox(height: 8),
                     Text(
                       'Doğru çeviri: ${result.correctTranslation}',
-                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.8), fontSize: 13),
                     ),
                   ],
                 ],
@@ -649,3 +692,4 @@ class TranslationResult {
     this.isReverse = false,
   });
 }
+

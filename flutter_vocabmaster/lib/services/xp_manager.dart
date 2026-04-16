@@ -295,7 +295,7 @@ class XPManager {
       _processedTransactions = txList.toSet();
       _transactionsLoaded = true;
     } catch (e) {
-      print('Error loading transactions: $e');
+      debugPrint('Error loading transactions: $e');
     }
   }
   
@@ -313,7 +313,7 @@ class XPManager {
       
       await prefs.setStringList('xp_transactions', _processedTransactions.toList());
     } catch (e) {
-      print('Error saving transaction: $e');
+      debugPrint('Error saving transaction: $e');
     }
   }
 
@@ -327,7 +327,7 @@ class XPManager {
       
       if (transactionId != null) {
         if (_processedTransactions.contains(transactionId)) {
-          print('⚠️ XP işlemi zaten işlenmiş (idempotent): $transactionId');
+          debugPrint('⚠️ XP işlemi zaten işlenmiş (idempotent): $transactionId');
           return 0;
         }
         
@@ -339,7 +339,7 @@ class XPManager {
       if (!action.isRepeatable) {
         final alreadyAwarded = await _checkAlreadyAwarded(action.id);
         if (alreadyAwarded) {
-          print('⚠️ XP zaten verilmiş: ${action.name}');
+          debugPrint('⚠️ XP zaten verilmiş: ${action.name}');
           return 0;
         }
         await _markAsAwarded(action.id);
@@ -374,10 +374,10 @@ class XPManager {
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, action.xpAmount, action.name);
       
-      print('🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP) Toplam: $newTotalXP ${source != null ? '[$source]' : ''} ${transactionId != null ? 'tx:$transactionId' : ''}');
+      debugPrint('🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP) Toplam: $newTotalXP ${source != null ? '[$source]' : ''} ${transactionId != null ? 'tx:$transactionId' : ''}');
       return action.xpAmount;
     } catch (e) {
-      print('❌ XP ekleme hatası: $e');
+      debugPrint('❌ XP ekleme hatası: $e');
       return 0;
     }
   }
@@ -418,10 +418,10 @@ class XPManager {
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, amount, reason);
       
-      print('🎯 XP Kazanıldı: $reason (+$amount XP) Toplam: $newTotalXP');
+      debugPrint('🎯 XP Kazanıldı: $reason (+$amount XP) Toplam: $newTotalXP');
       return amount;
     } catch (e) {
-      print('❌ XP ekleme hatası: $e');
+      debugPrint('❌ XP ekleme hatası: $e');
       return 0;
     }
   }
@@ -437,7 +437,7 @@ class XPManager {
 
       if (transactionId != null) {
         if (_processedTransactions.contains(transactionId)) {
-          print('⚠️ XP düşürme işlemi zaten işlenmiş (idempotent): $transactionId');
+          debugPrint('⚠️ XP düşürme işlemi zaten işlenmiş (idempotent): $transactionId');
           return;
         }
         await _saveTransaction(transactionId);
@@ -474,9 +474,9 @@ class XPManager {
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, -amount, reason);
       
-      print('🗑️ XP Silindi: $reason (-$amount XP) Toplam: $newTotalXP');
+      debugPrint('🗑️ XP Silindi: $reason (-$amount XP) Toplam: $newTotalXP');
     } catch (e) {
-      print('❌ XP silme hatası: $e');
+      debugPrint('❌ XP silme hatası: $e');
     }
   }
 
@@ -654,6 +654,12 @@ class XPManager {
     _transactionsLoaded = false;
   }
 
+  /// Runtime logout/reset akışlarında idempotency cache'ini temizle.
+  static void clearIdempotencyCache() {
+    _processedTransactions.clear();
+    _transactionsLoaded = false;
+  }
+
   /// Günlük hedef kontrolü
   Future<bool> checkDailyGoal(int learnedToday, int dailyGoal) async {
     if (learnedToday >= dailyGoal) {
@@ -663,4 +669,5 @@ class XPManager {
     return false;
   }
 }
+
 

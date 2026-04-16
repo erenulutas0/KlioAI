@@ -65,7 +65,7 @@ void main() {
       expect(appState.userStats['streak'], 1);
       
       // Move to Day 2
-      final tomorrow = now.add(Duration(days: 1));
+      final tomorrow = now.add(const Duration(days: 1));
       appState.mockDate = tomorrow;
       xpManager.mockDate = tomorrow;
       
@@ -83,7 +83,7 @@ void main() {
       expect(appState.userStats['streak'], 1);
       
       // Move to Day 3 (Skipped Day 2)
-      final day3 = now.add(Duration(days: 2));
+      final day3 = now.add(const Duration(days: 2));
       appState.mockDate = day3;
       xpManager.mockDate = day3;
       
@@ -119,14 +119,14 @@ void main() {
       
       // 2. Do it again same day
       await appState.incrementLearnedToday();
-      await Future.delayed(Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 50));
       
       // Should still be 25
       totalXP = await xpManager.getTotalXP();
       expect(totalXP, 25, reason: 'Daily Goal XP should be one-time only');
       
       // 3. Next Day
-      final tomorrow = now.add(Duration(days: 1));
+      final tomorrow = now.add(const Duration(days: 1));
       appState.mockDate = tomorrow;
       xpManager.mockDate = tomorrow;
       // Also need to reset "learnedToday" count for new day simulation?

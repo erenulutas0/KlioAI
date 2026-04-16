@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -33,7 +33,7 @@ class Helper {
 }
 
 class VideoCallPage extends StatefulWidget {
-  final IO.Socket socket;
+  final io.Socket socket;
   final String roomId;
   final String matchedUserId;
   final String? role; // 'caller' or 'callee'
@@ -61,7 +61,6 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
   bool _isAudioEnabled = true;
   bool _isSpeakerOn = true;
   bool _isRemoteVideoReady = false;
-  String _connectionState = 'Bağlantı Kuruluyor...';
   
   // WebRTC
   RTCPeerConnection? _peerConnection;
@@ -71,8 +70,6 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   bool _isLocalRendererInitialized = false;
   
-  final List<RTCIceCandidate> _candidateQueue = [];
-  bool _isRemoteDescriptionSet = false;
   Timer? _statsTimer;
   
   // UI States
@@ -178,11 +175,7 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
        });
     };
     
-    _peerConnection!.onConnectionState = (state) {
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-           if (mounted) setState(() => _connectionState = 'Connected');
-        }
-    };
+    _peerConnection!.onConnectionState = (_) {};
     
     _setupSocketListeners();
     widget.socket.emit('join_room', {'roomId': widget.roomId});
@@ -200,7 +193,6 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
        if (data['from'] == widget.currentUserId) return;
        var offer = data['offer'];
        await _peerConnection!.setRemoteDescription(RTCSessionDescription(offer['sdp'], offer['type']));
-       _isRemoteDescriptionSet = true;
        var answer = await _peerConnection!.createAnswer();
        await _peerConnection!.setLocalDescription(answer);
        widget.socket.emit('webrtc_answer', {'roomId': widget.roomId, 'answer': {'sdp': answer.sdp, 'type': answer.type}});
@@ -210,7 +202,6 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
        if (data['from'] == widget.currentUserId) return;
        var answer = data['answer'];
        await _peerConnection!.setRemoteDescription(RTCSessionDescription(answer['sdp'], answer['type']));
-       _isRemoteDescriptionSet = true;
     });
 
     widget.socket.on('webrtc_ice_candidate', (data) async {
@@ -348,7 +339,7 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
             ),
 
           // --- KATMAN 4: EMOJİLER ---
-          ..._floatingEmojis.map((e) => _buildAnimatedEmoji(e)).toList(),
+          ..._floatingEmojis.map((e) => _buildAnimatedEmoji(e)),
 
           // --- KATMAN 5: ALT DIV (FOOTER) ---
           if (_isReady)
@@ -398,7 +389,7 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
            Column(
              mainAxisSize: MainAxisSize.min,
              children: [
-               Text("Alex Johnson", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+               const Text("Alex Johnson", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                const SizedBox(height: 2), // Boşluk azaltıldı
                Row(
                  children: [
@@ -433,12 +424,12 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
            ],
            _buildControlPanel(),
            const SizedBox(height: 10), // Boşluk azaltıldı
-           Row(
+           const Row(
              mainAxisAlignment: MainAxisAlignment.center,
              children: [
-                const Text("Practice your English with native speakers", style: TextStyle(color: Color(0xFF3B82F6), fontSize: 12)),
-                const SizedBox(width: 5),
-                const Icon(Icons.school, color: Color(0xFF3B82F6), size: 14)
+                Text("Practice your English with native speakers", style: TextStyle(color: Color(0xFF3B82F6), fontSize: 12)),
+                SizedBox(width: 5),
+                Icon(Icons.school, color: Color(0xFF3B82F6), size: 14)
              ],
            )
         ],
@@ -654,7 +645,7 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
                       Row(
                          mainAxisSize: MainAxisSize.min,
                          children: [
-                           Container(
+                           SizedBox(
                              width: 100, height: 4, 
                              child: LinearProgressIndicator(
                                value: item['score'] / 100, 
@@ -676,34 +667,6 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-           GestureDetector(onTap: () => Navigator.pop(context), child: const Icon(Icons.arrow_back, color: Colors.white)),
-           Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Text("Alex Johnson", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 2),
-               Row(
-                 children: [
-                   Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
-                   const SizedBox(width: 6),
-                   const Text("00:15", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                 ],
-               ),
-             ],
-           ),
-           // Sağ tarafı boş bırak (Dengelemek için görünmez ikon)
-           const Icon(Icons.info_outline, color: Colors.transparent), 
-        ],
-      ),
-    );
-  }
-
   // --- Transkript Butonu (Referans Image 2) ---
   Widget _buildTranscriptButton() {
     return GestureDetector(
@@ -721,9 +684,9 @@ class _VideoCallPageState extends State<VideoCallPage> with TickerProviderStateM
             BoxShadow(color: const Color(0xFF8B5CF6).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))
           ],
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.info_outline, color: Colors.white, size: 20),
             SizedBox(width: 8),
             Text("Transkript", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

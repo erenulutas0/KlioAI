@@ -6,6 +6,13 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// ---- Load keystore properties (for release signing) ----
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.example.flutter_vocabmaster"
     compileSdk = 36
@@ -21,23 +28,33 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.VocabMaster"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled true
     }
 
+    signingConfigs {
+        release {
+            // key.properties içindeki değerleri okur
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
+    }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // ❌ debug signing kaldırıldı
+            // ✅ release signing eklendi
+            signingConfig signingConfigs.release
+
+            // İstersen ileride ekleyebilirsin:
+            // minifyEnabled false
+            // shrinkResources false
         }
     }
 }

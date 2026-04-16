@@ -17,19 +17,62 @@ public class DataLoader {
     @Bean
     CommandLineRunner initDatabase(SubscriptionPlanRepository repository) {
         return args -> {
-            if (repository.count() == 0) {
-                repository.save(new SubscriptionPlan("FREE", BigDecimal.ZERO, 3650)); // 10 years free tier
+            ensurePlan(
+                    repository,
+                    "FREE",
+                    BigDecimal.ZERO,
+                    "USD",
+                    3650,
+                    "Base app access. AI available only during free trial window.");
 
-                SubscriptionPlan monthly = new SubscriptionPlan("PRO_MONTHLY", new BigDecimal("149.99"), 30);
-                monthly.setFeatures("Unlimited AI Chat, IELTS Speaking Tests, Grammar Check");
-                repository.save(monthly);
+            ensurePlan(
+                    repository,
+                    "PREMIUM",
+                    new BigDecimal("5.00"),
+                    "USD",
+                    30,
+                    "AI access with 50k daily token quota.");
 
-                SubscriptionPlan annual = new SubscriptionPlan("PRO_ANNUAL", new BigDecimal("999.99"), 365);
-                annual.setFeatures("All PRO Features, 40% Discount, Priority Support");
-                repository.save(annual);
+            ensurePlan(
+                    repository,
+                    "PREMIUM_PLUS",
+                    new BigDecimal("10.00"),
+                    "USD",
+                    30,
+                    "AI access with 100k daily token quota.");
 
-                log.info("Default subscription plans seeded.");
-            }
+            // Keep legacy plans for backward compatibility with existing clients.
+            ensurePlan(
+                    repository,
+                    "PRO_MONTHLY",
+                    new BigDecimal("149.99"),
+                    "TRY",
+                    30,
+                    "Legacy monthly plan.");
+
+            ensurePlan(
+                    repository,
+                    "PRO_ANNUAL",
+                    new BigDecimal("999.99"),
+                    "TRY",
+                    365,
+                    "Legacy annual plan.");
+
+            log.info("Subscription plans verified/sealed.");
         };
+    }
+
+    private void ensurePlan(SubscriptionPlanRepository repository,
+                            String name,
+                            BigDecimal price,
+                            String currency,
+                            int durationDays,
+                            String features) {
+        repository.findByName(name).orElseGet(() -> {
+            SubscriptionPlan plan = new SubscriptionPlan(name, price, durationDays);
+            plan.setCurrency(currency);
+            plan.setFeatures(features);
+            return repository.save(plan);
+        });
     }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/word.dart';
 import '../models/sentence_practice.dart';
@@ -9,6 +10,7 @@ class ApiService {
   final http.Client client;
   final String? _testBaseUrl;
   final AuthService _authService;
+  static Future<bool>? _refreshInFlight;
 
   ApiService({http.Client? client, String? baseUrl, AuthService? authService})
       : client = client ?? http.Client(),
@@ -36,6 +38,11 @@ class ApiService {
       headers['X-User-Id'] = userId.toString();
     }
 
+    final deviceId = await _authService.getOrCreateDeviceId();
+    if (deviceId.isNotEmpty) {
+      headers['X-Device-Id'] = deviceId;
+    }
+
     return headers;
   }
 
@@ -44,9 +51,114 @@ class ApiService {
     final hasAuth = headers.containsKey('Authorization');
     final hasUserId = headers.containsKey('X-User-Id');
     if (!hasAuth || !hasUserId) {
-      throw Exception('Missing authenticated user context');
+      throw ApiUnauthorizedException(
+        message: 'Oturum bulunamadi. Lutfen yeniden giris yapin.',
+        reason: 'missing-auth-context',
+      );
     }
     return headers;
+  }
+
+  Future<http.Response> _withProtectedRetry(
+    Future<http.Response> Function(Map<String, String> headers) send, {
+    bool json = false,
+  }) async {
+    var headers = await _protectedHeaders(json: json);
+    var response = await send(headers);
+    if (response.statusCode != 401) {
+      return response;
+    }
+
+    final refreshed = await _tryRefreshSessionCoalesced();
+    if (!refreshed) {
+      throw _unauthorizedFromResponse(response);
+    }
+
+    headers = await _protectedHeaders(json: json);
+    response = await send(headers);
+    if (response.statusCode == 401) {
+      throw _unauthorizedFromResponse(response);
+    }
+    return response;
+  }
+
+  Future<bool> _tryRefreshSessionCoalesced() async {
+    final current = _refreshInFlight;
+    if (current != null) {
+      return current;
+    }
+
+    final refreshFuture = _tryRefreshSessionOnce();
+    _refreshInFlight = refreshFuture;
+    try {
+      return await refreshFuture;
+    } finally {
+      if (identical(_refreshInFlight, refreshFuture)) {
+        _refreshInFlight = null;
+      }
+    }
+  }
+
+  Future<bool> _tryRefreshSessionOnce() async {
+    try {
+      final refreshToken = await _authService.getRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return false;
+      }
+
+      final url = await baseUrl;
+      final deviceId = await _authService.getOrCreateDeviceId();
+      final refreshResponse = await client.post(
+        Uri.parse('$url/auth/refresh'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
+        body: json.encode({
+          'refreshToken': refreshToken,
+          'deviceInfo': 'Flutter Mobile App',
+          'deviceId': deviceId,
+        }),
+      );
+
+      if (refreshResponse.statusCode != 200) {
+        return false;
+      }
+
+      final decoded = json.decode(refreshResponse.body);
+      if (decoded is! Map) {
+        return false;
+      }
+      final payload = Map<String, dynamic>.from(decoded);
+      final newAccessToken =
+          (payload['accessToken'] ?? payload['sessionToken'])?.toString();
+      final newRefreshToken =
+          (payload['refreshToken'] ?? refreshToken).toString();
+      if (newAccessToken == null || newAccessToken.isEmpty) {
+        return false;
+      }
+
+      final currentUser = Map<String, dynamic>.from(
+          await _authService.getUser() ?? <String, dynamic>{});
+      final refreshedUserId = _toNullableInt(payload['userId']);
+      if (refreshedUserId != null && refreshedUserId > 0) {
+        currentUser['id'] = refreshedUserId;
+        currentUser['userId'] = refreshedUserId;
+      }
+      currentUser['role'] = (payload['role'] ?? currentUser['role'] ?? 'USER');
+      currentUser['email'] = currentUser['email'] ?? '';
+      currentUser['displayName'] = currentUser['displayName'] ?? 'User';
+      currentUser['userTag'] = currentUser['userTag'] ?? '#00000';
+
+      await _authService.saveSession(
+        newAccessToken,
+        newRefreshToken,
+        currentUser,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ==================== WORDS ====================
@@ -54,9 +166,11 @@ class ApiService {
   Future<List<Word>> getAllWords() async {
     try {
       final url = await baseUrl;
-      final response = await client.get(
-        Uri.parse('$url/words'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/words'),
+          headers: headers,
+        ),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -64,7 +178,7 @@ class ApiService {
       }
       throw Exception('Failed to load words: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching words: $e');
+      debugPrint('Error fetching words: $e');
       return [];
     }
   }
@@ -72,9 +186,11 @@ class ApiService {
   Future<Word> getWordById(int id) async {
     try {
       final url = await baseUrl;
-      final response = await client.get(
-        Uri.parse('$url/words/$id'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/words/$id'),
+          headers: headers,
+        ),
       );
       if (response.statusCode == 200) {
         return Word.fromJson(json.decode(response.body));
@@ -88,9 +204,11 @@ class ApiService {
   Future<List<String>> getAllDistinctDates() async {
     try {
       final url = await baseUrl;
-      final response = await client.get(
-        Uri.parse('$url/words/dates'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/words/dates'),
+          headers: headers,
+        ),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -98,7 +216,7 @@ class ApiService {
       }
       throw Exception('Failed to load dates: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching dates: $e');
+      debugPrint('Error fetching dates: $e');
       return [];
     }
   }
@@ -107,9 +225,11 @@ class ApiService {
     try {
       final url = await baseUrl;
       final dateStr = date.toIso8601String().split('T')[0];
-      final response = await client.get(
-        Uri.parse('$url/words/date/$dateStr'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/words/date/$dateStr'),
+          headers: headers,
+        ),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -117,7 +237,7 @@ class ApiService {
       }
       throw Exception('Failed to load words for date: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching words by date: $e');
+      debugPrint('Error fetching words by date: $e');
       return [];
     }
   }
@@ -130,16 +250,19 @@ class ApiService {
   }) async {
     try {
       final url = await baseUrl;
-      final response = await client.post(
-        Uri.parse('$url/words'),
-        headers: await _protectedHeaders(json: true),
-        body: json.encode({
-          'englishWord': english,
-          'turkishMeaning': turkish,
-          'learnedDate': addedDate.toIso8601String().split('T')[0],
-          'notes': '',
-          'difficulty': difficulty,
-        }),
+      final response = await _withProtectedRetry(
+        (headers) => client.post(
+          Uri.parse('$url/words'),
+          headers: headers,
+          body: json.encode({
+            'englishWord': english,
+            'turkishMeaning': turkish,
+            'learnedDate': addedDate.toIso8601String().split('T')[0],
+            'notes': '',
+            'difficulty': difficulty,
+          }),
+        ),
+        json: true,
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return Word.fromJson(json.decode(response.body));
@@ -153,9 +276,11 @@ class ApiService {
   Future<void> deleteWord(int id) async {
     try {
       final url = await baseUrl;
-      final response = await client.delete(
-        Uri.parse('$url/words/$id'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.delete(
+          Uri.parse('$url/words/$id'),
+          headers: headers,
+        ),
       );
       if (response.statusCode != 200 &&
           response.statusCode != 204 &&
@@ -175,14 +300,17 @@ class ApiService {
   }) async {
     try {
       final url = await baseUrl;
-      final response = await client.post(
-        Uri.parse('$url/words/$wordId/sentences'),
-        headers: await _protectedHeaders(json: true),
-        body: json.encode({
-          'sentence': sentence,
-          'translation': translation,
-          'difficulty': difficulty,
-        }),
+      final response = await _withProtectedRetry(
+        (headers) => client.post(
+          Uri.parse('$url/words/$wordId/sentences'),
+          headers: headers,
+          body: json.encode({
+            'sentence': sentence,
+            'translation': translation,
+            'difficulty': difficulty,
+          }),
+        ),
+        json: true,
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return Word.fromJson(json.decode(response.body));
@@ -196,9 +324,11 @@ class ApiService {
   Future<void> deleteSentenceFromWord(int wordId, int sentenceId) async {
     try {
       final url = await baseUrl;
-      final response = await client.delete(
-        Uri.parse('$url/words/$wordId/sentences/$sentenceId'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.delete(
+          Uri.parse('$url/words/$wordId/sentences/$sentenceId'),
+          headers: headers,
+        ),
       );
       if (response.statusCode != 200 &&
           response.statusCode != 204 &&
@@ -217,9 +347,11 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getDailyWords() async {
     try {
       final url = await baseUrl;
-      final response = await client.get(
-        Uri.parse('$url/content/daily-words'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/content/daily-words'),
+          headers: headers,
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -235,17 +367,79 @@ class ApiService {
 
       throw Exception('Failed to load daily words: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching daily words: $e');
+      debugPrint('Error fetching daily words: $e');
       return [];
     }
   }
 
+  Future<Map<String, dynamic>> getDailyReading({
+    required String level,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/content/daily-reading?level=$level'),
+        headers: headers,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map && decoded['data'] is Map) {
+        return Map<String, dynamic>.from(decoded['data'] as Map);
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      return {};
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception('Daily reading yüklenemedi: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> getDailyWritingTopic({
+    required String level,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/content/daily-writing-topic?level=$level'),
+        headers: headers,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map && decoded['data'] is Map) {
+        return Map<String, dynamic>.from(decoded['data'] as Map);
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      return {};
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception('Daily writing konusu yüklenemedi: ${response.statusCode}');
+  }
+
   Future<List<SentencePractice>> getAllSentences() async {
     final url = await baseUrl;
-    final response = await client.get(
-      // Pull the largest page allowed by backend to make local reconciliation safer.
-      Uri.parse('$url/sentences?page=0&size=200'),
-      headers: await _protectedHeaders(),
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        // Pull the largest page allowed by backend to make local reconciliation safer.
+        Uri.parse('$url/sentences?page=0&size=200'),
+        headers: headers,
+      ),
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
@@ -261,15 +455,18 @@ class ApiService {
   }) async {
     try {
       final url = await baseUrl;
-      final response = await client.post(
-        Uri.parse('$url/sentences'),
-        headers: await _protectedHeaders(json: true),
-        body: json.encode({
-          'englishSentence': englishSentence,
-          'turkishTranslation': turkishTranslation,
-          'difficulty': difficulty.toUpperCase(),
-          'createdDate': DateTime.now().toIso8601String().split('T')[0],
-        }),
+      final response = await _withProtectedRetry(
+        (headers) => client.post(
+          Uri.parse('$url/sentences'),
+          headers: headers,
+          body: json.encode({
+            'englishSentence': englishSentence,
+            'turkishTranslation': turkishTranslation,
+            'difficulty': difficulty.toUpperCase(),
+            'createdDate': DateTime.now().toIso8601String().split('T')[0],
+          }),
+        ),
+        json: true,
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
@@ -291,9 +488,11 @@ class ApiService {
   Future<void> deleteSentence(String id) async {
     try {
       final url = await baseUrl;
-      final response = await client.delete(
-        Uri.parse('$url/sentences/$id'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.delete(
+          Uri.parse('$url/sentences/$id'),
+          headers: headers,
+        ),
       );
       if (response.statusCode != 200 &&
           response.statusCode != 204 &&
@@ -308,16 +507,18 @@ class ApiService {
   Future<Map<String, dynamic>> getSentenceStats() async {
     try {
       final url = await baseUrl;
-      final response = await client.get(
-        Uri.parse('$url/sentences/stats'),
-        headers: await _protectedHeaders(),
+      final response = await _withProtectedRetry(
+        (headers) => client.get(
+          Uri.parse('$url/sentences/stats'),
+          headers: headers,
+        ),
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       throw Exception('Failed to load stats: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching stats: $e');
+      debugPrint('Error fetching stats: $e');
       return {};
     }
   }
@@ -329,7 +530,7 @@ class ApiService {
     try {
       final dynamic decoded = json.decode(response.body);
       if (decoded is Map) {
-        final map = Map<String, dynamic>.from(decoded as Map);
+        final map = Map<String, dynamic>.from(decoded);
         return ApiQuotaExceededException(
           message: (map['error'] ?? 'Günlük AI hakkınız bitti.').toString(),
           retryAfterSeconds: _toNullableInt(map['retryAfterSeconds']),
@@ -350,6 +551,56 @@ class ApiService {
     );
   }
 
+  /// Thrown when backend requires subscription upgrade for AI endpoints.
+  static ApiUpgradeRequiredException _upgradeFromResponse(
+      http.Response response) {
+    try {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        return ApiUpgradeRequiredException(
+          message:
+              (map['error'] ?? 'AI özelliği bu hesapta devre dışı.').toString(),
+          reason: map['reason']?.toString(),
+          upgradeRequired: map['upgradeRequired'] == true,
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+    return ApiUpgradeRequiredException(
+      message: 'AI özelliği için Premium plana geçiş gerekli.',
+      reason: 'ai-access-disabled',
+      upgradeRequired: true,
+    );
+  }
+
+  static ApiUnauthorizedException _unauthorizedFromResponse(
+      http.Response response) {
+    try {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final message = (map['message'] ??
+                map['error'] ??
+                'Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.')
+            .toString();
+        return ApiUnauthorizedException(
+          message: message,
+          reason: map['reason']?.toString(),
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+    return ApiUnauthorizedException(
+      message: 'Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.',
+      reason: 'unauthorized',
+      statusCode: response.statusCode,
+    );
+  }
+
   static int? _toNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -359,15 +610,20 @@ class ApiService {
 
   Future<Map<String, dynamic>> chatbotQuotaStatus() async {
     final url = await baseUrl;
-    final response = await client.get(
-      Uri.parse('$url/chatbot/quota/status'),
-      headers: await _protectedHeaders(),
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/chatbot/quota/status'),
+        headers: headers,
+      ),
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('AI token durumu alınamadı: ${response.statusCode}');
   }
@@ -377,23 +633,31 @@ class ApiService {
     List<String> levels = const ['B1'],
     List<String> lengths = const ['medium'],
     bool checkGrammar = false,
+    bool fresh = false,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/generate-sentences'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'word': word,
-        'levels': levels,
-        'lengths': lengths,
-        'checkGrammar': checkGrammar,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/generate-sentences'),
+        headers: headers,
+        body: json.encode({
+          'word': word,
+          'levels': levels,
+          'lengths': lengths,
+          'checkGrammar': checkGrammar,
+          'fresh': fresh,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('AI cümle üretimi başarısız: ${response.statusCode}');
   }
@@ -404,20 +668,26 @@ class ApiService {
     List<String> sentences = const [],
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/save-to-today'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'englishWord': englishWord,
-        'meanings': meanings,
-        'sentences': sentences,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/save-to-today'),
+        headers: headers,
+        body: json.encode({
+          'englishWord': englishWord,
+          'meanings': meanings,
+          'sentences': sentences,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Kelime kaydetme başarısız: ${response.statusCode}');
   }
@@ -442,16 +712,22 @@ class ApiService {
       body['englishSentence'] = referenceEnglishSentence;
     }
 
-    final response = await client.post(
-      Uri.parse('$url/chatbot/check-translation'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode(body),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/check-translation'),
+        headers: headers,
+        body: json.encode(body),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('AI çeviri kontrolü başarısız: ${response.statusCode}');
   }
@@ -462,14 +738,17 @@ class ApiService {
     String? scenarioContext,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/chat'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'message': message,
-        if (scenario != null) 'scenario': scenario,
-        if (scenarioContext != null) 'scenarioContext': scenarioContext,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/chat'),
+        headers: headers,
+        body: json.encode({
+          'message': message,
+          if (scenario != null) 'scenario': scenario,
+          if (scenarioContext != null) 'scenarioContext': scenarioContext,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       final decoded = json.decode(response.body);
@@ -481,6 +760,9 @@ class ApiService {
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
     }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
     throw Exception('AI sohbet başarısız: ${response.statusCode}');
   }
 
@@ -489,16 +771,22 @@ class ApiService {
     required String part,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/speaking-test/generate-questions'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'testType': testType, 'part': part}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/speaking-test/generate-questions'),
+        headers: headers,
+        body: json.encode({'testType': testType, 'part': part}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('AI speaking soruları başarısız: ${response.statusCode}');
   }
@@ -509,14 +797,17 @@ class ApiService {
     required String responseText,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/speaking-test/evaluate'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'testType': testType,
-        'question': question,
-        'response': responseText,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/speaking-test/evaluate'),
+        headers: headers,
+        body: json.encode({
+          'testType': testType,
+          'question': question,
+          'response': responseText,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
@@ -524,7 +815,11 @@ class ApiService {
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
     }
-    throw Exception('AI speaking değerlendirme başarısız: ${response.statusCode}');
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception(
+        'AI speaking değerlendirme başarısız: ${response.statusCode}');
   }
 
   // ==================== AI (DICTIONARY / READING / WRITING / EXAM) ====================
@@ -533,16 +828,22 @@ class ApiService {
     required String word,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/dictionary/lookup'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'word': word}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/dictionary/lookup'),
+        headers: headers,
+        body: json.encode({'word': word}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Sözlük araması başarısız: ${response.statusCode}');
   }
@@ -551,16 +852,22 @@ class ApiService {
     required String word,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/dictionary/lookup-detailed'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'word': word}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/dictionary/lookup-detailed'),
+        headers: headers,
+        body: json.encode({'word': word}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Detayli sözlük araması başarısız: ${response.statusCode}');
   }
@@ -570,16 +877,22 @@ class ApiService {
     required String sentence,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/dictionary/explain'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'word': word, 'sentence': sentence}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/dictionary/explain'),
+        headers: headers,
+        body: json.encode({'word': word, 'sentence': sentence}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Sözlük açıklama başarısız: ${response.statusCode}');
   }
@@ -590,20 +903,26 @@ class ApiService {
     required String context,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/dictionary/generate-specific-sentence'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'word': word,
-        'translation': translation,
-        'context': context,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/dictionary/generate-specific-sentence'),
+        headers: headers,
+        body: json.encode({
+          'word': word,
+          'translation': translation,
+          'context': context,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Örnek cümle üretimi başarısız: ${response.statusCode}');
   }
@@ -612,16 +931,22 @@ class ApiService {
     required String level,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/reading/generate'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'level': level}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/reading/generate'),
+        headers: headers,
+        body: json.encode({'level': level}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Reading üretimi başarısız: ${response.statusCode}');
   }
@@ -631,16 +956,22 @@ class ApiService {
     required String wordCount,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/writing/generate-topic'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'level': level, 'wordCount': wordCount}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/writing/generate-topic'),
+        headers: headers,
+        body: json.encode({'level': level, 'wordCount': wordCount}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Writing konusu üretimi başarısız: ${response.statusCode}');
   }
@@ -651,16 +982,22 @@ class ApiService {
     required Map<String, dynamic> topic,
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/writing/evaluate'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({'text': text, 'level': level, 'topic': topic}),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/writing/evaluate'),
+        headers: headers,
+        body: json.encode({'text': text, 'level': level, 'topic': topic}),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Writing değerlendirme başarısız: ${response.statusCode}');
   }
@@ -675,24 +1012,30 @@ class ApiService {
     String track = 'general',
   }) async {
     final url = await baseUrl;
-    final response = await client.post(
-      Uri.parse('$url/chatbot/exam/generate'),
-      headers: await _protectedHeaders(json: true),
-      body: json.encode({
-        'examType': examType,
-        'mode': mode,
-        'category': category,
-        'track': track,
-        'questionCount': questionCount,
-        'userLevel': userLevel,
-        'targetScore': targetScore,
-      }),
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/exam/generate'),
+        headers: headers,
+        body: json.encode({
+          'examType': examType,
+          'mode': mode,
+          'category': category,
+          'track': track,
+          'questionCount': questionCount,
+          'userLevel': userLevel,
+          'targetScore': targetScore,
+        }),
+      ),
+      json: true,
     );
     if (response.statusCode == 200) {
       return Map<String, dynamic>.from(json.decode(response.body) as Map);
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
     }
     throw Exception('Sınav üretimi başarısız: ${response.statusCode}');
   }
@@ -724,3 +1067,35 @@ class ApiQuotaExceededException implements Exception {
   @override
   String toString() => message;
 }
+
+class ApiUpgradeRequiredException implements Exception {
+  final String message;
+  final String? reason;
+  final bool upgradeRequired;
+
+  ApiUpgradeRequiredException({
+    required this.message,
+    this.reason,
+    this.upgradeRequired = true,
+  });
+
+  @override
+  String toString() => message;
+}
+
+class ApiUnauthorizedException implements Exception {
+  final String message;
+  final String? reason;
+  final int? statusCode;
+
+  ApiUnauthorizedException({
+    required this.message,
+    this.reason,
+    this.statusCode,
+  });
+
+  @override
+  String toString() => message;
+}
+
+

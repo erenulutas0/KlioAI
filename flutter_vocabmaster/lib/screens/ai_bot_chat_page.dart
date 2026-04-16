@@ -16,6 +16,7 @@ import '../widgets/voice_selection_modal.dart';
 import '../services/chatbot_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
+import '../services/ai_paywall_handler.dart';
 import '../services/piper_tts_service.dart';
 import '../models/voice_model.dart';
 
@@ -23,19 +24,20 @@ class AIBotChatPage extends StatefulWidget {
   final String? initialScenario;
   final String? initialScenarioName;
   final String? scenarioContext; // Kullanıcının girdiği konu/bağlam
-  
+
   const AIBotChatPage({
-    Key? key,
+    super.key,
     this.initialScenario,
     this.initialScenarioName,
     this.scenarioContext,
-  }) : super(key: key);
+  });
 
   @override
   State<AIBotChatPage> createState() => _AIBotChatPageState();
 }
 
-class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateMixin {
+class _AIBotChatPageState extends State<AIBotChatPage>
+    with TickerProviderStateMixin {
   static const List<String> _disagreementTopics = [
     "Strict Office Attendance Policy vs Remote Work",
     "Budget Cuts for Team Building Events",
@@ -53,28 +55,28 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   final PiperTtsService _ttsService = PiperTtsService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts(); // Fallback TTS
-  
+
   bool _isTyping = false;
   bool _isSpeaking = false;
   bool _ttsEnabled = true;
   bool _ttsAvailable = false;
-  
+
   // STT
   late stt.SpeechToText _speech;
   bool _isListening = false;
   bool _continuousListening = false; // Persistent session state
   bool _autoSendMode = true; // true = auto send on silence, false = manual send
   bool _blurBotMessages = false; // Blur bot messages for listening practice
-  
+
   // Seçili konuşmacı
   VoiceModel? _selectedVoice;
   bool _isFirstVisit = true;
-  
+
   // Aktif senaryo (profesyonel konuşma pratiği için)
   String? _activeScenario;
   String? _activeScenarioName;
   String? _activeScenarioContext;
-  
+
   // Floating particles animation
   late AnimationController _particleController;
 
@@ -86,25 +88,27 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       vsync: this,
       duration: const Duration(seconds: 20),
     )..repeat();
-    
+
     // Keep screen on while in chat
     WakelockPlus.enable();
-    
+
     _checkTtsAvailability();
     _initFlutterTts(); // Fallback TTS hazırla
     _loadSelectedVoice();
-    
+
     // Eğer senaryo ile açıldıysa, senaryoyu başlat
     if (widget.initialScenario != null && widget.initialScenarioName != null) {
       _activeScenario = widget.initialScenario;
       _activeScenarioName = widget.initialScenarioName;
       _activeScenarioContext = widget.scenarioContext;
-      
+
       // Eğer disagreement ise ve context yoksa, rastgele seç
-      if (_activeScenario == 'disagreement_colleague' && (_activeScenarioContext == null || _activeScenarioContext!.isEmpty)) {
-        _activeScenarioContext = _disagreementTopics[DateTime.now().millisecond % _disagreementTopics.length];
+      if (_activeScenario == 'disagreement_colleague' &&
+          (_activeScenarioContext == null || _activeScenarioContext!.isEmpty)) {
+        _activeScenarioContext = _disagreementTopics[
+            DateTime.now().millisecond % _disagreementTopics.length];
       }
-      
+
       // Senaryo başlangıç mesajını biraz geciktir (TTS hazır olsun)
       Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) {
@@ -122,31 +126,39 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     switch (scenarioId) {
       case 'job_interview_followup':
         if (contextText != null && contextText.isNotEmpty) {
-           welcomeMessage = "Hi there! I see you're following up on your interview for the '$contextText' position. It's good to hear from you. How are you feeling about how it went?";
+          welcomeMessage =
+              "Hi there! I see you're following up on your interview for the '$contextText' position. It's good to hear from you. How are you feeling about how it went?";
         } else {
-           welcomeMessage = "Hi there! This is Sarah from HR. Thanks for reaching out. Could you remind me which position you applied for so I can pull up your file?";
+          welcomeMessage =
+              "Hi there! This is Sarah from HR. Thanks for reaching out. Could you remind me which position you applied for so I can pull up your file?";
         }
         break;
       case 'academic_presentation_qa':
         if (contextText != null && contextText.isNotEmpty) {
-          welcomeMessage = "Thank you for that presentation on '$contextText'. I'm Dr. Johnson. I found your topic interesting, but I have a few questions about your methodology. Shall we dive in?";
+          welcomeMessage =
+              "Thank you for that presentation on '$contextText'. I'm Dr. Johnson. I found your topic interesting, but I have a few questions about your methodology. Shall we dive in?";
         } else {
-          welcomeMessage = "Thank you for that presentation. I'm Dr. Johnson. Before I ask my questions, could you briefly summarize the core thesis of your work again for the audience?";
+          welcomeMessage =
+              "Thank you for that presentation. I'm Dr. Johnson. Before I ask my questions, could you briefly summarize the core thesis of your work again for the audience?";
         }
         break;
       case 'disagreement_colleague':
         // Disagreement is dynamic, so generic opening is better, prompt will handle the rest
-        welcomeMessage = "Hey, I got your email about the project. Look, I respect your opinion, but there's a serious issue we need to discuss. Can we talk?";
+        welcomeMessage =
+            "Hey, I got your email about the project. Look, I respect your opinion, but there's a serious issue we need to discuss. Can we talk?";
         break;
       case 'explaining_to_manager':
         if (contextText != null && contextText.isNotEmpty) {
-           welcomeMessage = "I have 10 minutes before my next meeting. You wanted to discuss '$contextText'? Go ahead, explain the situation clearly. I'm listening.";
+          welcomeMessage =
+              "I have 10 minutes before my next meeting. You wanted to discuss '$contextText'? Go ahead, explain the situation clearly. I'm listening.";
         } else {
-           welcomeMessage = "I have 10 minutes before my next meeting. You wanted to discuss an urgent matter with me? Go ahead, what is the specific issue?";
+          welcomeMessage =
+              "I have 10 minutes before my next meeting. You wanted to discuss an urgent matter with me? Go ahead, what is the specific issue?";
         }
         break;
       default:
-        welcomeMessage = "Hello! Let's practice English together. What would you like to talk about?";
+        welcomeMessage =
+            "Hello! Let's practice English together. What would you like to talk about?";
     }
     _addBotMessage(welcomeMessage, speak: true);
   }
@@ -165,7 +177,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       final prefs = await SharedPreferences.getInstance();
       final voiceJson = prefs.getString('selected_voice');
       final hasVisited = prefs.getBool('voice_modal_shown') ?? false;
-      
+
       if (voiceJson != null) {
         setState(() {
           _selectedVoice = VoiceModel.fromJsonString(voiceJson);
@@ -173,17 +185,18 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         });
       } else {
         _isFirstVisit = !hasVisited;
-        
-    // İlk ziyarette modal göster
+
+        // İlk ziyarette modal göster
         if (_isFirstVisit && mounted) {
-          Future.delayed(const Duration(milliseconds: 800), _showVoiceSelectionModal);
+          Future.delayed(
+              const Duration(milliseconds: 800), _showVoiceSelectionModal);
         } else {
-           // Zaten seçiliyse standart hoşgeldin mesajı
-           if (_messages.isEmpty) {
-             _addBotMessage(
+          // Zaten seçiliyse standart hoşgeldin mesajı
+          if (_messages.isEmpty) {
+            _addBotMessage(
               'Tekrar merhaba! Ben ${_selectedVoice?.name ?? 'AI Bot'}. İngilizce pratiğine kaldığımız yerden devam edelim mi? 👋',
-             );
-           }
+            );
+          }
         }
       }
     } catch (e) {
@@ -195,35 +208,35 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   Future<void> _showVoiceSelectionModal() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('voice_modal_shown', true);
-    
+
     if (!mounted) return;
-    
+
     final voice = await VoiceSelectionModal.show(
       context,
       currentVoice: _selectedVoice,
     );
-    
+
     if (!mounted) return;
 
     if (voice != null) {
       // Ses değiştiyse sohbeti sıfırla
       if (_selectedVoice?.id != voice.id) {
-         setState(() {
-           _selectedVoice = voice;
-           _messages.clear(); // Sohbeti temizle
-         });
-         
-         // Yeni karakterin hoşgeldin mesajı
-         _addBotMessage(
-           'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksanıyla konuşacağım için çok heyecanlıyım! Hadi başlayalım. 🚀',
-           speak: true,
-         );
+        setState(() {
+          _selectedVoice = voice;
+          _messages.clear(); // Sohbeti temizle
+        });
+
+        // Yeni karakterin hoşgeldin mesajı
+        _addBotMessage(
+          'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksanıyla konuşacağım için çok heyecanlıyım! Hadi başlayalım. 🚀',
+          speak: true,
+        );
       }
     } else {
       // Seçim yapmadan kapattıysa
       if (_selectedVoice == null) {
         // Eğer hiç ses seçili değilse sayfadan at (Zorunlu seçim)
-        Navigator.pop(context); 
+        Navigator.pop(context);
       }
     }
   }
@@ -255,7 +268,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       ));
     });
     _scrollToBottom();
-    
+
     // TTS ile seslendir
     if (speak && _ttsEnabled) {
       _speakText(text);
@@ -264,11 +277,11 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
 
   Future<void> _speakText(String text) async {
     if (_isSpeaking) {
-       // Önceki konuşmayı durdur
-       await _audioPlayer.stop();
-       await _flutterTts.stop();
+      // Önceki konuşmayı durdur
+      await _audioPlayer.stop();
+      await _flutterTts.stop();
     }
-    
+
     // TTS başlamadan önce mikrofonu kesin olarak kapat
     if (_isListening) {
       await _speech.stop();
@@ -276,20 +289,20 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         setState(() => _isListening = false);
       }
     }
-    
+
     setState(() => _isSpeaking = true);
-    
+
     try {
       // Seçili konuşmacının sesini kullan
       final voiceName = _selectedVoice?.piperVoice ?? 'amy';
-      
+
       // 1. Önce Piper TTS dene
       Uint8List? audioData;
-      
+
       // Sadece Piper available ise API çağrısı yap, yoksa direkt fallback'e geç
       if (_ttsAvailable) {
         try {
-           audioData = await _ttsService.synthesize(text, voice: voiceName);
+          audioData = await _ttsService.synthesize(text, voice: voiceName);
         } catch (e) {
           debugPrint('Piper synthesize error: $e');
         }
@@ -301,32 +314,29 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         final tempDir = await getTemporaryDirectory();
         final tempFile = File('${tempDir.path}/chat_response.wav');
         await tempFile.writeAsBytes(audioData);
-        
+
         await _audioPlayer.setFilePath(tempFile.path);
         await _audioPlayer.play();
-        
+
         // Bitmesini bekle
         await _audioPlayer.playerStateStream.firstWhere(
-          (state) => state.processingState == ProcessingState.completed
-        );
-        
+            (state) => state.processingState == ProcessingState.completed);
       } else {
         // 2. Fallback: Flutter TTS (System)
         debugPrint('Main Chat: Piper başarısız, System TTS kullanılıyor.');
         if (_selectedVoice != null) {
-           String locale = _selectedVoice!.locale.replaceAll('_', '-');
-           await _flutterTts.setLanguage(locale);
-           // Pitch ayarı
-           if (_selectedVoice!.gender == 'female') {
-              await _flutterTts.setPitch(1.1);
-           } else {
-              await _flutterTts.setPitch(0.9);
-           }
+          String locale = _selectedVoice!.locale.replaceAll('_', '-');
+          await _flutterTts.setLanguage(locale);
+          // Pitch ayarı
+          if (_selectedVoice!.gender == 'female') {
+            await _flutterTts.setPitch(1.1);
+          } else {
+            await _flutterTts.setPitch(0.9);
+          }
         }
         await _flutterTts.speak(text);
         // awaitSpeakCompletion(true) olduğu için burada bekler
       }
-      
     } catch (e) {
       debugPrint('TTS error: $e');
     } finally {
@@ -350,7 +360,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     }
 
     if (_messageController.text.trim().isEmpty) return;
-    
+
     final userMessage = _messageController.text.trim();
     setState(() {
       _messages.add(ChatMessage(
@@ -362,15 +372,15 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     });
     _messageController.clear();
     _scrollToBottom();
-    
+
     try {
       // Backend'den gerçek AI yanıtı al (senaryo varsa ilet)
       final response = await _chatbotService.chat(
-        userMessage, 
+        userMessage,
         scenario: _activeScenario,
         scenarioContext: _activeScenarioContext,
       );
-      
+
       if (mounted) {
         setState(() => _isTyping = false);
         _addBotMessage(response, speak: true);
@@ -378,6 +388,12 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     } catch (e) {
       if (mounted) {
         setState(() => _isTyping = false);
+        if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+          if (e is ApiUpgradeRequiredException) {
+            _addBotMessage(AiErrorMessageFormatter.forUpgrade(e));
+          }
+          return;
+        }
         if (e is ApiQuotaExceededException) {
           _addBotMessage(AiErrorMessageFormatter.forQuota(e));
           return;
@@ -389,7 +405,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
             'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.';
         if (errorText.contains('SocketException') ||
             errorText.contains('Failed host lookup')) {
-          errorMsg = 'İnternet bağlantısı yok. WiFi veya mobil veriyi kontrol et!';
+          errorMsg =
+              'İnternet bağlantısı yok. WiFi veya mobil veriyi kontrol et!';
         } else if (errorText.contains('TimeoutException')) {
           errorMsg = 'Sunucu yanıt vermiyor. Biraz sonra tekrar dene!';
         }
@@ -434,7 +451,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   /// Yeni sohbet başlat
   void _startNewChat() {
     if (_messages.isEmpty) return;
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -458,9 +475,11 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 _activeScenarioName = null;
                 _activeScenarioContext = null;
               });
-              _addBotMessage('Yeni bir sohbete başladık! Seninle konuşmak güzel. 😊');
+              _addBotMessage(
+                  'Yeni bir sohbete başladık! Seninle konuşmak güzel. 😊');
             },
-            child: const Text('Evet', style: TextStyle(color: Color(0xFF0ea5e9))),
+            child:
+                const Text('Evet', style: TextStyle(color: Color(0xFF0ea5e9))),
           ),
         ],
       ),
@@ -476,7 +495,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         'subtitle': 'Mülakat Sonrası Takip',
         'icon': Icons.business_center,
         'color': const Color(0xFF8b5cf6),
-        'welcomeMessage': "Hi there! This is Sarah from HR. Thanks for reaching out after your interview yesterday. How can I help you today?",
+        'welcomeMessage':
+            "Hi there! This is Sarah from HR. Thanks for reaching out after your interview yesterday. How can I help you today?",
       },
       {
         'id': 'academic_presentation_qa',
@@ -484,7 +504,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         'subtitle': 'Akademik Sunum Soru-Cevap',
         'icon': Icons.school,
         'color': const Color(0xFF0ea5e9),
-        'welcomeMessage': "Thank you for that presentation. I'm Dr. Johnson. I have a few questions about your methodology. First, could you explain how you collected your data?",
+        'welcomeMessage':
+            "Thank you for that presentation. I'm Dr. Johnson. I have a few questions about your methodology. First, could you explain how you collected your data?",
       },
       {
         'id': 'disagreement_colleague',
@@ -492,7 +513,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         'subtitle': 'Meslektaşla Anlaşmazlık',
         'icon': Icons.people_outline,
         'color': const Color(0xFFf59e0b),
-        'welcomeMessage': "Hey, I got your email about the project direction. Look, I respect your opinion, but I really think we should reconsider this approach. What's your rationale here?",
+        'welcomeMessage':
+            "Hey, I got your email about the project direction. Look, I respect your opinion, but I really think we should reconsider this approach. What's your rationale here?",
       },
       {
         'id': 'explaining_to_manager',
@@ -500,7 +522,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         'subtitle': 'Yöneticiye Açıklama',
         'icon': Icons.person_outline,
         'color': const Color(0xFF10b981),
-        'welcomeMessage': "I have 10 minutes before my next meeting. You wanted to discuss something with me? Go ahead, what is it?",
+        'welcomeMessage':
+            "I have 10 minutes before my next meeting. You wanted to discuss something with me? Go ahead, what is it?",
       },
     ];
 
@@ -527,7 +550,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             // Title
             Row(
               children: [
@@ -537,7 +560,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                     color: const Color(0xFF0ea5e9).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.theater_comedy, color: Color(0xFF0ea5e9), size: 24),
+                  child: const Icon(Icons.theater_comedy,
+                      color: Color(0xFF0ea5e9), size: 24),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -561,104 +585,111 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Current scenario indicator
             if (_activeScenario != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: const Color(0xFF22c55e).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF22c55e).withOpacity(0.4)),
+                  border: Border.all(
+                      color: const Color(0xFF22c55e).withOpacity(0.4)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Color(0xFF22c55e), size: 16),
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF22c55e), size: 16),
                     const SizedBox(width: 8),
                     Text(
                       'Aktif: $_activeScenarioName',
-                      style: const TextStyle(color: Color(0xFF22c55e), fontSize: 12),
+                      style: const TextStyle(
+                          color: Color(0xFF22c55e), fontSize: 12),
                     ),
                   ],
                 ),
               ),
-            
+
             // Scenario cards
             ...scenarios.map((scenario) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _startScenario(
-                      scenario['id'] as String,
-                      scenario['name'] as String,
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: (scenario['color'] as Color).withOpacity(0.1),
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _startScenario(
+                          scenario['id'] as String,
+                          scenario['name'] as String,
+                        );
+                      },
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _activeScenario == scenario['id']
-                            ? (scenario['color'] as Color)
-                            : (scenario['color'] as Color).withOpacity(0.3),
-                        width: _activeScenario == scenario['id'] ? 2 : 1,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: (scenario['color'] as Color).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _activeScenario == scenario['id']
+                                ? (scenario['color'] as Color)
+                                : (scenario['color'] as Color).withOpacity(0.3),
+                            width: _activeScenario == scenario['id'] ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: (scenario['color'] as Color)
+                                    .withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                scenario['icon'] as IconData,
+                                color: scenario['color'] as Color,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    scenario['name'] as String,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    scenario['subtitle'] as String,
+                                    style: const TextStyle(
+                                        color: Colors.white54, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color:
+                                  (scenario['color'] as Color).withOpacity(0.6),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (scenario['color'] as Color).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            scenario['icon'] as IconData,
-                            color: scenario['color'] as Color,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                scenario['name'] as String,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                scenario['subtitle'] as String,
-                                style: const TextStyle(color: Colors.white54, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: (scenario['color'] as Color).withOpacity(0.6),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-              ),
-            )),
-            
+                )),
+
             const Divider(color: Colors.white12, height: 24),
-            
+
             // Free chat option
             Material(
               color: Colors.transparent,
@@ -688,7 +719,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                           color: Colors.white.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.chat_bubble_outline, color: Colors.white70, size: 22),
+                        child: const Icon(Icons.chat_bubble_outline,
+                            color: Colors.white70, size: 22),
                       ),
                       const SizedBox(width: 14),
                       const Expanded(
@@ -705,19 +737,21 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                             ),
                             Text(
                               'Normal konuşma pratiği',
-                              style: TextStyle(color: Colors.white54, fontSize: 11),
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                       if (_activeScenario == null)
-                        const Icon(Icons.check_circle, color: Color(0xFF22c55e), size: 20),
+                        const Icon(Icons.check_circle,
+                            color: Color(0xFF22c55e), size: 20),
                     ],
                   ),
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 20),
           ],
         ),
@@ -729,7 +763,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   void _startScenario(String scenarioId, String scenarioName) {
     String? contextText;
     if (scenarioId == 'disagreement_colleague') {
-      contextText = _disagreementTopics[DateTime.now().millisecond % _disagreementTopics.length];
+      contextText = _disagreementTopics[
+          DateTime.now().millisecond % _disagreementTopics.length];
     }
 
     setState(() {
@@ -738,10 +773,10 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       _activeScenarioName = scenarioName;
       _activeScenarioContext = contextText;
     });
-    
+
     // Senaryo başlangıç mesajı (Context'e göre dinamik olabilir)
     _sendScenarioWelcomeMessage(scenarioId);
-    
+
     // Bilgi mesajı
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -763,14 +798,14 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   /// Senaryodan çık
   void _exitScenario() {
     if (_activeScenario == null) return;
-    
+
     setState(() {
       _messages.clear();
       _activeScenario = null;
       _activeScenarioName = null;
       _activeScenarioContext = null;
     });
-    
+
     _addBotMessage(
       'Serbest sohbete döndük! Ben ${_selectedVoice?.name ?? 'Amy'}. Ne hakkında konuşmak istersin? 😊',
       speak: true,
@@ -780,36 +815,38 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   /// Sohbeti kaydet
   Future<void> _saveConversation() async {
     if (_messages.isEmpty) return;
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Existing conversations
       final existingJson = prefs.getString('saved_conversations') ?? '[]';
       final List<dynamic> conversations = jsonDecode(existingJson);
-      
+
       // Create new conversation object
       final newConversation = {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'date': DateTime.now().toIso8601String(),
         'voiceName': _selectedVoice?.name ?? 'AI Bot',
         'messageCount': _messages.length,
-        'messages': _messages.map((m) => {
-          'text': m.text,
-          'isBot': m.isBot,
-          'time': m.time,
-        }).toList(),
+        'messages': _messages
+            .map((m) => {
+                  'text': m.text,
+                  'isBot': m.isBot,
+                  'time': m.time,
+                })
+            .toList(),
       };
-      
+
       conversations.insert(0, newConversation);
-      
+
       // Keep only last 3 conversations
       if (conversations.length > 3) {
         conversations.removeRange(3, conversations.length);
       }
-      
+
       await prefs.setString('saved_conversations', jsonEncode(conversations));
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -836,9 +873,9 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     final prefs = await SharedPreferences.getInstance();
     final existingJson = prefs.getString('saved_conversations') ?? '[]';
     final List<dynamic> conversations = jsonDecode(existingJson);
-    
+
     if (!mounted) return;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1e293b),
@@ -903,13 +940,15 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                       itemCount: conversations.length,
                       itemBuilder: (_, index) {
                         final conv = conversations[index];
-                        final date = DateTime.tryParse(conv['date'] ?? '') ?? DateTime.now();
-                        final messages = conv['messages'] as List<dynamic>? ?? [];
+                        final date = DateTime.tryParse(conv['date'] ?? '') ??
+                            DateTime.now();
+                        final messages =
+                            conv['messages'] as List<dynamic>? ?? [];
                         final firstUserMsg = messages.firstWhere(
                           (m) => m['isBot'] == false,
                           orElse: () => {'text': 'Sohbet'},
                         );
-                        
+
                         return Dismissible(
                           key: Key(conv['id'].toString()),
                           direction: DismissDirection.endToStart,
@@ -917,9 +956,11 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 20),
                             color: Colors.red,
-                            child: const Icon(Icons.delete, color: Colors.white),
+                            child:
+                                const Icon(Icons.delete, color: Colors.white),
                           ),
-                          onDismissed: (_) => _deleteConversation(conv['id'].toString()),
+                          onDismissed: (_) =>
+                              _deleteConversation(conv['id'].toString()),
                           child: Card(
                             color: const Color(0xFF0f172a),
                             margin: const EdgeInsets.only(bottom: 8),
@@ -935,13 +976,16 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                                 (firstUserMsg['text'] as String).length > 40
                                     ? '${(firstUserMsg['text'] as String).substring(0, 40)}...'
                                     : firstUserMsg['text'],
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 14),
                               ),
                               subtitle: Text(
                                 '${conv['voiceName']} • ${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')} • ${conv['messageCount']} mesaj',
-                                style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                style: const TextStyle(
+                                    color: Colors.white38, fontSize: 11),
                               ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                              trailing: const Icon(Icons.chevron_right,
+                                  color: Colors.white38),
                               onTap: () {
                                 Navigator.pop(ctx);
                                 _loadConversation(conv);
@@ -961,7 +1005,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   /// Sohbeti yükle
   void _loadConversation(Map<String, dynamic> conv) {
     final messages = conv['messages'] as List<dynamic>? ?? [];
-    
+
     setState(() {
       _messages.clear();
       for (final m in messages) {
@@ -972,9 +1016,9 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         ));
       }
     });
-    
+
     _scrollToBottom();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${conv['voiceName']} ile sohbet yüklendi'),
@@ -989,10 +1033,10 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     final prefs = await SharedPreferences.getInstance();
     final existingJson = prefs.getString('saved_conversations') ?? '[]';
     final List<dynamic> conversations = jsonDecode(existingJson);
-    
+
     conversations.removeWhere((c) => c['id'].toString() == id);
     await prefs.setString('saved_conversations', jsonEncode(conversations));
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1011,7 +1055,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
         children: [
           // Animated Background
           const AnimatedBackground(isDark: true),
-          
+
           // Floating particles
           AnimatedBuilder(
             animation: _particleController,
@@ -1022,19 +1066,20 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
               );
             },
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
               children: [
                 // App Bar
                 _buildAppBar(),
-                
+
                 // Messages List
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: _messages.length + (_isTyping ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == _messages.length && _isTyping) {
@@ -1044,7 +1089,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                     },
                   ),
                 ),
-                
+
                 // Input Area
                 _buildInputArea(),
               ],
@@ -1059,7 +1104,10 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     // Request permission first
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mikrofon izni gerekli.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mikrofon izni gerekli.')));
+      }
       return;
     }
 
@@ -1067,28 +1115,30 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
       bool available = await _speech.initialize(
         onStatus: (val) {
           if (val == 'done' || val == 'notListening') {
-             // If stopped automatically (silence or timeout)
-             if (mounted && _isListening) {
-               // Only auto-send if autoSendMode is on
-               if (_autoSendMode) {
-                 _stopAndSend(manual: false);
-               } else {
-                 // Manual mode: just stop listening, don't send
-                 setState(() => _isListening = false);
-               }
-             }
+            // If stopped automatically (silence or timeout)
+            if (mounted && _isListening) {
+              // Only auto-send if autoSendMode is on
+              if (_autoSendMode) {
+                _stopAndSend(manual: false);
+              } else {
+                // Manual mode: just stop listening, don't send
+                setState(() => _isListening = false);
+              }
+            }
           }
         },
         onError: (val) => debugPrint('STT Error: $val'),
       );
       if (available) {
-        if(mounted) setState(() {
-          _isListening = true;
-          // Only set true, don't reset to false here unless manual stop?
-          // Actually, if we start, we assume continuous unless told otherwise?
-          // Let's set it true here to ensure loop starts/continues.
-          _continuousListening = true; 
-        });
+        if (mounted) {
+          setState(() {
+            _isListening = true;
+            // Only set true, don't reset to false here unless manual stop?
+            // Actually, if we start, we assume continuous unless told otherwise?
+            // Let's set it true here to ensure loop starts/continues.
+            _continuousListening = true;
+          });
+        }
         _speech.listen(
           onResult: (val) {
             setState(() {
@@ -1100,10 +1150,10 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
           localeId: 'en_US',
         );
       } else {
-        if(mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Ses algılama başlatılamadı.')),
-           );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ses algılama başlatılamadı.')),
+          );
         }
       }
     }
@@ -1112,16 +1162,16 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
   void _stopAndSend({bool manual = false}) {
     if (_isListening) {
       _speech.stop();
-      if(mounted) {
+      if (mounted) {
         setState(() {
           _isListening = false;
           if (manual) _continuousListening = false;
         });
         // Delay slightly to ensure final result is captured
         Future.delayed(const Duration(milliseconds: 500), () {
-           if (_messageController.text.trim().isNotEmpty) {
-             _sendMessage();
-           }
+          if (_messageController.text.trim().isNotEmpty) {
+            _sendMessage();
+          }
         });
       }
     }
@@ -1137,7 +1187,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
-          
+
           // Bot Avatar - Eğer konuşmacı seçiliyse avatarını göster
           if (_selectedVoice != null)
             ClipRRect(
@@ -1215,7 +1265,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
               ),
             ),
           const SizedBox(width: 12),
-          
+
           // Bot Info
           Expanded(
             child: Column(
@@ -1246,9 +1296,13 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                             ? '$_activeScenarioName'
                             : (_selectedVoice != null
                                 ? '${_selectedVoice!.accent} • Sohbete hazır'
-                                : (_ttsAvailable ? 'Online - Sesli cevap aktif' : 'Online - Ready to chat')),
+                                : (_ttsAvailable
+                                    ? 'Online - Sesli cevap aktif'
+                                    : 'Online - Ready to chat')),
                         style: TextStyle(
-                          color: _activeScenario != null ? const Color(0xFF8b5cf6) : const Color(0xFF0ea5e9),
+                          color: _activeScenario != null
+                              ? const Color(0xFF8b5cf6)
+                              : const Color(0xFF0ea5e9),
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -1260,7 +1314,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
               ],
             ),
           ),
-          
+
           // Popup Menu for extra actions
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white54),
@@ -1292,7 +1346,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 value: 'new',
                 child: Row(
                   children: [
-                    Icon(Icons.add_circle_outline, color: Colors.white54, size: 20),
+                    Icon(Icons.add_circle_outline,
+                        color: Colors.white54, size: 20),
                     SizedBox(width: 12),
                     Text('Yeni Sohbet', style: TextStyle(color: Colors.white)),
                   ],
@@ -1303,9 +1358,17 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 enabled: _messages.isNotEmpty,
                 child: Row(
                   children: [
-                    Icon(Icons.save_outlined, color: _messages.isNotEmpty ? Colors.white54 : Colors.white24, size: 20),
+                    Icon(Icons.save_outlined,
+                        color: _messages.isNotEmpty
+                            ? Colors.white54
+                            : Colors.white24,
+                        size: 20),
                     const SizedBox(width: 12),
-                    Text('Sohbeti Kaydet', style: TextStyle(color: _messages.isNotEmpty ? Colors.white : Colors.white38)),
+                    Text('Sohbeti Kaydet',
+                        style: TextStyle(
+                            color: _messages.isNotEmpty
+                                ? Colors.white
+                                : Colors.white38)),
                   ],
                 ),
               ),
@@ -1315,7 +1378,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                   children: [
                     Icon(Icons.history, color: Colors.white54, size: 20),
                     SizedBox(width: 12),
-                    Text('Sohbet Geçmişi', style: TextStyle(color: Colors.white)),
+                    Text('Sohbet Geçmişi',
+                        style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -1323,9 +1387,11 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 value: 'voice',
                 child: Row(
                   children: [
-                    Icon(Icons.record_voice_over, color: Colors.white54, size: 20),
+                    Icon(Icons.record_voice_over,
+                        color: Colors.white54, size: 20),
                     SizedBox(width: 12),
-                    Text('Konuşmacı Değiştir', style: TextStyle(color: Colors.white)),
+                    Text('Konuşmacı Değiştir',
+                        style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -1335,14 +1401,20 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                   children: [
                     Icon(
                       Icons.theater_comedy,
-                      color: _activeScenario != null ? const Color(0xFF8b5cf6) : Colors.white54,
+                      color: _activeScenario != null
+                          ? const Color(0xFF8b5cf6)
+                          : Colors.white54,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      _activeScenario != null ? 'Senaryo: $_activeScenarioName' : 'Senaryo Seç',
+                      _activeScenario != null
+                          ? 'Senaryo: $_activeScenarioName'
+                          : 'Senaryo Seç',
                       style: TextStyle(
-                        color: _activeScenario != null ? const Color(0xFF8b5cf6) : Colors.white,
+                        color: _activeScenario != null
+                            ? const Color(0xFF8b5cf6)
+                            : Colors.white,
                       ),
                     ),
                   ],
@@ -1352,15 +1424,26 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 value: 'blur',
                 child: Row(
                   children: [
-                    Icon(_blurBotMessages ? Icons.visibility : Icons.visibility_off, color: _blurBotMessages ? const Color(0xFF0ea5e9) : Colors.white54, size: 20),
+                    Icon(
+                        _blurBotMessages
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: _blurBotMessages
+                            ? const Color(0xFF0ea5e9)
+                            : Colors.white54,
+                        size: 20),
                     const SizedBox(width: 12),
-                    Text(_blurBotMessages ? 'Metni Göster' : 'Metni Gizle (Dinleme)', style: const TextStyle(color: Colors.white)),
+                    Text(
+                        _blurBotMessages
+                            ? 'Metni Göster'
+                            : 'Metni Gizle (Dinleme)',
+                        style: const TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
             ],
           ),
-          
+
           // Sound Toggle
           IconButton(
             onPressed: () => setState(() => _ttsEnabled = !_ttsEnabled),
@@ -1378,7 +1461,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
-        crossAxisAlignment: message.isBot ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        crossAxisAlignment:
+            message.isBot ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         children: [
           if (message.isBot)
             Padding(
@@ -1403,7 +1487,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                             ),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 14),
+                          child: const Icon(Icons.smart_toy_outlined,
+                              color: Colors.white, size: 14),
                         ),
                       ),
                     )
@@ -1438,7 +1523,9 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                     GestureDetector(
                       onTap: () => _speakText(message.text),
                       child: Icon(
-                        _isSpeaking ? Icons.stop_circle_outlined : Icons.volume_up,
+                        _isSpeaking
+                            ? Icons.stop_circle_outlined
+                            : Icons.volume_up,
                         color: const Color(0xFF0ea5e9),
                         size: 18,
                       ),
@@ -1447,7 +1534,6 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                 ],
               ),
             ),
-          
           Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.75,
@@ -1474,7 +1560,9 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                   : null,
               boxShadow: [
                 BoxShadow(
-                  color: (message.isBot ? const Color(0xFF1e3a8a) : const Color(0xFF0ea5e9))
+                  color: (message.isBot
+                          ? const Color(0xFF1e3a8a)
+                          : const Color(0xFF0ea5e9))
                       .withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
@@ -1515,7 +1603,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                         Positioned.fill(
                           child: Center(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.black38,
                                 borderRadius: BorderRadius.circular(8),
@@ -1523,11 +1612,13 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.touch_app, color: Colors.white70, size: 14),
+                                  Icon(Icons.touch_app,
+                                      color: Colors.white70, size: 14),
                                   SizedBox(width: 4),
                                   Text(
                                     'Görmek için dokun',
-                                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                                    style: TextStyle(
+                                        color: Colors.white70, fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -1572,7 +1663,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
             decoration: BoxDecoration(
               color: const Color(0xFF1e3a8a).withOpacity(0.5),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.2)),
+              border:
+                  Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1624,40 +1716,43 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
             children: [
               // Mic Button (Voice Input)
               GestureDetector(
-                  onTap: () {
-                    if (_isListening) {
-                      _stopAndSend(manual: true);
-                    } else {
-                      _startListening();
-                    }
-                  },
+                onTap: () {
+                  if (_isListening) {
+                    _stopAndSend(manual: true);
+                  } else {
+                    _startListening();
+                  }
+                },
                 child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _isListening ? const Color(0xFFef4444) : Colors.white.withOpacity(0.1),
+                    color: _isListening
+                        ? const Color(0xFFef4444)
+                        : Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: _isListening ? [
-                      BoxShadow(
-                        color: const Color(0xFFef4444).withOpacity(0.5),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ) 
-                    ] : [],
+                    boxShadow: _isListening
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFFef4444).withOpacity(0.5),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            )
+                          ]
+                        : [],
                   ),
-                  child: Icon(
-                    _isListening ? Icons.stop : Icons.mic, 
-                    color: Colors.white, 
-                    size: 22
-                  ),
+                  child: Icon(_isListening ? Icons.stop : Icons.mic,
+                      color: Colors.white, size: 22),
                 ),
               ),
               const SizedBox(width: 8),
-              
+
               // Playback Button (only in manual mode)
               if (!_autoSendMode)
                 GestureDetector(
-                  onTap: _messageController.text.trim().isNotEmpty ? _playbackUserMessage : null,
+                  onTap: _messageController.text.trim().isNotEmpty
+                      ? _playbackUserMessage
+                      : null,
                   child: Container(
                     width: 40,
                     height: 44,
@@ -1667,13 +1762,15 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                     ),
                     child: Icon(
                       Icons.play_arrow,
-                      color: _messageController.text.trim().isNotEmpty ? const Color(0xFF22c55e) : Colors.white24,
+                      color: _messageController.text.trim().isNotEmpty
+                          ? const Color(0xFF22c55e)
+                          : Colors.white24,
                       size: 22,
                     ),
                   ),
                 ),
               if (!_autoSendMode) const SizedBox(width: 8),
-              
+
               // Text Input
               Expanded(
                 child: Container(
@@ -1690,15 +1787,17 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                       hintText: 'Type your message in English...',
                       hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     ),
-                    onChanged: (_) => setState(() {}), // Rebuild for playback button visibility
+                    onChanged: (_) => setState(
+                        () {}), // Rebuild for playback button visibility
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Send Button
               Container(
                 width: 48,
@@ -1726,7 +1825,7 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Voice Mode Toggle & Bottom Hint
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1735,12 +1834,15 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
               GestureDetector(
                 onTap: () => setState(() => _autoSendMode = !_autoSendMode),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _autoSendMode ? const Color(0xFF22c55e) : const Color(0xFFf59e0b),
+                      color: _autoSendMode
+                          ? const Color(0xFF22c55e)
+                          : const Color(0xFFf59e0b),
                       width: 1,
                     ),
                   ),
@@ -1749,14 +1851,18 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
                     children: [
                       Icon(
                         _autoSendMode ? Icons.auto_mode : Icons.touch_app,
-                        color: _autoSendMode ? const Color(0xFF22c55e) : const Color(0xFFf59e0b),
+                        color: _autoSendMode
+                            ? const Color(0xFF22c55e)
+                            : const Color(0xFFf59e0b),
                         size: 14,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         _autoSendMode ? 'Otomatik' : 'Manuel',
                         style: TextStyle(
-                          color: _autoSendMode ? const Color(0xFF22c55e) : const Color(0xFFf59e0b),
+                          color: _autoSendMode
+                              ? const Color(0xFF22c55e)
+                              : const Color(0xFFf59e0b),
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1767,8 +1873,8 @@ class _AIBotChatPageState extends State<AIBotChatPage> with TickerProviderStateM
               ),
               const SizedBox(width: 12),
               Text(
-                _autoSendMode 
-                    ? 'Sessizlikte otomatik gönderir' 
+                _autoSendMode
+                    ? 'Sessizlikte otomatik gönderir'
                     : 'Sen gönder butonuna bas',
                 style: const TextStyle(
                   color: Colors.white38,
@@ -1798,9 +1904,9 @@ class ChatMessage {
 // Custom audio source for just_audio
 class MyCustomSource extends StreamAudioSource {
   final Uint8List _buffer;
-  
+
   MyCustomSource(this._buffer);
-  
+
   @override
   Future<StreamAudioResponse> request([int? start, int? end]) async {
     start ??= 0;
@@ -1818,27 +1924,30 @@ class MyCustomSource extends StreamAudioSource {
 // Particles Painter for floating animation
 class ParticlesPainter extends CustomPainter {
   final double animationValue;
-  
+
   ParticlesPainter(this.animationValue);
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = const Color(0xFF0ea5e9).withOpacity(0.3)
       ..style = PaintingStyle.fill;
-    
+
     // Draw floating particles
     for (int i = 0; i < 20; i++) {
-      final x = (size.width * (0.1 + (i * 0.05) + animationValue * 0.1)) % size.width;
-      final y = (size.height * (0.1 + (i * 0.04) + animationValue * 0.2)) % size.height;
+      final x =
+          (size.width * (0.1 + (i * 0.05) + animationValue * 0.1)) % size.width;
+      final y = (size.height * (0.1 + (i * 0.04) + animationValue * 0.2)) %
+          size.height;
       final radius = 1.0 + (i % 3);
-      
+
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }
-  
+
   @override
   bool shouldRepaint(covariant ParticlesPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue;
   }
 }
+

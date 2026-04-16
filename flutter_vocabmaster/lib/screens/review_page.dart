@@ -3,7 +3,6 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../widgets/navigation_menu_panel.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/global_matchmaking_sheet.dart';
 import '../services/global_state.dart';
 import '../services/offline_sync_service.dart';
 import '../models/word.dart';
@@ -15,7 +14,7 @@ import '../screens/quick_dictionary_page.dart';
 import '../screens/social_feed_page.dart';
 
 class ReviewPage extends StatefulWidget {
-  const ReviewPage({Key? key}) : super(key: key);
+  const ReviewPage({super.key});
 
   @override
   State<ReviewPage> createState() => _ReviewPageState();
@@ -351,8 +350,8 @@ class _ReviewPageState extends State<ReviewPage> {
                                                               SizedBox(height: smallSpacerHeight + 4),
                                                               Text(
                                                                 _showTranslation ? word.sentences.first.translation : 'Çeviri görmek için dokunun',
-                                                                style: TextStyle(
-                                                                  color: const Color(0xFF06b6d4),
+                                                                style: const TextStyle(
+                                                                  color: Color(0xFF06b6d4),
                                                                   fontSize: 12,
                                                                   fontWeight: FontWeight.w500,
                                                                 ),
@@ -564,3 +563,4 @@ class _ReviewPageState extends State<ReviewPage> {
     );
   }
 }
+

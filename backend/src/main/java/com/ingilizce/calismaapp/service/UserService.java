@@ -44,6 +44,9 @@ public class UserService {
             } else {
                 user.setSubscriptionEndDate(currentEnd.plusDays(days));
             }
+            if (user.getAiPlanCode() == null || user.getAiPlanCode().isBlank() || "FREE".equalsIgnoreCase(user.getAiPlanCode())) {
+                user.setAiPlanCode(AiPlanTier.PREMIUM.name());
+            }
 
             userRepository.save(user);
             return true;

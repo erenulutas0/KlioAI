@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,25 @@ public class UserController {
 
     private UserDto mapToUserDto(User user) {
         return new UserDto(user.getId(), user.getDisplayName(), user.getUserTag(), user.isOnline());
+    }
+
+    private Map<String, Object> mapToUserProfile(User user) {
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", user.getId());
+        profile.put("userId", user.getId());
+        profile.put("email", user.getEmail());
+        profile.put("displayName", user.getDisplayName());
+        profile.put("userTag", user.getUserTag());
+        profile.put("role", user.getRole().name());
+        profile.put("subscriptionEndDate", user.getSubscriptionEndDate() != null ? user.getSubscriptionEndDate() : "null");
+        profile.put("isSubscriptionActive", user.isSubscriptionActive());
+        profile.put("aiPlanCode", user.getAiPlanCode());
+        profile.put("trialEligible", user.isTrialEligible());
+        profile.put("createdAt", user.getCreatedAt());
+        profile.put("lastSeenAt", user.getLastSeenAt() != null ? user.getLastSeenAt() : "null");
+        profile.put("emailVerified", user.isEmailVerified());
+        profile.put("emailVerifiedAt", user.getEmailVerifiedAt() != null ? user.getEmailVerifiedAt() : "null");
+        return profile;
     }
 
     @GetMapping
@@ -59,12 +79,12 @@ public class UserController {
 
     // Get current user details (simulated by ID)
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserProfile(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getUserProfile(@PathVariable Long id) {
         if (!currentUserContext.isSelfOrAdmin(id)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         Optional<User> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
+        return user.map(value -> ResponseEntity.ok(mapToUserProfile(value)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -116,3 +136,4 @@ public class UserController {
         return ResponseEntity.notFound().build();
     }
 }
+

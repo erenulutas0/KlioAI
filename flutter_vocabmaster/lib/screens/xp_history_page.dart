@@ -3,7 +3,7 @@ import '../services/local_database_service.dart';
 import '../widgets/animated_background.dart';
 
 class XpHistoryPage extends StatefulWidget {
-  const XpHistoryPage({Key? key}) : super(key: key);
+  const XpHistoryPage({super.key});
 
   @override
   State<XpHistoryPage> createState() => _XpHistoryPageState();
@@ -189,3 +189,4 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
     );
   }
 }
+

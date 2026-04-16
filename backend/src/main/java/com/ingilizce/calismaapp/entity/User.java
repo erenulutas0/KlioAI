@@ -28,6 +28,9 @@ public class User {
     @Column(name = "subscription_end_date")
     private LocalDateTime subscriptionEndDate;
 
+    @Column(name = "ai_plan_code", nullable = false)
+    private String aiPlanCode = "FREE";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
@@ -40,6 +43,9 @@ public class User {
 
     @Column(name = "email_verified_at")
     private LocalDateTime emailVerifiedAt;
+
+    @Column(name = "trial_eligible", nullable = false)
+    private boolean trialEligible = true;
 
     public enum Role {
         USER,
@@ -133,6 +139,14 @@ public class User {
         this.subscriptionEndDate = subscriptionEndDate;
     }
 
+    public String getAiPlanCode() {
+        return aiPlanCode;
+    }
+
+    public void setAiPlanCode(String aiPlanCode) {
+        this.aiPlanCode = (aiPlanCode == null || aiPlanCode.isBlank()) ? "FREE" : aiPlanCode;
+    }
+
     public Role getRole() {
         return role;
     }
@@ -180,4 +194,13 @@ public class User {
     public boolean isEmailVerified() {
         return emailVerifiedAt != null;
     }
+
+    public boolean isTrialEligible() {
+        return trialEligible;
+    }
+
+    public void setTrialEligible(boolean trialEligible) {
+        this.trialEligible = trialEligible;
+    }
 }
+

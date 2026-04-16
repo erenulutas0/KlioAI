@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class DailyWordCard extends StatefulWidget {
   final Map<String, dynamic> wordData;
@@ -12,7 +17,7 @@ class DailyWordCard extends StatefulWidget {
   final int index;
 
   const DailyWordCard({
-    Key? key,
+    super.key,
     required this.wordData,
     required this.onTap,
     required this.isWordAdded,
@@ -20,7 +25,7 @@ class DailyWordCard extends StatefulWidget {
     required this.index,
     this.onQuickAdd,
     this.onAddSentence,
-  }) : super(key: key);
+  });
 
   @override
   State<DailyWordCard> createState() => _DailyWordCardState();
@@ -72,6 +77,7 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme();
     // Determine colors based on difficulty
     final difficulty = (widget.wordData['difficulty'] as String? ?? 'Medium').toLowerCase();
     Color badgeColor;
@@ -117,16 +123,25 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: fullyAdded
-                      ? [const Color(0x2210B981), const Color(0x2214B8A6)]
-                      : const [Color(0x3306B6D4), Color(0x333B82F6)],
+                      ? [
+                          selectedTheme.colors.primary.withOpacity(0.18),
+                          selectedTheme.colors.accent.withOpacity(0.18),
+                        ]
+                      : [
+                          selectedTheme.colors.accent.withOpacity(0.20),
+                          selectedTheme.colors.primary.withOpacity(0.20),
+                        ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                border: Border.all(color: const Color(0x4D22D3EE), width: 1),
+                border: Border.all(
+                  color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+                  width: 1,
+                ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0x3306B6D4),
+                    color: selectedTheme.colors.accentGlow.withOpacity(0.32),
                     blurRadius: 12,
                     spreadRadius: 2,
                     offset: const Offset(0, 4),
@@ -202,9 +217,9 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                             // Sparkles Icon with Rotation
                             RotationTransition(
                               turns: _rotationController,
-                              child: const Icon(
+                              child: Icon(
                                 Icons.auto_awesome, 
-                                color: Color(0xFF22D3EE), 
+                                color: selectedTheme.colors.accent, 
                                 size: 16
                               ),
                             ),
@@ -217,14 +232,17 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withOpacity(0.2),
+                                      color: selectedTheme.colors.primary.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                                      border: Border.all(
+                                        color: selectedTheme.colors.primary
+                                            .withOpacity(0.5),
+                                      ),
                                     ),
-                                    child: const Text(
-                                      'Cümlesini Ekle',
+                                    child: Text(
+                                      context.tr('home.card.addSentence'),
                                       style: TextStyle(
-                                        color: Color(0xFF10B981),
+                                        color: selectedTheme.colors.primary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -239,14 +257,17 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withOpacity(0.15),
+                                    color: selectedTheme.colors.primary.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                                    border: Border.all(
+                                      color: selectedTheme.colors.primary
+                                          .withOpacity(0.4),
+                                    ),
                                   ),
-                                  child: const Text(
-                                    'Kelime + Cümle Eklendi',
+                                  child: Text(
+                                    context.tr('home.card.wordSentenceAdded'),
                                     style: TextStyle(
-                                      color: Color(0xFF10B981),
+                                      color: selectedTheme.colors.primary,
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -285,4 +306,14 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
       },
     );
   }
+
+  AppThemeConfig _currentTheme() {
+    try {
+      return Provider.of<ThemeProvider?>(context, listen: true)?.currentTheme ??
+          VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
 }
+

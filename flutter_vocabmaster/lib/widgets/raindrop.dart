@@ -7,13 +7,13 @@ class RaindropWidget extends StatefulWidget {
   final double screenHeight;
 
   const RaindropWidget({
-    Key? key, 
+    super.key, 
     required this.screenWidth, 
     required this.screenHeight
-  }) : super(key: key);
+  });
 
   @override
-  _RaindropWidgetState createState() => _RaindropWidgetState();
+  State<RaindropWidget> createState() => _RaindropWidgetState();
 }
 
 class _RaindropWidgetState extends State<RaindropWidget> with SingleTickerProviderStateMixin {
@@ -93,8 +93,8 @@ class _RaindropWidgetState extends State<RaindropWidget> with SingleTickerProvid
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFF06B6D4).withOpacity(0.6), // cyan 60%
-                    Color(0xFF06B6D4).withOpacity(0.3), // cyan 30%
+                    const Color(0xFF06B6D4).withOpacity(0.6), // cyan 60%
+                    const Color(0xFF06B6D4).withOpacity(0.3), // cyan 30%
                     Colors.transparent,
                   ],
                 ),
@@ -114,3 +114,4 @@ class _RaindropWidgetState extends State<RaindropWidget> with SingleTickerProvid
     );
   }
 }
+

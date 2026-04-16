@@ -59,6 +59,26 @@ Before go-live, complete these edge controls:
 
 Detailed checklist: `docs/PROD_DDOS_EDGE_CHECKLIST.md`.
 
+## 1.3) Google Sign-In Closed Test Prerequisites
+
+Before any internal/closed/open Play test that exposes Google login:
+
+- Firebase Android app (`com.VocabMaster`) must include the current upload-key SHA-1 and SHA-256.
+- Firebase Android app must also include the Google Play App Signing SHA-1 and SHA-256 from Play Console -> App integrity.
+- Matching Android OAuth client fingerprints must exist in Google Cloud Console for the same package.
+- After fingerprint changes, download a fresh `flutter_vocabmaster/android/app/google-services.json` and rebuild the AAB.
+
+Local repo guard:
+
+```powershell
+pwsh -File .\scripts\check-google-signin-android-config.ps1
+```
+
+Notes:
+
+- This check validates the repo upload keystore against `google-services.json`.
+- A PASS here does not replace the Play App Signing registration requirement for Play-distributed builds.
+
 ## 2) One-Command Verification Blocks
 
 Run from repository root (`C:\flutter-project-main`).
@@ -110,6 +130,7 @@ pwsh -File .\scripts\verify-rollout.ps1 -Mode local-gate -ProjectName flutter-pr
 
 What it runs:
 
+- `scripts/check-google-signin-android-config.ps1`
 - `mvn -q test`
 - `scripts/check-core-coverage.ps1 -Threshold 90`
 - `scripts/check-db-parity.ps1`

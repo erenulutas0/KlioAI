@@ -1,30 +1,91 @@
 param(
-    [switch]$SkipComposeConfig
+    [switch]$SkipComposeConfig,
+    [switch]$SkipPaymentChecks,
+    [switch]$SkipAlertmanagerChecks
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$dotenvPath = Join-Path $repoRoot ".env"
 
-$requiredVars = @(
+function Read-DotEnv {
+    param([string]$Path)
+
+    $map = @{}
+    if (-not (Test-Path $Path)) {
+        return $map
+    }
+
+    foreach ($line in Get-Content $Path) {
+        if ($line -match "^\s*#") {
+            continue
+        }
+        if ($line -match "^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$") {
+            $key = $matches[1]
+            $value = $matches[2].Trim()
+            $map[$key] = $value
+        }
+    }
+
+    return $map
+}
+
+function Resolve-EnvValue {
+    param(
+        [string]$Name,
+        [hashtable]$DotEnv
+    )
+
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not [string]::IsNullOrWhiteSpace($value)) {
+        return $value
+    }
+
+    if ($DotEnv.ContainsKey($Name)) {
+        return [string]$DotEnv[$Name]
+    }
+
+    return ""
+}
+
+$dotenv = Read-DotEnv -Path $dotenvPath
+
+$requiredVars = New-Object System.Collections.Generic.List[string]
+@(
     "POSTGRES_PASSWORD",
     "SPRING_DATA_REDIS_PASSWORD",
     "APP_CORS_ALLOWED_ORIGINS",
-    "IYZICO_API_KEY",
-    "IYZICO_API_SECRET",
-    "IYZICO_API_BASE_URL",
     "GROQ_API_KEY",
-    "ALERTMANAGER_DEFAULT_WEBHOOK_URL",
-    "ALERTMANAGER_CRITICAL_WEBHOOK_URL",
-    "ALERTMANAGER_WARNING_WEBHOOK_URL"
-)
+    "APP_SUBSCRIPTION_GOOGLE_PLAY_PACKAGE_NAME",
+    "APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH"
+) | ForEach-Object { [void]$requiredVars.Add($_) }
+
+if (-not $SkipPaymentChecks) {
+    Write-Host "[prod-alert-routing] INFO: Payment env checks are skipped by design (Google Play Billing only)."
+}
+
+if (-not $SkipAlertmanagerChecks) {
+    @(
+        "ALERTMANAGER_DEFAULT_WEBHOOK_URL",
+        "ALERTMANAGER_CRITICAL_WEBHOOK_URL",
+        "ALERTMANAGER_WARNING_WEBHOOK_URL"
+    ) | ForEach-Object { [void]$requiredVars.Add($_) }
+}
 
 $missing = New-Object System.Collections.Generic.List[string]
 foreach ($name in $requiredVars) {
-    $value = [Environment]::GetEnvironmentVariable($name)
+    $value = Resolve-EnvValue -Name $name -DotEnv $dotenv
     if ([string]::IsNullOrWhiteSpace($value)) {
         $missing.Add($name)
+    }
+}
+
+$googleServiceAccountHostPath = Resolve-EnvValue -Name "APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH" -DotEnv $dotenv
+if (-not [string]::IsNullOrWhiteSpace($googleServiceAccountHostPath)) {
+    if (-not (Test-Path -Path $googleServiceAccountHostPath -PathType Leaf)) {
+        $missing.Add("APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH(file-not-found)")
     }
 }
 
@@ -44,7 +105,13 @@ $composeBase = Join-Path $repoRoot "docker-compose.yml"
 $composeMonitoring = Join-Path $repoRoot "docker-compose.monitoring.yml"
 $composeProd = Join-Path $repoRoot "docker-compose.prod.yml"
 
-& docker compose -f $composeBase -f $composeMonitoring -f $composeProd config | Out-Null
+# If alert checks are skipped, production overlays may still enforce missing webhook vars
+# with `${VAR:?}`. In that case validate only the base compose file for syntax/sanity.
+if ($SkipAlertmanagerChecks) {
+    & docker compose -f $composeBase config | Out-Null
+} else {
+    & docker compose -f $composeBase -f $composeMonitoring -f $composeProd config | Out-Null
+}
 if ($LASTEXITCODE -ne 0) {
     throw "[prod-alert-routing] docker compose config failed."
 }

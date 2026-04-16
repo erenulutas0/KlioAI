@@ -308,7 +308,7 @@ GET + NESNE + V3
       comparison: '''
 🆚 Get something done vs Get someone to do:
 • "I got my car repaired." (Arabamı tamir ettirdim - kim yaptı önemsiz)
-• "I got Tom to repair my car." (Tom\'a tamir ettirdim - kişi belli)
+• "I got Tom to repair my car." (Tom'a tamir ettirdim - kişi belli)
 
 🆚 Have vs Get (topluca):
 • Have sth done = Get sth done (Yaptırmak)

@@ -23,6 +23,8 @@ public class GrammarCheckService {
     // Constructor Injection (Safe)
     private final GroqService groqService;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private AiModelRoutingService aiModelRoutingService;
     private boolean enabled = true;
 
     @Autowired
@@ -82,7 +84,7 @@ public class GrammarCheckService {
 
             // Groq API çağrısı
             logger.info("🚀 Calling Groq API...");
-            String jsonResponse = groqService.chatCompletion(messages, true);
+            String jsonResponse = groqService.chatCompletion(messages, true, resolveModelForScope("check-grammar"));
             logger.info("📩 Groq Response received (Length: {})",
                     jsonResponse != null ? jsonResponse.length() : "NULL");
 
@@ -133,5 +135,12 @@ public class GrammarCheckService {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    private String resolveModelForScope(String scope) {
+        if (aiModelRoutingService == null) {
+            return null;
+        }
+        return aiModelRoutingService.resolveModelForScope(scope);
     }
 }

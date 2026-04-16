@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../config/app_config.dart';
+import '../config/dotenv_safe.dart';
+import 'google_login_error_message_formatter.dart';
 import 'local_database_service.dart';
 import 'xp_manager.dart';
 
@@ -14,6 +16,7 @@ class AuthService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userDataKey = 'user_data';
   static const String _rememberMeKey = 'remember_me';
+  static const String _deviceIdKey = 'install_device_id';
 
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
@@ -36,7 +39,7 @@ class AuthService {
   }
 
   GoogleSignIn _createGoogleSignIn() {
-    final serverClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'];
+    final serverClientId = readDotEnvOrDefault('GOOGLE_WEB_CLIENT_ID');
     if (serverClientId != null && serverClientId.isNotEmpty) {
       return GoogleSignIn(
         scopes: ['email', 'profile'],
@@ -65,6 +68,22 @@ class AuthService {
     return _cachedRefreshToken;
   }
 
+  Future<String> getOrCreateDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+
+    final random = Random.secure();
+    final suffix = List.generate(16, (_) => random.nextInt(256))
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    final deviceId = 'vm-' + suffix;
+    await prefs.setString(_deviceIdKey, deviceId);
+    return deviceId;
+  }
+
   /// Kullanıcı verilerini al
   Future<Map<String, dynamic>?> getUser() async {
     if (_cachedUser != null) return _cachedUser;
@@ -91,20 +110,30 @@ class AuthService {
   /// Login (E-posta & Şifre)
   Future<Map<String, dynamic>> login(String email, String password,
       {bool rememberMe = false}) async {
-    final baseUrl = await AppConfig.apiBaseUrl;
-    final loginUri = Uri.parse('$baseUrl/auth/login');
+    Uri? loginUri;
     try {
+      final baseUrl = await AppConfig.apiBaseUrl;
+      final deviceId = await getOrCreateDeviceId();
+      loginUri = Uri.parse('$baseUrl/auth/login');
       final response = await http.post(
         loginUri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
         body: jsonEncode({
           'emailOrTag': email,
           'password': password,
           'deviceInfo': 'Flutter Mobile App',
+          'deviceId': deviceId,
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _decodeResponseBodyMap(
+        response.body,
+        context: 'login',
+        url: loginUri,
+      );
 
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['accessToken'] ?? data['sessionToken'];
@@ -139,7 +168,7 @@ class AuthService {
       }
     } catch (e) {
       // Bağlantı hatası durumunda offline giriş dene
-      print('Online login failed for $loginUri, trying offline: $e');
+      debugPrint('Online login failed for $loginUri, trying offline: $e');
       final offline = await _tryOfflineLogin(email, password);
       if (offline['success'] == true) {
         return offline;
@@ -151,7 +180,8 @@ class AuthService {
           : '';
       return {
         'success': false,
-        'message': '${msgPrefix}Bağlantı hatası: $e\nURL: $loginUri',
+        'message':
+            '${msgPrefix}Bağlantı hatası: $e\nURL: ${loginUri?.toString() ?? 'cozulmedi'}',
       };
     }
   }
@@ -224,24 +254,66 @@ class AuthService {
     return hash.toString();
   }
 
+  Map<String, dynamic> _decodeResponseBodyMap(
+    String body, {
+    required String context,
+    Uri? url,
+  }) {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) {
+      throw FormatException(
+        'Unexpected empty response during $context. URL: ${url?.toString() ?? 'unknown'}',
+      );
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      throw FormatException(
+        'Expected JSON object during $context but received ${decoded.runtimeType}. URL: ${url?.toString() ?? 'unknown'}',
+      );
+    } catch (_) {
+      final preview =
+          trimmed.length > 220 ? '${trimmed.substring(0, 220)}...' : trimmed;
+      throw FormatException(
+        'Unexpected non-JSON response during $context. URL: ${url?.toString() ?? 'unknown'} Body: $preview',
+      );
+    }
+  }
+
   /// Register (Kayıt Ol)
   Future<Map<String, dynamic>> register(
       String name, String email, String password) async {
-    final baseUrl = await AppConfig.apiBaseUrl;
-    final registerUri = Uri.parse('$baseUrl/auth/register');
+    Uri? registerUri;
     try {
+      final baseUrl = await AppConfig.apiBaseUrl;
+      final deviceId = await getOrCreateDeviceId();
+      registerUri = Uri.parse('$baseUrl/auth/register');
       final response = await http.post(
         registerUri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
         body: jsonEncode({
           'email': email,
           'password': password,
           'displayName': name, // Backend expects displayName
           'deviceInfo': 'Flutter Mobile App',
+          'deviceId': deviceId,
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _decodeResponseBodyMap(
+        response.body,
+        context: 'register',
+        url: registerUri,
+      );
 
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['accessToken'] ?? data['sessionToken'];
@@ -271,13 +343,15 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Bağlantı hatası: $e\nURL: $registerUri',
+        'message':
+            'Bağlantı hatası: $e\nURL: ${registerUri?.toString() ?? 'cozulmedi'}',
       };
     }
   }
 
   /// Google Login
   Future<Map<String, dynamic>> googleLogin() async {
+    Uri? googleLoginUri;
     try {
       _debugLog('googleLogin started');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -297,12 +371,14 @@ class AuthService {
 
       // Backend /google-login endpoint'ini kullan
       final baseUrl = await AppConfig.apiBaseUrl;
+      final deviceId = await getOrCreateDeviceId();
       final requestBody = <String, dynamic>{
         'email': googleUser.email,
         'displayName': googleUser.displayName ?? googleUser.email.split('@')[0],
         'photoUrl': googleUser.photoUrl,
         'googleId': googleUser.id,
         'deviceInfo': 'Flutter Mobile App',
+        'deviceId': deviceId,
       };
       if (idToken != null && idToken.isNotEmpty) {
         requestBody['idToken'] = idToken;
@@ -310,13 +386,21 @@ class AuthService {
       _debugLog(
         'POST $baseUrl/auth/google-login with googleId=${googleUser.id} email=${googleUser.email}',
       );
+      googleLoginUri = Uri.parse('$baseUrl/auth/google-login');
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/google-login'),
-        headers: {'Content-Type': 'application/json'},
+        googleLoginUri,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
         body: jsonEncode(requestBody),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _decodeResponseBodyMap(
+        response.body,
+        context: 'google-login',
+        url: googleLoginUri,
+      );
       final responseUser = data['user'];
       final responseUserId = responseUser is Map
           ? _toInt(responseUser['id']) ?? _toInt(responseUser['userId'])
@@ -361,7 +445,10 @@ class AuthService {
       }
     } catch (e) {
       _debugLog('googleLogin exception=$e');
-      return {'success': false, 'message': 'Google giriş hatası: $e'};
+      return {
+        'success': false,
+        'message': GoogleLoginErrorMessageFormatter.format(e),
+      };
     }
   }
 
@@ -483,14 +570,40 @@ class AuthService {
         await prefs.remove(key);
       }
     }
-    XPManager.resetIdempotency();
+    XPManager.clearIdempotencyCache();
   }
 
   /// Profil bilgilerini backend'den yenile
   Future<Map<String, dynamic>?> refreshProfile() async {
-    // Backend'de /me endpoint'i auth_controller'da yoktu.
-    // Şimdilik cached datayı dön
-    return getUser();
+    final userId = await getUserId();
+    if (userId == null || userId <= 0) {
+      return getUser();
+    }
+
+    final token = await getToken();
+    final baseUrl = await AppConfig.apiBaseUrl;
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': userId.toString(),
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Profil yenilenemedi: HTTP ${response.statusCode}');
+    }
+
+    final profile = _decodeResponseBodyMap(
+      response.body,
+      context: 'refresh-profile',
+      url: Uri.parse('$baseUrl/users/$userId'),
+    );
+    final merged = Map<String, dynamic>.from(await getUser() ?? <String, dynamic>{})
+      ..addAll(profile);
+    await updateUser(merged);
+    return merged;
   }
 
   /// Kullanıcı ID'sini al
@@ -589,3 +702,6 @@ class AuthService {
     }
   }
 }
+
+
+

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import '../models/writing_practice_models.dart';
 import '../services/groq_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
+import '../services/ai_paywall_handler.dart';
+import '../services/daily_practice_progress_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/animated_background.dart';
@@ -18,15 +19,17 @@ class WritingPracticePage extends StatefulWidget {
 class _WritingPracticePageState extends State<WritingPracticePage> {
   String _step = 'setup'; // 'setup', 'writing', 'evaluation'
   String _selectedLevel = 'B1';
-  String _selectedWordCount = 'medium';
   String _userText = '';
   int _wordCountActual = 0;
   bool _isLoading = false;
   late TextEditingController _textController; // Persistent controller
-  
+
   TopicData? _topic;
   EvaluationData? _evaluation;
-  
+  final DailyPracticeProgressService _progressService =
+      DailyPracticeProgressService();
+  Map<String, bool> _completedLevels = {};
+
   final List<LevelOption> _levels = [
     LevelOption('A1', 'A1', [const Color(0xFF22C55E), const Color(0xFF10B981)]),
     LevelOption('A2', 'A2', [const Color(0xFF60A5FA), const Color(0xFF06B6D4)]),
@@ -35,18 +38,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     LevelOption('C1', 'C1', [const Color(0xFFFB923C), const Color(0xFFEF4444)]),
     LevelOption('C2', 'C2', [const Color(0xFFEF4444), const Color(0xFFF43F5E)]),
   ];
-  
-  final List<WordCountOption> _wordCountOptions = [
-    WordCountOption('short', 'Kısa', '50-80 kelime', 50, 80),
-    WordCountOption('medium', 'Orta', '80-150 kelime', 80, 150),
-    WordCountOption('long', 'Uzun', '150-250 kelime', 150, 250),
-  ];
-  
+
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController();
     _textController.addListener(_updateWordCount);
+    _loadCompletionMap();
   }
 
   @override
@@ -60,7 +58,8 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     final text = _textController.text;
     setState(() {
       _userText = text;
-      _wordCountActual = text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      _wordCountActual =
+          text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     });
   }
 
@@ -70,7 +69,8 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       backgroundColor: Colors.transparent, // Transparent for AnimatedBackground
       extendBodyBehindAppBar: true, // Allow background to show through AppBar
       appBar: AppBar(
-        title: const Text('Yazma Pratiği', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Yazma Pratiği',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -92,7 +92,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       ),
     );
   }
-  
+
   Widget _buildContent() {
     switch (_step) {
       case 'setup':
@@ -105,11 +105,11 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         return _buildSetupStep();
     }
   }
-  
+
   // ═══════════════════════════════════════════════════════════════
   // STEP 1: SETUP
   // ═══════════════════════════════════════════════════════════════
-  
+
   Widget _buildSetupStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,13 +117,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         // Header Card
         _buildHeaderCard(),
         const SizedBox(height: 16),
-        
+
         // Zorluk Seç Card
         _buildDifficultyCard(),
       ],
     );
   }
-  
+
   Widget _buildHeaderCard() {
     return ModernCard(
       padding: const EdgeInsets.all(20),
@@ -148,7 +148,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Text
           const Expanded(
             child: Column(
@@ -166,7 +166,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 Text(
                   'Seviyene uygun konularda yaz, yapay zeka değerlendirsin',
                   style: TextStyle(
-                    color: Color(0xFFBAE6FD),  // cyan-200
+                    color: Color(0xFFBAE6FD), // cyan-200
                     fontSize: 12,
                   ),
                 ),
@@ -177,7 +177,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       ),
     );
   }
-  
+
   Widget _buildDifficultyCard() {
     return ModernCard(
       padding: const EdgeInsets.all(20),
@@ -206,7 +206,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Level Grid (3x2)
           GridView.builder(
             shrinkWrap: true,
@@ -221,106 +221,72 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             itemBuilder: (context, index) {
               final level = _levels[index];
               final isSelected = _selectedLevel == level.id;
-              
+              final isCompleted = _completedLevels[level.id] == true;
+
               return GestureDetector(
                 onTap: () => setState(() => _selectedLevel = level.id),
-                child: ModernCard(
-                  padding: const EdgeInsets.all(0),
-                  borderRadius: BorderRadius.circular(12),
-                  variant: isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
-                  showGlow: isSelected,
-                  child: Center(
-                    child: Text(
-                      level.label,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : const Color(0xB3FFFFFF),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                child: Stack(
+                  children: [
+                    ModernCard(
+                      padding: const EdgeInsets.all(0),
+                      borderRadius: BorderRadius.circular(12),
+                      variant: isSelected
+                          ? BackgroundVariant.accent
+                          : BackgroundVariant.secondary,
+                      showGlow: isSelected,
+                      child: Center(
+                        child: Text(
+                          level.label,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xB3FFFFFF),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (isCompleted)
+                      const Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF22C55E),
+                          size: 16,
+                        ),
+                      ),
+                  ],
                 ),
               );
             },
           ),
           const SizedBox(height: 16),
-          
+
+          if (_completedLevels[_selectedLevel] == true)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF22C55E).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border:
+                    Border.all(color: const Color(0xFF22C55E).withOpacity(0.35)),
+              ),
+              child: const Text(
+                'Bu seviyedeki gunluk yazma alistirmasi tamamlandi. Ayni konuyu tekrar coze bilirsin.',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+
           // Divider
           Container(
             height: 1,
             color: const Color(0x1AFFFFFF),
           ),
           const SizedBox(height: 16),
-          
-          // Word Count Pills (Horizontal)
-          Row(
-            children: _wordCountOptions.map((option) {
-              final isSelected = _selectedWordCount == option.id;
-              
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedWordCount = option.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      decoration: BoxDecoration(
-                        gradient: isSelected
-                            ? const LinearGradient(
-                                colors: [Color(0xFF06B6D4), Color(0xFF2563EB)],
-                              )
-                            : null,
-                        color: isSelected ? null : const Color(0x1AFFFFFF),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: isSelected
-                            ? const [
-                                BoxShadow(
-                                  color: Color(0x4D06B6D4),
-                                  blurRadius: 12,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            option.label,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xB3FFFFFF),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            option.range,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? const Color(0xCCFFFFFF)
-                                  : const Color(0x80FFFFFF),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-          
-          // Divider
-          Container(
-            height: 1,
-            color: const Color(0x1AFFFFFF),
-          ),
-          const SizedBox(height: 16),
-          
+
           // Konu Oluştur Button
           GestureDetector(
             onTap: _isLoading ? null : _handleGenerateTopic,
@@ -339,7 +305,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isLoading ? 'Konu Oluşturuluyor...' : 'Konu Oluştur',
+                    _isLoading ? 'Konu Hazırlanıyor...' : 'Günün Konusunu Getir',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -350,16 +316,34 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          const Text(
+            'Her seviye icin gunluk tek konu verilir. Ayni seviyede tekrar ayni konu acilir.',
+            style: TextStyle(
+              color: Color(0xB3FFFFFF),
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
   }
-  
+
+  Future<void> _loadCompletionMap() async {
+    final completed = await _progressService.getCompletedLevels('writing');
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _completedLevels = completed;
+    });
+  }
+
   void _handleGenerateTopic() async {
     setState(() => _isLoading = true);
-    
+
     try {
-      final topic = await GroqService.generateWritingTopic(_selectedLevel, _getWordCountRange());
+      final topic = await GroqService.generateDailyWritingTopic(_selectedLevel);
       if (mounted) {
         setState(() {
           _topic = topic;
@@ -368,13 +352,16 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         });
       }
     } catch (e) {
-      if (mounted) {
-         setState(() => _isLoading = false);
-         final msg = e is ApiQuotaExceededException
-             ? AiErrorMessageFormatter.forQuota(e)
-             : 'Hata: $e';
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
       }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -389,11 +376,11 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         // Topic Card
         _buildTopicCard(),
         const SizedBox(height: 24),
-        
+
         // Writing Area
         _buildWritingArea(),
         const SizedBox(height: 24),
-        
+
         // Action Buttons
         _buildActionButtons(),
       ],
@@ -408,13 +395,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x4D06B6D4),  // cyan-500/30
-            Color(0x4D3B82F6),  // blue-500/30
+            Color(0x4D06B6D4), // cyan-500/30
+            Color(0x4D3B82F6), // blue-500/30
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4D22D3EE),  // cyan-400/30
+          color: const Color(0x4D22D3EE), // cyan-400/30
           width: 1.5,
         ),
       ),
@@ -438,7 +425,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Content
           Expanded(
             child: Column(
@@ -448,7 +435,8 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0x4D06B6D4),
                         border: Border.all(
@@ -466,30 +454,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0x4D3B82F6),
-                        border: Border.all(
-                          color: const Color(0x8060A5FA),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_getWordCountRange()} kelime',
-                        style: const TextStyle(
-                          color: Color(0xFFBFDBFE),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Topic Title
                 Text(
                   _topic!.topic,
@@ -500,7 +468,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Description
                 Text(
                   _topic!.description,
@@ -538,16 +506,16 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             runSpacing: 10,
             spacing: 10,
             children: [
-              Row(
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.edit,
                     color: Color(0xFF22D3EE),
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
+                  SizedBox(width: 8),
+                  Text(
                     'Yazınızı Buraya Yazın',
                     style: TextStyle(
                       color: Colors.white,
@@ -581,19 +549,12 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    ' / ${_getWordCountRange()}',
-                    style: const TextStyle(
-                      color: Color(0xB3FFFFFF),
-                      fontSize: 14,
-                    ),
-                  ),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Textarea
           Container(
             height: 320,
@@ -617,7 +578,8 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 fontFamily: 'serif',
               ),
               decoration: const InputDecoration(
-                hintText: 'Yazınızı buraya yazın... Duygularınızı, düşüncelerinizi özgürce ifade edin. Her kelime öğrenme yolculuğunuzda bir adımdır.',
+                hintText:
+                    'Yazınızı buraya yazın... Duygularınızı, düşüncelerinizi özgürce ifade edin. Her kelime öğrenme yolculuğunuzda bir adımdır.',
                 hintStyle: TextStyle(
                   color: Color(0x66FFFFFF),
                   fontSize: 16,
@@ -627,7 +589,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Tip Box
           Container(
             padding: const EdgeInsets.all(16),
@@ -662,7 +624,8 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(
-                          text: 'Cümlelerinizi net ve anlaşılır tutun. Geçiş kelimelerini kullanarak fikirlerinizi birbirine bağlayın. Yaratıcı olun ve kendi sesinizi buldurma çekinmeyin!',
+                          text:
+                              'Cümlelerinizi net ve anlaşılır tutun. Geçiş kelimelerini kullanarak fikirlerinizi birbirine bağlayın. Yaratıcı olun ve kendi sesinizi buldurma çekinmeyin!',
                         ),
                       ],
                     ),
@@ -679,10 +642,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
   Widget _buildActionButtons() {
     return Row(
       children: [
-        // Yeni Konu
+        // Ayni konu
         Expanded(
           child: GestureDetector(
-            onTap: _handleReset,
+            onTap: _resetCurrentWritingAttempt,
             child: ModernCard(
               padding: const EdgeInsets.symmetric(vertical: 24),
               borderRadius: BorderRadius.circular(12),
@@ -697,7 +660,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'Yeni Konu',
+                    'Aynı Konuyu Tekrar Çöz',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -710,7 +673,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           ),
         ),
         const SizedBox(width: 12),
-        
+
         // Değerlendir
         Expanded(
           child: GestureDetector(
@@ -723,7 +686,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   if (_isLoading)
+                  if (_isLoading)
                     const SizedBox(
                       width: 20,
                       height: 20,
@@ -762,7 +725,14 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
   void _handleSubmitWriting() async {
     setState(() => _isLoading = true);
     try {
-      final evaluation = await GroqService.evaluateWriting(_userText, _selectedLevel, _topic!);
+      final evaluation =
+          await GroqService.evaluateWriting(_userText, _selectedLevel, _topic!);
+      await _progressService.saveWritingResult(
+        level: _selectedLevel,
+        topic: _topic?.topic ?? '',
+        score: evaluation.score,
+      );
+      await _loadCompletionMap();
       if (mounted) {
         setState(() {
           _evaluation = evaluation;
@@ -771,13 +741,16 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        final msg = e is ApiQuotaExceededException
-            ? AiErrorMessageFormatter.forQuota(e)
-            : 'Hata: $e';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
       }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -792,9 +765,14 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     });
   }
 
-  String _getWordCountRange() {
-    final option = _wordCountOptions.firstWhere((o) => o.id == _selectedWordCount, orElse: () => _wordCountOptions[1]);
-    return '${option.min}-${option.max}';
+  void _resetCurrentWritingAttempt() {
+    setState(() {
+      _step = 'writing';
+      _evaluation = null;
+      _userText = '';
+      _wordCountActual = 0;
+      _textController.clear();
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -808,19 +786,19 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         // Score Card
         _buildScoreCard(),
         const SizedBox(height: 24),
-        
+
         // Strengths
         _buildStrengthsCard(),
         const SizedBox(height: 24),
-        
+
         // Improvements
-         _buildImprovementsCard(),
+        _buildImprovementsCard(),
         const SizedBox(height: 24),
-        
+
         // Detailed Feedback
         _buildDetailedFeedback(),
         const SizedBox(height: 24),
-        
+
         // Reset Button
         _buildResetButton(),
       ],
@@ -835,13 +813,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x4DA78BFA),  // purple-400/30
-            Color(0x4DEC4899),  // pink-500/30
+            Color(0x4DA78BFA), // purple-400/30
+            Color(0x4DEC4899), // pink-500/30
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4DC084FC),  // purple-400/30
+          color: const Color(0x4DC084FC), // purple-400/30
           width: 1.5,
         ),
       ),
@@ -864,7 +842,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Title
           const Text(
             'Harika İş Çıkardınız! 🎉',
@@ -876,7 +854,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          
+
           // Score
           ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
@@ -892,12 +870,12 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Subtitle
           const Text(
             '100 üzerinden puanınız',
             style: TextStyle(
-              color: Color(0xFFF5D0FE),  // purple-200
+              color: Color(0xFFF5D0FE), // purple-200
               fontSize: 16,
             ),
           ),
@@ -914,13 +892,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1A22C55E),  // green-500/10
-            Color(0x1A10B981),  // emerald-500/10
+            Color(0x1A22C55E), // green-500/10
+            Color(0x1A10B981), // emerald-500/10
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4D4ADE80),  // green-400/30
+          color: const Color(0x4D4ADE80), // green-400/30
           width: 1.5,
         ),
       ),
@@ -946,7 +924,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-          
           ..._evaluation!.strengths.map((entry) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -980,7 +957,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -994,13 +971,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1AF97316),  // orange-500/10
-            Color(0x1A22D3EE),  // cyan-400/10 mixed
+            Color(0x1AF97316), // orange-500/10
+            Color(0x1A22D3EE), // cyan-400/10 mixed
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4DF97316),  // orange/30
+          color: const Color(0x4DF97316), // orange/30
           width: 1.5,
         ),
       ),
@@ -1026,7 +1003,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-          
           ..._evaluation!.improvements.map((entry) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -1060,7 +1036,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -1099,7 +1075,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Grammar
           _buildFeedbackSection(
             title: '📝 Gramer',
@@ -1107,7 +1083,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             color: const Color(0xFF06B6D4),
           ),
           const SizedBox(height: 16),
-          
+
           // Vocabulary
           _buildFeedbackSection(
             title: '📚 Kelime Dağarcığı',
@@ -1115,7 +1091,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             color: const Color(0xFFA78BFA),
           ),
           const SizedBox(height: 16),
-          
+
           // Coherence
           _buildFeedbackSection(
             title: '🔗 Tutarlılık',
@@ -1126,14 +1102,15 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
 
           // Context Relevance
           if (_evaluation!.contextRelevance.isNotEmpty) ...[
-             _buildFeedbackSection(
+            _buildFeedbackSection(
               title: '🎯 Konu Uyumu',
               content: _evaluation!.contextRelevance,
-              color: const Color(0xFFF43F5E), // Red/Pink to highlight importance
+              color:
+                  const Color(0xFFF43F5E), // Red/Pink to highlight importance
             ),
             const SizedBox(height: 16),
           ],
-          
+
           // Overall
           _buildFeedbackSection(
             title: '⭐ Genel Değerlendirme',
@@ -1214,7 +1191,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
             SizedBox(width: 8),
             Text(
-              'Yeni Pratik Başlat',
+              'Başka Seviye Seç',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -1236,16 +1213,6 @@ class LevelOption {
   final String id;
   final String label;
   final List<Color> colors;
-  
-  LevelOption(this.id, this.label, this.colors);
-}
 
-class WordCountOption {
-  final String id;
-  final String label;
-  final String range;
-  final int min;
-  final int max;
-  
-  WordCountOption(this.id, this.label, this.range, this.min, this.max);
+  LevelOption(this.id, this.label, this.colors);
 }

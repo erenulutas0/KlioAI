@@ -4,7 +4,7 @@ import 'modern_background.dart';
 
 class MatchmakingBanner extends StatefulWidget {
   final VoidCallback onCancel;
-  const MatchmakingBanner({Key? key, required this.onCancel}) : super(key: key);
+  const MatchmakingBanner({super.key, required this.onCancel});
 
   @override
   State<MatchmakingBanner> createState() => _MatchmakingBannerState();
@@ -83,3 +83,4 @@ class _MatchmakingBannerState extends State<MatchmakingBanner> with SingleTicker
     );
   }
 }
+

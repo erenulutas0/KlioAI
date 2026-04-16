@@ -319,6 +319,32 @@ public class SubscriptionControllerTest {
                 }
 
                 @Test
+                @DisplayName("Should be idempotent when mock Google verify is called while subscription is already active")
+                void testVerifyGooglePurchaseActiveSubscriptionNoExtension() throws Exception {
+                        LocalDateTime existingEnd = LocalDateTime.now().plusDays(7);
+                        testUser.setSubscriptionEndDate(existingEnd);
+                        testUser.setAiPlanCode("PREMIUM");
+
+                        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                        Mockito.when(planRepository.findByName("PRO_MONTHLY")).thenReturn(Optional.of(monthlyPlan));
+
+                        Map<String, String> request = Map.of(
+                                        "planName", "PRO_MONTHLY",
+                                        "purchaseToken", "google-purchase-token-active",
+                                        "productId", "pro_monthly_subscription");
+
+                        mockMvc.perform(post("/api/subscription/verify/google")
+                                        .header("X-User-Id", "1")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(request)))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.message").value("Google IAP already active"))
+                                        .andExpect(jsonPath("$.idempotent").value(true));
+
+                        Mockito.verify(userRepository, Mockito.never()).save(any(User.class));
+                }
+
+                @Test
                 @DisplayName("Should return error when Google plan not found")
                 void testVerifyGooglePurchasePlanNotFound() throws Exception {
                         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
@@ -333,6 +359,32 @@ public class SubscriptionControllerTest {
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                         .andExpect(status().is5xxServerError());
+                }
+
+                @Test
+                @DisplayName("Should cap AI tier duration to 30 days even when legacy annual plan is requested")
+                void testVerifyGooglePurchaseLegacyAnnualStillThirtyDays() throws Exception {
+                        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                        Mockito.when(planRepository.findByName("PRO_ANNUAL")).thenReturn(Optional.of(annualPlan));
+
+                        Map<String, String> request = Map.of(
+                                        "planName", "PRO_ANNUAL",
+                                        "purchaseToken", "google-token-annual");
+
+                        LocalDateTime lowerBound = LocalDateTime.now().plusDays(29);
+                        LocalDateTime upperBound = LocalDateTime.now().plusDays(31);
+
+                        mockMvc.perform(post("/api/subscription/verify/google")
+                                        .header("X-User-Id", "1")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(request)))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.message").value("Google IAP verified"));
+
+                        Mockito.verify(userRepository).save(argThat(
+                                        user -> user.getSubscriptionEndDate() != null
+                                                        && user.getSubscriptionEndDate().isAfter(lowerBound)
+                                                        && user.getSubscriptionEndDate().isBefore(upperBound)));
                 }
 
                 @Test
@@ -529,10 +581,11 @@ public class SubscriptionControllerTest {
                 }
 
                 @Test
-                @DisplayName("Should extend existing active subscription in demo activate flow")
-                void testActivateDemoSubscriptionExtendsActiveSubscription() throws Exception {
+                @DisplayName("Should not extend when demo activate is called for an already active subscription")
+                void testActivateDemoSubscriptionDoesNotExtendActiveSubscription() throws Exception {
                         LocalDateTime existingEnd = LocalDateTime.now().plusDays(3);
                         testUser.setSubscriptionEndDate(existingEnd);
+                        testUser.setAiPlanCode("PREMIUM");
 
                         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
                         Mockito.when(planRepository.findById(1L)).thenReturn(Optional.of(monthlyPlan));
@@ -543,12 +596,11 @@ public class SubscriptionControllerTest {
                                         .header("X-User-Id", "1")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
-                                        .andExpect(status().isOk());
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.message").value("Demo abonelik zaten aktif, süre uzatılmadı."))
+                                        .andExpect(jsonPath("$.idempotent").value(true));
 
-                        Mockito.verify(userRepository).save(argThat(
-                                        user -> user.getSubscriptionEndDate() != null
-                                                        && user.getSubscriptionEndDate()
-                                                                        .isAfter(existingEnd.plusDays(monthlyPlan.getDurationDays() - 1))));
+                        Mockito.verify(userRepository, Mockito.never()).save(any(User.class));
                 }
         }
 }

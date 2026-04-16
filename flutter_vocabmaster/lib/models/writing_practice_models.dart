@@ -14,10 +14,10 @@ class TopicData {
 
   factory TopicData.fromJson(Map<String, dynamic> json) {
     return TopicData(
-      topic: json['topic'] ?? '',
-      description: json['description'] ?? '',
-      level: json['level'] ?? '',
-      wordCount: json['wordCount'] ?? '',
+      topic: (json['topic'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      level: (json['level'] ?? '').toString(),
+      wordCount: (json['wordCount'] ?? '').toString(),
     );
   }
 }

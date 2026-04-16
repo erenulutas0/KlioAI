@@ -16,6 +16,11 @@ public class AiTokenQuotaProperties {
     private long redisFailureBlockSeconds = 60;
     private int memoryMaxEntries = 100_000;
     private long memoryCleanupIntervalSeconds = 30;
+    private int trialDurationDays = 7;
+    private long trialDailyTokenQuotaPerUser = 25_000;
+    private long freeDailyTokenQuotaPerUser = 0;
+    private long premiumDailyTokenQuotaPerUser = 50_000;
+    private long premiumPlusDailyTokenQuotaPerUser = 100_000;
 
     /**
      * Global daily token budget per user (prompt + completion tokens).
@@ -104,5 +109,45 @@ public class AiTokenQuotaProperties {
 
     public void setScopes(Map<String, ScopeLimits> scopes) {
         this.scopes = scopes != null ? scopes : new HashMap<>();
+    }
+
+    public int getTrialDurationDays() {
+        return trialDurationDays;
+    }
+
+    public void setTrialDurationDays(int trialDurationDays) {
+        this.trialDurationDays = Math.max(0, trialDurationDays);
+    }
+
+    public long getTrialDailyTokenQuotaPerUser() {
+        return trialDailyTokenQuotaPerUser;
+    }
+
+    public void setTrialDailyTokenQuotaPerUser(long trialDailyTokenQuotaPerUser) {
+        this.trialDailyTokenQuotaPerUser = Math.max(0L, trialDailyTokenQuotaPerUser);
+    }
+
+    public long getFreeDailyTokenQuotaPerUser() {
+        return freeDailyTokenQuotaPerUser;
+    }
+
+    public void setFreeDailyTokenQuotaPerUser(long freeDailyTokenQuotaPerUser) {
+        this.freeDailyTokenQuotaPerUser = Math.max(0L, freeDailyTokenQuotaPerUser);
+    }
+
+    public long getPremiumDailyTokenQuotaPerUser() {
+        return premiumDailyTokenQuotaPerUser;
+    }
+
+    public void setPremiumDailyTokenQuotaPerUser(long premiumDailyTokenQuotaPerUser) {
+        this.premiumDailyTokenQuotaPerUser = Math.max(0L, premiumDailyTokenQuotaPerUser);
+    }
+
+    public long getPremiumPlusDailyTokenQuotaPerUser() {
+        return premiumPlusDailyTokenQuotaPerUser;
+    }
+
+    public void setPremiumPlusDailyTokenQuotaPerUser(long premiumPlusDailyTokenQuotaPerUser) {
+        this.premiumPlusDailyTokenQuotaPerUser = Math.max(0L, premiumPlusDailyTokenQuotaPerUser);
     }
 }

@@ -4,7 +4,7 @@ import '../widgets/bottom_nav.dart';
 import 'ai_bot_chat_page.dart';
 
 class SpeakingPage extends StatelessWidget {
-  const SpeakingPage({Key? key}) : super(key: key);
+  const SpeakingPage({super.key});
 
   Widget _buildScenarioCard(
     BuildContext context, {
@@ -461,3 +461,4 @@ class SpeakingPage extends StatelessWidget {
     );
   }
 }
+

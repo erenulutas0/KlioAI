@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import 'groq_api_client.dart';
 
@@ -14,6 +14,7 @@ class ChatbotService {
     List<String> levels = const ['B1'],
     List<String> lengths = const ['medium'],
     bool checkGrammar = false,
+    bool fresh = false,
   }) async {
     try {
       return await _api.chatbotGenerateSentences(
@@ -21,9 +22,10 @@ class ChatbotService {
         levels: levels,
         lengths: lengths,
         checkGrammar: checkGrammar,
+        fresh: fresh,
       );
     } catch (e) {
-      print('ChatbotService.generateSentences error: $e');
+      debugPrint('ChatbotService.generateSentences error: $e');
       rethrow;
     }
   }
@@ -51,7 +53,7 @@ class ChatbotService {
         englishSentence: originalSentence,
       );
     } catch (e) {
-      print('ChatbotService.checkTranslation error: $e');
+      debugPrint('ChatbotService.checkTranslation error: $e');
       rethrow;
     }
   }
@@ -67,7 +69,7 @@ class ChatbotService {
         scenarioContext: scenarioContext,
       );
     } catch (e) {
-      print('ChatbotService.chat error: $e');
+      debugPrint('ChatbotService.chat error: $e');
       rethrow;
     }
   }
@@ -85,7 +87,7 @@ class ChatbotService {
         sentences: sentences,
       );
     } catch (e) {
-      print('ChatbotService.saveWordToToday error: $e');
+      debugPrint('ChatbotService.saveWordToToday error: $e');
       rethrow;
     }
   }
@@ -110,7 +112,7 @@ class ChatbotService {
 
       return result;
     } catch (e) {
-      print('ChatbotService.generateSpeakingTestQuestions error: $e');
+      debugPrint('ChatbotService.generateSpeakingTestQuestions error: $e');
       rethrow;
     }
   }
@@ -146,7 +148,7 @@ class ChatbotService {
 
       return normalized;
     } catch (e) {
-      print('ChatbotService.evaluateSpeakingTest error: $e');
+      debugPrint('ChatbotService.evaluateSpeakingTest error: $e');
       rethrow;
     }
   }
@@ -301,7 +303,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilGrammarQuestion error: $e');
+      debugPrint('ChatbotService.generateYokdilGrammarQuestion error: $e');
       rethrow;
     }
   }
@@ -452,7 +454,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilVocabularyQuestion error: $e');
+      debugPrint('ChatbotService.generateYokdilVocabularyQuestion error: $e');
       rethrow;
     }
   }
@@ -492,7 +494,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilPrepositionQuestion error: $e');
+      debugPrint('ChatbotService.generateYokdilPrepositionQuestion error: $e');
       rethrow;
     }
   }
@@ -542,7 +544,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 45),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilClozeTest error: $e');
+      debugPrint('ChatbotService.generateYokdilClozeTest error: $e');
       rethrow;
     }
   }
@@ -588,7 +590,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilSentenceCompletion error: $e');
+      debugPrint('ChatbotService.generateYokdilSentenceCompletion error: $e');
       rethrow;
     }
   }
@@ -642,7 +644,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilTranslation error: $e');
+      debugPrint('ChatbotService.generateYokdilTranslation error: $e');
       rethrow;
     }
   }
@@ -687,7 +689,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilParagraphCompletion error: $e');
+      debugPrint('ChatbotService.generateYokdilParagraphCompletion error: $e');
       rethrow;
     }
   }
@@ -732,7 +734,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilIrrelevantSentence error: $e');
+      debugPrint('ChatbotService.generateYokdilIrrelevantSentence error: $e');
       rethrow;
     }
   }
@@ -790,7 +792,7 @@ JSON formatında döndür:
         timeout: const Duration(seconds: 60),
       );
     } catch (e) {
-      print('ChatbotService.generateYokdilReadingPassage error: $e');
+      debugPrint('ChatbotService.generateYokdilReadingPassage error: $e');
       rethrow;
     }
   }
@@ -831,3 +833,4 @@ JSON formatında döndür:
     };
   }
 }
+

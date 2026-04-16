@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocabmaster/providers/app_state_provider.dart';
 import 'package:vocabmaster/services/xp_manager.dart';
-import 'package:vocabmaster/services/local_database_service.dart';
-import 'package:vocabmaster/services/offline_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../test_helper.dart';
 

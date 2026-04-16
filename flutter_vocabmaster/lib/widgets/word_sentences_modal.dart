@@ -2,26 +2,39 @@ import 'dart:ui';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:provider/provider.dart';
 import '../models/word.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class WordSentencesModal extends StatefulWidget {
   final Word word;
-  
+
   const WordSentencesModal({
     required this.word,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
-  _WordSentencesModalState createState() => _WordSentencesModalState();
+  State<WordSentencesModal> createState() => _WordSentencesModalState();
 }
 
-class _WordSentencesModalState extends State<WordSentencesModal> 
+class _WordSentencesModalState extends State<WordSentencesModal>
     with SingleTickerProviderStateMixin {
   Set<int> expandedSentences = {};
   late AnimationController _animationController;
   final FlutterTts _flutterTts = FlutterTts();
-  
+
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,27 +59,24 @@ class _WordSentencesModalState extends State<WordSentencesModal>
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     final sentences = widget.word.sentences;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F172A),  // slate-900
-            Color(0xFF1E3A8A),  // blue-900
-            Color(0xFF0F172A),  // slate-900
-          ],
-          stops: [0.0, 0.5, 1.0],
+          colors: selectedTheme.colors.backgroundGradient.colors,
+          stops: const [0.0, 0.5, 1.0],
         ),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
         border: Border.all(
-          color: const Color(0x4D22D3EE),  // cyan-400 with 30% opacity
+          color: selectedTheme.colors.glassBorder.withOpacity(0.68),
           width: 1,
         ),
       ),
@@ -74,28 +84,29 @@ class _WordSentencesModalState extends State<WordSentencesModal>
         children: [
           // Animated background effects
           _buildAnimatedBackground(),
-          
+
           // Main content
           Column(
             children: [
               // Header
               _buildHeader(sentences.length),
-              
+
               // Scrollable content
               Expanded(
-                child: sentences.isEmpty 
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 100), // Space for footer
-                      itemCount: sentences.length,
-                      itemBuilder: (context, index) {
-                        return _buildSentenceCard(sentences[index], index);
-                      },
-                    ),
+                child: sentences.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(
+                            bottom: 100), // Space for footer
+                        itemCount: sentences.length,
+                        itemBuilder: (context, index) {
+                          return _buildSentenceCard(sentences[index], index);
+                        },
+                      ),
               ),
             ],
           ),
-          
+
           // Footer stats (Fixed at bottom)
           if (sentences.isNotEmpty)
             Positioned(
@@ -110,6 +121,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   }
 
   Widget _buildAnimatedBackground() {
+    final selectedTheme = _currentTheme();
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
@@ -135,9 +147,11 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              i % 2 == 0 
-                                ? const Color(0x2606B6D4)  // cyan-500 15% opacity
-                                : const Color(0x263B82F6), // blue-500 15% opacity
+                              i % 2 == 0
+                                  ? selectedTheme.colors.orbColor1
+                                      .withOpacity(0.45)
+                                  : selectedTheme.colors.orbColor2
+                                      .withOpacity(0.45),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.7],
@@ -165,12 +179,14 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                 left: MediaQuery.of(context).size.width * Random().nextDouble(),
                 top: MediaQuery.of(context).size.height * Random().nextDouble(),
                 child: TweenAnimationBuilder(
-                  duration: Duration(milliseconds: 2000 + (Random().nextDouble() * 2000).toInt()),
+                  duration: Duration(
+                      milliseconds:
+                          2000 + (Random().nextDouble() * 2000).toInt()),
                   tween: Tween<double>(begin: 0, end: 1),
                   builder: (context, double value, child) {
                     double opacity = value < 0.5 ? value * 2 : (1 - value) * 2;
                     double scale = value < 0.5 ? value * 3 : (1 - value) * 3;
-                    
+
                     return Opacity(
                       opacity: opacity,
                       child: Transform.scale(
@@ -179,11 +195,12 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22D3EE),  // cyan-400
+                            color: selectedTheme.colors.particleColor,
                             shape: BoxShape.circle,
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x8022D3EE),
+                                color: selectedTheme.colors.particleGlow
+                                    .withOpacity(0.5),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -206,12 +223,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   }
 
   Widget _buildHeader(int count) {
+    final selectedTheme = _currentTheme();
+    final buttonGradientColors = selectedTheme.colors.buttonGradient.colors;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0x0DFFFFFF),  // white with 5% opacity
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
         border: Border(
           bottom: BorderSide(
-            color: Color(0x3322D3EE),  // cyan-400 with 20% opacity
+            color: selectedTheme.colors.glassBorder.withOpacity(0.65),
             width: 1,
           ),
         ),
@@ -228,31 +248,29 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF06B6D4),  // cyan-500
-                        Color(0xFF3B82F6),  // blue-600
-                      ],
+                      colors: buttonGradientColors,
                     ),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x4D06B6D4),  // cyan-500 30% opacity
+                        color:
+                            selectedTheme.colors.accentGlow.withOpacity(0.42),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
                     ],
                   ),
                   child: const Icon(
-                    Icons.menu_book_rounded,  // BookOpen equivalent
+                    Icons.menu_book_rounded, // BookOpen equivalent
                     color: Colors.white,
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 12),
-                
+
                 // Title & Word Name
                 Expanded(
                   child: Column(
@@ -270,15 +288,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                       Row(
                         children: [
                           const Icon(
-                            Icons.auto_awesome,  // Sparkles equivalent
-                            color: Color(0xFF67E8F9),  // cyan-300
+                            Icons.auto_awesome, // Sparkles equivalent
+                            color: Colors.white70,
                             size: 16,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             widget.word.englishWord,
-                            style: const TextStyle(
-                              color: Color(0xFF67E8F9),  // cyan-300
+                            style: TextStyle(
+                              color: selectedTheme.colors.textSecondary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -288,13 +306,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     ],
                   ),
                 ),
-                
+
                 // Close Button
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 24),
+                  icon: const Icon(Icons.close,
+                      color: Color(0xB3FFFFFF), size: 24),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0x1AFFFFFF),  // white 10% opacity
+                    backgroundColor:
+                        const Color(0x1AFFFFFF), // white 10% opacity
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -325,6 +345,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   }
 
   Widget _buildSentenceCard(Sentence sentence, int index) {
+    final selectedTheme = _currentTheme();
     bool isExpanded = expandedSentences.contains(sentence.id);
 
     return AnimatedBuilder(
@@ -333,7 +354,9 @@ class _WordSentencesModalState extends State<WordSentencesModal>
         // Staggered animation calculation
         double start = (index * 0.1).clamp(0.0, 1.0);
         double end = (start + 0.5).clamp(0.0, 1.0);
-        double t = ((_animationController.value - start) / (end - start).clamp(0.001, 1.0)).clamp(0.0, 1.0);
+        double t = ((_animationController.value - start) /
+                (end - start).clamp(0.001, 1.0))
+            .clamp(0.0, 1.0);
         double value = Curves.easeOut.transform(t);
 
         return Transform.translate(
@@ -343,15 +366,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0x0DFFFFFF),  // white 5% opacity
+                color: Colors.white.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: const Color(0x3322D3EE),  // cyan-400 20% opacity
+                  color: selectedTheme.colors.glassBorder.withOpacity(0.52),
                   width: 1,
                 ),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x3306B6D4),  // cyan-500 20% opacity
+                    color: selectedTheme.colors.accentGlow.withOpacity(0.2),
                     blurRadius: 16,
                     spreadRadius: 0,
                   ),
@@ -372,20 +395,26 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                           children: [
                             // Difficulty Badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: _getDifficultyColor(sentence.difficulty ?? 'medium'),
+                                color: _getDifficultyColor(
+                                    sentence.difficulty ?? 'medium'),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _getDifficultyColor(sentence.difficulty ?? 'medium').withOpacity(0.5),
+                                    color: _getDifficultyColor(
+                                            sentence.difficulty ?? 'medium')
+                                        .withOpacity(0.5),
                                     blurRadius: 8,
                                     spreadRadius: 1,
                                   ),
                                 ],
                               ),
                               child: Text(
-                                _getDifficultyLabel(sentence.difficulty ?? 'medium').toUpperCase(),
+                                _getDifficultyLabel(
+                                        sentence.difficulty ?? 'medium')
+                                    .toUpperCase(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
@@ -394,34 +423,38 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                 ),
                               ),
                             ),
-                            
+
                             // Audio Button
                             InkWell(
                               onTap: () => _speak(sentence.sentence),
                               borderRadius: BorderRadius.circular(20),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0x3306B6D4),  // cyan-500 20% opacity
+                                  color: selectedTheme.colors.accent
+                                      .withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0x4D22D3EE),  // cyan-400 30% opacity
+                                    color: selectedTheme.colors.accent
+                                        .withOpacity(0.35),
                                     width: 1,
                                   ),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.volume_up,
-                                      color: Color(0xFF67E8F9),  // cyan-300
+                                      color: selectedTheme.colors.textSecondary,
                                       size: 16,
                                     ),
-                                    SizedBox(width: 4),
+                                    const SizedBox(width: 4),
                                     Text(
                                       'Dinle',
                                       style: TextStyle(
-                                        color: Color(0xFF67E8F9),  // cyan-300
+                                        color:
+                                            selectedTheme.colors.textSecondary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -432,14 +465,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             ),
                           ],
                         ),
-                        
+
                         const SizedBox(height: 16),
-                        
+
                         // ENGLISH SENTENCE with HIGHLIGHTED WORD (Using Better Alternative)
-                         _buildHighlightedSentence(sentence.sentence, widget.word.englishWord),
-                        
+                        _buildHighlightedSentence(
+                            sentence.sentence, widget.word.englishWord),
+
                         const SizedBox(height: 16),
-                        
+
                         // TRANSLATION (Expandable)
                         AnimatedCrossFade(
                           firstChild: const SizedBox.shrink(),
@@ -448,33 +482,36 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
+                              gradient: LinearGradient(
                                 colors: [
-                                  Color(0x1A06B6D4),  // cyan-500 10% opacity
-                                  Color(0x1A3B82F6),  // blue-500 10% opacity
+                                  selectedTheme.colors.accent.withOpacity(0.15),
+                                  selectedTheme.colors.primary
+                                      .withOpacity(0.15),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0x3322D3EE),  // cyan-400 20% opacity
+                                color: selectedTheme.colors.glassBorder
+                                    .withOpacity(0.52),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               '🇹🇷 ${sentence.translation}',
-                              style: const TextStyle(
-                                color: Color(0xFFDCFCFF),  // cyan-100
+                              style: TextStyle(
+                                color: selectedTheme.colors.textPrimary
+                                    .withOpacity(0.92),
                                 fontSize: 15,
                                 height: 1.6,
                               ),
                             ),
                           ),
-                          crossFadeState: isExpanded 
-                            ? CrossFadeState.showSecond 
-                            : CrossFadeState.showFirst,
+                          crossFadeState: isExpanded
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
                           duration: const Duration(milliseconds: 300),
                         ),
-                        
+
                         // TOGGLE BUTTON
                         SizedBox(
                           width: double.infinity,
@@ -490,9 +527,11 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              backgroundColor: const Color(0x1A06B6D4),  // cyan-500 10% opacity
-                              side: const BorderSide(
-                                color: Color(0x3322D3EE),  // cyan-400 20% opacity
+                              backgroundColor:
+                                  selectedTheme.colors.accent.withOpacity(0.12),
+                              side: BorderSide(
+                                color: selectedTheme.colors.glassBorder
+                                    .withOpacity(0.6),
                                 width: 1,
                               ),
                               shape: RoundedRectangleBorder(
@@ -502,16 +541,18 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.visibility,
-                                  color: Color(0xFF67E8F9),  // cyan-300
+                                  color: selectedTheme.colors.textSecondary,
                                   size: 16,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isExpanded ? 'Çeviriyi Gizle' : 'Çeviriyi Göster',
-                                  style: const TextStyle(
-                                    color: Color(0xFF67E8F9),  // cyan-300
+                                  isExpanded
+                                      ? 'Çeviriyi Gizle'
+                                      : 'Çeviriyi Göster',
+                                  style: TextStyle(
+                                    color: selectedTheme.colors.textSecondary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -533,6 +574,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   }
 
   Widget _buildHighlightedSentence(String sentence, String wordToHighlight) {
+    final selectedTheme = _currentTheme();
     if (wordToHighlight.isEmpty) {
       return Text(
         sentence,
@@ -540,11 +582,12 @@ class _WordSentencesModalState extends State<WordSentencesModal>
       );
     }
 
-    final RegExp regex = RegExp(RegExp.escape(wordToHighlight), caseSensitive: false);
+    final RegExp regex =
+        RegExp(RegExp.escape(wordToHighlight), caseSensitive: false);
     final Iterable<RegExpMatch> matches = regex.allMatches(sentence);
-    
+
     if (matches.isEmpty) {
-       return Text(
+      return Text(
         sentence,
         style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
       );
@@ -552,7 +595,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
 
     List<Widget> children = [];
     int lastEnd = 0;
-    
+
     for (final match in matches) {
       // Add text before the match
       if (match.start > lastEnd) {
@@ -560,26 +603,27 @@ class _WordSentencesModalState extends State<WordSentencesModal>
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Text(
             sentence.substring(lastEnd, match.start),
-            style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
+            style:
+                const TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
           ),
         ));
       }
-      
+
       // Add highlighted match
       children.add(Container(
         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             colors: [
-              Color(0xFF06B6D4),  // cyan-500
-              Color(0xFF3B82F6),  // blue-500
+              selectedTheme.colors.accent,
+              selectedTheme.colors.primary,
             ],
           ),
           borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x4D06B6D4),  // cyan-500 30% opacity
+              color: selectedTheme.colors.accentGlow.withOpacity(0.45),
               blurRadius: 12,
               spreadRadius: 2,
             ),
@@ -594,17 +638,18 @@ class _WordSentencesModalState extends State<WordSentencesModal>
           ),
         ),
       ));
-      
+
       lastEnd = match.end;
     }
-    
+
     // Add remaining text
     if (lastEnd < sentence.length) {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Text(
           sentence.substring(lastEnd),
-          style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
+          style:
+              const TextStyle(color: Colors.white, fontSize: 16, height: 1.6),
         ),
       ));
     }
@@ -617,18 +662,19 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   }
 
   Widget _buildFooterStats(List<Sentence> sentences) {
+    final selectedTheme = _currentTheme();
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0x1A06B6D4),  // cyan-500 10% opacity
-            Color(0x1A3B82F6),  // blue-500 10% opacity
+            selectedTheme.colors.accent.withOpacity(0.16),
+            selectedTheme.colors.primary.withOpacity(0.16),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: Color(0x6622D3EE),  // cyan-400 40% opacity
+            color: selectedTheme.colors.glassBorder.withOpacity(0.8),
             width: 2,
           ),
         ),
@@ -641,25 +687,34 @@ class _WordSentencesModalState extends State<WordSentencesModal>
             children: [
               // Easy Count
               _buildStatItem(
-                count: sentences.where((s) => (s.difficulty ?? 'medium').toLowerCase() == 'easy').length,
+                count: sentences
+                    .where((s) =>
+                        (s.difficulty ?? 'medium').toLowerCase() == 'easy')
+                    .length,
                 label: 'Kolay',
-                color: const Color(0xFF22C55E),  // green-500
+                color: const Color(0xFF22C55E), // green-500
               ),
               const SizedBox(width: 32),
-              
+
               // Medium Count
               _buildStatItem(
-                count: sentences.where((s) => (s.difficulty ?? 'medium').toLowerCase() == 'medium').length,
+                count: sentences
+                    .where((s) =>
+                        (s.difficulty ?? 'medium').toLowerCase() == 'medium')
+                    .length,
                 label: 'Orta',
-                color: const Color(0xFFEAB308),  // yellow-500
+                color: const Color(0xFFEAB308), // yellow-500
               ),
               const SizedBox(width: 32),
-              
+
               // Hard Count
               _buildStatItem(
-                count: sentences.where((s) => (s.difficulty ?? 'medium').toLowerCase() == 'hard').length,
+                count: sentences
+                    .where((s) =>
+                        (s.difficulty ?? 'medium').toLowerCase() == 'hard')
+                    .length,
                 label: 'Zor',
-                color: const Color(0xFFEF4444),  // red-500
+                color: const Color(0xFFEF4444), // red-500
               ),
             ],
           ),
@@ -707,15 +762,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
     switch (difficulty.toLowerCase()) {
       case 'easy':
       case 'kolay':
-        return const Color(0xFF22C55E);  // green-500
+        return const Color(0xFF22C55E); // green-500
       case 'medium':
       case 'orta':
-        return const Color(0xFFEAB308);  // yellow-500
+        return const Color(0xFFEAB308); // yellow-500
       case 'hard':
       case 'zor':
-        return const Color(0xFFEF4444);  // red-500
+        return const Color(0xFFEF4444); // red-500
       default:
-        return const Color(0xFF6B7280);  // gray-500
+        return const Color(0xFF6B7280); // gray-500
     }
   }
 
@@ -735,3 +790,4 @@ class _WordSentencesModalState extends State<WordSentencesModal>
     }
   }
 }
+

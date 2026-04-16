@@ -214,7 +214,7 @@ If clause → Devrik yapı (Had I, Were I, Should you)
       title: 'Meaning-Preserving Rewrites',
       titleTr: 'Anlam Koruyan Dönüşümler',
       explanation: '''
-Aynı anlamı farklı yapılarla ifade etme. YDS/YÖKDİL\'de çok sık çıkar.
+Aynı anlamı farklı yapılarla ifade etme. YDS/YÖKDİL'de çok sık çıkar.
 
 🎯 TOO...TO / SO...THAT / ENOUGH:
 "He is too young to drive."

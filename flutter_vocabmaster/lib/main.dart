@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_page.dart';
 import 'screens/repeat_page.dart';
@@ -9,35 +10,37 @@ import 'screens/sentences_page.dart';
 import 'screens/menu_page.dart';
 import 'screens/practice_page.dart';
 import 'screens/stats_page.dart';
-import 'screens/speaking_page.dart';
-import 'screens/review_page.dart';
 import 'screens/quick_dictionary_page.dart';
 import 'screens/chat_list_page.dart';
 import 'widgets/bottom_nav.dart';
-import 'widgets/animated_background.dart';
 import 'widgets/navigation_menu_panel.dart';
-import 'widgets/animated_background.dart';
-import 'screens/landing_page.dart';
-import 'screens/login_page.dart';
 import 'screens/profile_page.dart';
 import 'screens/social_feed_page.dart';
 import 'screens/ai_bot_chat_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'screens/notifications_page.dart';
 import 'screens/xp_history_page.dart';
+import 'screens/language_selection_page.dart';
+import 'screens/settings_page.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
-import 'widgets/global_matching_indicator.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'providers/app_state_provider.dart';
+import 'providers/language_provider.dart';
+import 'l10n/app_localizations.dart';
+import 'theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {
+    // Release builds no longer bundle `.env`; runtime config should come
+    // from dart-define values and safe defaults.
+  }
 
   // Offline sync service başlat
   final offlineSyncService = OfflineSyncService();
@@ -49,6 +52,31 @@ void main() async {
 
   // Global App State Provider oluştur
   final appStateProvider = AppStateProvider();
+  final themeProvider = ThemeProvider();
+  final languageProvider = LanguageProvider();
+  await themeProvider.initialize();
+  await languageProvider.initialize();
+
+  appStateProvider.addListener(() {
+    final xp = (appStateProvider.userStats['xp'] as int?) ?? 0;
+    themeProvider.updateUserXP(xp);
+
+    final rawSubscriptionEnd =
+        appStateProvider.userInfo?['subscriptionEndDate']?.toString().trim();
+    bool hasPremiumAccess = false;
+    if (rawSubscriptionEnd != null &&
+        rawSubscriptionEnd.isNotEmpty &&
+        rawSubscriptionEnd.toLowerCase() != 'null') {
+      final parsed = DateTime.tryParse(rawSubscriptionEnd);
+      if (parsed == null) {
+        hasPremiumAccess = true;
+      } else {
+        final now = parsed.isUtc ? DateTime.now().toUtc() : DateTime.now();
+        hasPremiumAccess = parsed.isAfter(now);
+      }
+    }
+    themeProvider.updatePremiumAccess(hasPremiumAccess);
+  });
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -56,8 +84,12 @@ void main() async {
   ]);
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: appStateProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: appStateProvider),
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: languageProvider),
+      ],
       child: const VocabMasterApp(),
     ),
   );
@@ -67,28 +99,61 @@ void main() async {
 }
 
 class VocabMasterApp extends StatelessWidget {
-  const VocabMasterApp({Key? key}) : super(key: key);
+  const VocabMasterApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = context.watch<ThemeProvider>().currentTheme;
+    final selectedLocale = context.watch<LanguageProvider>().locale;
+
     return MaterialApp(
-      title: 'VocabMaster',
+      title: context.tr('app.name'),
       debugShowCheckedModeBanner: false,
+      locale: selectedLocale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
-        primarySwatch: Colors.cyan,
         brightness: Brightness.dark,
+        primaryColor: selectedTheme.colors.primary,
+        colorScheme: ColorScheme.dark(
+          primary: selectedTheme.colors.primary,
+          secondary: selectedTheme.colors.accent,
+          surface: selectedTheme.colors.background,
+        ),
         scaffoldBackgroundColor: Colors.transparent,
         fontFamily: 'Inter',
       ),
-      // Auth state check via SplashScreen
-      home: const SplashScreen(),
+      home: const AppEntryGate(),
     );
+  }
+}
+
+class AppEntryGate extends StatelessWidget {
+  const AppEntryGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final languageProvider = context.watch<LanguageProvider>();
+    if (!languageProvider.initialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!languageProvider.hasExplicitSelection) {
+      return const LanguageSelectionPage();
+    }
+    return const SplashScreen();
   }
 }
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
-  const MainScreen({Key? key, this.initialIndex = 0}) : super(key: key);
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -112,7 +177,7 @@ class _MainScreenState extends State<MainScreen> {
       case 'practice_speaking':
         setState(() {
           _currentIndex = 4;
-          _practiceInitialMode = 'Konuşma';
+          _practiceInitialMode = 'speaking';
         });
         break;
       case 'repeat':
@@ -140,14 +205,23 @@ class _MainScreenState extends State<MainScreen> {
           MaterialPageRoute(builder: (_) => const XpHistoryPage()),
         );
         break;
+      case 'language':
+        _showLanguagePickerDialog();
+        break;
+      case 'settings':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SettingsPage()),
+        );
+        break;
     }
   }
 
   void _showChatSelectionDialog() {
+    final l10n = context.l10n;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Chat Selection',
+      barrierLabel: l10n.t('nav.selectChatMode'),
       barrierColor: Colors.black.withOpacity(0.8),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
@@ -180,11 +254,11 @@ class _MainScreenState extends State<MainScreen> {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 10, bottom: 20),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10, bottom: 20),
                         child: Text(
-                          'Sohbet Modu Seçin',
-                          style: TextStyle(
+                          l10n.t('nav.selectChatMode'),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -196,8 +270,8 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       const SizedBox(height: 10),
                       _buildChatOption(
-                        title: 'Arkadaşlarla Sohbet',
-                        subtitle: 'Online arkadaşlarla konuş',
+                        title: l10n.t('chat.friends.title'),
+                        subtitle: l10n.t('chat.friends.subtitle'),
                         icon: Icons.people_outline,
                         gradient: const LinearGradient(
                           colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
@@ -212,8 +286,8 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       const SizedBox(height: 16),
                       _buildChatOption(
-                        title: 'AI ile Sohbet',
-                        subtitle: 'Yapay zeka asistanı ile pratik yap',
+                        title: l10n.t('chat.ai.title'),
+                        subtitle: l10n.t('chat.ai.subtitle'),
                         icon: Icons.psychology_outlined,
                         gradient: const LinearGradient(
                           colors: [Color(0xFFA855F7), Color(0xFFEC4899)],
@@ -254,6 +328,82 @@ class _MainScreenState extends State<MainScreen> {
         );
       },
     );
+  }
+
+  Future<void> _showLanguagePickerDialog() async {
+    final provider = context.read<LanguageProvider>();
+    final l10n = context.l10n;
+    final current = provider.locale.languageCode;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t('language.setup.select'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...AppLocalizations.supportedLocales.map((locale) {
+                  final code = locale.languageCode;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      current == code
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: current == code ? Colors.cyanAccent : Colors.white70,
+                    ),
+                    title: Text(
+                      _localizedLanguageLabel(code),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    onTap: () async {
+                      await provider.selectLanguage(locale);
+                      if (!mounted || !sheetContext.mounted) {
+                        return;
+                      }
+                      Navigator.of(sheetContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.t('language.changed'))),
+                      );
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _localizedLanguageLabel(String code) {
+    switch (code) {
+      case 'tr':
+        return context.tr('language.turkish');
+      case 'de':
+        return context.tr('language.german');
+      case 'ar':
+        return context.tr('language.arabic');
+      case 'zh':
+        return context.tr('language.chinese');
+      default:
+        return context.tr('language.english');
+    }
   }
 
   Widget _buildChatOption({
@@ -367,7 +517,7 @@ class _MainScreenState extends State<MainScreen> {
             case 'speaking':
               setState(() {
                 _currentIndex = 4;
-                _practiceInitialMode = 'Konuşma';
+                _practiceInitialMode = 'speaking';
               });
               break;
             case 'repeat':
@@ -396,6 +546,14 @@ class _MainScreenState extends State<MainScreen> {
             case 'feed':
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SocialFeedPage()),
+              );
+              break;
+            case 'language':
+              _showLanguagePickerDialog();
+              break;
+            case 'settings':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
               );
               break;
           }
@@ -449,3 +607,4 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 }
+

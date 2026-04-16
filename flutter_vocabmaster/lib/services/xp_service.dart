@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'local_database_service.dart';
 
@@ -271,10 +272,10 @@ class XPService {
       // XP geçmişine kaydet (opsiyonel, analitik için)
       await _recordXPHistory(action);
       
-      print('🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP)');
+      debugPrint('🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP)');
       return action.xpAmount;
     } catch (e) {
-      print('❌ XP kayıt hatası: $e');
+      debugPrint('❌ XP kayıt hatası: $e');
       return 0;
     }
   }
@@ -285,10 +286,10 @@ class XPService {
     
     try {
       await _localDb.addXp(amount);
-      print('🎯 XP Kazanıldı: $reason (+$amount XP)');
+      debugPrint('🎯 XP Kazanıldı: $reason (+$amount XP)');
       return amount;
     } catch (e) {
-      print('❌ XP kayıt hatası: $e');
+      debugPrint('❌ XP kayıt hatası: $e');
       return 0;
     }
   }
@@ -420,3 +421,4 @@ class XPService {
     return false;
   }
 }
+

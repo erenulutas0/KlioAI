@@ -15,6 +15,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -22,6 +24,7 @@ import java.util.Map;
 @EnableMethodSecurity
 @EnableConfigurationProperties({ JwtProperties.class, AuthSecurityProperties.class })
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtProperties jwtProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -52,6 +55,11 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             if (jwtProperties.isEnforceAuth()) {
+                                if (request.getRequestURI().startsWith("/api/subscription/verify/")) {
+                                    log.warn("Auth required for subscription verify path={}, method={}",
+                                            request.getRequestURI(),
+                                            request.getMethod());
+                                }
                                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                                 response.getWriter().write(objectMapper.writeValueAsString(
@@ -62,6 +70,11 @@ public class SecurityConfig {
                             }
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (request.getRequestURI().startsWith("/api/subscription/verify/")) {
+                                log.warn("Access denied for subscription verify path={}, method={}",
+                                        request.getRequestURI(),
+                                        request.getMethod());
+                            }
                             response.setStatus(HttpStatus.FORBIDDEN.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.getWriter().write(objectMapper.writeValueAsString(

@@ -14,11 +14,19 @@
       },
       "oauth_client": [
         {
-          "client_id": "541249711408-nn9htri36g8gppspqiak43mkkh3o11k8.apps.googleusercontent.com",
+          "client_id": "541249711408-7p7c07abcnv34ahoknrkivof9o498n10.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.VocabMaster",
-            "certificate_hash": "de7ce83d0fb44e14253eab1c2e06b3634b83016b"
+            "certificate_hash": "5d5f25f473c03fab6b9857bca980501768b62082"
+          }
+        },
+        {
+          "client_id": "541249711408-i3r0dua45c7ofq59s86ut6rm63cd7s4i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.VocabMaster",
+            "certificate_hash": "ddc9fb903cf4bfd0e7e6e688c5230fd16a37a4d7"
           }
         },
         {

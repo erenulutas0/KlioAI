@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../widgets/animated_background.dart';
-import '../main.dart';
 import 'login_page.dart';
+import '../l10n/app_localizations.dart';
+import '../services/app_tour_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  final bool fromSettings;
+
+  const OnboardingScreen({
+    super.key,
+    this.fromSettings = false,
+  });
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -20,41 +26,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _iconController;
   late Animation<double> _iconScaleAnimation;
   late Animation<double> _iconRotationAnimation;
-
-  // Swipe Hint Controller
-  late AnimationController _hintController;
-  late Animation<double> _hintAnimation;
-
-  final List<OnboardingData> _pages = [
-    OnboardingData(
-      title: "Kelime Öğrenme",
-      description: "Binlerce kelimeyi etkili yöntemlerle öğrenin ve pratik yapın",
-      icon: Icons.menu_book,
-      gradient: [const Color(0xFF06b6d4), const Color(0xFF2563eb)],
-      featureTexts: ["Akıllı Tekrar", "Pratik Modları", "Sesli Telaffuz"],
-    ),
-    OnboardingData(
-      title: "Seviye Sistemi",
-      description: "XP kazanın, seviye atlayın ve başarımlar elde edin",
-      icon: Icons.emoji_events,
-      gradient: [const Color(0xFF3b82f6), const Color(0xFF0891b2)],
-      featureTexts: ["XP Kazanın", "Rozetler", "Liderlik Tablosu"],
-    ),
-    OnboardingData(
-      title: "Sosyal Öğrenme",
-      description: "Diğer kullanıcılarla konuşun, pratik yapın ve yarışın",
-      icon: Icons.people,
-      gradient: [const Color(0xFF22d3ee), const Color(0xFF3b82f6)],
-      featureTexts: ["Canlı Sohbet", "Arkadaşlar", "Yarışmalar"],
-    ),
-    OnboardingData(
-      title: "Hemen Başlayın!",
-      description: "VocabMaster ile İngilizce öğrenme yolculuğunuza başlayın",
-      icon: Icons.auto_awesome,
-      gradient: [const Color(0xFF2563eb), const Color(0xFF06b6d4)],
-      featureTexts: ["Ücretsiz", "Sınırsız", "Her Seviye"],
-    ),
-  ];
 
   @override
   void initState() {
@@ -80,16 +51,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
 
-    // Swipe Hint Animation
-    _hintController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _hintAnimation = Tween<double>(begin: 0, end: 10).animate(
-      CurvedAnimation(parent: _hintController, curve: Curves.easeInOut),
-    );
-
     // Start initial animations
     _iconController.forward();
   }
@@ -98,7 +59,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void dispose() {
     _pageController.dispose();
     _iconController.dispose();
-    _hintController.dispose();
     super.dispose();
   }
 
@@ -112,10 +72,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _iconController.forward();
   }
 
-  void _finishOnboarding() {
+  Future<void> _finishOnboarding() async {
+    await AppTourService().markCompleted();
+    if (!mounted) return;
+
+    if (widget.fromSettings) {
+      Navigator.of(context).pop();
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -124,8 +93,59 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  List<OnboardingData> _pages(BuildContext context) {
+    return [
+      OnboardingData(
+        title: context.tr('landing.feature.speaking.title'),
+        description: context.tr('landing.feature.speaking.description'),
+        icon: Icons.psychology,
+        gradient: [const Color(0xFF06b6d4), const Color(0xFF2563eb)],
+        featureTexts: [
+          context.tr('landing.feature.speaking.h1'),
+          context.tr('landing.feature.speaking.h2'),
+          context.tr('landing.feature.speaking.h3'),
+        ],
+      ),
+      OnboardingData(
+        title: context.tr('landing.feature.writing.title'),
+        description: context.tr('landing.feature.writing.description'),
+        icon: Icons.edit,
+        gradient: [const Color(0xFF3b82f6), const Color(0xFF8b5cf6)],
+        featureTexts: [
+          context.tr('landing.feature.writing.h1'),
+          context.tr('landing.feature.writing.h2'),
+          context.tr('landing.feature.writing.h3'),
+        ],
+      ),
+      OnboardingData(
+        title: context.tr('landing.feature.social.title'),
+        description: context.tr('landing.feature.social.description'),
+        icon: Icons.people,
+        gradient: [const Color(0xFF22d3ee), const Color(0xFF3b82f6)],
+        featureTexts: [
+          context.tr('landing.feature.social.h1'),
+          context.tr('landing.feature.social.h2'),
+          context.tr('landing.feature.social.h3'),
+        ],
+      ),
+      OnboardingData(
+        title: context.tr('landing.feature.progress.title'),
+        description: context.tr('landing.feature.progress.description'),
+        icon: Icons.track_changes,
+        gradient: [const Color(0xFF2563eb), const Color(0xFF06b6d4)],
+        featureTexts: [
+          context.tr('landing.feature.progress.h1'),
+          context.tr('landing.feature.progress.h2'),
+          context.tr('landing.feature.progress.h3'),
+        ],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pages = _pages(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF111827),
       body: Stack(
@@ -150,13 +170,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
 
           // Skip Button
-          if (_currentPage < _pages.length - 1)
+          if (_currentPage < pages.length - 1)
             Positioned(
               top: 50,
               right: 20,
               child: TextButton(
                 onPressed: _finishOnboarding,
-                child: const Text('Atla', style: TextStyle(color: Colors.white70)),
+                child: Text(
+                  context.tr('common.skip'),
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ),
             ),
 
@@ -164,7 +187,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           PageView.builder(
             controller: _pageController,
             onPageChanged: _onPageChanged,
-            itemCount: _pages.length,
+            itemCount: pages.length,
             itemBuilder: (context, index) {
               return AnimatedBuilder(
                 animation: _pageController,
@@ -195,9 +218,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           
           // Bottom Controls
-          Positioned(
-            bottom: 40,
-            left: 20,
+            Positioned(
+              bottom: 40,
+              left: 20,
             right: 20,
             child: Column(
               children: [
@@ -207,7 +230,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 // Pagination Dots
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_pages.length, (index) => _buildDot(index)),
+                  children: List.generate(pages.length, (index) => _buildDot(index)),
                 ),
                 
                 const SizedBox(height: 30),
@@ -235,14 +258,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text("Geri"),
+                          child: Text(context.tr('common.back')),
                         ),
                       ),
                     ),
 
                     // Next / Start Button
                     ElevatedButton(
-                      onPressed: _currentPage == _pages.length - 1
+                      onPressed: _currentPage == pages.length - 1
                           ? _finishOnboarding
                           : () {
                               _pageController.nextPage(
@@ -261,14 +284,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                           if (_currentPage == _pages.length - 1) 
+                           if (_currentPage == pages.length - 1) 
                              const Icon(Icons.auto_awesome, size: 18)
                            else 
-                             const Text("İleri"),
-                           if (_currentPage == _pages.length - 1)
-                             const Padding(
+                             Text(context.tr('common.next')),
+                           if (_currentPage == pages.length - 1)
+                             Padding(
                                padding: EdgeInsets.only(left: 8.0),
-                               child: Text("Başlayalım!"),
+                               child: Text(context.tr('common.start')),
                              )
                            else
                              const Padding(
@@ -308,7 +331,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildPageContent(int index) {
-    final data = _pages[index];
+    final data = _pages(context)[index];
     
     // Key ensures StaggeredFeatures rebuilds and restarts animation on page change
     return Padding(
@@ -348,7 +371,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         child: Icon(data.icon, size: 60, color: Colors.white),
                       ),
                       // Floating Particles
-                      Positioned.fill(child: FloatingParticles()),
+                      const Positioned.fill(child: FloatingParticles()),
                     ],
                   ),
                 ),
@@ -413,10 +436,10 @@ class OnboardingData {
 // ------ Custom Animated Widgets ------
 
 class FloatingParticles extends StatefulWidget {
-  const FloatingParticles({Key? key}) : super(key: key);
+  const FloatingParticles({super.key});
 
   @override
-  _FloatingParticlesState createState() => _FloatingParticlesState();
+  State<FloatingParticles> createState() => _FloatingParticlesState();
 }
 
 class _FloatingParticlesState extends State<FloatingParticles>
@@ -492,10 +515,10 @@ class _FloatingParticlesState extends State<FloatingParticles>
 
 class StaggeredFeatures extends StatefulWidget {
   final List<String> features;
-  const StaggeredFeatures({Key? key, required this.features}) : super(key: key);
+  const StaggeredFeatures({super.key, required this.features});
   
   @override
-  _StaggeredFeaturesState createState() => _StaggeredFeaturesState();
+  State<StaggeredFeatures> createState() => _StaggeredFeaturesState();
 }
 
 class _StaggeredFeaturesState extends State<StaggeredFeatures>
@@ -592,15 +615,15 @@ class PulsingOrb extends StatefulWidget {
   final int duration;
 
   const PulsingOrb({
-    Key? key,
+    super.key,
     required this.size,
     required this.color,
     required this.alignment,
     this.duration = 3,
-  }) : super(key: key);
+  });
 
   @override
-  _PulsingOrbState createState() => _PulsingOrbState();
+  State<PulsingOrb> createState() => _PulsingOrbState();
 }
 
 class _PulsingOrbState extends State<PulsingOrb>
@@ -664,3 +687,4 @@ class _PulsingOrbState extends State<PulsingOrb>
     );
   }
 }
+

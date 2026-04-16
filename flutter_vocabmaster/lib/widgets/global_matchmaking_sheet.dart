@@ -3,7 +3,7 @@ import '../services/global_state.dart';
 import 'matchmaking_banner.dart';
 
 class GlobalMatchmakingSheet extends StatelessWidget {
-  const GlobalMatchmakingSheet({Key? key}) : super(key: key);
+  const GlobalMatchmakingSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -22,3 +22,4 @@ class GlobalMatchmakingSheet extends StatelessWidget {
     );
   }
 }
+

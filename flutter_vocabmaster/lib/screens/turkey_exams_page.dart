@@ -3,7 +3,7 @@ import '../widgets/animated_background.dart';
 import '../widgets/exam_configuration_dialog.dart';
 
 class TurkeyExamsPage extends StatelessWidget {
-  const TurkeyExamsPage({Key? key}) : super(key: key);
+  const TurkeyExamsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -155,3 +155,4 @@ class TurkeyExamsPage extends StatelessWidget {
     );
   }
 }
+

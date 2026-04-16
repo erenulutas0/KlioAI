@@ -9,12 +9,12 @@ class ExamReviewPage extends StatefulWidget {
   final List<int>? originalIndices;
 
   const ExamReviewPage({
-    Key? key,
+    super.key,
     required this.items,
     required this.userAnswers,
     required this.title,
     this.originalIndices,
-  }) : super(key: key);
+  });
 
   @override
   State<ExamReviewPage> createState() => _ExamReviewPageState();
@@ -136,7 +136,6 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
 
   Widget _buildReviewItem(ExamItem item) {
     final userAnswer = widget.userAnswers[item.id];
-    final isCorrect = userAnswer == item.correct;
     
     // Resolve passage if necessary (though strictly we would need the full context logic here too, 
     // for simplicity we assume passage is on the item or we display just the question)
@@ -222,7 +221,7 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                 ],
               ),
             );
-          }).toList(),
+          }),
           
           const SizedBox(height: 24),
           
@@ -260,3 +259,4 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
     );
   }
 }
+

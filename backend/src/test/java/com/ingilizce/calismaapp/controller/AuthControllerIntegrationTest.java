@@ -151,6 +151,37 @@ public class AuthControllerIntegrationTest {
     }
 
     @Test
+    void refresh_ShouldRotateToken_WhenRefreshTokenValid() throws Exception {
+        User user = new User("refresh@test.com", passwordEncoder.encode("password123"));
+        userRepository.save(user);
+
+        Map<String, String> loginRequest = new HashMap<>();
+        loginRequest.put("email", "refresh@test.com");
+        loginRequest.put("password", "password123");
+
+        String refreshToken = objectMapper.readTree(
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest)))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString())
+                .get("refreshToken")
+                .asText();
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andExpect(jsonPath("$.userId").isNumber())
+                .andExpect(jsonPath("$.role").value("USER"));
+    }
+
+    @Test
     void googleLogin_ShouldCreateUser_WhenNotExists() throws Exception {
         Map<String, String> googleRequest = new HashMap<>();
         googleRequest.put("email", "google-new@test.com");

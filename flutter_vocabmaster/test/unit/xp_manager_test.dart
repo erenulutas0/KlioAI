@@ -99,7 +99,7 @@ void main() {
     });
 
     test('Idempotency: Same transaction ID should not award XP twice', () async {
-      final txId = 'unique_transaction_123';
+      const txId = 'unique_transaction_123';
       
       // First call
       final added1 = await xpManager.addXP(XPActionTypes.addWord, transactionId: txId);

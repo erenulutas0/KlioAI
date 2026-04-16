@@ -23,7 +23,7 @@ void main() {
   group('ApiService Tests', () {
     late ApiService apiService;
     late MockClient mockClient;
-    final String testBaseUrl = 'http://localhost:8080/api';
+    const String testBaseUrl = 'http://localhost:8080/api';
 
     test('getAllWords returns list of words if call completes successfully',
         () async {

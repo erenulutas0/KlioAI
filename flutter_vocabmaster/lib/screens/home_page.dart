@@ -7,43 +7,37 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import '../models/word.dart'; // Add Word model
+// Add Word model
 import '../widgets/animated_background.dart';
 import '../services/user_data_service.dart';
-import '../services/auth_service.dart';
 import '../services/social_service.dart';
 import '../widgets/info_dialog.dart';
-import 'chat_list_page.dart';
-import 'chat_detail_page.dart';
 import 'profile_page.dart';
-import 'social_feed_page.dart';
-import '../widgets/social_feed_preview.dart';
-import '../services/groq_service.dart';
-import '../widgets/word_of_the_day_modal.dart';
-import '../widgets/daily_word_card.dart';
-import 'speaking_page.dart';
-import 'review_page.dart';
-import 'repeat_page.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/modern_card.dart';
-import '../widgets/modern_background.dart';
-import 'notifications_page.dart';
+import '../models/word.dart';
+import '../widgets/daily_word_card.dart';
+import '../widgets/word_of_the_day_modal.dart';
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class HomePage extends StatefulWidget {
   final Function(String) onNavigate;
   final bool enableBackgroundTasks;
 
   const HomePage({
-    Key? key,
+    super.key,
     required this.onNavigate,
     this.enableBackgroundTasks = true,
-  }) : super(key: key);
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   // AutomaticKeepAliveClientMixin sayesinde widget "canlı" kalır
   @override
   bool get wantKeepAlive => true;
@@ -63,6 +57,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   // Heartbeat timer for online status
   Timer? _heartbeatTimer;
   final SocialService _socialService = SocialService();
+
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
 
   @override
   void initState() {
@@ -124,7 +127,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   void _startHeartbeat() {
     // İlk heartbeat'i hemen gönder
     _socialService.sendHeartbeat();
-    
+
     // Her 2 dakikada bir heartbeat gönder
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
       _socialService.sendHeartbeat();
@@ -177,16 +180,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
       if (response.file != null) {
         final path = response.file!.path;
         final prefs = await SharedPreferences.getInstance();
-        
+
         await prefs.setString('profile_image_path', path);
         await prefs.setString('profile_image_type', 'gallery');
 
         // Provider'ı güncelle
         if (mounted) {
           context.read<AppStateProvider>().updateProfileImage(
-            type: 'gallery',
-            path: path,
-          );
+                type: 'gallery',
+                path: path,
+              );
         }
       }
     }
@@ -204,13 +207,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   @override
   Widget build(BuildContext context) {
     super.build(context); // AutomaticKeepAliveClientMixin için gerekli
-    
+
     return Consumer<AppStateProvider>(
       builder: (context, appState, child) {
+        final selectedTheme = _currentTheme(listen: true);
         final user = appState.userStats;
         final userName = appState.userName;
-        final calendar = appState.weeklyActivity.isNotEmpty 
-            ? appState.weeklyActivity 
+        final calendar = appState.weeklyActivity.isNotEmpty
+            ? appState.weeklyActivity
             : [
                 {'day': 'Mon', 'learned': false, 'count': 0},
                 {'day': 'Tue', 'learned': false, 'count': 0},
@@ -236,13 +240,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
               SafeArea(
                 child: RefreshIndicator(
                   onRefresh: _refreshData,
-                  color: const Color(0xFF22D3EE),
+                  color: selectedTheme.colors.accent,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       children: [
                         // Top Section
-                        _buildTopSection(user, userName, profileImageType, profileImagePath, avatarSeed),
+                        _buildTopSection(user, userName, profileImageType,
+                            profileImagePath, avatarSeed),
                         const SizedBox(height: 24),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -252,7 +257,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                               _buildStatsCards(user),
                               const SizedBox(height: 24),
                               // Daily Words Section
-                              _buildDailyWordsSection(dailyWords, isLoadingDailyWords),
+                              _buildDailyWordsSection(
+                                  dailyWords, isLoadingDailyWords, appState),
                               const SizedBox(height: 24),
                               // Daily Goal
                               _buildDailyGoal(user),
@@ -288,16 +294,18 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
     );
   }
 
-  Widget _buildTopSection(Map<String, dynamic> user, String userName, String? profileImageType, String? profileImagePath, String avatarSeed) {
+  Widget _buildTopSection(Map<String, dynamic> user, String userName,
+      String? profileImageType, String? profileImagePath, String avatarSeed) {
+    final selectedTheme = _currentTheme();
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          const BoxShadow(
-            color: Color(0x4D06B6D4),
+          BoxShadow(
+            color: selectedTheme.colors.accentGlow.withOpacity(0.40),
             blurRadius: 20,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -308,18 +316,18 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0x4D06B6D4),
-                  Color(0x4D3B82F6),
-                  Color(0x4D8B5CF6),
+                  selectedTheme.colors.accent.withOpacity(0.34),
+                  selectedTheme.colors.primary.withOpacity(0.32),
+                  selectedTheme.colors.primaryDark.withOpacity(0.30),
                 ],
-                stops: [0.0, 0.5, 1.0],
+                stops: const [0.0, 0.5, 1.0],
               ),
               border: Border.all(
-                color: const Color(0x4D22D3EE),
+                color: selectedTheme.colors.glassBorder.withOpacity(0.72),
                 width: 1.5,
               ),
               borderRadius: BorderRadius.circular(20),
@@ -337,6 +345,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           MaterialPageRoute(
                               builder: (context) => const ProfilePage()),
                         );
+                        if (!mounted) return;
                         // Profil sayfasından dönünce verileri yenile
                         context.read<AppStateProvider>().refreshUserData();
                       },
@@ -346,7 +355,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFF22D3EE),
+                            color: selectedTheme.colors.accent,
                             width: 3,
                           ),
                           boxShadow: [
@@ -358,7 +367,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           ],
                         ),
                         child: ClipOval(
-                          child: _buildProfileImageWidget(profileImageType, profileImagePath, avatarSeed, userName),
+                          child: _buildProfileImageWidget(profileImageType,
+                              profileImagePath, avatarSeed, userName),
                         ),
                       ),
                     ),
@@ -374,7 +384,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Seviye ${user['level']}',
+                            '${context.tr('common.level')} ${user['level']}',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 10,
@@ -396,14 +406,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         children: [
                           Expanded(
                             child: ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [
-                                  Color(0xFF22D3EE),
-                                  Color(0xFF3B82F6),
-                                ],
-                              ).createShader(bounds),
+                              shaderCallback: (bounds) => selectedTheme
+                                  .colors.buttonGradient
+                                  .createShader(bounds),
                               child: Text(
-                                'Welcome, $userName',
+                                '${context.tr('home.welcome')}, $userName',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -418,13 +425,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                             onPressed: () {
                               InfoDialog.show(
                                 context,
-                                title: 'VocabMaster\'a Hoş Geldiniz',
+                                title: context.tr('home.info.title'),
                                 steps: [
-                                  'Her gün en az 5 yeni kelime öğrenerek günlük hedefinizi tamamlayın.',
-                                  'Seriyi kırmayın! Ardışık günlerde çalışarak streak kazanmaya devam edin.',
-                                  'Kazandığınız deneyim puanlarıyla (XP) seviye atlayın ve yeni özelliklerin kilidini açın.',
-                                  'Öğrendiğiniz kelimeleri pratik, okuma ve konuşma aktiviteleriyle pekiştirin.',
-                                  'İstatistikler ekranından haftalık ve aylık performansınızı detaylı analiz edin.',
+                                  context.tr('home.info.step1'),
+                                  context.tr('home.info.step2'),
+                                  context.tr('home.info.step3'),
+                                  context.tr('home.info.step4'),
+                                  context.tr('home.info.step5'),
                                 ],
                               );
                             },
@@ -459,27 +466,30 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                    Text(
-                                      'XP İlerlemesi',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 11,
-                                      ),
-                                    ),
+                                Text(
+                                  context.tr('home.xpProgress'),
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 11,
+                                  ),
+                                ),
                                 Flexible(
                                   child: Builder(
                                     builder: (context) {
                                       // Level-based XP hesaplama
                                       final totalXP = user['xp'] ?? 0;
                                       final level = user['level'] ?? 1;
-                                      final xpToNext = user['xpToNextLevel'] ?? 100;
-                                      
+
                                       // Mevcut leveldeki ilerleme
-                                      final currentLevelXP = _getLevelMinXP(level);
-                                      final nextLevelXP = _getLevelMinXP(level + 1);
-                                      final xpInCurrentLevel = totalXP - currentLevelXP;
-                                      final xpNeededForLevel = nextLevelXP - currentLevelXP;
-                                      
+                                      final currentLevelXP =
+                                          _getLevelMinXP(level);
+                                      final nextLevelXP =
+                                          _getLevelMinXP(level + 1);
+                                      final xpInCurrentLevel =
+                                          totalXP - currentLevelXP;
+                                      final xpNeededForLevel =
+                                          nextLevelXP - currentLevelXP;
+
                                       return Text(
                                         '$xpInCurrentLevel / $xpNeededForLevel',
                                         style: const TextStyle(
@@ -503,15 +513,22 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                   final level = user['level'] ?? 1;
                                   final currentLevelXP = _getLevelMinXP(level);
                                   final nextLevelXP = _getLevelMinXP(level + 1);
-                                  final xpInCurrentLevel = totalXP - currentLevelXP;
-                                  final xpNeededForLevel = nextLevelXP - currentLevelXP;
-                                  final progress = xpNeededForLevel > 0 ? (xpInCurrentLevel / xpNeededForLevel).clamp(0.0, 1.0) : 0.0;
-                                  
+                                  final xpInCurrentLevel =
+                                      totalXP - currentLevelXP;
+                                  final xpNeededForLevel =
+                                      nextLevelXP - currentLevelXP;
+                                  final progress = xpNeededForLevel > 0
+                                      ? (xpInCurrentLevel / xpNeededForLevel)
+                                          .clamp(0.0, 1.0)
+                                      : 0.0;
+
                                   return LinearProgressIndicator(
                                     value: progress,
-                                    backgroundColor: Colors.white.withOpacity(0.2),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF06b6d4)),
+                                    backgroundColor:
+                                        Colors.white.withOpacity(0.2),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      selectedTheme.colors.accent,
+                                    ),
                                     minHeight: 8,
                                   );
                                 },
@@ -519,7 +536,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Sonraki seviyeye ${user['xpToNextLevel'] ?? 0} XP kaldı',
+                              '${context.tr('home.nextLevelIn')} ${user['xpToNextLevel'] ?? 0} XP',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
                                 fontSize: 9,
@@ -539,21 +556,27 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
     );
   }
 
-  Widget _buildProfileImageWidget(String? profileImageType, String? profileImagePath, String avatarSeed, String userName) {
+  Widget _buildProfileImageWidget(String? profileImageType,
+      String? profileImagePath, String avatarSeed, String userName) {
+    final selectedTheme = _currentTheme();
     if (profileImageType == null) {
       return Container(
         color: Colors.grey[800],
-        child: const Center(
-          child: CircularProgressIndicator(color: Color(0xFF0ea5e9), strokeWidth: 2),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: selectedTheme.colors.accent,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
-    
+
     if (profileImageType == 'gallery' && profileImagePath != null) {
       return Image.file(
         File(profileImagePath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildInitialsWidget(userName),
+        errorBuilder: (context, error, stackTrace) =>
+            _buildInitialsWidget(userName),
       );
     } else if (profileImageType == 'initials') {
       return _buildInitialsWidget(userName);
@@ -564,17 +587,24 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
         fit: BoxFit.cover,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF0ea5e9), strokeWidth: 2));
+          return Center(
+            child: CircularProgressIndicator(
+              color: selectedTheme.colors.accent,
+              strokeWidth: 2,
+            ),
+          );
         },
-        errorBuilder: (context, error, stackTrace) => _buildInitialsWidget(userName),
+        errorBuilder: (context, error, stackTrace) =>
+            _buildInitialsWidget(userName),
       );
     }
   }
 
   Widget _buildInitialsWidget(String userName) {
+    final selectedTheme = _currentTheme();
     final initials = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
     return Container(
-      color: const Color(0xFF0ea5e9),
+      color: selectedTheme.colors.primary,
       child: Center(
         child: Text(
           initials,
@@ -589,15 +619,19 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   }
 
   Widget _buildStatsCards(Map<String, dynamic> user) {
+    final selectedTheme = _currentTheme();
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
             icon: Icons.emoji_events,
             value: user['totalWords'].toString(),
-            label: 'Toplam\nKelime',
-            gradient: const LinearGradient(
-              colors: [Color(0xFF06b6d4), Color(0xFF3b82f6)],
+            label: '${context.tr('home.total')}\n${context.tr('nav.words')}',
+            gradient: LinearGradient(
+              colors: [
+                selectedTheme.colors.accent.withOpacity(0.95),
+                selectedTheme.colors.primary.withOpacity(0.95),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -608,9 +642,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
           child: _buildStatCard(
             icon: Icons.whatshot,
             value: user['streak'].toString(),
-            label: 'Gün\nSerisi',
-            gradient: const LinearGradient(
-              colors: [Color(0xFF22d3ee), Color(0xFF3b82f6)],
+            label: '${context.tr('home.days')}\n${context.tr('home.streak')}',
+            gradient: LinearGradient(
+              colors: [
+                selectedTheme.colors.primaryLight.withOpacity(0.95),
+                selectedTheme.colors.primaryDark.withOpacity(0.95),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -621,9 +658,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
           child: _buildStatCard(
             icon: Icons.star,
             value: user['weeklyXP'].toString(),
-            label: 'Bu Hafta\nXP',
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3b82f6), Color(0xFF06b6d4)],
+            label: '${context.tr('home.thisWeek')}\nXP',
+            gradient: LinearGradient(
+              colors: [
+                selectedTheme.colors.primaryDark.withOpacity(0.95),
+                selectedTheme.colors.accent.withOpacity(0.95),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -654,7 +694,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Dikeyde eşit dağılım
+        mainAxisAlignment:
+            MainAxisAlignment.spaceEvenly, // Dikeyde eşit dağılım
         children: [
           Icon(icon, color: Colors.white, size: 28),
           FittedBox(
@@ -685,31 +726,32 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   }
 
   Widget _buildDailyGoal(Map<String, dynamic> user) {
+    final selectedTheme = _currentTheme();
     final dailyGoal = user['dailyGoal'] ?? 5;
     final learnedToday = user['learnedToday'] ?? 0;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1A06B6D4), // cyan-500/10
-            Color(0x1A3B82F6), // blue-500/10
-            Color(0x1A8B5CF6), // purple-500/10
+            selectedTheme.colors.accent.withOpacity(0.16),
+            selectedTheme.colors.primary.withOpacity(0.14),
+            selectedTheme.colors.primaryDark.withOpacity(0.14),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4D22D3EE), // cyan-400/30
+          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
           width: 1.5,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x4006B6D4), // cyan-500/25
+            color: selectedTheme.colors.accentGlow.withOpacity(0.34),
             blurRadius: 24,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -732,7 +774,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         width: 128,
                         height: 128,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22D3EE).withOpacity(_glowAnimation1.value * 0.4),
+                          color: selectedTheme.colors.accent
+                              .withOpacity(_glowAnimation1.value * 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -740,7 +783,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                   },
                 ),
               ),
-              
+
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -753,7 +796,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         width: 96,
                         height: 96,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withOpacity(_glowAnimation2.value * 0.4),
+                          color: selectedTheme.colors.primary
+                              .withOpacity(_glowAnimation2.value * 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -761,7 +805,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                   },
                 ),
               ),
-              
+
               // Content
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -775,16 +819,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF22D3EE),
-                                Color(0xFF3B82F6),
-                              ],
-                            ),
+                            gradient: selectedTheme.colors.buttonGradient,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x8006B6D4), // cyan-500/50
+                                color: selectedTheme.colors.accentGlow
+                                    .withOpacity(0.48),
                                 blurRadius: 16,
                               ),
                             ],
@@ -796,23 +836,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Günlük Hedef',
+                                context.tr('home.dailyGoal.title'),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
-                                'Başarıya bir adım daha yakınsın!',
+                                context.tr('home.dailyGoal.subtitle'),
                                 style: TextStyle(
-                                  color: Color(0xFFBAE6FD), // cyan-200
+                                  color: selectedTheme.colors.textSecondary,
                                   fontSize: 14,
                                 ),
                               ),
@@ -821,9 +861,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Stats Grid
                     Row(
                       children: [
@@ -834,7 +874,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                               color: const Color(0x0DFFFFFF), // white/5
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color(0x3322D3EE), // cyan-400/20
+                                color: selectedTheme.colors.glassBorder
+                                    .withOpacity(0.55),
                                 width: 1,
                               ),
                             ),
@@ -846,12 +887,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                     Container(
                                       width: 8,
                                       height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF22D3EE), // cyan-400
+                                      decoration: BoxDecoration(
+                                        color: selectedTheme.colors.accent,
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Color(0x8022D3EE),
+                                            color: selectedTheme
+                                                .colors.accentGlow
+                                                .withOpacity(0.52),
                                             blurRadius: 8,
                                             spreadRadius: 2,
                                           ),
@@ -859,10 +902,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    const Text(
-                                      'Bugün',
+                                    Text(
+                                      context.tr('home.today'),
                                       style: TextStyle(
-                                        color: Color(0xFF7DD3FC), // cyan-300
+                                        color:
+                                            selectedTheme.colors.textSecondary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -871,9 +915,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                 ),
                                 const SizedBox(height: 8),
                                 ScaleTransition(
-                                  scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                                    CurvedAnimation(parent: _statsAnimation, curve: Curves.elasticOut)
-                                  ),
+                                  scale: Tween<double>(begin: 0.0, end: 1.0)
+                                      .animate(CurvedAnimation(
+                                          parent: _statsAnimation,
+                                          curve: Curves.elasticOut)),
                                   child: Text(
                                     '$learnedToday',
                                     style: const TextStyle(
@@ -885,7 +930,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'kelime',
+                                  context.tr('nav.words').toLowerCase(),
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.5),
                                     fontSize: 12,
@@ -903,25 +948,27 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                               color: const Color(0x0DFFFFFF),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color(0x3360A5FA), // blue-400/20
+                                color: selectedTheme.colors.glassBorder
+                                    .withOpacity(0.46),
                                 width: 1,
                               ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Row(
+                                Row(
                                   children: [
                                     Icon(
                                       Icons.auto_awesome,
-                                      color: Color(0xFF93C5FD), // blue-300
+                                      color: selectedTheme.colors.textSecondary,
                                       size: 12,
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(width: 8),
                                     Text(
-                                      'Hedef',
+                                      context.tr('home.dailyGoal.target'),
                                       style: TextStyle(
-                                        color: Color(0xFF93C5FD),
+                                        color:
+                                            selectedTheme.colors.textSecondary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -939,7 +986,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'kelime',
+                                  context.tr('nav.words').toLowerCase(),
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.5),
                                     fontSize: 12,
@@ -951,9 +998,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Circular Progress
                     Center(
                       child: SizedBox(
@@ -968,21 +1015,24 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                 return CustomPaint(
                                   size: const Size(128, 128),
                                   painter: CircularProgressPainter(
-                                    progress: _circularProgressAnimation.value * 
-                                      (dailyGoal > 0 ? learnedToday / dailyGoal : 0),
-                                    gradientColors: const [
-                                      Color(0xFF22D3EE),
-                                      Color(0xFF3B82F6),
-                                      Color(0xFF8B5CF6),
+                                    progress: _circularProgressAnimation.value *
+                                        (dailyGoal > 0
+                                            ? learnedToday / dailyGoal
+                                            : 0),
+                                    gradientColors: [
+                                      selectedTheme.colors.accent,
+                                      selectedTheme.colors.primary,
+                                      selectedTheme.colors.primaryLight,
                                     ],
                                   ),
                                 );
                               },
                             ),
                             ScaleTransition(
-                              scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                                CurvedAnimation(parent: _percentageAnimation, curve: Curves.elasticOut)
-                              ),
+                              scale: Tween<double>(begin: 0.0, end: 1.0)
+                                  .animate(CurvedAnimation(
+                                      parent: _percentageAnimation,
+                                      curve: Curves.elasticOut)),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -995,10 +1045,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
-                                    'tamamlandı',
+                                  Text(
+                                    context.tr('home.dailyGoal.completed'),
                                     style: TextStyle(
-                                      color: Color(0xFFBAE6FD),
+                                      color: selectedTheme.colors.textSecondary,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -1009,9 +1059,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Horizontal Progress Bar
                     Column(
                       children: [
@@ -1028,15 +1078,19 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                               builder: (context, child) {
                                 return FractionallySizedBox(
                                   alignment: Alignment.centerLeft,
-                                  widthFactor: _horizontalProgressAnimation.value * 
-                                    (dailyGoal > 0 ? (learnedToday / dailyGoal).clamp(0.0, 1.0) : 0),
+                                  widthFactor:
+                                      _horizontalProgressAnimation.value *
+                                          (dailyGoal > 0
+                                              ? (learnedToday / dailyGoal)
+                                                  .clamp(0.0, 1.0)
+                                              : 0),
                                   child: Container(
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [
-                                          Color(0xFF22D3EE),
-                                          Color(0xFF3B82F6),
-                                          Color(0xFF8B5CF6),
+                                          selectedTheme.colors.accent,
+                                          selectedTheme.colors.primary,
+                                          selectedTheme.colors.primaryLight,
                                         ],
                                       ),
                                     ),
@@ -1057,7 +1111,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                                         Align(
                                           alignment: Alignment.centerRight,
                                           child: Container(
-                                            margin: const EdgeInsets.only(right: 2),
+                                            margin:
+                                                const EdgeInsets.only(right: 2),
                                             width: 8,
                                             height: 8,
                                             decoration: const BoxDecoration(
@@ -1084,15 +1139,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               '0',
                               style: TextStyle(
-                                color: Color(0xFF7DD3FC),
+                                color: selectedTheme.colors.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
                             Text(
-                              'Devam et!',
+                              context.tr('home.keepGoing'),
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.5),
                                 fontSize: 12,
@@ -1100,8 +1155,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                             ),
                             Text(
                               '$dailyGoal',
-                              style: const TextStyle(
-                                color: Color(0xFFC4B5FD),
+                              style: TextStyle(
+                                color: selectedTheme.colors.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -1120,35 +1175,40 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
   }
 
   Widget _buildWeeklyCalendar(List<Map<String, dynamic>> calendar) {
+    final selectedTheme = _currentTheme();
     // Calculate stats
-    int totalWords = calendar.where((d) => d['learned'] == true).fold<int>(0, (sum, d) => sum + (d['count'] as int));
+    int totalWords = calendar
+        .where((d) => d['learned'] == true)
+        .fold<int>(0, (sum, d) => sum + (d['count'] as int));
     int activeDays = calendar.where((d) => d['learned'] == true).length;
-    
+
     // Get streak directly from Provider since we are inside State
-    final streak = Provider.of<AppStateProvider>(context, listen: false).userStats['streak'] ?? 0;
+    final streak = Provider.of<AppStateProvider>(context, listen: false)
+            .userStats['streak'] ??
+        0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1A3B82F6), // blue-500/10
-            Color(0x1A06B6D4), // cyan-500/10
-            Color(0x1A14B8A6), // teal-500/10
+            selectedTheme.colors.primary.withOpacity(0.14),
+            selectedTheme.colors.accent.withOpacity(0.14),
+            selectedTheme.colors.primaryDark.withOpacity(0.14),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4D22D3EE), // cyan-400/30
+          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
           width: 1.5,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x4006B6D4),
+            color: selectedTheme.colors.accentGlow.withOpacity(0.34),
             blurRadius: 24,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -1162,11 +1222,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
               ...List.generate(6, (i) {
                 return FloatingParticle(
                   left: math.Random().nextDouble() * 300,
-                  top: math.Random().nextDouble() * 200, // Adjusted height for card
+                  top: math.Random().nextDouble() *
+                      200, // Adjusted height for card
                   index: i,
                 );
               }),
-              
+
               // Content
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -1179,16 +1240,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF60A5FA),
-                                Color(0xFF06B6D4),
-                              ],
-                            ),
+                            gradient: selectedTheme.colors.buttonGradient,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x803B82F6),
+                                color: selectedTheme.colors.accentGlow
+                                    .withOpacity(0.50),
                                 blurRadius: 16,
                               ),
                             ],
@@ -1200,23 +1257,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Haftalık Aktivite',
+                                context.tr('home.weeklyActivity'),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
-                                'Seriyi devam ettir!',
+                                context.tr('home.keepStreak'),
                                 style: TextStyle(
-                                  color: Color(0xFFBAE6FD),
+                                  color: selectedTheme.colors.textSecondary,
                                   fontSize: 12,
                                 ),
                                 maxLines: 1,
@@ -1226,7 +1283,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
@@ -1252,7 +1310,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '$streak gün',
+                                '$streak ${context.tr('home.days')}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -1264,16 +1322,18 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // 7 Day Grid
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 7,
-                        crossAxisSpacing: 8, // Reduced spacing for 7 items to fit
+                        crossAxisSpacing:
+                            8, // Reduced spacing for 7 items to fit
                         mainAxisSpacing: 12,
                         childAspectRatio: 0.55, // Adjusted to prevent overflow
                       ),
@@ -1286,9 +1346,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         );
                       },
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Weekly Summary
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -1296,20 +1356,21 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                         color: const Color(0x0DFFFFFF),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0x3322D3EE),
+                          color:
+                              selectedTheme.colors.glassBorder.withOpacity(0.6),
                           width: 1,
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.emoji_events,
-                            color: Color(0xFF22D3EE),
+                            color: selectedTheme.colors.accent,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Bu hafta',
+                          Text(
+                            context.tr('home.thisWeek'),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -1320,10 +1381,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text(
-                                'Toplam',
+                              Text(
+                                context.tr('home.total'),
                                 style: TextStyle(
-                                  color: Color(0xFF7DD3FC),
+                                  color: selectedTheme.colors.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1342,10 +1403,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text(
-                                'Günler',
+                              Text(
+                                context.tr('home.days'),
                                 style: TextStyle(
-                                  color: Color(0xFF93C5FD),
+                                  color: selectedTheme.colors.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1373,1297 +1434,611 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
     );
   }
 
-  Widget _buildSocialFeedPreview() {
-    // Mock Data for Preview
-    final previewPosts = [
-      {
-        'user': 'Sarah Johnson',
-        'avatar': 'https://api.dicebear.com/7.x/avataaars/png?seed=Sarah',
-        'time': '2 saat önce',
-        'content': 'Just completed my 30-day streak! 🔥 Learned 150+ words this month. Consistency is key! #VocabMaster',
-        'likes': 124,
-        'comments': 15,
-      },
-      {
-        'user': 'Emma Williams',
-        'avatar': 'https://api.dicebear.com/7.x/avataaars/png?seed=Emma',
-        'time': '5 saat önce',
-        'content': "Pro tip: Watch your favorite Netflix shows in English with English subtitles. I've learned so many phrasal verbs this way!",
-        'likes': 87,
-        'comments': 8,
-      },
-    ];
+  List<String> _normalizeSynonyms(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+    if (value is String) {
+      return value
+          .split(',')
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+    return const <String>[];
+  }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A), // Dark blue base
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFF22D3EE).withOpacity(0.3),
-        ),
-        boxShadow: [
-           BoxShadow(
-            color: const Color(0xFF22D3EE).withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Gradient Background
-          Positioned.fill(
-             child: Container(
-               decoration: BoxDecoration(
-                 borderRadius: BorderRadius.circular(24),
-                 gradient: LinearGradient(
-                   begin: Alignment.topLeft,
-                   end: Alignment.bottomRight,
-                   colors: [
-                     const Color(0xFF22D3EE).withOpacity(0.05), // Cyan
-                     const Color(0xFF14B8A6).withOpacity(0.05), // Teal
-                   ],
-                 ),
-               ),
-             ),
-          ),
-          
-          // Glow Orbs (Simplified)
-          Positioned(
-            top: -50,
-            right: -50,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF22D3EE).withOpacity(0.1), 
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF22D3EE).withOpacity(0.2),
-                    blurRadius: 50,
-                    spreadRadius: 20,
-                  )
-                ]
-              ),
-            ),
-          ),
+  String _normalizeDifficultyValue(dynamic value) {
+    final raw = (value ?? 'medium').toString().toLowerCase().trim();
+    switch (raw) {
+      case 'easy':
+      case 'kolay':
+        return 'easy';
+      case 'hard':
+      case 'zor':
+        return 'hard';
+      default:
+        return 'medium';
+    }
+  }
 
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.trending_up, color: Color(0xFF22D3EE), size: 24), // Cyan icon
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Social Feed',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SocialFeedPage())),
-                      child: Row(
-                        children: const [
-                           Text('Tümü', style: TextStyle(color: Color(0xFF22D3EE), fontSize: 14)),
-                           Icon(Icons.chevron_right, color: Color(0xFF22D3EE), size: 16),
-                        ]
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 4),
-                const Text(
-                  'Toplulukla paylaş ve başkalarının deneyimlerinden öğren! 🌟',
-                  style: TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Posts
-                ...previewPosts.map((post) => _buildPreviewPostCard(post)).toList(),
-                
-                const SizedBox(height: 12),
-                
-                // CTA Button
-                GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SocialFeedPage())),
-                  child: ModernCard(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    borderRadius: BorderRadius.circular(16),
-                    variant: BackgroundVariant.secondary,
-                    showBorder: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.trending_up, color: Colors.white, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Tüm Paylaşımları Gör',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  Map<String, dynamic> _normalizeDailyWord(Map<String, dynamic> rawWord) {
+    final word = (rawWord['word'] ?? rawWord['englishWord'] ?? '').toString();
+    final translation =
+        (rawWord['translation'] ?? rawWord['turkishMeaning'] ?? '').toString();
+    final definition =
+        (rawWord['definition'] ?? rawWord['englishDefinition'] ?? '')
+            .toString();
+    final exampleSentence =
+        (rawWord['exampleSentence'] ?? rawWord['sentence'] ?? '').toString();
+    final exampleTranslation = (rawWord['exampleTranslation'] ??
+            rawWord['sentenceTranslation'] ??
+            rawWord['translation'] ??
+            rawWord['turkishMeaning'] ??
+            '')
+        .toString();
+    final partOfSpeech =
+        (rawWord['partOfSpeech'] ?? rawWord['type'] ?? 'Unknown').toString();
+    final pronunciation = (rawWord['pronunciation'] ?? '').toString();
+
+    return {
+      ...rawWord,
+      'word': word,
+      'translation': translation,
+      'definition': definition,
+      'exampleSentence': exampleSentence,
+      'exampleTranslation': exampleTranslation,
+      'partOfSpeech': partOfSpeech,
+      'pronunciation': pronunciation,
+      'difficulty': _normalizeDifficultyValue(rawWord['difficulty']),
+      'synonyms': _normalizeSynonyms(rawWord['synonyms']),
+    };
+  }
+
+  void _showHomeMessage(String message, {bool success = true}) {
+    if (!mounted) return;
+    final selectedTheme = _currentTheme(listen: false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            success ? selectedTheme.colors.primary : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  Widget _buildPreviewPostCard(Map<String, dynamic> post) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05), // Glassmorphism
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              // Avatar
-               Container(
-                 width: 40,
-                 height: 40,
-                 decoration: BoxDecoration(
-                   shape: BoxShape.circle,
-                   gradient: const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)]),
-                   border: Border.all(color: Colors.transparent, width: 2),
-                 ),
-                 child: Container(
-                   decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF0F172A)),
-                   child: ClipOval(
-                      child: Image.network(post['avatar'], fit: BoxFit.cover,
-                         errorBuilder: (c,e,s) => Center(child: Text(post['user'][0], style: const TextStyle(color: Colors.white))),
-                      ),
-                   ),
-                 ),
-               ),
-               const SizedBox(width: 12),
-               Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   Text(post['user'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                   Text(post['time'], style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                 ],
-               ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Content
-          Text(
-            post['content'],
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Interactions
-          Row(
-            children: [
-              // Like
-              Row(children: [
-                const Icon(Icons.thumb_up, color: Color(0xFF22D3EE), size: 16),
-                const SizedBox(width: 4),
-                Text('${post['likes']}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-              ]),
-              const SizedBox(width: 16),
-              // Comment
-              Row(children: [
-                const Icon(Icons.message, color: Colors.white54, size: 16),
-                const SizedBox(width: 4),
-                Text('${post['comments']}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-              ]),
-              const Spacer(),
-              const Icon(Icons.bookmark_border, color: Colors.white54, size: 18),
-            ],
-          ),
-        ],
-      ),
+  Future<void> _addDailyWordToLibrary(
+    Map<String, dynamic> normalizedWord, {
+    required bool withSentence,
+  }) async {
+    final appState = context.read<AppStateProvider>();
+
+    final wordText = (normalizedWord['word'] ?? '').toString().trim();
+    final translationText =
+        (normalizedWord['translation'] ?? '').toString().trim();
+    final sentenceText =
+        (normalizedWord['exampleSentence'] ?? '').toString().trim();
+    final sentenceTranslation =
+        (normalizedWord['exampleTranslation'] ?? '').toString().trim();
+
+    if (wordText.isEmpty) {
+      _showHomeMessage(context.tr('home.snack.missingWord'), success: false);
+      return;
+    }
+
+    Word? existingWord = appState.findWordByEnglish(wordText);
+    final sentenceAlreadyAdded = existingWord != null &&
+        sentenceText.isNotEmpty &&
+        appState.hasSentenceForWord(existingWord, sentenceText);
+
+    if (existingWord != null && (!withSentence || sentenceAlreadyAdded)) {
+      _showHomeMessage(context.tr('home.snack.alreadyAdded'));
+      return;
+    }
+
+    Word? targetWord = existingWord;
+    if (targetWord == null) {
+      targetWord = await appState.addWord(
+        english: wordText,
+        turkish: translationText.isEmpty ? '⭐ $wordText' : '⭐ $translationText',
+        addedDate: DateTime.now(),
+        difficulty: _normalizeDifficultyValue(normalizedWord['difficulty']),
+        source: 'daily_word',
+      );
+      if (targetWord == null) {
+        _showHomeMessage(context.tr('home.snack.addFailed'), success: false);
+        return;
+      }
+    }
+
+    if (withSentence && sentenceText.isNotEmpty) {
+      final hasSentence = appState.hasSentenceForWord(targetWord, sentenceText);
+      if (!hasSentence) {
+        await appState.addSentenceToWord(
+          wordId: targetWord.id,
+          sentence: sentenceText,
+          translation: sentenceTranslation,
+          difficulty: 'medium',
+        );
+      }
+    }
+
+    _showHomeMessage(
+      withSentence
+          ? context.tr('home.snack.wordSentenceAdded')
+          : context.tr('home.snack.wordAdded'),
     );
   }
 
-  Widget _buildQuickActions() {
-    return ModernCard(
-      padding: const EdgeInsets.all(20),
-      borderRadius: BorderRadius.circular(20),
-      variant: BackgroundVariant.primary,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-                const Text(
-                  'Hızlı Erişim',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Tümünü Gör',
-                  style: TextStyle(
-                    color: Colors.cyan.withOpacity(0.8),
-                    fontSize: 12,
-                  ),
-                ),
-             ]
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _buildQuickActionButton(
-                  icon: Icons.mic,
-                  label: 'Konuşma',
-                  width: 100,
-                  onTap: () {
-                    widget.onNavigate('practice_speaking');
-                  },
-                ),
-                const SizedBox(width: 12),
-                _buildQuickActionButton(
-                  icon: Icons.repeat,
-                  label: 'Tekrar',
-                  width: 100,
+  Future<void> _showDailyWordActions(
+    Map<String, dynamic> normalizedWord,
+  ) async {
+    final appState = context.read<AppStateProvider>();
+    final wordText = (normalizedWord['word'] ?? '').toString();
+    final sentenceText = (normalizedWord['exampleSentence'] ?? '').toString();
+    final existingWord = appState.findWordByEnglish(wordText);
+    final wordAdded = existingWord != null;
+    final sentenceAdded = existingWord != null &&
+        sentenceText.isNotEmpty &&
+        appState.hasSentenceForWord(existingWord, sentenceText);
+    final canAddSentence = sentenceText.trim().isNotEmpty;
+    final selectedTheme = _currentTheme(listen: false);
 
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RepeatPage()),
-                    );
-                  },
-                ),
-                const SizedBox(width: 12),
-                _buildQuickActionButton(
-                  icon: Icons.menu_book,
-                  label: 'Sözlük',
-                  width: 100,
-                  onTap: () => widget.onNavigate('dictionary'),
-                ),
-                // MVP: Sohbet disabled for v1.0
-                // const SizedBox(width: 12),
-                // _buildQuickActionButton(
-                //    icon: Icons.chat_bubble_outline,
-                //    label: 'Sohbet',
-                //    width: 100,
-                //    onTap: () {
-                //      Navigator.push(
-                //        context,
-                //        MaterialPageRoute(builder: (context) => const ChatListPage()),
-                //      );
-                //    },
-                // ),
-              ],
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1F2E),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(
+              color: selectedTheme.colors.glassBorder.withOpacity(0.7),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    double width = 100,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        height: 100, // Fixed height for consistency
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0x3306B6D4), Color(0x333B82F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0x4D22D3EE), width: 1),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-             BoxShadow(
-              color: Color(0x3306B6D4),
-              blurRadius: 12,
-              spreadRadius: 2,
-              offset: Offset(0, 4),
-            )
-          ],
-        ),
-        child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 28),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOnlineUsers() {
-    return ModernCard(
-      padding: const EdgeInsets.all(24),
-      borderRadius: BorderRadius.circular(16),
-      variant: BackgroundVariant.primary,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.people, color: Color(0xFF22d3ee), size: 20),
-                  SizedBox(width: 8),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   Text(
-                    'Biriyle Konuş',
-                    style: TextStyle(
+                    wordText,
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ],
-              ),
-              if (onlineUsers.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${onlineUsers.length} Çevrimiçi',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
+                  const SizedBox(height: 12),
+                  ListTile(
+                    onTap: wordAdded
+                        ? null
+                        : () => Navigator.of(sheetContext).pop('word'),
+                    leading: Icon(
+                      wordAdded ? Icons.check_circle : Icons.add_circle_outline,
+                      color: wordAdded ? Colors.greenAccent : Colors.white,
+                    ),
+                    title: Text(
+                      context.tr('home.sheet.addWord'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      wordAdded
+                          ? context.tr('home.sheet.wordAlreadyAdded')
+                          : context.tr('home.sheet.addWordSubtitle'),
+                      style: TextStyle(color: Colors.white.withOpacity(0.65)),
                     ),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            onlineUsers.isEmpty 
-              ? 'Şu anda çevrimiçi kullanıcı yok. Yeni arkadaşlar ekleyerek pratik yapabilirsiniz!'
-              : 'Diğer kullanıcılarla İngilizce pratiği yapın ve arkadaşlar edinin!',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 24),
-          GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ChatListPage()),
-              );
-            },
-            child: ModernCard(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              borderRadius: BorderRadius.circular(16),
-              variant: BackgroundVariant.secondary,
-              showBorder: false,
-              child: const Center(
-                child: Text('Eşleş', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ...onlineUsers.map((user) {
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF475569).withOpacity(0.4),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.08),
-                  width: 1,
-                ),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: Row(
-                children: [
-                  // SABİT: Avatar - 38px
-                  SizedBox(
-                    width: 38,
-                    height: 38,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF22d3ee), Color(0xFF3b82f6)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              user['avatar'],
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: -1,
-                          bottom: -1,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF475569),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                  ListTile(
+                    onTap: (!canAddSentence || sentenceAdded)
+                        ? null
+                        : () => Navigator.of(sheetContext).pop('word+sentence'),
+                    leading: Icon(
+                      sentenceAdded
+                          ? Icons.check_circle
+                          : Icons.playlist_add_rounded,
+                      color: sentenceAdded ? Colors.greenAccent : Colors.white,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  // ESNEK: Kullanıcı Bilgisi
-                  Expanded(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            user['name'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  'Seviye ${user['level']}',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
-                                    fontSize: 11,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  softWrap: false,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    title: Text(
+                      context.tr('home.sheet.addWordWithSentence'),
+                      style: const TextStyle(color: Colors.white),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // SABİT: Butonlar - Padding reduced
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () {},
-                        child: Container(
-                          height: 28,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF64748b),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'Ara',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              height: 1,
-                            ),
-                            maxLines: 1,
-                            softWrap: false,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ChatDetailPage(
-                                userId: user['id'] ?? 0, // Fallback for mock data
-                                name: user['name'],
-                                avatar: user['avatar'],
-                                status: user['status'],
-                              ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          height: 28,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF06b6d4), Color(0xFF0ea5e9)],
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'Mesaj Gönder',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              height: 1,
-                            ),
-                            maxLines: 1,
-                            softWrap: false,
-                          ),
-                        ),
-                      ),
-                    ],
+                    subtitle: Text(
+                      !canAddSentence
+                          ? context.tr('home.sheet.noExampleSentence')
+                          : sentenceAdded
+                              ? context.tr('home.sheet.wordAndSentenceAlreadyAdded')
+                              : context.tr('home.sheet.addWordWithSentenceSubtitle'),
+                      style: TextStyle(color: Colors.white.withOpacity(0.65)),
+                    ),
                   ),
                 ],
               ),
-            );
-          }).toList(),
-        ],
-      ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'word') {
+      await _addDailyWordToLibrary(normalizedWord, withSentence: false);
+    } else if (action == 'word+sentence') {
+      await _addDailyWordToLibrary(normalizedWord, withSentence: true);
+    }
+  }
+
+  Future<void> _openDailyWordModal(Map<String, dynamic> normalizedWord) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return WordOfTheDayModal(
+          wordData: normalizedWord,
+          onClose: () => Navigator.of(dialogContext).pop(),
+        );
+      },
     );
   }
 
-  Widget _buildRecentlyLearned() {
-    return ModernCard(
-      padding: const EdgeInsets.all(24),
-      borderRadius: BorderRadius.circular(16),
-      variant: BackgroundVariant.primary,
+  Widget _buildDailyWordsSection(
+      List<Map<String, dynamic>> dailyWords,
+      bool isLoadingDailyWords,
+      AppStateProvider appState) {
+    final selectedTheme = _currentTheme();
+    if (isLoadingDailyWords) {
+      return SizedBox(
+        height: 180,
+        child: Center(
+          child: CircularProgressIndicator(color: selectedTheme.colors.accent),
+        ),
+      );
+    }
+
+    final normalizedWords = dailyWords
+        .map(_normalizeDailyWord)
+        .where((word) => (word['word'] ?? '').toString().trim().isNotEmpty)
+        .take(5)
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Son Öğrenilenler',
+              Icon(Icons.menu_book_rounded, color: selectedTheme.colors.accent),
+              const SizedBox(width: 8),
+              Text(
+                context.tr('home.dailyWords.title'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.5)),
+              const Spacer(),
+              Text(
+                '${normalizedWords.length}',
+                style: TextStyle(
+                  color: selectedTheme.colors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Dynamic List from Provider
-          Builder(
-            builder: (context) {
-              final provider = Provider.of<AppStateProvider>(context);
-              List<Word> recentWords = provider.allWords;
-              
-              if (recentWords.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Text(
-                      'Henüz kelime öğrenilmedi.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                );
-              }
+          const SizedBox(height: 14),
+          if (normalizedWords.isEmpty)
+            Text(
+              context.tr('home.dailyWords.empty'),
+              style: TextStyle(
+                color: selectedTheme.colors.textSecondary,
+                fontSize: 13,
+              ),
+            )
+          else
+            SizedBox(
+              height: 180,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: normalizedWords.length,
+                itemBuilder: (context, index) {
+                  final wordData = normalizedWords[index];
+                  final wordText = (wordData['word'] ?? '').toString();
+                  final sentenceText =
+                      (wordData['exampleSentence'] ?? '').toString();
+                  final existingWord = appState.findWordByEnglish(wordText);
+                  final isWordAdded = existingWord != null;
+                  final isSentenceAdded = existingWord != null &&
+                      sentenceText.isNotEmpty &&
+                      appState.hasSentenceForWord(existingWord, sentenceText);
 
-              return Column(
-                children: recentWords.take(5).map((word) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildLearnedWordItem(word),
-                )).toList(),
-              );
-            }
-          ),
+                  return DailyWordCard(
+                    wordData: wordData,
+                    index: index,
+                    isWordAdded: isWordAdded,
+                    isSentenceAdded: isSentenceAdded,
+                    onTap: () => _openDailyWordModal(wordData),
+                    onQuickAdd: () => _showDailyWordActions(wordData),
+                    onAddSentence: () =>
+                        _addDailyWordToLibrary(wordData, withSentence: true),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildLearnedWordItem(Word wordObj) {
-    final bool hasStar = wordObj.turkishMeaning.contains('★') || wordObj.turkishMeaning.contains('⭐');
-    final String displayMeaning = wordObj.turkishMeaning.replaceAll('★', '').replaceAll('⭐', '').trim();
-
-    return GestureDetector(
-      onTap: () {
-        // Kelime detaylarını ve cümleleri göster
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ModernCard(
-                  variant: BackgroundVariant.primary,
-                  borderRadius: BorderRadius.circular(24),
-                  showGlow: true,
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            if (hasStar) ...[
-                              const Icon(Icons.star, color: Color(0xFFFACC15), size: 24),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              child: Text(
-                                wordObj.englishWord,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => Navigator.pop(context),
-                        icon: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 20),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    displayMeaning,
-                    style: const TextStyle(
-                      color: Color(0xFF00B4D8), // Cyan-500 equivalent
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF10B981).withOpacity(0.5),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          wordObj.difficulty,
-                          style: const TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  if (wordObj.sentences.isNotEmpty) ...[
-                    const Text(
-                      'Örnek Cümleler',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      height: 110,
-                      child: ListView.separated(
-                        padding: EdgeInsets.zero,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: wordObj.sentences.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final sentence = wordObj.sentences[index];
-                          // Replicating Son Öğrenilenler item style (Secondary Variant)
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              // Approximate Secondary Gradient from ModernColors
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xE60F172A), // slate-900/90
-                                  Color(0xD931297D), // indigo-950/85
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0x3322D3EE), // cyan-400/20 (Border color from ModernColors)
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sentence.sentence,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontStyle: FontStyle.italic,
-                                    height: 1.4,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                   sentence.translation,
-                                   style: TextStyle(
-                                     color: Colors.white.withOpacity(0.6),
-                                     fontSize: 13,
-                                     height: 1.4,
-                                   ),
-                                   maxLines: 1,
-                                   overflow: TextOverflow.ellipsis,
-                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ] else
-                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'Henüz örnek cümle bulunmuyor.',
-                        style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: ModernCard(
-                      width: double.infinity,
-                      variant: BackgroundVariant.accent,
-                      borderRadius: BorderRadius.circular(14),
-                      padding: const EdgeInsets.symmetric(vertical: 16), // Match previous padding
-                      showGlow: true,
-                      showBorder: false,
-                      child: const Center(
-                        child: Text(
-                          'Tamam',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-          ),
-        );
+  Widget _buildQuickActions() {
+    final actions = <Map<String, dynamic>>[
+      {
+        'icon': Icons.menu_book_rounded,
+        'title': context.tr('home.quick.words.title'),
+        'subtitle': context.tr('home.quick.words.subtitle'),
+        'route': 'words',
       },
-      child: ModernCard(
-        padding: const EdgeInsets.all(16),
-        borderRadius: BorderRadius.circular(16),
-        variant: BackgroundVariant.secondary, // Slightly different shade for items
-        showBorder: false, // Less visual clutter for items
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0ea5e9).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.check_circle_outline, color: Color(0xFF0ea5e9), size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   Row(
-                    children: [
-                      if (hasStar) ...[
-                         const Icon(Icons.star, color: Color(0xFFFACC15), size: 16),
-                         const SizedBox(width: 4),
-                      ],
-                      Text(
-                        wordObj.englishWord,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayMeaning,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 13,
+      {
+        'icon': Icons.format_quote_rounded,
+        'title': context.tr('home.quick.sentences.title'),
+        'subtitle': context.tr('home.quick.sentences.subtitle'),
+        'route': 'sentences',
+      },
+      {
+        'icon': Icons.search_rounded,
+        'title': context.tr('home.quick.dictionary.title'),
+        'subtitle': context.tr('home.quick.dictionary.subtitle'),
+        'route': 'dictionary',
+      },
+      {
+        'icon': Icons.language_rounded,
+        'title': context.tr('home.quick.language.title'),
+        'subtitle': context.tr('home.quick.language.subtitle'),
+        'route': 'language',
+      },
+      {
+        'icon': Icons.refresh_rounded,
+        'title': context.tr('home.quick.review.title'),
+        'subtitle': context.tr('home.quick.review.subtitle'),
+        'route': 'repeat',
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.tr('home.quickAccess.title'),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 12) / 2;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final action in actions)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _buildQuickActionCard(
+                      icon: action['icon'] as IconData,
+                      title: action['title'] as String,
+                      subtitle: action['subtitle'] as String,
+                      route: action['route'] as String,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String route,
+  }) {
+    final selectedTheme = _currentTheme();
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => widget.onNavigate(route),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            colors: [
+              selectedTheme.colors.primary.withOpacity(0.22),
+              selectedTheme.colors.accent.withOpacity(0.20),
+            ],
+          ),
+          border: Border.all(
+            color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: selectedTheme.colors.accent, size: 20),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3)),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: selectedTheme.colors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDailyWordsSection(List<Map<String, dynamic>> dailyWords, bool isLoadingDailyWords) {
-    if (isLoadingDailyWords) {
-      return Container(
-        height: 180,
-        child: const Center(child: CircularProgressIndicator(color: Color(0xFF0ea5e9))),
-      );
-    }
+  Widget _buildRecentlyLearned() {
+    final selectedTheme = _currentTheme();
+    final words = context.watch<AppStateProvider>().allWords;
+    final recentWords = List<Word>.from(words)
+      ..sort((a, b) => b.learnedDate.compareTo(a.learnedDate));
 
-    if (dailyWords.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0f172a).withOpacity(0.6),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x4DFACC15)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selectedTheme.colors.glassBorder.withOpacity(0.7),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.auto_awesome, color: Color(0xFFFACC15), size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Günün Kelimeleri',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Şu an yüklenemedi. İnternetinizi kontrol edin veya tekrar deneyin.',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.65),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr('home.recent.title'),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () {
-                context.read<AppStateProvider>().refreshDailyWords();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFFDE047),
-              ),
-              child: const Text('Yenile'),
-            ),
-            const SizedBox(width: 4),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
-                );
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white70,
-              ),
-              child: const Text('Ayarlar'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Row(
-          children: [
-            const Icon(Icons.auto_awesome, color: Color(0xFFFACC15), size: 20), // Yellow-400
-            const SizedBox(width: 8),
-            const Text(
-              'Günün Kelimeleri',
+          ),
+          const SizedBox(height: 12),
+          if (recentWords.isEmpty)
+            Text(
+              context.tr('home.recent.empty'),
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                color: selectedTheme.colors.textSecondary,
+                fontSize: 13,
               ),
+            )
+          else
+            Column(
+              children: [
+                for (final word in recentWords.take(5)) ...[
+                  _buildRecentWordRow(word),
+                  const SizedBox(height: 10),
+                ],
+              ],
             ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFEAB308).withOpacity(0.2), // Yellow-500/20
-                    const Color(0xFFF97316).withOpacity(0.2), // Orange-500/20
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0x4DFACC15)), // Yellow-400/30
-              ),
-              child: const Text(
-                '5 Kelime', 
-                style: TextStyle(color: Color(0xFFFDE047), fontSize: 12, fontWeight: FontWeight.bold) // Yellow-300
-              ),
-            ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentWordRow(Word word) {
+    final selectedTheme = _currentTheme();
+    final difficulty = word.difficulty.toLowerCase();
+    final chipColor = _difficultyColor(difficulty);
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
         ),
-        const SizedBox(height: 16),
-        
-        // Horizontal Scroll Cards
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          clipBehavior: Clip.none,
-          padding: const EdgeInsets.symmetric(horizontal: 4), // Small offset for visual balance
-          child: Row(
-            children: dailyWords.asMap().entries.map((entry) {
-              final index = entry.key;
-              final word = entry.value;
-              final appState = context.read<AppStateProvider>();
-              final existingWord = appState.findWordByEnglish((word['word'] ?? '').toString());
-              final wordAdded = existingWord != null;
-              final sentenceAdded = wordAdded &&
-                  appState.hasSentenceForWord(existingWord!, (word['exampleSentence'] ?? '').toString());
-              return DailyWordCard(
-                wordData: word,
-                index: index,
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => WordOfTheDayModal(
-                      wordData: word,
-                      onClose: () => Navigator.pop(ctx),
-                    ),
-                  );
-                },
-                isWordAdded: wordAdded,
-                isSentenceAdded: sentenceAdded,
-                onQuickAdd: wordAdded ? null : () => _showQuickAddOptions(word, wordAdded: wordAdded, sentenceAdded: sentenceAdded),
-                onAddSentence: (!wordAdded || sentenceAdded)
-                    ? null
-                    : () => _addWordToLibrary(word, withSentence: true),
-              );
-            }).toList(),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                word.englishWord,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                word.turkishMeaning,
+                style: TextStyle(
+                  color: selectedTheme.colors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          _difficultyLabel(difficulty),
+          style: TextStyle(
+            color: chipColor,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
   }
 
-  void _showQuickAddOptions(Map<String, dynamic> wordData, {required bool wordAdded, required bool sentenceAdded}) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E293B),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        if (wordAdded && sentenceAdded) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  wordData['word'] ?? '',
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Color(0xFF10B981)),
-                      SizedBox(width: 8),
-                      Text('Kelime ve cümle zaten eklendi', style: TextStyle(color: Color(0xFF10B981))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                wordData['word'] ?? '',
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Kelimeyi nasıl eklemek istersiniz?',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-              const SizedBox(height: 24),
-              
-              if (wordAdded && !sentenceAdded) ...[
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.playlist_add, color: Colors.green),
-                  ),
-                  title: const Text('Cümlesini Ekle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Kelime zaten ekli, sadece cümle eklenecek', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addWordToLibrary(wordData, withSentence: true);
-                  },
-                ),
-              ] else ...[
-                // Add Only Word
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.add, color: Colors.blue),
-                  ),
-                  title: const Text('Sadece Kelimeyi Ekle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Kelime listesine eklenir', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addWordToLibrary(wordData, withSentence: false);
-                  },
-                ),
-                const SizedBox(height: 12),
-                
-                // Add With Sentence
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.playlist_add, color: Colors.green),
-                  ),
-                  title: const Text('Kelimeyi Cümlesiyle Ekle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Hem kelime hem de örnek cümle eklenir', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _addWordToLibrary(wordData, withSentence: true);
-                  },
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _addWordToLibrary(Map<String, dynamic> wordData, {required bool withSentence}) async {
-    try {
-      final appState = context.read<AppStateProvider>();
-      final addedDate = DateTime.now();
-      final wordText = (wordData['word'] ?? '').toString();
-      final sentenceText = (wordData['exampleSentence'] ?? '').toString();
-      final translationText = (wordData['exampleTranslation'] ?? '').toString();
-      final existingWord = appState.findWordByEnglish(wordText);
-      final wordAlreadyAdded = existingWord != null;
-      final sentenceAlreadyAdded = wordAlreadyAdded &&
-          appState.hasSentenceForWord(existingWord!, sentenceText);
-      
-      Word? word = existingWord;
-      if (!wordAlreadyAdded) {
-        // AppStateProvider üzerinden kelime ekle - otomatik XP ve stats güncellenir
-        // source: 'daily_word' ile Günün Kelimesi XP'si verilir (+10 XP)
-        word = await appState.addWord(
-          english: wordText,
-          turkish: "⭐ ${wordData['translation']}",
-          addedDate: addedDate,
-          difficulty: (wordData['difficulty'] as String? ?? 'Medium').toLowerCase(),
-          source: 'daily_word', // Günün Kelimesi XP türü
-        );
-      }
-
-      if (withSentence && word != null && !sentenceAlreadyAdded) {
-        // AppStateProvider üzerinden cümle ekle - otomatik XP güncellenir (+5 XP)
-        await appState.addSentenceToWord(
-          wordId: word.id,
-          sentence: sentenceText,
-          translation: translationText,
-          difficulty: 'medium',
-        );
-      }
-
-      if (mounted) {
-        String message;
-        if (wordAlreadyAdded && sentenceAlreadyAdded) {
-          message = 'Kelime ve cümle zaten eklendi.';
-        } else if (wordAlreadyAdded && withSentence) {
-          message = 'Kelime ekli, cümle eklendi! +5 XP';
-        } else if (wordAlreadyAdded) {
-          message = 'Kelime zaten ekli.';
-        } else {
-          message = withSentence ? 'Kelime ve cümle eklendi! +15 XP' : 'Kelime eklendi! +10 XP';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    message,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Hata oluştu: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+  Color _difficultyColor(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+      case 'kolay':
+        return Colors.greenAccent;
+      case 'medium':
+      case 'orta':
+        return Colors.amberAccent;
+      case 'hard':
+      case 'zor':
+        return Colors.redAccent;
+      default:
+        return Colors.lightBlueAccent;
     }
   }
 
-
-  Color _getDifficultyColor(String? difficulty) {
-    switch ((difficulty ?? '').toLowerCase()) {
-      case 'easy': return Colors.greenAccent;
-      case 'medium': return Colors.amberAccent;
-      case 'hard': return Colors.redAccent;
-      default: return Colors.blueAccent;
+  String _difficultyLabel(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+      case 'kolay':
+        return context.tr('home.difficulty.easy');
+      case 'medium':
+      case 'orta':
+        return context.tr('home.difficulty.medium');
+      case 'hard':
+      case 'zor':
+        return context.tr('home.difficulty.hard');
+      default:
+        return difficulty.isEmpty ? context.tr('home.difficulty.default') : difficulty;
     }
   }
 }
@@ -2675,15 +2050,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin,
 class CircularProgressPainter extends CustomPainter {
   final double progress;
   final List<Color> gradientColors;
-  
-  CircularProgressPainter({required this.progress, required this.gradientColors});
-  
+
+  CircularProgressPainter(
+      {required this.progress, required this.gradientColors});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - 8) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    
+
     // Background circle
     final backgroundPaint = Paint()
       ..color = Colors.white.withOpacity(0.1)
@@ -2691,21 +2067,21 @@ class CircularProgressPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, backgroundPaint);
-    
+
     // Gradient shader
     final gradient = SweepGradient(
       colors: gradientColors,
       startAngle: -math.pi / 2,
       endAngle: 3 * math.pi / 2,
     );
-    
+
     // Progress arc
     final progressPaint = Paint()
       ..shader = gradient.createShader(rect)
       ..strokeWidth = 8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    
+
     canvas.drawArc(
       rect,
       -math.pi / 2,
@@ -2714,7 +2090,7 @@ class CircularProgressPainter extends CustomPainter {
       progressPaint,
     );
   }
-  
+
   @override
   bool shouldRepaint(CircularProgressPainter oldDelegate) {
     return oldDelegate.progress != progress;
@@ -2725,16 +2101,16 @@ class FloatingParticle extends StatefulWidget {
   final double left;
   final double top;
   final int index;
-  
+
   const FloatingParticle({
-    Key? key,
+    super.key,
     required this.left,
     required this.top,
     required this.index,
-  }) : super(key: key);
-  
+  });
+
   @override
-  _FloatingParticleState createState() => _FloatingParticleState();
+  State<FloatingParticle> createState() => _FloatingParticleState();
 }
 
 class _FloatingParticleState extends State<FloatingParticle>
@@ -2742,7 +2118,7 @@ class _FloatingParticleState extends State<FloatingParticle>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -2750,7 +2126,7 @@ class _FloatingParticleState extends State<FloatingParticle>
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
-    
+
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 50),
@@ -2762,7 +2138,7 @@ class _FloatingParticleState extends State<FloatingParticle>
         curve: Curves.easeInOut,
       ),
     ));
-    
+
     _opacityAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 50),
@@ -2775,15 +2151,24 @@ class _FloatingParticleState extends State<FloatingParticle>
       ),
     ));
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    ThemeProvider? themeProvider;
+    try {
+      themeProvider = Provider.of<ThemeProvider?>(context, listen: true);
+    } catch (_) {
+      themeProvider = null;
+    }
+    final selectedTheme =
+        themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+
     return Positioned(
       left: widget.left,
       top: widget.top,
@@ -2797,8 +2182,8 @@ class _FloatingParticleState extends State<FloatingParticle>
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22D3EE),
+                decoration: BoxDecoration(
+                  color: selectedTheme.colors.particleColor,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2813,11 +2198,11 @@ class _FloatingParticleState extends State<FloatingParticle>
 class _DayCard extends StatefulWidget {
   final Map<String, dynamic> day;
   final int index;
-  
+
   const _DayCard({required this.day, required this.index});
-  
+
   @override
-  _DayCardState createState() => _DayCardState();
+  State<_DayCard> createState() => _DayCardState();
 }
 
 class _DayCardState extends State<_DayCard>
@@ -2826,7 +2211,7 @@ class _DayCardState extends State<_DayCard>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -2834,7 +2219,7 @@ class _DayCardState extends State<_DayCard>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -2845,7 +2230,7 @@ class _DayCardState extends State<_DayCard>
         ),
       ),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -2855,7 +2240,7 @@ class _DayCardState extends State<_DayCard>
         curve: Curves.easeOut,
       ),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -2866,7 +2251,7 @@ class _DayCardState extends State<_DayCard>
         ),
       ),
     );
-    
+
     // Staggered delay
     Future.delayed(Duration(milliseconds: widget.index * 100), () {
       if (mounted) {
@@ -2874,15 +2259,24 @@ class _DayCardState extends State<_DayCard>
       }
     });
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    ThemeProvider? themeProvider;
+    try {
+      themeProvider = Provider.of<ThemeProvider?>(context, listen: true);
+    } catch (_) {
+      themeProvider = null;
+    }
+    final selectedTheme =
+        themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -2892,25 +2286,28 @@ class _DayCardState extends State<_DayCard>
           child: Container(
             decoration: BoxDecoration(
               gradient: (widget.day['learned'] == true)
-                  ? const LinearGradient(
+                  ? LinearGradient(
                       colors: [
-                        Color(0xFF22D3EE),
-                        Color(0xFF3B82F6),
+                        selectedTheme.colors.accent,
+                        selectedTheme.colors.primary,
                       ],
                     )
                   : null,
-              color: (widget.day['learned'] == true) ? null : const Color(0x1AFFFFFF),
+              color: (widget.day['learned'] == true)
+                  ? null
+                  : const Color(0x1AFFFFFF),
               borderRadius: BorderRadius.circular(16),
               border: (widget.day['learned'] == true)
                   ? null
                   : Border.all(
-                      color: const Color(0x33FFFFFF),
+                      color: selectedTheme.colors.glassBorder.withOpacity(0.42),
                       width: 1,
                     ),
               boxShadow: (widget.day['learned'] == true)
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Color(0x8006B6D4),
+                        color:
+                            selectedTheme.colors.accentGlow.withOpacity(0.52),
                         blurRadius: 16,
                       ),
                     ]
@@ -2924,7 +2321,7 @@ class _DayCardState extends State<_DayCard>
                   style: TextStyle(
                     color: (widget.day['learned'] == true)
                         ? Colors.white
-                        : const Color(0xFF7DD3FC),
+                        : selectedTheme.colors.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2968,3 +2365,5 @@ class _DayCardState extends State<_DayCard>
     );
   }
 }
+
+

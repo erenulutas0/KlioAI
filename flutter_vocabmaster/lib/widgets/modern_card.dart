@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'modern_background.dart';
-import 'modern_colors.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class ModernCard extends StatelessWidget {
   final Widget child;
@@ -15,7 +17,7 @@ class ModernCard extends StatelessWidget {
   final BorderRadius? borderRadius;
 
   const ModernCard({
-    Key? key,
+    super.key,
     required this.child,
     this.width,
     this.height,
@@ -25,10 +27,18 @@ class ModernCard extends StatelessWidget {
     this.showBorder = true,
     this.showGlow = false,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    ThemeProvider? themeProvider;
+    try {
+      themeProvider = Provider.of<ThemeProvider?>(context, listen: true);
+    } catch (_) {
+      themeProvider = null;
+    }
+    final selectedTheme = themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+
     return Container(
       width: width,
       height: height,
@@ -38,7 +48,7 @@ class ModernCard extends StatelessWidget {
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: const Color(0x1A06B6D4), // cyan-500/10
+                  color: selectedTheme.colors.accentGlow.withOpacity(0.32),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -79,7 +89,7 @@ class ModernCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: borderRadius ?? BorderRadius.circular(24),
                     border: Border.all(
-                      color: ModernColors.borderColor,
+                      color: selectedTheme.colors.glassBorder.withOpacity(0.85),
                       width: 1,
                     ),
                   ),
@@ -97,3 +107,4 @@ class ModernCard extends StatelessWidget {
     );
   }
 }
+

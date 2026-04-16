@@ -628,10 +628,10 @@ Will, anlık kararlar, tahminler, vaatler ve kesinlik bildiren gelecek olayları
       ],
       comparison: '''
 🆚 Will vs Going to:
-• "The phone is ringing. I\'ll answer it." (Anlık karar)
-• "I\'m going to answer the phone." (Önceden niyetim var - garip)
+• "The phone is ringing. I'll answer it." (Anlık karar)
+• "I'm going to answer the phone." (Önceden niyetim var - garip)
 
-• "Look at those clouds! It\'s going to rain." (Görsel kanıt)
+• "Look at those clouds! It's going to rain." (Görsel kanıt)
 • "I think it will rain tomorrow." (Kişisel tahmin)
 
 📌 Anlık karar, vaat, teklif → will

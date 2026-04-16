@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import '../widgets/modern_colors.dart';
 
 class DiagonalLinesPainter extends CustomPainter {
+  final Color color;
+
+  DiagonalLinesPainter({this.color = ModernColors.lineColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = ModernColors.lineColor
+      ..color = color
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 

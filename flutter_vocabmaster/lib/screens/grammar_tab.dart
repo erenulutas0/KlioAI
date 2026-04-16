@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import '../data/grammar_data.dart';
 import '../data/grammar_repository.dart';
 import '../widgets/modern_card.dart';
-import '../widgets/modern_card_background.dart';
 import '../widgets/modern_background.dart';
 import 'grammar_topic_detail_page.dart';
 
 class GrammarTab extends StatefulWidget {
-  const GrammarTab({Key? key}) : super(key: key);
+  const GrammarTab({super.key});
 
   @override
   State<GrammarTab> createState() => _GrammarTabState();
@@ -95,7 +94,7 @@ class _GrammarTabState extends State<GrammarTab> {
         ),
 
         // Topics Grid
-        ...topics.map((topic) => _buildTopicCard(context, topic)).toList(),
+        ...topics.map((topic) => _buildTopicCard(context, topic)),
         
         const SizedBox(height: 80), // Bottom padding
       ],
@@ -106,10 +105,15 @@ class _GrammarTabState extends State<GrammarTab> {
     if (_selectedFilter == 'Tümü') return all;
     
     String levelKey = '';
-    if (_selectedFilter.contains('Temel')) levelKey = 'core';
-    else if (_selectedFilter.contains('İleri')) levelKey = 'advanced';
-    else if (_selectedFilter.contains('Sınav')) levelKey = 'exam';
-    else if (_selectedFilter == 'Bonus') levelKey = 'bonus';
+    if (_selectedFilter.contains('Temel')) {
+      levelKey = 'core';
+    } else if (_selectedFilter.contains('İleri')) {
+      levelKey = 'advanced';
+    } else if (_selectedFilter.contains('Sınav')) {
+      levelKey = 'exam';
+    } else if (_selectedFilter == 'Bonus') {
+      levelKey = 'bonus';
+    }
     
     return all.where((t) => t.level == levelKey).toList();
   }
@@ -266,3 +270,4 @@ class _GrammarTabState extends State<GrammarTab> {
     );
   }
 }
+

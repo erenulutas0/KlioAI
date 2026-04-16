@@ -9,7 +9,7 @@ import '../services/chat_service.dart';
 import '../services/social_service.dart';
 
 class ChatListPage extends StatefulWidget {
-  const ChatListPage({Key? key}) : super(key: key);
+  const ChatListPage({super.key});
 
   @override
   State<ChatListPage> createState() => _ChatListPageState();
@@ -449,3 +449,4 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
     );
   }
 }
+

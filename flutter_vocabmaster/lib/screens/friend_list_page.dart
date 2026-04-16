@@ -6,7 +6,7 @@ import '../services/social_service.dart';
 import 'chat_detail_page.dart';
 
 class FriendListPage extends StatefulWidget {
-  const FriendListPage({Key? key}) : super(key: key);
+  const FriendListPage({super.key});
 
   @override
   State<FriendListPage> createState() => _FriendListPageState();
@@ -103,14 +103,6 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
         _isLoading = false;
       });
     }
-  }
-
-  Future<void> _sendFriendRequest(int userId) async {
-    // Simulate Request
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Arkadaşlık isteği gönderildi!'), backgroundColor: Colors.green),
-    );
-     // Update UI to reflect sent state if needed
   }
 
   @override
@@ -328,3 +320,4 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
     );
   }
 }
+

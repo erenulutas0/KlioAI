@@ -21,6 +21,7 @@ import javax.net.ssl.X509TrustManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -158,7 +159,14 @@ public class GroqService {
      * @return Content string from the response
      */
     public String chatCompletion(List<Map<String, String>> messages, boolean jsonResponse) {
-        ChatCompletionResult result = chatCompletionWithUsage(messages, jsonResponse, null, null);
+        ChatCompletionResult result = chatCompletionWithUsage(messages, jsonResponse, null, null, null);
+        return result != null ? result.content() : null;
+    }
+
+    public String chatCompletion(List<Map<String, String>> messages,
+                                 boolean jsonResponse,
+                                 String modelOverride) {
+        ChatCompletionResult result = chatCompletionWithUsage(messages, jsonResponse, null, null, modelOverride);
         return result != null ? result.content() : null;
     }
 
@@ -175,7 +183,16 @@ public class GroqService {
                                                        boolean jsonResponse,
                                                        Integer maxTokens,
                                                        Double temperature) {
-        logger.info("Groq Request - Model: {}, URL: {}, Key present: {}", model, apiUrl,
+        return chatCompletionWithUsage(messages, jsonResponse, maxTokens, temperature, null);
+    }
+
+    public ChatCompletionResult chatCompletionWithUsage(List<Map<String, String>> messages,
+                                                        boolean jsonResponse,
+                                                        Integer maxTokens,
+                                                        Double temperature,
+                                                        String modelOverride) {
+        String selectedModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride.trim() : model;
+        logger.info("Groq Request - Model: {}, URL: {}, Key present: {}", selectedModel, apiUrl,
                 (apiKey != null && !apiKey.isEmpty()));
 
         if (isCircuitOpen()) {
@@ -190,7 +207,12 @@ public class GroqService {
 
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
-                ChatCompletionResult completion = executeChatCompletion(messages, jsonResponse, maxTokens, temperature);
+                ChatCompletionResult completion = executeChatCompletionWithJsonFallback(
+                        messages,
+                        jsonResponse,
+                        maxTokens,
+                        temperature,
+                        selectedModel);
                 recordSuccess();
                 return completion;
             } catch (NonRetryableGroqException e) {
@@ -222,14 +244,15 @@ public class GroqService {
     private ChatCompletionResult executeChatCompletion(List<Map<String, String>> messages,
                                                       boolean jsonResponse,
                                                       Integer maxTokens,
-                                                      Double temperature) {
+                                                      Double temperature,
+                                                      String selectedModel) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Authorization", "Bearer " + apiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", model);
+            requestBody.put("model", selectedModel);
             requestBody.put("messages", messages);
             // Pratik modunda cümle üretirken çeşitlilik için temperature yüksek olmalı
             // JSON formatı genelde bozulmaz, gerekirse 0.6-0.8 arası iyidir
@@ -275,8 +298,14 @@ public class GroqService {
                 }
             }
         } catch (HttpClientErrorException e) {
-            logger.error("Groq API client error: Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new NonRetryableGroqException("Groq API Error: " + e.getResponseBodyAsString(), e);
+            String responseBody = e.getResponseBodyAsString();
+            int statusCode = e.getStatusCode().value();
+            logger.error("Groq API client error: Status={}, Body={}", e.getStatusCode(), responseBody);
+            throw new NonRetryableGroqException(
+                    "Groq API Error: " + responseBody,
+                    statusCode,
+                    responseBody,
+                    e);
         } catch (HttpServerErrorException e) {
             logger.error("Groq API server error: Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new RetryableGroqException("Groq API Error: " + e.getResponseBodyAsString(), e);
@@ -288,6 +317,99 @@ public class GroqService {
             throw new RetryableGroqException("Failed to communicate with AI service: " + e.getMessage(), e);
         }
         return ChatCompletionResult.empty();
+    }
+
+    private ChatCompletionResult executeChatCompletionWithJsonFallback(List<Map<String, String>> messages,
+                                                                       boolean jsonResponse,
+                                                                       Integer maxTokens,
+                                                                       Double temperature,
+                                                                       String selectedModel) {
+        try {
+            ChatCompletionResult primary = executeChatCompletion(messages, jsonResponse, maxTokens, temperature, selectedModel);
+            if (jsonResponse && isBlank(primary.content())) {
+                ChatCompletionResult fallback = attemptJsonModeFallback(messages, maxTokens, temperature, selectedModel,
+                        "empty response content");
+                if (fallback != null && !isBlank(fallback.content())) {
+                    return fallback;
+                }
+            }
+            return primary;
+        } catch (NonRetryableGroqException e) {
+            if (shouldRetryWithoutResponseFormat(jsonResponse, e)) {
+                try {
+                    ChatCompletionResult fallback = attemptJsonModeFallback(messages, maxTokens, temperature, selectedModel,
+                            "json response_format validation");
+                    if (fallback != null) {
+                        return fallback;
+                    }
+                } catch (RetryableGroqException retryable) {
+                    throw retryable;
+                } catch (NonRetryableGroqException fallbackFailure) {
+                    logger.warn("Groq JSON fallback failed (model={}): {}", selectedModel, fallbackFailure.getMessage());
+                }
+            }
+            throw e;
+        }
+    }
+
+    private ChatCompletionResult attemptJsonModeFallback(List<Map<String, String>> messages,
+                                                         Integer maxTokens,
+                                                         Double temperature,
+                                                         String selectedModel,
+                                                         String reason) {
+        logger.warn("Groq JSON-mode issue detected ({}). Retrying once without response_format. model={}",
+                reason, selectedModel);
+        List<Map<String, String>> fallbackMessages = withJsonOutputHint(messages);
+        return executeChatCompletion(fallbackMessages, false, maxTokens, temperature, selectedModel);
+    }
+
+    private boolean shouldRetryWithoutResponseFormat(boolean jsonResponse, NonRetryableGroqException error) {
+        if (!jsonResponse || error == null || error.statusCode() == null) {
+            return false;
+        }
+
+        int statusCode = error.statusCode();
+        if (statusCode != 400 && statusCode != 422) {
+            return false;
+        }
+
+        String body = error.responseBody() != null
+                ? error.responseBody().toLowerCase(Locale.ROOT)
+                : "";
+
+        return body.contains("json_validate_failed")
+                || body.contains("response_format")
+                || body.contains("failed_generation")
+                || body.contains("schema");
+    }
+
+    private List<Map<String, String>> withJsonOutputHint(List<Map<String, String>> messages) {
+        List<Map<String, String>> copied = new ArrayList<>();
+        if (messages != null) {
+            for (Map<String, String> message : messages) {
+                copied.add(message != null ? new HashMap<>(message) : new HashMap<>());
+            }
+        }
+
+        String hint = "IMPORTANT: Return ONLY valid JSON. No markdown, no explanations.";
+        for (int i = copied.size() - 1; i >= 0; i--) {
+            Map<String, String> msg = copied.get(i);
+            String role = msg.get("role");
+            if (role != null && "user".equalsIgnoreCase(role)) {
+                String content = msg.getOrDefault("content", "");
+                if (!content.toLowerCase(Locale.ROOT).contains("return only valid json")) {
+                    msg.put("content", content + "\n\n" + hint);
+                }
+                return copied;
+            }
+        }
+
+        copied.add(new HashMap<>(Map.of("role", "user", "content", hint)));
+        return copied;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private long computeBackoffMs(int attempt, long baseBackoffMs, long backoffCapMs) {
@@ -336,7 +458,24 @@ public class GroqService {
 
     private static class NonRetryableGroqException extends RuntimeException {
         NonRetryableGroqException(String message, Throwable cause) {
+            this(message, null, null, cause);
+        }
+
+        NonRetryableGroqException(String message, Integer statusCode, String responseBody, Throwable cause) {
             super(message, cause);
+            this.statusCode = statusCode;
+            this.responseBody = responseBody;
+        }
+
+        private final Integer statusCode;
+        private final String responseBody;
+
+        Integer statusCode() {
+            return statusCode;
+        }
+
+        String responseBody() {
+            return responseBody;
         }
     }
 }

@@ -7,7 +7,7 @@ import 'exam_result_page.dart';
 class ExamRunnerPage extends StatefulWidget {
   final ExamBundle examBundle;
 
-  const ExamRunnerPage({Key? key, required this.examBundle}) : super(key: key);
+  const ExamRunnerPage({super.key, required this.examBundle});
 
   @override
   State<ExamRunnerPage> createState() => _ExamRunnerPageState();
@@ -238,7 +238,7 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
                               },
                             ),
                           );
-                        }).toList(),
+                        }),
 
                       ],
                     ),
@@ -343,3 +343,4 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
     );
   }
 }
+

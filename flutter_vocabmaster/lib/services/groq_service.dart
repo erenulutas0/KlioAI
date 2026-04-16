@@ -38,7 +38,9 @@ class GroqService {
       );
       return result['sentence']?.toString() ?? 'Cümle oluşturulamadı.';
     } catch (e) {
-      if (e is ApiQuotaExceededException) {
+      if (e is ApiQuotaExceededException ||
+          e is ApiUpgradeRequiredException ||
+          e is ApiUnauthorizedException) {
         rethrow;
       }
       return 'Cümle oluşturulamadı.';
@@ -54,7 +56,9 @@ class GroqService {
       );
       return result['definition']?.toString() ?? 'Anlam bulunamadı.';
     } catch (e) {
-      if (e is ApiQuotaExceededException) {
+      if (e is ApiQuotaExceededException ||
+          e is ApiUpgradeRequiredException ||
+          e is ApiUnauthorizedException) {
         rethrow;
       }
       return 'Anlam bulunamadı.';
@@ -63,15 +67,12 @@ class GroqService {
 
   /// Okuma parçası üretir (IELTS/TOEFL tarzı)
   static Future<Map<String, dynamic>> generateReadingPassage(String level) async {
-    return await _api.chatbotGenerateReadingPassage(level: level);
+    return await _api.getDailyReading(level: level);
   }
 
-  /// Writing konusu üretir
-  static Future<TopicData> generateWritingTopic(String level, String wordCount) async {
-    final result = await _api.chatbotGenerateWritingTopic(
-      level: level,
-      wordCount: wordCount,
-    );
+  /// Writing konusu üretir (daily, level-based)
+  static Future<TopicData> generateDailyWritingTopic(String level) async {
+    final result = await _api.getDailyWritingTopic(level: level);
     return TopicData.fromJson(result);
   }
 

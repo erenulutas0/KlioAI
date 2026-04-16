@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/sentence_modal_colors.dart';
 
@@ -43,7 +42,7 @@ class SentenceItem {
 class AddSentenceFromSentencesModal extends StatefulWidget {
   final Function(List<SentenceItem>) onSave;
 
-  const AddSentenceFromSentencesModal({Key? key, required this.onSave}) : super(key: key);
+  const AddSentenceFromSentencesModal({super.key, required this.onSave});
 
   @override
   State<AddSentenceFromSentencesModal> createState() => 
@@ -397,11 +396,11 @@ class _AddSentenceFromSentencesModalState
           const SizedBox(width: 12),
           
           // Title & Subtitle
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Yeni Cümle Ekle',
                   style: TextStyle(
                     color: SentenceModalColors.textWhite,
@@ -409,9 +408,9 @@ class _AddSentenceFromSentencesModalState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Row(
-                  children: const [
+                  children: [
                     Icon(
                       Icons.auto_awesome,
                       color: SentenceModalColors.textCyan,
@@ -520,9 +519,9 @@ class _AddSentenceFromSentencesModalState
             borderRadius: BorderRadius.circular(12),
             color: SentenceModalColors.orb1Color.withOpacity(0.1),
           ),
-          child: Row(
+          child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Icon(
                 Icons.add,
                 color: SentenceModalColors.textCyan,
@@ -1295,67 +1294,3 @@ class _SparkleWidgetState extends State<_SparkleWidget>
   }
 }
 
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double radius;
-  final double gap;
-  final double dash;
-
-  _DashedBorderPainter({
-    required this.color,
-    this.strokeWidth = 1.0,
-    required this.radius,
-    this.gap = 5.0,
-    this.dash = 5.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final Path path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        Radius.circular(radius),
-      ));
-
-    final Path dashedPath = Path();
-    
-    try {
-      final PathMetrics pathMetrics = path.computeMetrics();
-      for (PathMetric pathMetric in pathMetrics) {
-        double distance = 0.0;
-        bool draw = true;
-        while (distance < pathMetric.length) {
-          final double length = draw ? dash : gap;
-          if (draw) {
-            dashedPath.addPath(
-              pathMetric.extractPath(distance, distance + length),
-              Offset.zero,
-            );
-          }
-          distance += length;
-          draw = !draw;
-        }
-      }
-    } catch (e) {
-      canvas.drawPath(path, paint);
-      return;
-    }
-
-    canvas.drawPath(dashedPath, paint);
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.radius != radius ||
-        oldDelegate.gap != gap ||
-        oldDelegate.dash != dash;
-  }
-}

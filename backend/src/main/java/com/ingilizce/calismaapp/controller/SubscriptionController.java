@@ -6,9 +6,13 @@ import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.repository.PaymentTransactionRepository;
 import com.ingilizce.calismaapp.repository.SubscriptionPlanRepository;
 import com.ingilizce.calismaapp.repository.UserRepository;
+import com.ingilizce.calismaapp.service.AiPlanTier;
+import com.ingilizce.calismaapp.service.GooglePlaySubscriptionVerificationService;
 import com.ingilizce.calismaapp.service.IyzicoService;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
 // iyzico SDK removed
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,11 +29,14 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/subscription")
 public class SubscriptionController {
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionController.class);
+    private static final int STANDARD_SUBSCRIPTION_DAYS = 30;
 
     private final SubscriptionPlanRepository planRepository;
     private final UserRepository userRepository;
     private final PaymentTransactionRepository transactionRepository;
     private final IyzicoService iyzicoService;
+    private final GooglePlaySubscriptionVerificationService googlePlaySubscriptionVerificationService;
     private final CurrentUserContext currentUserContext;
     @Value("${app.subscription.mock-verification-enabled:true}")
     private boolean mockVerificationEnabled;
@@ -36,11 +45,13 @@ public class SubscriptionController {
             UserRepository userRepository,
             PaymentTransactionRepository transactionRepository,
             IyzicoService iyzicoService,
+            GooglePlaySubscriptionVerificationService googlePlaySubscriptionVerificationService,
             CurrentUserContext currentUserContext) {
         this.planRepository = planRepository;
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.iyzicoService = iyzicoService;
+        this.googlePlaySubscriptionVerificationService = googlePlaySubscriptionVerificationService;
         this.currentUserContext = currentUserContext;
     }
 
@@ -126,7 +137,17 @@ public class SubscriptionController {
             }
             SubscriptionPlan plan = planOpt.get();
 
-            user.setSubscriptionEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
+            if (isSubscriptionCurrentlyActive(user)) {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("message", "Apple IAP already active");
+                payload.put("subscriptionEndDate", user.getSubscriptionEndDate());
+                payload.put("planName", plan.getName());
+                payload.put("idempotent", true);
+                return ResponseEntity.ok(payload);
+            }
+
+            user.setSubscriptionEndDate(resolveNextSubscriptionEnd(user, plan, null));
+            user.setAiPlanCode(resolveAiPlanCode(plan));
             userRepository.save(user);
 
             return ResponseEntity
@@ -139,10 +160,6 @@ public class SubscriptionController {
     @PostMapping("/verify/google")
     public ResponseEntity<Map<String, Object>> verifyGooglePurchase(@RequestBody Map<String, String> request,
             @RequestHeader("X-User-Id") Long userId) {
-        if (!mockVerificationEnabled) {
-            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                    .body(Map.of("error", "Mock Google verification is disabled in this environment."));
-        }
         try {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isEmpty()) {
@@ -150,23 +167,163 @@ public class SubscriptionController {
             }
             User user = userOpt.get();
 
-            String planName = request.get("planName");
+            if (mockVerificationEnabled) {
+                String planName = request.get("planName");
+                Optional<SubscriptionPlan> planOpt = planRepository.findByName(planName);
+                if (planOpt.isEmpty()) {
+                    return ResponseEntity.internalServerError().body(Map.of("error", "Plan not found"));
+                }
+                SubscriptionPlan plan = planOpt.get();
 
-            // In a real scenario, we would use Google Play Developer API to verify.
-            Optional<SubscriptionPlan> planOpt = planRepository.findByName(planName);
+                if (isSubscriptionCurrentlyActive(user)) {
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("message", "Google IAP already active");
+                    payload.put("subscriptionEndDate", user.getSubscriptionEndDate());
+                    payload.put("planName", plan.getName());
+                    payload.put("idempotent", true);
+                    return ResponseEntity.ok(payload);
+                }
+
+                user.setSubscriptionEndDate(resolveNextSubscriptionEnd(user, plan, null));
+                user.setAiPlanCode(resolveAiPlanCode(plan));
+                userRepository.save(user);
+
+                return ResponseEntity.ok(
+                        Map.of("message", "Google IAP verified", "subscriptionEndDate", user.getSubscriptionEndDate()));
+            }
+
+            String purchaseToken = request.get("purchaseToken");
+            String packageName = request.get("packageName");
+            String requestedProductId = request.get("productId");
+            int purchaseTokenLen = purchaseToken == null ? 0 : purchaseToken.trim().length();
+            log.info("Google verify request userId={}, productId={}, packageOverride={}, tokenLen={}",
+                    userId,
+                    requestedProductId,
+                    packageName != null && !packageName.isBlank(),
+                    purchaseTokenLen);
+            if (purchaseToken == null || purchaseToken.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "purchaseToken is required"));
+            }
+
+            GooglePlaySubscriptionVerificationService.VerificationResult verification = googlePlaySubscriptionVerificationService
+                    .verifySubscription(purchaseToken, packageName);
+
+            String resolvedPlanName = googlePlaySubscriptionVerificationService.resolvePlanName(
+                    verification,
+                    requestedProductId);
+            if (resolvedPlanName == null || resolvedPlanName.isBlank()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "Unable to map Google product/base plan to internal subscription plan"));
+            }
+
+            Optional<SubscriptionPlan> planOpt = planRepository.findByName(resolvedPlanName);
             if (planOpt.isEmpty()) {
-                return ResponseEntity.internalServerError().body(Map.of("error", "Plan not found"));
+                return ResponseEntity.badRequest().body(Map.of("error", "Mapped plan not found: " + resolvedPlanName));
             }
             SubscriptionPlan plan = planOpt.get();
 
-            user.setSubscriptionEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
+            LocalDateTime verifiedExpiry = verification.expiryTime() != null
+                    ? LocalDateTime.ofInstant(verification.expiryTime(), ZoneOffset.UTC)
+                    : null;
+            user.setSubscriptionEndDate(resolveNextSubscriptionEnd(user, plan, verifiedExpiry));
+            user.setAiPlanCode(resolveAiPlanCode(plan));
             userRepository.save(user);
 
-            return ResponseEntity
-                    .ok(Map.of("message", "Google IAP verified", "subscriptionEndDate", user.getSubscriptionEndDate()));
+            String transactionId = "google:" + purchaseToken;
+            Optional<PaymentTransaction> existingTx = transactionRepository.findByTransactionIdWithUserAndPlan(transactionId);
+            if (existingTx.isPresent() && existingTx.get().getStatus() == PaymentTransaction.Status.SUCCESS) {
+                PaymentTransaction tx = existingTx.get();
+                if (tx.getUser() == null || !userId.equals(tx.getUser().getId())) {
+                    tx.setUser(user);
+                    tx.setPlan(plan);
+                    tx.setAmount(plan.getPrice());
+                    tx.setProvider("GOOGLE_IAP");
+                    transactionRepository.save(tx);
+                }
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("message", "Google IAP already verified");
+                payload.put("subscriptionEndDate", user.getSubscriptionEndDate());
+                payload.put("planName", plan.getName());
+                payload.put("idempotent", true);
+                return ResponseEntity.ok(payload);
+            }
+
+            PaymentTransaction tx = existingTx.orElseGet(PaymentTransaction::new);
+            tx.setTransactionId(transactionId);
+            tx.setUser(user);
+            tx.setPlan(plan);
+            tx.setAmount(plan.getPrice());
+            tx.setProvider("GOOGLE_IAP");
+            tx.setStatus(PaymentTransaction.Status.SUCCESS);
+            transactionRepository.save(tx);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("message", "Google IAP verified");
+            payload.put("planName", plan.getName());
+            payload.put("subscriptionEndDate", user.getSubscriptionEndDate());
+            payload.put("subscriptionState", verification.subscriptionState());
+            payload.put("productKeys", verification.productKeys());
+            payload.put("latestOrderId", verification.latestOrderId());
+            log.info("Google verify success userId={}, productId={}, planName={}, state={}",
+                    userId,
+                    requestedProductId,
+                    plan.getName(),
+                    verification.subscriptionState());
+            return ResponseEntity.ok(payload);
+        } catch (GooglePlaySubscriptionVerificationService.GooglePlayVerificationException e) {
+            HttpStatus status = switch (e.getCode()) {
+                case INVALID_PURCHASE -> HttpStatus.BAD_REQUEST;
+                case MISCONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
+                case PROVIDER_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            };
+            log.warn("Google verify failed userId={}, code={}, message={}",
+                    userId, e.getCode(), e.getMessage());
+            return ResponseEntity.status(status).body(Map.of(
+                    "error", e.getMessage(),
+                    "code", e.getCode().name()));
         } catch (Exception e) {
+            log.error("Google verify unexpected failure userId={}", userId, e);
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private LocalDateTime resolveNextSubscriptionEnd(User user, SubscriptionPlan plan, LocalDateTime verifiedExpiryUtc) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime currentEnd = user.getSubscriptionEndDate();
+        int durationDays = resolveEffectiveDurationDays(plan);
+        if (verifiedExpiryUtc != null && verifiedExpiryUtc.isAfter(now)) {
+            if (currentEnd == null || currentEnd.isBefore(now)) {
+                return verifiedExpiryUtc;
+            }
+            return verifiedExpiryUtc.isAfter(currentEnd) ? verifiedExpiryUtc : currentEnd;
+        }
+        if (currentEnd == null || currentEnd.isBefore(now)) {
+            return now.plusDays(durationDays);
+        }
+        return currentEnd.plusDays(durationDays);
+    }
+
+    private int resolveEffectiveDurationDays(SubscriptionPlan plan) {
+        if (plan == null) {
+            return STANDARD_SUBSCRIPTION_DAYS;
+        }
+        AiPlanTier tier = AiPlanTier.fromSubscriptionPlanName(plan.getName());
+        if (tier == AiPlanTier.PREMIUM || tier == AiPlanTier.PREMIUM_PLUS) {
+            return STANDARD_SUBSCRIPTION_DAYS;
+        }
+        Integer configuredDuration = plan.getDurationDays();
+        if (configuredDuration == null || configuredDuration < 1) {
+            return STANDARD_SUBSCRIPTION_DAYS;
+        }
+        return configuredDuration;
+    }
+
+    private boolean isSubscriptionCurrentlyActive(User user) {
+        if (user == null) {
+            return false;
+        }
+        LocalDateTime end = user.getSubscriptionEndDate();
+        return end != null && end.isAfter(LocalDateTime.now());
     }
 
     @PostMapping("/callback/iyzico")
@@ -192,13 +349,14 @@ public class SubscriptionController {
 
         // Update user subscription
         User user = transaction.getUser();
-        int days = transaction.getPlan().getDurationDays();
+        int days = resolveEffectiveDurationDays(transaction.getPlan());
         LocalDateTime currentEnd = user.getSubscriptionEndDate();
         if (currentEnd == null || currentEnd.isBefore(LocalDateTime.now())) {
             user.setSubscriptionEndDate(LocalDateTime.now().plusDays(days));
         } else {
             user.setSubscriptionEndDate(currentEnd.plusDays(days));
         }
+        user.setAiPlanCode(resolveAiPlanCode(transaction.getPlan()));
         userRepository.save(user);
 
         return ResponseEntity.ok("Payment successful and subscription updated.");
@@ -237,14 +395,23 @@ public class SubscriptionController {
             }
             SubscriptionPlan plan = planOpt.get();
 
+            if (isSubscriptionCurrentlyActive(user)) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "Demo abonelik zaten aktif, süre uzatılmadı.",
+                        "plan", plan.getName(),
+                        "subscriptionEndDate", user.getSubscriptionEndDate().toString(),
+                        "idempotent", true));
+            }
+
             // Activate subscription directly
-            int days = plan.getDurationDays();
+            int days = resolveEffectiveDurationDays(plan);
             LocalDateTime currentEnd = user.getSubscriptionEndDate();
             if (currentEnd == null || currentEnd.isBefore(LocalDateTime.now())) {
                 user.setSubscriptionEndDate(LocalDateTime.now().plusDays(days));
             } else {
                 user.setSubscriptionEndDate(currentEnd.plusDays(days));
             }
+            user.setAiPlanCode(resolveAiPlanCode(plan));
             userRepository.save(user);
 
             return ResponseEntity.ok(Map.of(
@@ -255,5 +422,12 @@ public class SubscriptionController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Demo aktivasyon hatası: " + e.getMessage()));
         }
+    }
+
+    private String resolveAiPlanCode(SubscriptionPlan plan) {
+        if (plan == null) {
+            return AiPlanTier.FREE.name();
+        }
+        return AiPlanTier.fromSubscriptionPlanName(plan.getName()).name();
     }
 }

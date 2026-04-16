@@ -160,7 +160,8 @@ void main() {
       expect(stats['total'], 7);
     });
 
-    test('chatbotQuotaStatus hits correct endpoint and parses payload', () async {
+    test('chatbotQuotaStatus hits correct endpoint and parses payload',
+        () async {
       final mockClient = MockClient((request) async {
         expect(request.method, 'GET');
         expect(request.url.toString(), '$testBaseUrl/chatbot/quota/status');
@@ -185,7 +186,8 @@ void main() {
       expect(quota['tokensRemaining'], 45000);
     });
 
-    test('chatbotQuotaStatus maps 429 payload to ApiQuotaExceededException', () async {
+    test('chatbotQuotaStatus maps 429 payload to ApiQuotaExceededException',
+        () async {
       final mockClient = MockClient((request) async {
         expect(request.method, 'GET');
         expect(request.url.toString(), '$testBaseUrl/chatbot/quota/status');
@@ -214,6 +216,89 @@ void main() {
               .having((e) => e.tokensRemaining, 'tokensRemaining', 0),
         ),
       );
+    });
+
+    test(
+        'chatbotGenerateSentences maps 403 payload to ApiUpgradeRequiredException',
+        () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+            request.url.toString(), '$testBaseUrl/chatbot/generate-sentences');
+        return http.Response(
+          json.encode({
+            'error': 'AI access is disabled for current plan.',
+            'reason': 'ai-access-disabled',
+            'upgradeRequired': true,
+          }),
+          403,
+        );
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+
+      expect(
+        api.chatbotGenerateSentences(word: 'focus'),
+        throwsA(
+          isA<ApiUpgradeRequiredException>()
+              .having((e) => e.reason, 'reason', 'ai-access-disabled')
+              .having((e) => e.upgradeRequired, 'upgradeRequired', true),
+        ),
+      );
+    });
+
+    test(
+        'chatbotGenerateSentences refreshes token once and retries on 401',
+        () async {
+      var sentenceCallCount = 0;
+      final mockClient = MockClient((request) async {
+        if (request.url.toString() == '$testBaseUrl/auth/refresh') {
+          final body = json.decode(request.body) as Map<String, dynamic>;
+          expect(body['refreshToken'], 'test_refresh');
+          return http.Response(
+            json.encode({
+              'success': true,
+              'accessToken': 'rotated_access',
+              'refreshToken': 'rotated_refresh',
+              'userId': 4,
+              'role': 'USER',
+            }),
+            200,
+          );
+        }
+
+        if (request.url.toString() ==
+            '$testBaseUrl/chatbot/generate-sentences') {
+          sentenceCallCount += 1;
+          if (sentenceCallCount == 1) {
+            expect(request.headers['authorization'], 'Bearer test_token');
+            return http.Response(
+              json.encode({'error': 'Unauthorized', 'success': false}),
+              401,
+            );
+          }
+
+          expect(request.headers['authorization'], 'Bearer rotated_access');
+          return http.Response(
+            json.encode({
+              'sentences': ['I read books.'],
+              'translations': ['Kitap okurum.'],
+              'count': 1,
+              'cached': false,
+            }),
+            200,
+          );
+        }
+
+        return http.Response('Not Found', 404);
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+      final result = await api.chatbotGenerateSentences(word: 'book');
+
+      expect(sentenceCallCount, 2);
+      expect(result['count'], 1);
+      expect(result['sentences'][0], 'I read books.');
     });
   });
 }

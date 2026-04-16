@@ -14,6 +14,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrWhiteSpace($env:APP_SECURITY_JWT_SECRET)) {
+    $env:APP_SECURITY_JWT_SECRET = "local-dev-placeholder"
+    Write-Host "[flyway-repair] INFO: APP_SECURITY_JWT_SECRET not set; using temporary placeholder for compose parsing."
+}
+
 if (-not $AcknowledgeNonProd) {
     throw "This operation is for NON-PRODUCTION environments only. Re-run with -AcknowledgeNonProd."
 }

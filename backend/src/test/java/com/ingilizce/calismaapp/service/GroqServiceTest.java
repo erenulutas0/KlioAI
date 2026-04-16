@@ -148,6 +148,46 @@ class GroqServiceTest {
     }
 
     @Test
+    void chatCompletion_ShouldFallbackWithoutResponseFormat_WhenJsonValidationFails() {
+        HttpClientErrorException ex = HttpClientErrorException.create(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                HttpHeaders.EMPTY,
+                "{\"error\":{\"code\":\"json_validate_failed\",\"message\":\"response_format schema failed\"}}".getBytes(),
+                null);
+
+        Map<String, Object> messageMap = new HashMap<>();
+        messageMap.put("content", "{\"ok\":true}");
+        Map<String, Object> choiceMap = new HashMap<>();
+        choiceMap.put("message", messageMap);
+        Map<String, Object> bodyMap = new HashMap<>();
+        bodyMap.put("choices", List.of(choiceMap));
+        ResponseEntity<Map> success = new ResponseEntity<>(bodyMap, HttpStatus.OK);
+
+        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+                .thenThrow(ex)
+                .thenReturn(success);
+
+        String result = groqService.chatCompletion(List.of(Map.of("role", "user", "content", "Return json")), true);
+
+        assertEquals("{\"ok\":true}", result);
+
+        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate, times(2)).postForEntity(eq("http://api.groq.com/test"), entityCaptor.capture(), eq(Map.class));
+
+        List<HttpEntity> requests = entityCaptor.getAllValues();
+        Map<String, Object> firstBody = (Map<String, Object>) requests.get(0).getBody();
+        Map<String, Object> secondBody = (Map<String, Object>) requests.get(1).getBody();
+
+        assertTrue(firstBody.containsKey("response_format"));
+        assertFalse(secondBody.containsKey("response_format"));
+
+        List<Map<String, String>> fallbackMessages = (List<Map<String, String>>) secondBody.get("messages");
+        String fallbackContent = fallbackMessages.get(fallbackMessages.size() - 1).get("content");
+        assertTrue(fallbackContent.contains("Return ONLY valid JSON"));
+    }
+
+    @Test
     void chatCompletion_ShouldThrowRuntime_WhenHttpServerErrorOccurs() {
         HttpServerErrorException ex = HttpServerErrorException.create(
                 HttpStatus.INTERNAL_SERVER_ERROR,

@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import '../widgets/modern_colors.dart';
 
 class DotPatternPainter extends CustomPainter {
+  final Color color;
+
+  DotPatternPainter({this.color = ModernColors.dotColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = ModernColors.dotColor
+      ..color = color
       ..style = PaintingStyle.fill;
 
     const dotRadius = 1.0;

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,7 +8,7 @@ class ApiKeyManager {
   static const String _groqApiKeyStorageKey = 'user_groq_api_key';
   static const String _useOwnKeyPrefKey = 'use_own_groq_key';
   
-  static final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
     ),
@@ -39,7 +40,7 @@ class ApiKeyManager {
       _cachedApiKey = await _secureStorage.read(key: _groqApiKeyStorageKey);
       return _cachedApiKey;
     } catch (e) {
-      print('ApiKeyManager: Error reading API key: $e');
+      debugPrint('ApiKeyManager: Error reading API key: $e');
       return null;
     }
   }
@@ -67,7 +68,7 @@ class ApiKeyManager {
       
       return true;
     } catch (e) {
-      print('ApiKeyManager: Error saving API key: $e');
+      debugPrint('ApiKeyManager: Error saving API key: $e');
       return false;
     }
   }
@@ -86,7 +87,7 @@ class ApiKeyManager {
       _cachedApiKey = null;
       await setUseOwnKey(false);
     } catch (e) {
-      print('ApiKeyManager: Error deleting API key: $e');
+      debugPrint('ApiKeyManager: Error deleting API key: $e');
     }
   }
   
@@ -170,3 +171,4 @@ class ApiKeyTestResult {
     required this.message,
   });
 }
+

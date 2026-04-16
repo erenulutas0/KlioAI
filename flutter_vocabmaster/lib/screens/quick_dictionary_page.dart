@@ -3,17 +3,16 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/global_matchmaking_sheet.dart';
 import '../services/groq_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
+import '../services/ai_paywall_handler.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
 
-
 class QuickDictionaryPage extends StatefulWidget {
-  const QuickDictionaryPage({Key? key}) : super(key: key);
+  const QuickDictionaryPage({super.key});
 
   @override
   State<QuickDictionaryPage> createState() => _QuickDictionaryPageState();
@@ -24,11 +23,10 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
   final FlutterTts _flutterTts = FlutterTts();
   // ApiService kaldırıldı - AppStateProvider kullanılıyor
 
-  
   bool _isSearching = false;
   bool _hasSearched = false;
   String? _errorMessage;
-  
+
   // Arama sonucu
   String _searchedWord = '';
   String _phonetic = '';
@@ -58,26 +56,35 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
     try {
       final result = await GroqService.lookupWordDetailed(query);
-      
+
       if (mounted) {
         setState(() {
           _searchedWord = result['word'] ?? query;
           _phonetic = result['phonetic'] ?? '';
-          
+
           final meaningsData = result['meanings'] as List? ?? [];
-          _meanings = meaningsData.map((m) => WordMeaning(
-            type: m['type'] ?? 'n',
-            turkishMeaning: m['turkishMeaning'] ?? '',
-            englishDefinition: m['englishDefinition'] ?? '',
-            example: m['example'] ?? '',
-            exampleTranslation: m['exampleTranslation'] ?? '',
-          )).toList();
-          
+          _meanings = meaningsData
+              .map((m) => WordMeaning(
+                    type: m['type'] ?? 'n',
+                    turkishMeaning: m['turkishMeaning'] ?? '',
+                    englishDefinition: m['englishDefinition'] ?? '',
+                    example: m['example'] ?? '',
+                    exampleTranslation: m['exampleTranslation'] ?? '',
+                  ))
+              .toList();
+
           _isSearching = false;
         });
       }
     } catch (e) {
       if (mounted) {
+        if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+          setState(() {
+            _errorMessage = AiErrorMessageFormatter.forError(e);
+            _isSearching = false;
+          });
+          return;
+        }
         final msg = e is ApiQuotaExceededException
             ? AiErrorMessageFormatter.forQuota(e)
             : 'Arama başarısız: $e';
@@ -204,15 +211,16 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
     try {
       final meaning = await GroqService.explainWordInSentence(word, sentence);
-      
+
       if (mounted) {
         Navigator.pop(context); // Loading dialog'u kapat
-        
+
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF1e293b),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
                 Container(
@@ -221,12 +229,14 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                     color: const Color(0xFF06b6d4).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.lightbulb, color: Color(0xFF06b6d4), size: 20),
+                  child: const Icon(Icons.lightbulb,
+                      color: Color(0xFF06b6d4), size: 20),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   '"$word"',
-                  style: const TextStyle(color: Color(0xFF06b6d4), fontSize: 18),
+                  style:
+                      const TextStyle(color: Color(0xFF06b6d4), fontSize: 18),
                 ),
               ],
             ),
@@ -241,46 +251,55 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 const SizedBox(height: 8),
                 Text(
                   meaning,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 16, height: 1.5),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Tamam', style: TextStyle(color: Color(0xFF06b6d4))),
+                child: const Text('Tamam',
+                    style: TextStyle(color: Color(0xFF06b6d4))),
               ),
             ],
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
-        final msg = e is ApiQuotaExceededException
-            ? AiErrorMessageFormatter.forQuota(e)
-            : 'Hata: $e';
+      if (!mounted) return;
+      if (Navigator.canPop(context)) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
       }
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
+      }
+      if (!mounted) return;
+      final msg = e is ApiQuotaExceededException
+          ? AiErrorMessageFormatter.forQuota(e)
+          : 'Hata: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
     }
   }
 
   void _showAddToTodayDialog(WordMeaning meaning) {
     String selectedDifficulty = 'medium';
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF1e293b),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
               Icon(Icons.add_circle, color: Color(0xFF10b981)),
               SizedBox(width: 12),
-              Text('Kelimeyi Güne Ekle', style: TextStyle(color: Colors.white, fontSize: 18)),
+              Text('Kelimeyi Güne Ekle',
+                  style: TextStyle(color: Colors.white, fontSize: 18)),
             ],
           ),
           content: Column(
@@ -298,11 +317,15 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                   children: [
                     Text(
                       _searchedWord,
-                      style: const TextStyle(color: Color(0xFF06b6d4), fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Color(0xFF06b6d4),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
                     ),
                     Text(
                       '(${meaning.type}) ${meaning.turkishMeaning}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
                 ),
@@ -315,15 +338,18 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _buildDifficultyChip('Kolay', 'easy', selectedDifficulty, const Color(0xFF10b981), (val) {
+                  _buildDifficultyChip('Kolay', 'easy', selectedDifficulty,
+                      const Color(0xFF10b981), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                   const SizedBox(width: 8),
-                  _buildDifficultyChip('Orta', 'medium', selectedDifficulty, const Color(0xFFf59e0b), (val) {
+                  _buildDifficultyChip('Orta', 'medium', selectedDifficulty,
+                      const Color(0xFFf59e0b), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                   const SizedBox(width: 8),
-                  _buildDifficultyChip('Zor', 'hard', selectedDifficulty, const Color(0xFFef4444), (val) {
+                  _buildDifficultyChip('Zor', 'hard', selectedDifficulty,
+                      const Color(0xFFef4444), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                 ],
@@ -333,7 +359,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('İptal', style: TextStyle(color: Colors.white54)),
+              child:
+                  const Text('İptal', style: TextStyle(color: Colors.white54)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -342,7 +369,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10b981),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Ekle'),
             ),
@@ -352,7 +380,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
     );
   }
 
-  Widget _buildDifficultyChip(String label, String value, String selected, Color color, Function(String) onSelect) {
+  Widget _buildDifficultyChip(String label, String value, String selected,
+      Color color, Function(String) onSelect) {
     final isSelected = selected == value;
     return Expanded(
       child: GestureDetector(
@@ -360,7 +389,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+            color: isSelected
+                ? color.withOpacity(0.2)
+                : Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isSelected ? color : Colors.transparent),
           ),
@@ -383,7 +414,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
     try {
       final appState = context.read<AppStateProvider>();
       final addedDate = DateTime.now();
-      
+
       // AppStateProvider üzerinden ekle - otomatik XP ve stats güncellenir
       // source: 'quick_dictionary' ile Hızlı Sözlük XP'si verilir (+10 XP)
       final word = await appState.addWord(
@@ -393,7 +424,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
         difficulty: difficulty,
         source: 'quick_dictionary', // Hızlı Sözlük XP türü
       );
-      
+
       // Eğer örnek cümle varsa onu da ekle (ve +5 XP daha kazan)
       if (word != null && meaning.example.isNotEmpty) {
         await appState.addSentenceToWord(
@@ -403,13 +434,13 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
           difficulty: difficulty,
         );
       }
-      
+
       if (mounted) {
         String message = '✅ Kelime başarıyla eklendi! (+10 XP)';
         if (meaning.example.isNotEmpty) {
           message = '✅ Kelime ve cümle başarıyla eklendi! (+15 XP)';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -457,7 +488,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                     ],
                   ),
                 ),
-                
+
                 // Search Box
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -469,22 +500,27 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                         onSubmitted: (_) => _searchWord(),
                         decoration: InputDecoration(
                           hintText: 'İngilizce kelime yazın (örn: bring about)',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                          hintStyle:
+                              TextStyle(color: Colors.white.withOpacity(0.5)),
                           filled: true,
                           fillColor: const Color(0xFF1e3a8a).withOpacity(0.5),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                            borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.2)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                            borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.2)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: Color(0xFF06b6d4), width: 2),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF06b6d4), width: 2),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -497,32 +533,37 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                           variant: BackgroundVariant.secondary,
                           showBorder: false,
                           child: Center(
-                            child: _isSearching 
-                              ? const SizedBox(
-                                  width: 20, 
-                                  height: 20, 
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.search, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text('Ara', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
+                            child: _isSearching
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search, color: Colors.white),
+                                      SizedBox(width: 8),
+                                      Text('Ara',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Content
                 Expanded(
-                  child: _hasSearched ? _buildSearchResults() : _buildEmptyState(),
+                  child:
+                      _hasSearched ? _buildSearchResults() : _buildEmptyState(),
                 ),
               ],
             ),
@@ -596,7 +637,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
           children: [
             CircularProgressIndicator(color: Color(0xFF06b6d4)),
             SizedBox(height: 16),
-            Text('AI sözlük aranıyor...', style: TextStyle(color: Colors.white70)),
+            Text('AI sözlük aranıyor...',
+                style: TextStyle(color: Colors.white70)),
           ],
         ),
       );
@@ -611,7 +653,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 16),
-              Text(_errorMessage!, style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+              Text(_errorMessage!,
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -620,7 +664,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
     if (_meanings.isEmpty) {
       return const Center(
-        child: Text('Sonuç bulunamadı', style: TextStyle(color: Colors.white70)),
+        child:
+            Text('Sonuç bulunamadı', style: TextStyle(color: Colors.white70)),
       );
     }
 
@@ -634,10 +679,14 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF1e3a8a).withOpacity(0.6), const Color(0xFF0f172a).withOpacity(0.8)],
+                colors: [
+                  const Color(0xFF1e3a8a).withOpacity(0.6),
+                  const Color(0xFF0f172a).withOpacity(0.8)
+                ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+              border:
+                  Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -673,18 +722,22 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                       color: const Color(0xFF06b6d4).withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.volume_up, color: Color(0xFF06b6d4)),
+                    child:
+                        const Icon(Icons.volume_up, color: Color(0xFF06b6d4)),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Meanings Cards
-          ..._meanings.asMap().entries.map((entry) => _buildMeaningCard(entry.key, entry.value)),
-          
+          ..._meanings
+              .asMap()
+              .entries
+              .map((entry) => _buildMeaningCard(entry.key, entry.value)),
+
           const SizedBox(height: 40),
         ],
       ),
@@ -693,16 +746,17 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
   Widget _buildMeaningCard(int index, WordMeaning meaning) {
     final typeColors = {
-      'n': const Color(0xFF8b5cf6),     // Noun - Purple
-      'v': const Color(0xFF10b981),     // Verb - Green
-      'adj': const Color(0xFFf59e0b),   // Adjective - Orange
-      'adv': const Color(0xFF0ea5e9),   // Adverb - Blue
-      'phr': const Color(0xFFec4899),   // Phrasal - Pink
+      'n': const Color(0xFF8b5cf6), // Noun - Purple
+      'v': const Color(0xFF10b981), // Verb - Green
+      'adj': const Color(0xFFf59e0b), // Adjective - Orange
+      'adv': const Color(0xFF0ea5e9), // Adverb - Blue
+      'phr': const Color(0xFFec4899), // Phrasal - Pink
       'idiom': const Color(0xFF6366f1), // Idiom - Indigo
     };
-    
-    final color = typeColors[meaning.type.toLowerCase()] ?? const Color(0xFF06b6d4);
-    
+
+    final color =
+        typeColors[meaning.type.toLowerCase()] ?? const Color(0xFF06b6d4);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -719,7 +773,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
@@ -737,7 +792,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               GestureDetector(
                 onTap: () => _showAddToTodayDialog(meaning),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10b981).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -749,7 +805,10 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                       SizedBox(width: 4),
                       Text(
                         'Güne Ekle',
-                        style: TextStyle(color: Color(0xFF10b981), fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Color(0xFF10b981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -757,9 +816,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Turkish Meaning
           Text(
             meaning.turkishMeaning,
@@ -769,7 +828,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          
+
           if (meaning.englishDefinition.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -781,7 +840,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               ),
             ),
           ],
-          
+
           if (meaning.example.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
@@ -828,24 +887,26 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
   Widget _buildInteractiveSentence(String sentence) {
     final words = sentence.split(RegExp(r'(\s+)')); // Boşlukları koru
     final searchedWordLower = _searchedWord.toLowerCase();
-    
+
     return Wrap(
       children: words.map((word) {
         // Kelimeyi ve noktalama işaretlerini ayır
         final cleanWord = word.replaceAll(RegExp(r'[^\w]'), '').toLowerCase();
-        final isHighlighted = cleanWord == searchedWordLower || 
-                              searchedWordLower.contains(cleanWord) ||
-                              cleanWord.contains(searchedWordLower);
-        
+        final isHighlighted = cleanWord == searchedWordLower ||
+            searchedWordLower.contains(cleanWord) ||
+            cleanWord.contains(searchedWordLower);
+
         // Sadece boşluk ise
         if (word.trim().isEmpty) {
           return Text(word, style: const TextStyle(color: Colors.white));
         }
-        
+
         return GestureDetector(
-          onTap: isHighlighted ? null : () => _showWordInContextDialog(cleanWord, sentence),
+          onTap: isHighlighted
+              ? null
+              : () => _showWordInContextDialog(cleanWord, sentence),
           child: Container(
-            padding: isHighlighted 
+            padding: isHighlighted
                 ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
                 : null,
             decoration: isHighlighted
@@ -901,3 +962,4 @@ class WordMeaning {
     this.exampleTranslation = '',
   });
 }
+

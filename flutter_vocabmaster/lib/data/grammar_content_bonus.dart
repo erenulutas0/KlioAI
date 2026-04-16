@@ -19,7 +19,7 @@ const errorCorrectionTopic = GrammarTopic(
 Türkçe düşünmekten kaynaklanan en yaygın fiil hataları.
 
 🎯 SUBJECT-VERB AGREEMENT:
-• Her 3. tekil şahıs (he/she/it) Present Simple\'da -s alır
+• Her 3. tekil şahıs (he/she/it) Present Simple'da -s alır
 ❌ He work hard.
 ✅ He works hard.
 
@@ -39,7 +39,7 @@ Türkçe düşünmekten kaynaklanan en yaygın fiil hataları.
 ✅ I can swim. (modal sonrası to yok)
 
 ❌ He musts study.
-✅ He must study. (modal\'a -s eklenmez)
+✅ He must study. (modal'a -s eklenmez)
 
 🎯 STATIVE VERB ERRORS:
 ❌ I am knowing the answer.
@@ -94,7 +94,7 @@ Türkçe düşünmekten kaynaklanan en yaygın fiil hataları.
       title: 'Common Preposition Errors',
       titleTr: 'Yaygın Edat Hataları',
       explanation: '''
-Türkçe\'den birebir çeviri yaparken yapılan edat hataları.
+Türkçe'den birebir çeviri yaparken yapılan edat hataları.
 
 🎯 YAYGIIN YANLIŞ / DOĞRU ÇİFTLERİ:
 
@@ -161,10 +161,10 @@ Bu fiiller doğrudan nesne alır, edat gerekmez!
       title: 'Common Word Order Errors',
       titleTr: 'Yaygın Söz Dizimi Hataları',
       explanation: '''
-İngilizce\'de kelime sırası katıdır. Türkçe\'nin esnek yapısından kaynaklanan hatalar.
+İngilizce'de kelime sırası katıdır. Türkçe'nin esnek yapısından kaynaklanan hatalar.
 
 🎯 SIFAT SIRASI:
-İngilizce\'de sıfatlar isimden ÖNCE gelir ve sıralama önemlidir.
+İngilizce'de sıfatlar isimden ÖNCE gelir ve sıralama önemlidir.
 ❌ A car red big → ✅ A big red car
 OSASCOMP: Opinion-Size-Age-Shape-Color-Origin-Material-Purpose
 
@@ -229,7 +229,7 @@ Adjective + enough (not: enough + adj)
       title: 'Common Article Errors',
       titleTr: 'Yaygın Tanımlık Hataları',
       explanation: '''
-Türkçe\'de tanımlık olmadığı için bu konuda hatalar sık yapılır.
+Türkçe'de tanımlık olmadığı için bu konuda hatalar sık yapılır.
 
 🎯 GEREKSIZ "THE":
 ❌ The life is beautiful. → ✅ Life is beautiful. (genel kavram)

@@ -3,10 +3,10 @@ import 'dart:math';
 import 'dart:ui';
 
 class FloatingOrb extends StatefulWidget {
-  const FloatingOrb({Key? key}) : super(key: key);
+  const FloatingOrb({super.key});
 
   @override
-  _FloatingOrbState createState() => _FloatingOrbState();
+  State<FloatingOrb> createState() => _FloatingOrbState();
 }
 
 class _FloatingOrbState extends State<FloatingOrb> with SingleTickerProviderStateMixin {
@@ -89,17 +89,17 @@ class _FloatingOrbState extends State<FloatingOrb> with SingleTickerProviderStat
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Color(0xFF22D3EE).withOpacity(0.15), // increased slightly for visibility
-                        Color(0xFF3B82F6).withOpacity(0.05),
+                        const Color(0xFF22D3EE).withOpacity(0.15), // increased slightly for visibility
+                        const Color(0xFF3B82F6).withOpacity(0.05),
                         Colors.transparent,
                       ],
-                      stops: [0.0, 0.4, 1.0],
+                      stops: const [0.0, 0.4, 1.0],
                     ),
                   ),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30), // Reduced blur for performance and visibility
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.transparent),
+                      decoration: const BoxDecoration(color: Colors.transparent),
                     ),
                   ),
                 ),
@@ -111,3 +111,4 @@ class _FloatingOrbState extends State<FloatingOrb> with SingleTickerProviderStat
     );
   }
 }
+

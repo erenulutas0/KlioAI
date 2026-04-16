@@ -25,16 +25,12 @@ class ToggleConnectivity implements Connectivity {
   Stream<List<ConnectivityResult>> get onConnectivityChanged =>
       const Stream<List<ConnectivityResult>>.empty();
 
-  @override
   Future<void> deleteService() async {}
 
-  @override
   Future<String?> getWifiBSSID() async => null;
 
-  @override
   Future<String?> getWifiIP() async => null;
 
-  @override
   Future<String?> getWifiName() async => null;
 }
 
@@ -424,8 +420,8 @@ void main() {
     );
     expect(word, isNotNull);
 
-    final sentence = 'I need to prioritize my study plan this week.';
-    final translation = 'Bu hafta calisma planima oncelik vermem gerekiyor.';
+    const sentence = 'I need to prioritize my study plan this week.';
+    const translation = 'Bu hafta calisma planima oncelik vermem gerekiyor.';
 
     final withSentence1 = await appState.addSentenceToWord(
       wordId: word!.id,
@@ -769,8 +765,8 @@ void main() {
     expect(word, isNotNull);
     expect(word!.id, lessThan(0));
 
-    final sentenceText = 'Stale VM should be removed.';
-    final translationText = 'Eski VM kaldirilmali.';
+    const sentenceText = 'Stale VM should be removed.';
+    const translationText = 'Eski VM kaldirilmali.';
 
     final withSentence = await appState.addSentenceToWord(
       wordId: word.id,

@@ -1,6 +1,5 @@
 package com.ingilizce.calismaapp.service;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -50,13 +49,13 @@ class GrammarCheckServiceTest {
                 "}]" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true))).thenReturn(jsonResponse);
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Bad sentence");
 
         assertTrue((Boolean) result.get("hasErrors"));
         assertEquals(1, result.get("errorCount"));
-        verify(groqService).chatCompletion(anyList(), eq(true));
+        verify(groqService).chatCompletion(anyList(), eq(true), nullable(String.class));
     }
 
     @Test
@@ -67,7 +66,7 @@ class GrammarCheckServiceTest {
                 "\"errors\": []" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true))).thenReturn(jsonResponse);
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Good sentence");
 
@@ -76,7 +75,7 @@ class GrammarCheckServiceTest {
 
     @Test
     void checkGrammar_ShouldHandleException_AndReturnEmptyResult() {
-        when(groqService.chatCompletion(anyList(), eq(true))).thenThrow(new RuntimeException("API Error"));
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenThrow(new RuntimeException("API Error"));
 
         // The service catches exception and throws RuntimeException in catch block?
         // Let's check source code...
@@ -108,13 +107,13 @@ class GrammarCheckServiceTest {
 
     @Test
     void checkGrammar_ShouldReturnNoErrorResponse_WhenGroqReturnsNull() {
-        when(groqService.chatCompletion(anyList(), eq(true))).thenReturn(null);
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(null);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Hello");
 
         assertFalse((Boolean) result.get("hasErrors"));
         assertEquals(0, result.get("errorCount"));
-        verify(groqService).chatCompletion(anyList(), eq(true));
+        verify(groqService).chatCompletion(anyList(), eq(true), nullable(String.class));
     }
 
     @Test
@@ -125,7 +124,7 @@ class GrammarCheckServiceTest {
                 "\"errors\": [{\"message\": \"Error\"}]" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true))).thenReturn(errorJson);
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(errorJson);
 
         List<String> sentences = new ArrayList<>();
         sentences.add("S1");
@@ -140,7 +139,7 @@ class GrammarCheckServiceTest {
     void checkMultipleSentences_ShouldIgnoreNoErrorAndInvalidErrorShape() {
         String noErrorJson = "{\"hasErrors\":false,\"errorCount\":0,\"errors\":[]}";
         String invalidErrorsJson = "{\"hasErrors\":true,\"errorCount\":1,\"errors\":\"oops\"}";
-        when(groqService.chatCompletion(anyList(), eq(true)))
+        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class)))
                 .thenReturn(noErrorJson)
                 .thenReturn(invalidErrorsJson);
 
@@ -159,3 +158,4 @@ class GrammarCheckServiceTest {
         assertFalse(grammarCheckService.isEnabled());
     }
 }
+

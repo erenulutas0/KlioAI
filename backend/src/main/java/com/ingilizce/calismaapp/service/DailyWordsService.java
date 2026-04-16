@@ -8,6 +8,7 @@ import com.ingilizce.calismaapp.repository.DailyContentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,8 @@ public class DailyWordsService {
     private final DailyContentRepository dailyContentRepository;
     private final GroqService groqService;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private AiModelRoutingService aiModelRoutingService;
 
     @Value("${groq.api.key:}")
     private String groqApiKey;
@@ -113,7 +116,7 @@ public class DailyWordsService {
                 "content", prompt
         ));
 
-        String content = groqService.chatCompletion(messages, true);
+        String content = groqService.chatCompletion(messages, true, resolveModelForScope("daily-words-generate"));
         if (content == null || content.isBlank()) {
             throw new IllegalStateException("Groq returned empty content");
         }
@@ -254,5 +257,11 @@ public class DailyWordsService {
                         "synonyms", List.of("convincing", "engaging", "persuasive"), "difficulty", "Hard")
         );
     }
-}
 
+    private String resolveModelForScope(String scope) {
+        if (aiModelRoutingService == null) {
+            return null;
+        }
+        return aiModelRoutingService.resolveModelForScope(scope);
+    }
+}

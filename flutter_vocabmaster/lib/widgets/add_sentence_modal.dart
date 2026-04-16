@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/word.dart';
 import '../providers/app_state_provider.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class AddSentenceModal extends StatefulWidget {
   final Word word;
@@ -12,43 +15,56 @@ class AddSentenceModal extends StatefulWidget {
   const AddSentenceModal({
     required this.word,
     required this.onSentencesAdded,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
-  _AddSentenceModalState createState() => _AddSentenceModalState();
+  State<AddSentenceModal> createState() => _AddSentenceModalState();
 }
 
 class SentenceData {
   TextEditingController englishController = TextEditingController();
   TextEditingController turkishController = TextEditingController();
   String difficulty = 'easy';
-  
+
   void dispose() {
     englishController.dispose();
     turkishController.dispose();
   }
 
-  bool get isValid => 
-    englishController.text.trim().isNotEmpty && 
-    turkishController.text.trim().isNotEmpty;
+  bool get isValid =>
+      englishController.text.trim().isNotEmpty &&
+      turkishController.text.trim().isNotEmpty;
 }
 
-class _AddSentenceModalState extends State<AddSentenceModal> 
+class _AddSentenceModalState extends State<AddSentenceModal>
     with TickerProviderStateMixin {
   late List<AnimationController> _orbControllers;
   late List<AnimationController> _sparkleControllers;
   List<Offset>? _sparklePositions;
-  
+
   List<SentenceData> sentences = [SentenceData()];
   // OfflineSyncService kaldırıldı - AppStateProvider kullanılıyor
   bool _isSavePressed = false;
   bool _isSaving = false;
 
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      final provider = Provider.of<ThemeProvider?>(context, listen: listen);
+      return provider?.currentTheme ?? VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
+  Color _mix(Color from, Color to, double amount) {
+    return Color.lerp(from, to, amount) ?? from;
+  }
+
   @override
   void initState() {
     super.initState();
-    
+
     // Orb controllers
     _orbControllers = List.generate(3, (i) {
       final controller = AnimationController(
@@ -58,14 +74,16 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       controller.repeat();
       return controller;
     });
-    
+
     // Sparkle controllers
     _sparkleControllers = List.generate(15, (i) {
       final controller = AnimationController(
         vsync: this,
-        duration: Duration(milliseconds: 2000 + (Random().nextDouble() * 2000).toInt()),
+        duration: Duration(
+            milliseconds: 2000 + (Random().nextDouble() * 2000).toInt()),
       );
-      Future.delayed(Duration(milliseconds: (Random().nextDouble() * 3000).toInt()), () {
+      Future.delayed(
+          Duration(milliseconds: (Random().nextDouble() * 3000).toInt()), () {
         if (mounted) controller.repeat();
       });
       return controller;
@@ -89,10 +107,11 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   Future<void> _saveSentences() async {
     // Validate
     final validSentences = sentences.where((s) => s.isValid).toList();
-    
+
     if (validSentences.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen en az bir cümle ve çevirisini girin.')),
+        const SnackBar(
+            content: Text('Lütfen en az bir cümle ve çevirisini girin.')),
       );
       return;
     }
@@ -101,7 +120,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
 
     try {
       final appState = context.read<AppStateProvider>();
-      
+
       for (var s in validSentences) {
         // AppStateProvider ile ekle (XP ve refresh otomatik)
         await appState.addSentenceToWord(
@@ -111,18 +130,22 @@ class _AddSentenceModalState extends State<AddSentenceModal>
           difficulty: s.difficulty,
         );
       }
-      
+
       if (mounted) {
         Navigator.pop(context);
         widget.onSentencesAdded();
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('${validSentences.length} cümle başarıyla eklendi! (+${validSentences.length * 5} XP)'), backgroundColor: Colors.green),
+          SnackBar(
+              content: Text(
+                  '${validSentences.length} cümle başarıyla eklendi! (+${validSentences.length * 5} XP)'),
+              backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Hata oluştu: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Hata oluştu: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -130,36 +153,34 @@ class _AddSentenceModalState extends State<AddSentenceModal>
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     if (_sparklePositions == null) {
-       final size = MediaQuery.of(context).size;
-       _sparklePositions = List.generate(15, (_) => Offset(
-         Random().nextDouble() * size.width,
-         Random().nextDouble() * size.height,
-       ));
+      final size = MediaQuery.of(context).size;
+      _sparklePositions = List.generate(
+          15,
+          (_) => Offset(
+                Random().nextDouble() * size.width,
+                Random().nextDouble() * size.height,
+              ));
     }
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F172A),  // slate-900
-            Color(0xFF1E3A8A),  // blue-900
-            Color(0xFF0F172A),  // slate-900
-          ],
-          stops: [0.0, 0.5, 1.0],
+          colors: selectedTheme.colors.backgroundGradient.colors,
+          stops: const [0.0, 0.5, 1.0],
         ),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
         border: Border.all(
-          color: const Color(0x4D22D3EE),  // cyan-400 with 30% opacity
+          color: selectedTheme.colors.glassBorder.withOpacity(0.66),
           width: 1,
         ),
       ),
@@ -167,17 +188,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
         children: [
           // 1. Animated background effects
           _buildAnimatedBackground(),
-          
+
           Column(
             children: [
               // 2. Header
               _buildHeader(),
-              
+
               // 3. Scrollable content
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: sentences.length + 1,  // +1 for "Add NewButton"
+                  itemCount: sentences.length + 1, // +1 for "Add NewButton"
                   itemBuilder: (context, index) {
                     if (index == sentences.length) {
                       return _buildAddNewButton();
@@ -191,7 +212,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
               _buildFooter(),
             ],
           ),
-          
+
           if (_isSaving)
             Container(
               color: Colors.black54,
@@ -203,6 +224,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   }
 
   Widget _buildAnimatedBackground() {
+    final selectedTheme = _currentTheme();
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
@@ -228,9 +250,11 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              i % 2 == 0 
-                                ? const Color(0x2606B6D4)  // cyan-500 15% opacity
-                                : const Color(0x263B82F6), // blue-500 15% opacity
+                              i % 2 == 0
+                                  ? selectedTheme.colors.orbColor1
+                                      .withOpacity(0.45)
+                                  : selectedTheme.colors.orbColor2
+                                      .withOpacity(0.45),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.7],
@@ -245,17 +269,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
 
             // SPARKLES (15 pieces)
             ...List.generate(15, (i) {
-               final pos = _sparklePositions![i];
-               
-               return AnimatedBuilder(
+              final pos = _sparklePositions![i];
+
+              return AnimatedBuilder(
                 animation: _sparkleControllers[i],
                 builder: (context, child) {
                   double value = _sparkleControllers[i].value;
                   double opacity = value < 0.5 ? value * 2 : (1 - value) * 2;
                   double scale = value < 0.5 ? value * 3 : (1 - value) * 3;
-                  
+
                   return Positioned(
-                    left: pos.dx, 
+                    left: pos.dx,
                     top: pos.dy,
                     child: Opacity(
                       opacity: opacity,
@@ -265,11 +289,12 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22D3EE),  // cyan-400
+                            color: selectedTheme.colors.particleColor,
                             shape: BoxShape.circle,
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x8022D3EE),
+                                color: selectedTheme.colors.particleGlow
+                                    .withOpacity(0.5),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -289,12 +314,15 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   }
 
   Widget _buildHeader() {
+    final selectedTheme = _currentTheme();
+    final buttonColors = selectedTheme.colors.buttonGradient.colors;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0x0DFFFFFF),  // white with 5% opacity
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
         border: Border(
           bottom: BorderSide(
-            color: Color(0x3322D3EE),  // cyan-400 with 20% opacity
+            color: selectedTheme.colors.glassBorder.withOpacity(0.65),
             width: 1,
           ),
         ),
@@ -311,31 +339,29 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF06B6D4),  // cyan-500
-                        Color(0xFF3B82F6),  // blue-600
-                      ],
+                      colors: buttonColors,
                     ),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x4D06B6D4),  // cyan-500 30% opacity
+                        color:
+                            selectedTheme.colors.accentGlow.withOpacity(0.42),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
                     ],
                   ),
                   child: const Icon(
-                    Icons.bookmark_add,  // BookmarkPlus equivalent
+                    Icons.bookmark_add, // BookmarkPlus equivalent
                     color: Colors.white,
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 12),
-                
+
                 // Title & Subtitle
                 Expanded(
                   child: Column(
@@ -353,16 +379,16 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       Row(
                         children: [
                           const Icon(
-                            Icons.auto_awesome,  // Sparkles equivalent
-                            color: Color(0xFF67E8F9),  // cyan-300
+                            Icons.auto_awesome, // Sparkles equivalent
+                            color: Colors.white70,
                             size: 16,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               '${widget.word.englishWord} kelimesi için cümleler',
-                              style: const TextStyle(
-                                color: Color(0xFF67E8F9),  // cyan-300
+                              style: TextStyle(
+                                color: selectedTheme.colors.textSecondary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -375,13 +401,15 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     ],
                   ),
                 ),
-                
+
                 // Close Button
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 24),
+                  icon: const Icon(Icons.close,
+                      color: Color(0xB3FFFFFF), size: 24),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0x1AFFFFFF),  // white 10% opacity
+                    backgroundColor:
+                        const Color(0x1AFFFFFF), // white 10% opacity
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -396,20 +424,21 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   }
 
   Widget _buildSentenceCard(int index) {
+    final selectedTheme = _currentTheme();
     final sentence = sentences[index];
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0x0DFFFFFF),  // white 5% opacity
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x3322D3EE),  // cyan-400 20% opacity
+          color: selectedTheme.colors.glassBorder.withOpacity(0.5),
           width: 1,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x3306B6D4),  // cyan-500 20% opacity
+            color: selectedTheme.colors.accentGlow.withOpacity(0.2),
             blurRadius: 16,
             spreadRadius: 0,
           ),
@@ -435,18 +464,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
+                            gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF06B6D4),  // cyan-500
-                                Color(0xFF3B82F6),  // blue-600
-                              ],
+                              colors:
+                                  selectedTheme.colors.buttonGradient.colors,
                             ),
                             borderRadius: BorderRadius.circular(8),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0x4D06B6D4),  // cyan-500 30% opacity
+                                color: selectedTheme.colors.accentGlow
+                                    .withOpacity(0.42),
                                 blurRadius: 12,
                                 spreadRadius: 2,
                               ),
@@ -474,7 +502,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         ),
                       ],
                     ),
-                    
+
                     // Delete Button (visible if more than 1 sentence)
                     if (sentences.length > 1)
                       IconButton(
@@ -485,8 +513,9 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         },
                         icon: const Icon(Icons.delete_outline, size: 20),
                         style: IconButton.styleFrom(
-                          foregroundColor: const Color(0xFFF87171),  // red-400
-                          backgroundColor: const Color(0x33EF4444),  // red-500 20% opacity
+                          foregroundColor: const Color(0xFFF87171), // red-400
+                          backgroundColor:
+                              const Color(0x33EF4444), // red-500 20% opacity
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -494,17 +523,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // ENGLISH SENTENCE INPUT
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     const Text(
+                    Text(
                       'İngilizce Cümle',
                       style: TextStyle(
-                        color: Color(0xFF67E8F9),  // cyan-300
+                        color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -518,29 +547,31 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       decoration: InputDecoration(
                         hintText: 'Enter an example sentence...',
                         hintStyle: const TextStyle(
-                          color: Color(0x66FFFFFF),  // white 40% opacity
+                          color: Color(0x66FFFFFF), // white 40% opacity
                           fontSize: 15,
                         ),
                         filled: true,
-                        fillColor: const Color(0x1AFFFFFF),  // white 10% opacity
+                        fillColor: const Color(0x1AFFFFFF), // white 10% opacity
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0x4D22D3EE),  // cyan-400 30% opacity
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.glassBorder
+                                .withOpacity(0.6),
                             width: 1,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0x4D22D3EE),  // cyan-400 30% opacity
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.glassBorder
+                                .withOpacity(0.6),
                             width: 1,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF22D3EE),  // cyan-400 full
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.accent,
                             width: 2,
                           ),
                         ),
@@ -552,52 +583,54 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // TURKISH TRANSLATION INPUT
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     const Text(
+                    Text(
                       'Türkçe Anlamı',
                       style: TextStyle(
-                        color: Color(0xFF67E8F9),  // cyan-300
+                        color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
-                       controller: sentence.turkishController,
+                      controller: sentence.turkishController,
                       style: const TextStyle(color: Colors.white, fontSize: 15),
                       maxLines: null,
                       decoration: InputDecoration(
                         hintText: 'Cümlenin Türkçe çevirisi...',
                         hintStyle: const TextStyle(
-                          color: Color(0x66FFFFFF),  // white 40% opacity
+                          color: Color(0x66FFFFFF), // white 40% opacity
                           fontSize: 15,
                         ),
                         filled: true,
-                        fillColor: const Color(0x1AFFFFFF),  // white 10% opacity
+                        fillColor: const Color(0x1AFFFFFF), // white 10% opacity
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0x4D22D3EE),  // cyan-400 30% opacity
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.glassBorder
+                                .withOpacity(0.6),
                             width: 1,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0x4D22D3EE),  // cyan-400 30% opacity
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.glassBorder
+                                .withOpacity(0.6),
                             width: 1,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF22D3EE),  // cyan-400 full
+                          borderSide: BorderSide(
+                            color: selectedTheme.colors.accent,
                             width: 2,
                           ),
                         ),
@@ -609,17 +642,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // DIFFICULTY SELECTOR
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Zorluk Seviyesi',
                       style: TextStyle(
-                        color: Color(0xFF67E8F9),  // cyan-300
+                        color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -628,10 +661,11 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0x1AFFFFFF),  // white 10% opacity
+                        color: const Color(0x1AFFFFFF), // white 10% opacity
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0x4D22D3EE),  // cyan-400 30% opacity
+                          color:
+                              selectedTheme.colors.glassBorder.withOpacity(0.6),
                           width: 1,
                         ),
                       ),
@@ -639,19 +673,24 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         child: DropdownButton<String>(
                           value: sentence.difficulty,
                           isExpanded: true,
-                          dropdownColor: const Color(0xFF1E3A8A),  // blue-900
-                          style: const TextStyle(color: Colors.white, fontSize: 15),
+                          dropdownColor: _mix(selectedTheme.colors.background,
+                              Colors.black, 0.2),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15),
                           icon: Row(
                             children: [
                               Container(
                                 width: 8,
                                 height: 8,
                                 decoration: BoxDecoration(
-                                  color: _getDifficultyColor(sentence.difficulty),
+                                  color:
+                                      _getDifficultyColor(sentence.difficulty),
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: _getDifficultyColor(sentence.difficulty).withOpacity(0.5),
+                                      color: _getDifficultyColor(
+                                              sentence.difficulty)
+                                          .withOpacity(0.5),
                                       blurRadius: 8,
                                       spreadRadius: 2,
                                     ),
@@ -659,7 +698,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.arrow_drop_down, color: Color(0xFF67E8F9)),
+                              Icon(Icons.arrow_drop_down,
+                                  color: selectedTheme.colors.textSecondary),
                             ],
                           ),
                           onChanged: (value) {
@@ -695,11 +735,12 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   }
 
   Widget _buildAddNewButton() {
+    final selectedTheme = _currentTheme();
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: CustomPaint(
         painter: DashedBorderPainter(
-          color: const Color(0x4D22D3EE),
+          color: selectedTheme.colors.glassBorder.withOpacity(0.65),
           strokeWidth: 2,
           dashWidth: 8,
           dashSpace: 4,
@@ -716,22 +757,22 @@ class _AddSentenceModalState extends State<AddSentenceModal>
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
-                color: const Color(0x1A06B6D4),  // cyan-500 10% opacity
+                color: selectedTheme.colors.accent.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.add,
-                    color: Color(0xFF67E8F9),  // cyan-300
+                    color: selectedTheme.colors.textSecondary,
                     size: 20,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     'Yeni Cümle Ekle',
                     style: TextStyle(
-                      color: Color(0xFF67E8F9),  // cyan-300
+                      color: selectedTheme.colors.textSecondary,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -746,18 +787,19 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   }
 
   Widget _buildFooter() {
+    final selectedTheme = _currentTheme();
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0x1A06B6D4),  // cyan-500 10% opacity
-            Color(0x1A3B82F6),  // blue-500 10% opacity
+            selectedTheme.colors.accent.withOpacity(0.16),
+            selectedTheme.colors.primary.withOpacity(0.16),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: Color(0x6622D3EE),  // cyan-400 40% opacity
+            color: selectedTheme.colors.glassBorder.withOpacity(0.82),
             width: 2,
           ),
         ),
@@ -773,9 +815,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0x0DFFFFFF),  // white 5% opacity
-                    side: const BorderSide(
-                      color: Color(0x4D22D3EE),  // cyan-400 30% opacity
+                    backgroundColor:
+                        const Color(0x0DFFFFFF), // white 5% opacity
+                    side: BorderSide(
+                      color: selectedTheme.colors.glassBorder.withOpacity(0.65),
                       width: 1,
                     ),
                     shape: RoundedRectangleBorder(
@@ -792,9 +835,9 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // Kaydet Button with Gradient & Shine
               Expanded(
                 child: Listener(
@@ -804,16 +847,17 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [
-                              Color(0xFF06B6D4),  // cyan-500
-                              Color(0xFF3B82F6),  // blue-600
+                              selectedTheme.colors.accent,
+                              selectedTheme.colors.primary,
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x8006B6D4),  // cyan-500 50% opacity
+                              color: selectedTheme.colors.accentGlow
+                                  .withOpacity(0.55),
                               blurRadius: 16,
                               spreadRadius: 0,
                             ),
@@ -853,7 +897,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                                   end: Alignment.centerRight,
                                   colors: [
                                     Colors.transparent,
-                                    Color(0x33FFFFFF),  // white 20% opacity
+                                    Color(0x33FFFFFF), // white 20% opacity
                                     Colors.transparent,
                                   ],
                                 ),
@@ -877,13 +921,13 @@ class _AddSentenceModalState extends State<AddSentenceModal>
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty) {
       case 'easy':
-        return const Color(0xFF22C55E);  // green-500
+        return const Color(0xFF22C55E); // green-500
       case 'medium':
-        return const Color(0xFFEAB308);  // yellow-500
+        return const Color(0xFFEAB308); // yellow-500
       case 'hard':
-        return const Color(0xFFEF4444);  // red-500
+        return const Color(0xFFEF4444); // red-500
       default:
-        return const Color(0xFF6B7280);  // gray-500
+        return const Color(0xFF6B7280); // gray-500
     }
   }
 }
@@ -937,3 +981,4 @@ class DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

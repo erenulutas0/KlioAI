@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import 'modern_card.dart';
 import 'modern_background.dart';
 
@@ -10,12 +10,12 @@ class LevelAndLengthSection extends StatelessWidget {
   final Function(String) onLengthChanged;
 
   const LevelAndLengthSection({
-    Key? key,
+    super.key,
     required this.selectedLevel,
     required this.selectedLength,
     required this.onLevelChanged,
     required this.onLengthChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +27,8 @@ class LevelAndLengthSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           // Title
-           const Text(
-            'Seviye ve Uzunluk',
+          Text(
+            context.tr('practice.translation.levelLengthTitle'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -38,9 +37,8 @@ class LevelAndLengthSection extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Seviye Label
-          const Text(
-            'Seviye:',
+          Text(
+            context.tr('practice.translation.levelLabel'),
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
@@ -50,9 +48,9 @@ class LevelAndLengthSection extends StatelessWidget {
           
           const SizedBox(height: 12),
           
-          // Seviye Buttons Grid
+          // Level buttons grid
           SizedBox(
-            height: 100, // Fixed height specifically for 2 rows
+            height: 100,
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -92,9 +90,8 @@ class LevelAndLengthSection extends StatelessWidget {
           
           const SizedBox(height: 20),
           
-          // Uzunluk Label
-          const Text(
-            'Uzunluk:',
+          Text(
+            context.tr('practice.translation.lengthLabel'),
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
@@ -104,16 +101,33 @@ class LevelAndLengthSection extends StatelessWidget {
           
           const SizedBox(height: 12),
           
-          // Uzunluk Buttons
-          _buildLengthOption('Kısa (5-8 kelime)', 'Kısa (5-8 kelime)'),
+          _buildLengthOption(
+            context: context,
+            label: context.tr('practice.translation.length.short'),
+            value: 'short',
+          ),
           const SizedBox(height: 12),
-          _buildLengthOption('Orta (9-15 kelime)', 'Orta (9-15 kelime)'), // Assuming these are the exact strings used in logic
+          _buildLengthOption(
+            context: context,
+            label: context.tr('practice.translation.length.medium'),
+            value: 'medium',
+          ),
+          const SizedBox(height: 12),
+          _buildLengthOption(
+            context: context,
+            label: context.tr('practice.translation.length.long'),
+            value: 'long',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLengthOption(String text, String value) {
+  Widget _buildLengthOption({
+    required BuildContext context,
+    required String label,
+    required String value,
+  }) {
     final isSelected = selectedLength == value;
     return GestureDetector(
       onTap: () => onLengthChanged(value),
@@ -134,7 +148,7 @@ class LevelAndLengthSection extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Text(
-              text,
+              label,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.white70,
                 fontSize: 15,
@@ -147,3 +161,4 @@ class LevelAndLengthSection extends StatelessWidget {
     );
   }
 }
+

@@ -4,7 +4,7 @@ import '../services/global_state.dart';
 import '../services/matchmaking_service.dart';
 
 class GlobalMatchingIndicator extends StatefulWidget {
-  const GlobalMatchingIndicator({Key? key}) : super(key: key);
+  const GlobalMatchingIndicator({super.key});
 
   @override
   State<GlobalMatchingIndicator> createState() => _GlobalMatchingIndicatorState();
@@ -146,3 +146,4 @@ class RadarPainter extends CustomPainter {
   @override
   bool shouldRepaint(RadarPainter oldDelegate) => true;
 }
+

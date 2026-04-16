@@ -95,7 +95,7 @@ class OfflineSyncService {
 
         // Offline'dan online'a geçtiyse senkronize et
         if (!wasOnline && _isOnline) {
-          print('📶 Bağlantı geri geldi, senkronizasyon başlatılıyor...');
+          debugPrint('📶 Bağlantı geri geldi, senkronizasyon başlatılıyor...');
           await syncWithServer();
         }
       }
@@ -226,7 +226,7 @@ class OfflineSyncService {
         }
         return words;
       } catch (e) {
-        print('🔴 API hatası: $e');
+        debugPrint('🔴 API hatası: $e');
         return [];
       }
     }
@@ -294,7 +294,7 @@ class OfflineSyncService {
         // Not: Sentences API sync henüz implementasyonda değil
       }
     } catch (e) {
-      print('🔄 Sync pending changes error: $e');
+      debugPrint('🔄 Sync pending changes error: $e');
     } finally {
       _isSyncing = false;
     }
@@ -305,7 +305,7 @@ class OfflineSyncService {
     try {
       final userId = await _authService.getUserId();
       if (userId == null || userId <= 0) {
-        print('Sync queue skipped: missing authenticated user context');
+        debugPrint('Sync queue skipped: missing authenticated user context');
         return;
       }
       final queue = await _localDb.getRetryableSyncItems();
@@ -322,7 +322,7 @@ class OfflineSyncService {
         }
       }
     } catch (e) {
-      print('Process sync queue error: $e');
+      debugPrint('Process sync queue error: $e');
     }
   }
 
@@ -334,9 +334,9 @@ class OfflineSyncService {
         'isOnline': _isOnline,
         'isSyncing': _isSyncing,
       };
-      print('SYNC_QUEUE_HEALTH[$phase]: ${jsonEncode(payload)}');
+      debugPrint('SYNC_QUEUE_HEALTH[$phase]: ${jsonEncode(payload)}');
     } catch (e) {
-      print('SYNC_QUEUE_HEALTH[$phase] log error: $e');
+      debugPrint('SYNC_QUEUE_HEALTH[$phase] log error: $e');
     }
   }
 
@@ -368,10 +368,10 @@ class OfflineSyncService {
     );
 
     if (deadLetter) {
-      print(
+      debugPrint(
           'SYNC_QUEUE dead-letter id=$queueId retries=$nextRetryCount error=$errorMessage');
     } else {
-      print(
+      debugPrint(
         'Sync item error id=$queueId retry=$nextRetryCount'
         ' nextRetryAt=${nextRetryAt?.toIso8601String()}'
         ' deferred=$deferred error=$errorMessage',
@@ -685,7 +685,7 @@ class OfflineSyncService {
         }
       } catch (e) {
         // Sessizce hata logla
-        print('🔄 Background sync error: $e');
+        debugPrint('🔄 Background sync error: $e');
       }
     });
   }
@@ -766,14 +766,14 @@ class OfflineSyncService {
         // Şimdi yerel veritabanındaki ID'leri güncelle
         await _localDb.updateLocalIdToServerId(
             'words', localWord.id, serverWord.id);
-        print(
+        debugPrint(
           '🧭 word sync mapped: localWordId=${localWord.id} -> serverWordId=${serverWord.id}',
         );
         await _localDb.saveWord(serverWord);
       }
       // else: Offline ise queue'da zaten var (createWordOffline ekledi)
     } catch (e) {
-      print('🔄 Background word sync error: $e');
+      debugPrint('🔄 Background word sync error: $e');
       // Hata durumunda queue'da zaten var, bir şey yapmaya gerek yok
     }
   }
@@ -802,12 +802,12 @@ class OfflineSyncService {
 
       await _localDb.updateLocalIdToServerId(
           'words', localWord.id, serverWord.id);
-      print(
+      debugPrint(
         '🧭 word sync mapped: localWordId=${localWord.id} -> serverWordId=${serverWord.id}',
       );
       await _localDb.saveWord(serverWord);
     } catch (e) {
-      print('🔄 Background word sync error: $e');
+      debugPrint('🔄 Background word sync error: $e');
     }
   }
 
@@ -847,8 +847,9 @@ class OfflineSyncService {
 
   /// Arka planda kelimeyi API'den sil
   void _deleteWordFromAPIInBackground(int wordId) {
-    if (wordId <= 0)
+    if (wordId <= 0) {
       return; // Negatif ID'ler (local-only) için API çağrısı yapma
+    }
 
     Future(() async {
       try {
@@ -860,7 +861,7 @@ class OfflineSyncService {
           await _queueWordDeleteIfNeeded(wordId);
         }
       } catch (e) {
-        print('🔄 Background word delete error: $e');
+        debugPrint('🔄 Background word delete error: $e');
         await _queueWordDeleteIfNeeded(wordId);
       }
     });
@@ -881,7 +882,7 @@ class OfflineSyncService {
       translation: translation,
       difficulty: difficulty,
     );
-    print(
+    debugPrint(
       '🧭 addSentenceToWord local insert: wordId=$wordId sentenceId=$sentenceId',
     );
 
@@ -943,7 +944,7 @@ class OfflineSyncService {
           await _localDb.cleanupDuplicateSentencesForWord(targetWordId);
         }
       } catch (e) {
-        print('🔄 Background sentence sync error: $e');
+        debugPrint('🔄 Background sentence sync error: $e');
       }
     });
   }
@@ -965,7 +966,7 @@ class OfflineSyncService {
       // UI'daki local(-) wordId arka planda server(+) id'ye dönmüş olabilir.
       if (word == null && wordId < 0) {
         final resolvedWordId = await _resolveServerWordId(wordId);
-        print(
+        debugPrint(
           '🧭 _getWordWithNewSentence resolve: localWordId=$wordId resolvedWordId=$resolvedWordId',
         );
         if (resolvedWordId != null && resolvedWordId > 0) {
@@ -979,7 +980,7 @@ class OfflineSyncService {
 
       return word; // Cümle zaten veritabanından alındı, tekrar eklemeye gerek yok
     } catch (e) {
-      print('Error getting word with new sentence: $e');
+      debugPrint('Error getting word with new sentence: $e');
       return null;
     }
   }
@@ -1004,7 +1005,7 @@ class OfflineSyncService {
     } else if (resolvedWordId == null || resolvedWordId <= 0) {
       branchReason = 'pending-parent-word';
     }
-    print(
+    debugPrint(
       '🧭 deleteSentenceFromWord context: online=$_isOnline auth=$hasAuthUser '
       'wordId=$wordId sentenceId=$sentenceId reason=$branchReason',
     );
@@ -1053,7 +1054,7 @@ class OfflineSyncService {
         }
         return true;
       } catch (e) {
-        print('🔴 API hatası, offline silme yapılıyor: $e');
+        debugPrint('🔴 API hatası, offline silme yapılıyor: $e');
         final deletedRows = await _deleteSentenceFromLocal(
           requestedWordId: wordId,
           resolvedWordId: resolvedWordId,
@@ -1070,7 +1071,7 @@ class OfflineSyncService {
       }
     } else {
       // Offline: Local veritabanından sil ve sync queue'ya ekle
-      print('📴 Offline mod: Cümle lokal siliniyor');
+      debugPrint('📴 Offline mod: Cümle lokal siliniyor');
       final deletedRows = await _deleteSentenceFromLocal(
         requestedWordId: wordId,
         resolvedWordId: resolvedWordId,
@@ -1097,7 +1098,7 @@ class OfflineSyncService {
       }
       return false;
     } catch (e) {
-      print(
+      debugPrint(
         '⚠️ Server sentence doğrulaması başarısız '
         '(sentenceId=$sentenceId): $e',
       );
@@ -1268,7 +1269,7 @@ class OfflineSyncService {
         await _localDb.saveAllPracticeSentences(practiceOnly);
         return practiceOnly;
       } catch (e) {
-        print('🔴 API hatası: $e');
+        debugPrint('🔴 API hatası: $e');
         return localSentences;
       }
     }
@@ -1294,7 +1295,7 @@ class OfflineSyncService {
           await _localDb.saveAllPracticeSentences(practiceOnly);
         }
       } catch (e) {
-        print('🔄 Background sentences sync error: $e');
+        debugPrint('🔄 Background sentences sync error: $e');
       }
     });
   }
@@ -1318,7 +1319,7 @@ class OfflineSyncService {
         // XP artık AppStateProvider tarafından yönetiliyor
         return sentence;
       } catch (e) {
-        print('🔴 API hatası, offline kayıt yapılıyor: $e');
+        debugPrint('🔴 API hatası, offline kayıt yapılıyor: $e');
         final id = await _localDb.createPracticeSentenceOffline(
           englishSentence: englishSentence,
           turkishTranslation: turkishTranslation,
@@ -1334,7 +1335,7 @@ class OfflineSyncService {
         );
       }
     } else {
-      print('📴 Offline mod: Cümle lokal kaydediliyor');
+      debugPrint('📴 Offline mod: Cümle lokal kaydediliyor');
       final id = await _localDb.createPracticeSentenceOffline(
         englishSentence: englishSentence,
         turkishTranslation: turkishTranslation,
@@ -1366,7 +1367,7 @@ class OfflineSyncService {
           await _apiService.deleteSentence(apiId);
           await _removeQueuedPracticeDelete(id);
         } catch (e) {
-          print('🔴 API hatası, offline silme kuyruğa ekleniyor: $e');
+          debugPrint('🔴 API hatası, offline silme kuyruğa ekleniyor: $e');
           await _localDb.addToSyncQueue('delete', 'practice_sentences', id, {});
         }
       }
@@ -1471,26 +1472,26 @@ class OfflineSyncService {
   /// Sunucu ile senkronize et
   Future<bool> syncWithServer() async {
     if (_isSyncing) {
-      print('⏳ Senkronizasyon zaten devam ediyor...');
+      debugPrint('⏳ Senkronizasyon zaten devam ediyor...');
       return false;
     }
 
     if (!_isOnline) {
-      print('📴 Offline - senkronizasyon atlanıyor');
+      debugPrint('📴 Offline - senkronizasyon atlanıyor');
       return false;
     }
     if (!await _hasAuthenticatedUser()) {
-      print('🔐 Login yok: Sunucu senkronizasyonu atlandı');
+      debugPrint('🔐 Login yok: Sunucu senkronizasyonu atlandı');
       return false;
     }
 
     _isSyncing = true;
-    print('🔄 Senkronizasyon başlatıldı...');
+    debugPrint('🔄 Senkronizasyon başlatıldı...');
 
     try {
       // 1. Bekleyen işlemleri gönder
       final pendingItems = await _localDb.getPendingSyncItems();
-      print('📝 ${pendingItems.length} bekleyen işlem bulundu');
+      debugPrint('📝 ${pendingItems.length} bekleyen işlem bulundu');
       await _logSyncQueueHealth('syncWithServer-before');
       await _processSyncQueue();
       await _logSyncQueueHealth('syncWithServer-after');
@@ -1511,11 +1512,11 @@ class OfflineSyncService {
       // Şimdilik local XP'yi koruyoruz
       await _localDb.markXpSynced();
 
-      print('✅ Senkronizasyon tamamlandı');
+      debugPrint('✅ Senkronizasyon tamamlandı');
       _isSyncing = false;
       return true;
     } catch (e) {
-      print('🔴 Senkronizasyon hatası: $e');
+      debugPrint('🔴 Senkronizasyon hatası: $e');
       _isSyncing = false;
       return false;
     }
@@ -1527,7 +1528,7 @@ class OfflineSyncService {
 
     if (_isOnline) {
       if (!await _hasAuthenticatedUser()) {
-        print('🔐 Login yok: İlk veri yüklemesi sadece local modda');
+        debugPrint('🔐 Login yok: İlk veri yüklemesi sadece local modda');
         return;
       }
       try {
@@ -1542,10 +1543,10 @@ class OfflineSyncService {
             sentences.where((s) => s.source == 'practice').toList();
         await _localDb.saveAllPracticeSentences(practiceOnly);
 
-        print(
+        debugPrint(
             '✅ İlk veri yüklemesi tamamlandı: ${words.length} kelime, ${sentences.length} cümle');
       } catch (e) {
-        print('🔴 İlk veri yüklemesi hatası: $e');
+        debugPrint('🔴 İlk veri yüklemesi hatası: $e');
       }
     }
   }
@@ -1562,15 +1563,12 @@ class _TestConnectivity implements Connectivity {
     return const Stream<List<ConnectivityResult>>.empty();
   }
 
-  @override
   Future<void> deleteService() async {}
 
-  @override
   Future<String?> getWifiBSSID() async => null;
 
-  @override
   Future<String?> getWifiIP() async => null;
 
-  @override
   Future<String?> getWifiName() async => null;
 }
+

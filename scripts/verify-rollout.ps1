@@ -3,7 +3,10 @@ param(
     [string]$Mode = "full",
     [string]$ProjectName = "flutter-project-main",
     [string]$BackendBaseUrl = "http://localhost:8082",
-    [string]$SecuritySmokeAllowedOrigin = ""
+    [string]$SecuritySmokeAllowedOrigin = "",
+    [string]$SecuritySmokeDisallowedOrigin = "http://evil.example.com",
+    [switch]$SkipPaymentChecks,
+    [switch]$SkipAlertmanagerChecks
 )
 
 Set-StrictMode -Version Latest
@@ -14,8 +17,12 @@ $validateProdScript = Join-Path $PSScriptRoot "validate-prod-alert-routing.ps1"
 $reconcileAllScript = Join-Path $PSScriptRoot "reconcile-all-nonprod.ps1"
 $loadSmokeScript = Join-Path $PSScriptRoot "run-http-load-smoke.ps1"
 $securitySmokeScript = Join-Path $PSScriptRoot "smoke-security-cors-headers.ps1"
+$runtimeIsolationScript = Join-Path $PSScriptRoot "check-runtime-isolation.ps1"
+$runtimeProdFlagsScript = Join-Path $PSScriptRoot "check-runtime-prod-flags.ps1"
+$googleSigninConfigScript = Join-Path $PSScriptRoot "check-google-signin-android-config.ps1"
 $coverageScript = Join-Path $PSScriptRoot "check-core-coverage.ps1"
 $parityScript = Join-Path $PSScriptRoot "check-db-parity.ps1"
+$aiEntitlementSmokeScript = Join-Path $PSScriptRoot "smoke-ai-entitlement-flow.ps1"
 $backendDir = Join-Path $repoRoot "backend"
 
 function Invoke-Step {
@@ -33,12 +40,20 @@ function Invoke-Step {
 }
 
 function Run-ProdPreflight {
+    Invoke-Step -Name "runtime-prod-flags-check" -Action {
+        & $runtimeProdFlagsScript -ProjectName $ProjectName
+    }
+
     Invoke-Step -Name "validate-prod-alert-routing" -Action {
-        & $validateProdScript
+        & $validateProdScript -SkipPaymentChecks:$SkipPaymentChecks -SkipAlertmanagerChecks:$SkipAlertmanagerChecks
     }
 }
 
 function Run-NonProdSmoke {
+    Invoke-Step -Name "runtime-isolation-check" -Action {
+        & $runtimeIsolationScript -ProjectName $ProjectName
+    }
+
     Invoke-Step -Name "reconcile-all-nonprod" -Action {
         & $reconcileAllScript -ProjectNames $ProjectName
     }
@@ -47,13 +62,17 @@ function Run-NonProdSmoke {
         & $loadSmokeScript -Uri "$BackendBaseUrl/actuator/health" -TotalRequests 2000 -Concurrency 50
     }
 
-    Invoke-Step -Name "load-smoke progress" -Action {
-        & $loadSmokeScript -Uri "$BackendBaseUrl/api/progress/stats" -TotalRequests 1000 -Concurrency 30 -HeadersJson '{"X-User-Id":"1"}'
+    Invoke-Step -Name "load-smoke subscription-plans" -Action {
+        & $loadSmokeScript -Uri "$BackendBaseUrl/api/subscription/plans" -TotalRequests 1000 -Concurrency 30
+    }
+
+    Invoke-Step -Name "ai-entitlement-smoke" -Action {
+        & $aiEntitlementSmokeScript -BackendBaseUrl $BackendBaseUrl -ProjectName $ProjectName
     }
 
     if (-not [string]::IsNullOrWhiteSpace($SecuritySmokeAllowedOrigin)) {
         Invoke-Step -Name "security-cors-headers-smoke" -Action {
-            & $securitySmokeScript -BaseUrl $BackendBaseUrl -AllowedOrigin $SecuritySmokeAllowedOrigin
+            & $securitySmokeScript -BaseUrl $BackendBaseUrl -AllowedOrigin $SecuritySmokeAllowedOrigin -DisallowedOrigin $SecuritySmokeDisallowedOrigin
         }
     } else {
         Write-Host "[verify-rollout] SKIP: security-cors-headers-smoke (SecuritySmokeAllowedOrigin not provided)"
@@ -61,6 +80,10 @@ function Run-NonProdSmoke {
 }
 
 function Run-LocalGate {
+    Invoke-Step -Name "check-google-signin-android-config" -Action {
+        & $googleSigninConfigScript
+    }
+
     Invoke-Step -Name "mvn -q test" -Action {
         Push-Location $backendDir
         try {

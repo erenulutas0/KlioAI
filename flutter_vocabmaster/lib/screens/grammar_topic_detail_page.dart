@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import '../data/grammar_data.dart';
-import '../widgets/modern_card.dart';
-import '../widgets/modern_card_background.dart';
 
 class GrammarTopicDetailPage extends StatefulWidget {
   final GrammarTopic topic;
   final String? initialSubtopicId;
 
   const GrammarTopicDetailPage({
-    Key? key,
+    super.key,
     required this.topic,
     this.initialSubtopicId,
-  }) : super(key: key);
+  });
 
   @override
   State<GrammarTopicDetailPage> createState() => _GrammarTopicDetailPageState();
@@ -238,13 +236,13 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                             Expanded(child: Text(point, style: const TextStyle(color: Colors.white70))),
                           ],
                         ),
-                      )).toList(),
+                      )),
                       const SizedBox(height: 20),
                     ],
 
                     // Examples
                     _buildSectionHeader('Örnekler', Icons.check_circle_outline),
-                    ...subtopic.examples.map((example) => _buildExampleRow(example)).toList(),
+                    ...subtopic.examples.map((example) => _buildExampleRow(example)),
                     const SizedBox(height: 20),
 
                     // Common Mistakes
@@ -407,3 +405,4 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
     );
   }
 }
+

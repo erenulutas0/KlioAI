@@ -17,6 +17,7 @@ services:
       retries: 5
     networks:
       - app-network
+    restart: unless-stopped
 
   # Redis Cache
   redis:
@@ -32,13 +33,16 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - app-redis-main
+    restart: unless-stopped
 
   # Redis Security Store (rate-limit / abuse / auth quota keys)
   redis-security:
     image: redis:7-alpine
     ports:
-      - "${REDIS_SECURITY_PORT:-6380}:6379"
+      - "${REDIS_SECURITY_PORT:-6381}:6379"
     volumes:
       - redis_security_data:/data
     command: redis-server --appendonly yes --maxmemory ${REDIS_SECURITY_MAXMEMORY:-128mb} --maxmemory-policy ${REDIS_SECURITY_MAXMEMORY_POLICY:-noeviction}
@@ -48,7 +52,10 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - app-redis-security
+    restart: unless-stopped
 
   # Spring Boot Backend
   backend:
@@ -61,6 +68,8 @@ services:
     volumes:
       # Mount Piper voice models from host (override PIPER_MODEL_HOST_PATH on non-Windows hosts)
       - ${PIPER_MODEL_HOST_PATH:-C:/piper}:/piper:ro
+      # Google Play service-account JSON mount (override host path via .env).
+      - ${APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH:-./backend/config/google-play-service-account.placeholder.json}:/run/secrets/google-play-service-account.json:ro
     environment:
       # Spring Profile
       SPRING_PROFILES_ACTIVE: docker
@@ -80,11 +89,11 @@ services:
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       
       # Redis
-      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST:-app-redis-main}
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ""
       SPRING_DATA_REDIS_TIMEOUT: 2000ms
-      SPRING_DATA_REDIS_SECURITY_HOST: redis-security
+      SPRING_DATA_REDIS_SECURITY_HOST: ${SPRING_DATA_REDIS_SECURITY_HOST:-app-redis-security}
       SPRING_DATA_REDIS_SECURITY_PORT: 6379
       SPRING_DATA_REDIS_SECURITY_PASSWORD: ""
       SPRING_DATA_REDIS_SECURITY_TIMEOUT: 2000ms
@@ -107,7 +116,8 @@ services:
       # Piper TTS (binary is installed in backend image; /piper contains mounted voice models)
       PIPER_TTS_PATH: ${PIPER_TTS_PATH:-/opt/piper/piper}
       PIPER_TTS_DEFAULT_MODEL: ${PIPER_TTS_DEFAULT_MODEL:-en_US-amy-medium.onnx}
-      APP_SECURITY_JWT_ENFORCE_AUTH: ${APP_SECURITY_JWT_ENFORCE_AUTH:-false}
+      # Keep secure defaults in compose; relax only via explicit local override if needed.
+      APP_SECURITY_JWT_ENFORCE_AUTH: ${APP_SECURITY_JWT_ENFORCE_AUTH:-true}
       # Required: set APP_SECURITY_JWT_SECRET in your .env (not committed) to start the backend.
       APP_SECURITY_JWT_SECRET: ${APP_SECURITY_JWT_SECRET:?set APP_SECURITY_JWT_SECRET in .env}
       APP_SECURITY_AUTH_RATE_LIMIT_REDIS_FALLBACK_MODE: ${APP_SECURITY_AUTH_RATE_LIMIT_REDIS_FALLBACK_MODE:-memory}
@@ -123,7 +133,14 @@ services:
       APP_SECURITY_AUTH_EXPOSE_DEBUG_TOKENS: ${APP_SECURITY_AUTH_EXPOSE_DEBUG_TOKENS:-false}
       APP_SECURITY_AUTH_GOOGLE_ID_TOKEN_REQUIRED: ${APP_SECURITY_AUTH_GOOGLE_ID_TOKEN_REQUIRED:-false}
       APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS: ${APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS:-}
-      APP_SUBSCRIPTION_MOCK_VERIFICATION_ENABLED: ${APP_SUBSCRIPTION_MOCK_VERIFICATION_ENABLED:-true}
+      APP_SUBSCRIPTION_MOCK_VERIFICATION_ENABLED: ${APP_SUBSCRIPTION_MOCK_VERIFICATION_ENABLED:-false}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_ENABLED: ${APP_SUBSCRIPTION_GOOGLE_PLAY_ENABLED:-false}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_PACKAGE_NAME: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PACKAGE_NAME:-}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_FILE: ${APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_FILE:-/run/secrets/google-play-service-account.json}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_MONTHLY: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_MONTHLY:-PREMIUM}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_ANNUAL: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_ANNUAL:-PREMIUM_PLUS}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_MONTHLY: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_MONTHLY:-PREMIUM}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_PLUS_MONTHLY: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_PLUS_MONTHLY:-PREMIUM_PLUS}
       
     ports:
       - "${BACKEND_HTTP_PORT:-8082}:8082"

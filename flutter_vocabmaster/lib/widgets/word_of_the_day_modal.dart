@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../widgets/modern_card.dart';
@@ -6,6 +5,10 @@ import '../widgets/modern_background.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../models/word.dart';
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class WordOfTheDayModal extends StatefulWidget {
   final Map<String, dynamic> wordData;
@@ -15,31 +18,32 @@ class WordOfTheDayModal extends StatefulWidget {
   final int initialStep;
 
   const WordOfTheDayModal({
-    Key? key,
+    super.key,
     required this.wordData,
     required this.onClose,
     this.enableAnimations = true,
     this.enableTts = true,
     this.initialStep = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<WordOfTheDayModal> createState() => _WordOfTheDayModalState();
 }
 
-class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProviderStateMixin {
+class _WordOfTheDayModalState extends State<WordOfTheDayModal>
+    with TickerProviderStateMixin {
   int _currentStep = 0;
   final int _totalSteps = 6;
   late FlutterTts _flutterTts;
-  
+
   // Animation Controllers
   late AnimationController _pulseController;
-  
+
   // Quiz state
   String? _quizSelectedAnswer;
   bool _quizAnswered = false;
   late List<String> _quizOptions;
-  
+
   // Utils
   bool _isAdding = false;
 
@@ -51,7 +55,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
       _initTts();
     }
     _prepareQuiz();
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -92,7 +96,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
     await _flutterTts.speak(text);
   }
 
-  Future<void> _addToWords({required bool withSentence, required bool wordAdded, required bool sentenceAdded}) async {
+  Future<void> _addToWords(
+      {required bool withSentence,
+      required bool wordAdded,
+      required bool sentenceAdded}) async {
     if (_isAdding) return;
     if (wordAdded && (!withSentence || sentenceAdded)) return;
 
@@ -102,8 +109,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
       final appState = context.read<AppStateProvider>();
       final addedDate = DateTime.now();
       final wordText = (widget.wordData['word'] ?? '').toString();
-      final sentenceText = (widget.wordData['exampleSentence'] ?? '').toString();
-      final translationText = (widget.wordData['exampleTranslation'] ?? '').toString();
+      final sentenceText =
+          (widget.wordData['exampleSentence'] ?? '').toString();
+      final translationText =
+          (widget.wordData['exampleTranslation'] ?? '').toString();
 
       Word? word = appState.findWordByEnglish(wordText);
 
@@ -112,7 +121,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
           english: wordText,
           turkish: "⭐ ${widget.wordData['translation']}",
           addedDate: addedDate,
-          difficulty: (widget.wordData['difficulty'] as String? ?? 'Medium').toLowerCase(),
+          difficulty: (widget.wordData['difficulty'] as String? ?? 'Medium')
+              .toLowerCase(),
           source: 'daily_word',
         );
       }
@@ -146,8 +156,19 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
     }
   }
 
+  AppThemeConfig _currentTheme({bool listen = true}) {
+    try {
+      return Provider.of<ThemeProvider?>(context, listen: listen)
+              ?.currentTheme ??
+          VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme(listen: true);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(16),
@@ -158,21 +179,14 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
           maxWidth: 400,
         ),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF0C1445), // blue-950
-              Color(0xFF581C87), // purple-900
-              Color(0xFF0C1445), // blue-950
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+          gradient: selectedTheme.colors.backgroundGradient,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(
+            color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: selectedTheme.colors.accentGlow.withOpacity(0.25),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -180,7 +194,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
         ),
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(selectedTheme),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -192,51 +206,56 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
                     parent: animation,
                     curve: Curves.easeInOut,
                   ));
-                  return SlideTransition(position: offsetAnimation, child: child);
+                  return SlideTransition(
+                      position: offsetAnimation, child: child);
                 },
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      key: ValueKey<int>(_currentStep),
-                      physics: const BouncingScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                        child: IntrinsicHeight(
-                          child: _buildStepContent(),
-                        ),
+                child: LayoutBuilder(builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    key: ValueKey<int>(_currentStep),
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: _buildStepContent(selectedTheme),
                       ),
-                    );
-                  }
-                ),
+                    ),
+                  );
+                }),
               ),
             ),
-            _buildFooter(),
+            _buildFooter(selectedTheme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppThemeConfig selectedTheme) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.02), // subtle overlay
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border:
+            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SizedBox(width: 32), // spacer for centering title
-              const Text(
-                'Günün Kelimesi',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  context.tr('wotd.title'),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               GestureDetector(
@@ -260,12 +279,15 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
               return Expanded(
                 child: Container(
                   height: 4,
-                  margin: EdgeInsets.only(right: index == _totalSteps - 1 ? 0 : 4),
+                  margin:
+                      EdgeInsets.only(right: index == _totalSteps - 1 ? 0 : 4),
                   decoration: BoxDecoration(
-                    gradient: index <= _currentStep 
-                      ? const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)]) // Cyan to Blue
-                      : null,
-                    color: index <= _currentStep ? null : Colors.white.withOpacity(0.1),
+                    gradient: index <= _currentStep
+                        ? selectedTheme.colors.buttonGradient
+                        : null,
+                    color: index <= _currentStep
+                        ? null
+                        : Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -287,30 +309,44 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
 
   String _getStepTitle(int step) {
     switch (step) {
-      case 0: return 'Kelime (1/6)';
-      case 1: return 'Anlam (2/6)';
-      case 2: return 'Örnek Cümle (3/6)';
-      case 3: return 'Telaffuz (4/6)';
-      case 4: return 'Quiz (5/6)';
-      case 5: return 'Tamamlandı (6/6)';
-      default: return '';
+      case 0:
+        return '${context.tr('wotd.step.word')} (1/6)';
+      case 1:
+        return '${context.tr('wotd.step.meaning')} (2/6)';
+      case 2:
+        return '${context.tr('wotd.step.example')} (3/6)';
+      case 3:
+        return '${context.tr('wotd.step.pronunciation')} (4/6)';
+      case 4:
+        return '${context.tr('wotd.step.quiz')} (5/6)';
+      case 5:
+        return '${context.tr('wotd.step.completed')} (6/6)';
+      default:
+        return '';
     }
   }
 
-  Widget _buildStepContent() {
+  Widget _buildStepContent(AppThemeConfig selectedTheme) {
     switch (_currentStep) {
-      case 0: return _buildStep1_Word();
-      case 1: return _buildStep2_Meaning();
-      case 2: return _buildStep3_Example();
-      case 3: return _buildStep4_Pronunciation();
-      case 4: return _buildStep5_Quiz();
-      case 5: return _buildStep6_Summary();
-      default: return const SizedBox();
+      case 0:
+        return _buildStep1Word(selectedTheme);
+      case 1:
+        return _buildStep2Meaning(selectedTheme);
+      case 2:
+        return _buildStep3Example(selectedTheme);
+      case 3:
+        return _buildStep4Pronunciation(selectedTheme);
+      case 4:
+        return _buildStep5Quiz(selectedTheme);
+      case 5:
+        return _buildStep6Summary(selectedTheme);
+      default:
+        return const SizedBox();
     }
   }
 
   // --- Step 1 ---
-  Widget _buildStep1_Word() {
+  Widget _buildStep1Word(AppThemeConfig selectedTheme) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -319,13 +355,21 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFA855F7).withOpacity(0.2), // Purple-500/20
+              color: selectedTheme.colors.accent.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFC084FC).withOpacity(0.3)),
+              border: Border.all(
+                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+              ),
             ),
             child: Text(
-              (widget.wordData['partOfSpeech'] ?? 'Unknown').toString().toUpperCase(),
-              style: const TextStyle(color: Color(0xFFD8B4FE), fontSize: 12, fontWeight: FontWeight.bold),
+              (widget.wordData['partOfSpeech'] ?? 'Unknown')
+                  .toString()
+                  .toUpperCase(),
+              style: TextStyle(
+                color: selectedTheme.colors.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -335,9 +379,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
               return Transform.scale(
                 scale: 1.0 + (_pulseController.value * 0.05),
                 child: ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)],
-                  ).createShader(bounds),
+                  shaderCallback: (bounds) =>
+                      selectedTheme.colors.buttonGradient.createShader(bounds),
                   child: Text(
                     widget.wordData['word'] ?? '',
                     style: const TextStyle(
@@ -371,10 +414,17 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.volume_up, color: Colors.white),
                   SizedBox(width: 8),
-                  Text('Dinle', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    context.tr('wotd.listen'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -385,7 +435,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
   }
 
   // --- Step 2 ---
-  Widget _buildStep2_Meaning() {
+  Widget _buildStep2Meaning(AppThemeConfig selectedTheme) {
     final synonyms = List<String>.from(widget.wordData['synonyms'] ?? []);
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -394,146 +444,179 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
           const SizedBox(height: 10),
           Text(
             widget.wordData['word'] ?? '',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           Text(
-             widget.wordData['pronunciation'] ?? '',
-             style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5)),
+            widget.wordData['pronunciation'] ?? '',
+            style:
+                TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5)),
           ),
-           const SizedBox(height: 24),
-           
-           Container(
-             width: double.infinity,
-             padding: const EdgeInsets.all(20),
-             decoration: BoxDecoration(
-               gradient: LinearGradient(
-                 colors: [const Color(0xFF22D3EE).withOpacity(0.15), const Color(0xFF3B82F6).withOpacity(0.15)],
-                 begin: Alignment.topLeft,
-                 end: Alignment.bottomRight,
-               ),
-               borderRadius: BorderRadius.circular(16),
-               border: Border.all(color: const Color(0xFF22D3EE).withOpacity(0.3)),
-             ),
-             child: Column(
-               children: [
-                 const Icon(Icons.lightbulb_outline, color: Color(0xFFFACC15), size: 28),
-                 const SizedBox(height: 8),
-                 Text(
-                   'Türkçe Anlamı',
-                   style: TextStyle(color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.w600),
-                 ),
-                 const SizedBox(height: 8),
-                 Text(
-                   widget.wordData['translation'] ?? '',
-                   textAlign: TextAlign.center,
-                   style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                 ),
-               ],
-             ),
-           ),
-           
-           const SizedBox(height: 16),
-           
-           Container(
-             width: double.infinity,
-             padding: const EdgeInsets.all(16),
-             decoration: BoxDecoration(
-               color: Colors.white.withOpacity(0.05),
-               borderRadius: BorderRadius.circular(16),
-               border: Border.all(color: Colors.white.withOpacity(0.1)),
-             ),
-             child: Text(
-               widget.wordData['definition'] ?? '',
-               textAlign: TextAlign.center,
-               style: TextStyle(color: Colors.white.withOpacity(0.7), fontStyle: FontStyle.italic),
-             ),
-           ),
-           
-           const SizedBox(height: 20),
-           
-            if (synonyms.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text('Eş Anlamlılar: ', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: synonyms.map((s) => Chip(
-                          label: Text(s),
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                          side: BorderSide.none,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        )).toList(),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  selectedTheme.colors.accent.withOpacity(0.15),
+                  selectedTheme.colors.primary.withOpacity(0.15),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.lightbulb_outline,
+                    color: Color(0xFFFACC15), size: 28),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr('wotd.meaningTitle'),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.wordData['translation'] ?? '',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Text(
+              widget.wordData['definition'] ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontStyle: FontStyle.italic),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (synonyms.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      '${context.tr('wotd.synonyms')}: ',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: synonyms
+                          .map((s) => Chip(
+                                label: Text(s),
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                labelStyle: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                                side: BorderSide.none,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   // --- Step 3 ---
-  Widget _buildStep3_Example() {
+  Widget _buildStep3Example(AppThemeConfig selectedTheme) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-             width: double.infinity,
-             padding: const EdgeInsets.all(24),
-             decoration: BoxDecoration(
-               gradient: LinearGradient(
-                 colors: [const Color(0xFFA855F7).withOpacity(0.15), const Color(0xFF22D3EE).withOpacity(0.15)],
-                 begin: Alignment.topLeft,
-                 end: Alignment.bottomRight,
-               ),
-               borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: const Color(0xFFA855F7).withOpacity(0.3)),
-             ),
-             child: Column(
-               children: [
-                 const Icon(Icons.menu_book_rounded, color: Colors.white, size: 32),
-                 const SizedBox(height: 16),
-                 Text(
-                   '"${widget.wordData['exampleSentence']}"',
-                   textAlign: TextAlign.center,
-                   style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500),
-                 ),
-                 const SizedBox(height: 12),
-                 Text(
-                   widget.wordData['exampleTranslation'] ?? '',
-                   textAlign: TextAlign.center,
-                   style: TextStyle(color: Colors.white.withOpacity(0.6), fontStyle: FontStyle.italic),
-                 ),
-               ],
-             ),
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  selectedTheme.colors.primary.withOpacity(0.15),
+                  selectedTheme.colors.accent.withOpacity(0.15),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.menu_book_rounded,
+                    color: Colors.white, size: 32),
+                const SizedBox(height: 16),
+                Text(
+                  '"${widget.wordData['exampleSentence']}"',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.wordData['exampleTranslation'] ?? '',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
           OutlinedButton.icon(
             onPressed: () => _speak(widget.wordData['exampleSentence'] ?? ''),
             icon: const Icon(Icons.volume_up),
-            label: const Text('Cümleyi Dinle'),
+            label: Text(context.tr('wotd.listenSentence')),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
               side: const BorderSide(color: Colors.white24),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
             ),
           ),
         ],
@@ -542,38 +625,40 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
   }
 
   // --- Step 4 ---
-  Widget _buildStep4_Pronunciation() {
+  Widget _buildStep4Pronunciation(AppThemeConfig selectedTheme) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          'Telaffuz Pratiği',
-          style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+        Text(
+          context.tr('wotd.pronunciationPractice'),
+          style: TextStyle(
+              color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 40),
-        
         AnimatedBuilder(
           animation: _pulseController,
           builder: (context, child) {
-             return Transform.scale(
-               scale: 1.0 + (_pulseController.value * 0.08),
-               child: child,
-             );
+            return Transform.scale(
+              scale: 1.0 + (_pulseController.value * 0.08),
+              child: child,
+            );
           },
           child: Text(
             widget.wordData['word'] ?? '',
-            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),
-        
         const SizedBox(height: 12),
         Text(
           widget.wordData['pronunciation'] ?? '',
-          style: const TextStyle(fontSize: 24, color: Color(0xFF22D3EE), fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 24,
+            color: selectedTheme.colors.accent,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        
         const SizedBox(height: 48),
-        
         GestureDetector(
           onTap: () => _speak(widget.wordData['word'] ?? ''),
           child: ModernCard(
@@ -584,15 +669,21 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.volume_up, size: 28, color: Colors.white),
                 SizedBox(width: 12),
-                Text('Tekrar Dinle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(
+                  context.tr('wotd.listenAgain'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        
         const SizedBox(height: 32),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 32),
@@ -608,8 +699,9 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'İpucu: Sesi dinleyip tekrar ederek öğrenme hızınızı artırabilirsiniz!',
-                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                  context.tr('wotd.pronunciationTip'),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.7), fontSize: 13),
                 ),
               ),
             ],
@@ -620,122 +712,132 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
   }
 
   // --- Step 5 ---
-  Widget _buildStep5_Quiz() {
+  Widget _buildStep5Quiz(AppThemeConfig selectedTheme) {
     final word = widget.wordData['word'] as String;
     final correctAns = widget.wordData['translation'] as String;
-    
+
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('Mini Quiz', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(
+            context.tr('wotd.quizTitle'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
-            '"$word" kelimesinin anlamı nedir?',
+            '"$word" ${context.tr('wotd.quizQuestionSuffix')}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 18, color: Colors.white70),
           ),
           const SizedBox(height: 24),
-          
+
           ..._quizOptions.map((option) {
-             final isSelected = _quizSelectedAnswer == option;
-             final isCorrect = option == correctAns;
-             
-             Color borderColor = Colors.white.withOpacity(0.2);
-             Color bgColor = Colors.white.withOpacity(0.05);
-             Widget? icon;
-             
-             if (_quizAnswered) {
-               if (option == correctAns) {
-                 borderColor = const Color(0xFF4ADE80); // Green
-                 bgColor = const Color(0xFF4ADE80).withOpacity(0.2);
-                 icon = const Icon(Icons.check_circle, color: Color(0xFF4ADE80));
-               } else if (isSelected) {
-                 borderColor = const Color(0xFFF87171); // Red
-                 bgColor = const Color(0xFFF87171).withOpacity(0.2);
-                 icon = const Icon(Icons.cancel, color: Color(0xFFF87171));
-               } else {
-                 borderColor = Colors.transparent;
-                 bgColor = Colors.transparent;
-               }
-             } else if (isSelected) {
-               borderColor = const Color(0xFF22D3EE);
-               bgColor = const Color(0xFF22D3EE).withOpacity(0.2);
-             }
-             
-             return Padding(
-               padding: const EdgeInsets.only(bottom: 12),
-               child: GestureDetector(
-                 onTap: _quizAnswered ? null : () {
-                   setState(() {
-                     _quizSelectedAnswer = option;
-                   });
-                 },
-                 child: AnimatedContainer(
-                   duration: const Duration(milliseconds: 200),
-                   padding: const EdgeInsets.all(16),
-                   decoration: BoxDecoration(
-                     color: bgColor,
-                     border: Border.all(color: borderColor, width: 2),
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                   child: Row(
-                     children: [
-                       Expanded(
-                         child: Text(
-                           option,
-                           style: TextStyle(
-                             color: _quizAnswered && !isCorrect && !isSelected 
-                               ? Colors.white.withOpacity(0.3) 
-                               : Colors.white,
-                             fontWeight: FontWeight.w500,
-                             fontSize: 16,
-                           ),
-                         ),
-                       ),
-                       if (icon != null) icon,
-                     ],
-                   ),
-                 ),
-               ),
-             );
-          }).toList(),
-          
+            final isSelected = _quizSelectedAnswer == option;
+            final isCorrect = option == correctAns;
+
+            Color borderColor = Colors.white.withOpacity(0.2);
+            Color bgColor = Colors.white.withOpacity(0.05);
+            Widget? icon;
+
+            if (_quizAnswered) {
+              if (option == correctAns) {
+                borderColor = const Color(0xFF4ADE80); // Green
+                bgColor = const Color(0xFF4ADE80).withOpacity(0.2);
+                icon = const Icon(Icons.check_circle, color: Color(0xFF4ADE80));
+              } else if (isSelected) {
+                borderColor = const Color(0xFFF87171); // Red
+                bgColor = const Color(0xFFF87171).withOpacity(0.2);
+                icon = const Icon(Icons.cancel, color: Color(0xFFF87171));
+              } else {
+                borderColor = Colors.transparent;
+                bgColor = Colors.transparent;
+              }
+            } else if (isSelected) {
+              borderColor = selectedTheme.colors.accent;
+              bgColor = selectedTheme.colors.accent.withOpacity(0.2);
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: _quizAnswered
+                    ? null
+                    : () {
+                        setState(() {
+                          _quizSelectedAnswer = option;
+                        });
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    border: Border.all(color: borderColor, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          option,
+                          style: TextStyle(
+                            color: _quizAnswered && !isCorrect && !isSelected
+                                ? Colors.white.withOpacity(0.3)
+                                : Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      if (icon != null) icon,
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
           const SizedBox(height: 20),
-          
+
           // Check Answer Button
 
-          
           // Feedback
           if (_quizAnswered)
             Container(
               margin: const EdgeInsets.only(bottom: 20),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _quizSelectedAnswer == correctAns 
-                  ? const Color(0xFF4ADE80).withOpacity(0.1) 
-                  : const Color(0xFFF87171).withOpacity(0.1),
+                color: _quizSelectedAnswer == correctAns
+                    ? const Color(0xFF4ADE80).withOpacity(0.1)
+                    : const Color(0xFFF87171).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   Icon(
-                    _quizSelectedAnswer == correctAns ? Icons.check_circle : Icons.cancel,
-                    color: _quizSelectedAnswer == correctAns ? const Color(0xFF4ADE80) : const Color(0xFFF87171)
-                  ),
+                      _quizSelectedAnswer == correctAns
+                          ? Icons.check_circle
+                          : Icons.cancel,
+                      color: _quizSelectedAnswer == correctAns
+                          ? const Color(0xFF4ADE80)
+                          : const Color(0xFFF87171)),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      _quizSelectedAnswer == correctAns 
-                        ? "Doğru cevap!" 
-                        : "Yanlış cevap: $correctAns",
-                      style: TextStyle(
-                        color: _quizSelectedAnswer == correctAns ? const Color(0xFF4ADE80) : const Color(0xFFF87171),
-                        fontWeight: FontWeight.bold
-                      )
-                    )
-                  ),
+                      child: Text(
+                          _quizSelectedAnswer == correctAns
+                              ? context.tr('wotd.quiz.correct')
+                              : '${context.tr('wotd.quiz.wrongPrefix')} $correctAns',
+                          style: TextStyle(
+                              color: _quizSelectedAnswer == correctAns
+                                  ? const Color(0xFF4ADE80)
+                                  : const Color(0xFFF87171),
+                              fontWeight: FontWeight.bold))),
                 ],
               ),
             ),
@@ -745,45 +847,61 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
   }
 
   // --- Step 6 ---
-  Widget _buildStep6_Summary() {
+  Widget _buildStep6Summary(AppThemeConfig selectedTheme) {
     final appState = context.watch<AppStateProvider>();
     final wordText = (widget.wordData['word'] ?? '').toString();
     final sentenceText = (widget.wordData['exampleSentence'] ?? '').toString();
     final existingWord = appState.findWordByEnglish(wordText);
     final wordAdded = existingWord != null;
-    final sentenceAdded = wordAdded && appState.hasSentenceForWord(existingWord!, sentenceText);
+    final sentenceAdded = existingWord != null &&
+        appState.hasSentenceForWord(existingWord, sentenceText);
 
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle_outline, color: Color(0xFF4ADE80), size: 80),
+          const Icon(Icons.check_circle_outline,
+              color: Color(0xFF4ADE80), size: 80),
           const SizedBox(height: 24),
-          const Text(
-            'Harika İş!',
-            style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+          Text(
+            context.tr('wotd.great'),
+            style: TextStyle(
+                color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Text(
-            '"${widget.wordData['word']}" kelimesini öğrendiniz.',
+            '"${widget.wordData['word']}" ${context.tr('wotd.learnedSuffix')}',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
           ),
           const SizedBox(height: 48),
-
           if (!wordAdded) ...[
             // "Kelimeyi Cümlesiyle Ekle" Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isAdding ? null : () => _addToWords(withSentence: true, wordAdded: wordAdded, sentenceAdded: sentenceAdded),
+                onPressed: _isAdding
+                    ? null
+                    : () => _addToWords(
+                        withSentence: true,
+                        wordAdded: wordAdded,
+                        sentenceAdded: sentenceAdded),
                 icon: const Icon(Icons.playlist_add, color: Colors.white),
-                label: const Text('Kelimeyi Cümlesiyle Ekle', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                label: Text(
+                  context.tr('wotd.addWithSentence'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981), // Emerald-500
+                  backgroundColor: selectedTheme.colors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
               ),
@@ -793,13 +911,20 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _isAdding ? null : () => _addToWords(withSentence: false, wordAdded: wordAdded, sentenceAdded: sentenceAdded),
+                onPressed: _isAdding
+                    ? null
+                    : () => _addToWords(
+                        withSentence: false,
+                        wordAdded: wordAdded,
+                        sentenceAdded: sentenceAdded),
                 icon: const Icon(Icons.add, color: Colors.white70),
-                label: const Text('Sadece Kelimeyi Ekle', style: TextStyle(color: Colors.white)),
+                label: Text(context.tr('wotd.addWordOnly'),
+                    style: const TextStyle(color: Colors.white)),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: Colors.white.withOpacity(0.3)),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),
@@ -807,16 +932,24 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
+                color: selectedTheme.colors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                border: Border.all(
+                  color: selectedTheme.colors.primary.withOpacity(0.3),
+                ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, color: Color(0xFF10B981)),
-                  SizedBox(width: 8),
-                  Text('Kelime ekli', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  Icon(Icons.check_circle, color: selectedTheme.colors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.tr('wotd.wordAdded'),
+                    style: TextStyle(
+                      color: selectedTheme.colors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -824,13 +957,26 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isAdding ? null : () => _addToWords(withSentence: true, wordAdded: wordAdded, sentenceAdded: sentenceAdded),
+                onPressed: _isAdding
+                    ? null
+                    : () => _addToWords(
+                        withSentence: true,
+                        wordAdded: wordAdded,
+                        sentenceAdded: sentenceAdded),
                 icon: const Icon(Icons.playlist_add, color: Colors.white),
-                label: const Text('Cümlesini de ekle', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                label: Text(
+                  context.tr('wotd.addSentenceToo'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
+                  backgroundColor: selectedTheme.colors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
               ),
@@ -839,16 +985,29 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
+                color: selectedTheme.colors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                border: Border.all(
+                  color: selectedTheme.colors.primary.withOpacity(0.3),
+                ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, color: Color(0xFF10B981)),
-                  SizedBox(width: 8),
-                  Text('Kelime ve cümle ekli', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  Icon(Icons.check_circle, color: selectedTheme.colors.primary),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      context.tr('wotd.wordSentenceAdded'),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selectedTheme.colors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             )
@@ -857,53 +1016,60 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal> with TickerProvid
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(AppThemeConfig selectedTheme) {
     // Buttons layout: Back (left), Next (right, expanded)
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       child: Row(
         children: [
-           if (_currentStep > 0)
-             Padding(
-               padding: const EdgeInsets.only(right: 12.0),
-               child: OutlinedButton(
-                 onPressed: _prevStep,
-                 style: OutlinedButton.styleFrom(
-                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                   side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                   foregroundColor: Colors.white,
-                 ),
-                 child: const Icon(Icons.arrow_back),
-               ),
-             ),
-             
-           Expanded(
-             child: GestureDetector(
-               onTap: () {
-                 if (_currentStep == 4 && !_quizAnswered) {
-                   if (_quizSelectedAnswer != null) {
-                     setState(() => _quizAnswered = true);
-                   }
-                 } else {
-                   _nextStep();
-                 }
-               },
-               child: ModernCard(
-                 variant: BackgroundVariant.accent,
-                 borderRadius: BorderRadius.circular(16),
-                 padding: const EdgeInsets.symmetric(vertical: 16),
-                 showGlow: true,
-                 child: Center(
-                   child: Text(
-                     (_currentStep == 4 && !_quizAnswered) ? 'Kontrol Et' :
-                     (_currentStep < 5 ? 'İleri' : 'Çıkış'),
-                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                   ),
-                 ),
-               ),
-             ),
-           ),
+          if (_currentStep > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: OutlinedButton(
+                onPressed: _prevStep,
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Icon(Icons.arrow_back),
+              ),
+            ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_currentStep == 4 && !_quizAnswered) {
+                  if (_quizSelectedAnswer != null) {
+                    setState(() => _quizAnswered = true);
+                  }
+                } else {
+                  _nextStep();
+                }
+              },
+              child: ModernCard(
+                variant: BackgroundVariant.accent,
+                borderRadius: BorderRadius.circular(16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                showGlow: true,
+                child: Center(
+                  child: Text(
+                    (_currentStep == 4 && !_quizAnswered)
+                        ? context.tr('wotd.check')
+                        : (_currentStep < 5
+                            ? context.tr('wotd.next')
+                            : context.tr('wotd.continue')),
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

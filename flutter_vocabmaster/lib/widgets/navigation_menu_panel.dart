@@ -1,15 +1,21 @@
 import 'dart:ui';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 
 class MenuItemData {
   final String id;
-  final String label;
+  final String labelKey;
   final IconData icon;
   
   MenuItemData({
     required this.id,
-    required this.label,
+    required this.labelKey,
     required this.icon,
   });
 }
@@ -25,11 +31,11 @@ class NavigationMenuPanel extends StatefulWidget {
     required this.currentPage,
     required this.onTabChange,
     required this.onNavigate,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
-  _NavigationMenuPanelState createState() => _NavigationMenuPanelState();
+  State<NavigationMenuPanel> createState() => _NavigationMenuPanelState();
 }
 
 class _NavigationMenuPanelState extends State<NavigationMenuPanel> 
@@ -38,24 +44,39 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   late List<AnimationController> _rainControllers;
   late List<AnimationController> _sparkleControllers;
 
+  AppThemeConfig _currentTheme({required bool listen}) {
+    try {
+      return Provider.of<ThemeProvider?>(context, listen: listen)?.currentTheme ??
+          VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
+
+  Color _mix(Color a, Color b, double t) {
+    return Color.lerp(a, b, t) ?? a;
+  }
+
   final List<MenuItemData> mainPages = [
-    MenuItemData(id: 'profile-settings', label: 'Profil', icon: Icons.person),
-    MenuItemData(id: 'home', label: 'Ana Sayfa', icon: Icons.home),
-    MenuItemData(id: 'words', label: 'Kelimeler', icon: Icons.book),
-    MenuItemData(id: 'sentences', label: 'Cümleler', icon: Icons.description),
-    MenuItemData(id: 'practice', label: 'Pratik', icon: Icons.school),
+    MenuItemData(id: 'profile-settings', labelKey: 'nav.profile', icon: Icons.person),
+    MenuItemData(id: 'home', labelKey: 'nav.home', icon: Icons.home),
+    MenuItemData(id: 'words', labelKey: 'nav.words', icon: Icons.book),
+    MenuItemData(id: 'sentences', labelKey: 'nav.sentences', icon: Icons.description),
+    MenuItemData(id: 'practice', labelKey: 'nav.practice', icon: Icons.school),
     // MVP: Social features disabled for v1.0
-    // MenuItemData(id: 'chat', label: 'Sohbet', icon: Icons.chat_bubble),
-    // MenuItemData(id: 'feed', label: 'Social Feed', icon: Icons.rss_feed),
-    // MenuItemData(id: 'notifications', label: 'Bildirimler', icon: Icons.notifications),
-    MenuItemData(id: 'stats', label: 'İstatistikler', icon: Icons.bar_chart),
+    // MenuItemData(id: 'chat', labelKey: 'nav.chat', icon: Icons.chat_bubble),
+    // MenuItemData(id: 'feed', labelKey: 'nav.feed', icon: Icons.rss_feed),
+    // MenuItemData(id: 'notifications', labelKey: 'nav.notifications', icon: Icons.notifications),
+    MenuItemData(id: 'stats', labelKey: 'nav.stats', icon: Icons.bar_chart),
   ];
 
   final List<MenuItemData> specialPages = [
-    MenuItemData(id: 'speaking', label: 'Konuşma', icon: Icons.chat_bubble_outline),
-    MenuItemData(id: 'repeat', label: 'Tekrar', icon: Icons.replay),
-    MenuItemData(id: 'dictionary', label: 'Sözlük', icon: Icons.book),
-    MenuItemData(id: 'xp-history', label: 'XP Geçmişi', icon: Icons.history),
+    MenuItemData(id: 'speaking', labelKey: 'nav.speaking', icon: Icons.chat_bubble_outline),
+    MenuItemData(id: 'repeat', labelKey: 'nav.repeat', icon: Icons.replay),
+    MenuItemData(id: 'dictionary', labelKey: 'nav.dictionary', icon: Icons.book),
+    MenuItemData(id: 'xp-history', labelKey: 'nav.xpHistory', icon: Icons.history),
+    MenuItemData(id: 'settings', labelKey: 'nav.settings', icon: Icons.settings),
+    MenuItemData(id: 'language', labelKey: 'language.label', icon: Icons.language),
   ];
 
   @override
@@ -140,6 +161,12 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
 
   @override
   Widget build(BuildContext context) {
+    final theme = _currentTheme(listen: true);
+    final mainStart = _mix(theme.colors.accent, theme.colors.primary, 0.25);
+    final mainEnd = theme.colors.primary;
+    final specialStart = _mix(theme.colors.primary, theme.colors.accent, 0.45);
+    final specialEnd = theme.colors.accent;
+
     return Drawer( // Wrapped in Drawer to work with Scaffold.drawer
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -147,16 +174,17 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
       child: Container(
         width: 320,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A),  // slate-900
-              Color(0xFF1E3A8A),  // blue-900
-              Color(0xFF0F172A),  // slate-900
+              theme.colors.background.withOpacity(0.98),
+              _mix(theme.colors.background, theme.colors.primaryDark, 0.55)
+                  .withOpacity(0.98),
+              theme.colors.background.withOpacity(0.98),
             ],
-            stops: [0.0, 0.5, 1.0],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
@@ -174,23 +202,23 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                     children: [
                       // Main Pages
                       _buildSectionHeader(
-                        'Ana Sayfalar',
-                        const Color(0xFF67E8F9),  // cyan-300
-                        const Color(0xFF3B82F6),  // blue-500
+                        context.tr('nav.mainPages'),
+                        mainStart,
+                        mainEnd,
                       ),
                       const SizedBox(height: 6),
-                      ...mainPages.map((page) => _buildMenuItemWrapper(page)).toList(),
+                      ...mainPages.map((page) => _buildMenuItemWrapper(page)),
                       
                       const SizedBox(height: 24),
                       
                       // Special Pages
                       _buildSectionHeader(
-                        'Özel Sayfalar',
-                        const Color(0xFFC084FC),  // purple-300
-                        const Color(0xFFEC4899),  // pink-500
+                        context.tr('nav.specialPages'),
+                        specialStart,
+                        specialEnd,
                       ),
                       const SizedBox(height: 6),
-                      ...specialPages.map((page) => _buildMenuItemWrapper(page)).toList(),
+                      ...specialPages.map((page) => _buildMenuItemWrapper(page)),
                     ],
                   ),
                 ),
@@ -204,6 +232,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildMenuItemWrapper(MenuItemData page) {
+      final theme = _currentTheme(listen: true);
       // Determine if active
       bool isActive = false;
       if (['home', 'words', 'sentences', 'practice'].contains(page.id)) {
@@ -219,10 +248,16 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
         item: page,
         isActive: isActive,
         onTap: () => _handleNavigation(page.id),
-        activeStartColor: isSpecial ? const Color(0xFFA855F7) : const Color(0xFF06B6D4),
-        activeEndColor: isSpecial ? const Color(0xFFEC4899) : const Color(0xFF3B82F6),
-        iconColor: isSpecial ? const Color(0xFFC084FC) : const Color(0xFF67E8F9),
-        shadowColor: isSpecial ? const Color(0x4DA855F7) : const Color(0x4D06B6D4),
+        activeStartColor: isSpecial
+            ? _mix(theme.colors.primary, theme.colors.accent, 0.45)
+            : _mix(theme.colors.accent, theme.colors.primary, 0.20),
+        activeEndColor: isSpecial ? theme.colors.accent : theme.colors.primary,
+        iconColor: isSpecial
+            ? _mix(theme.colors.accent, Colors.white, 0.18)
+            : _mix(theme.colors.primary, Colors.white, 0.18),
+        shadowColor: isSpecial
+            ? theme.colors.accentGlow.withOpacity(0.45)
+            : theme.colors.accentGlow.withOpacity(0.35),
       );
   }
 
@@ -241,6 +276,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildGlowingOrb(int index) {
+    final theme = _currentTheme(listen: true);
     return AnimatedBuilder(
       animation: _orbControllers[index],
       builder: (context, child) {
@@ -265,8 +301,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   gradient: RadialGradient(
                     colors: [
                       index % 2 == 0
-                        ? const Color(0x1A06B6D4)
-                        : const Color(0x1A3B82F6),
+                        ? theme.colors.orbColor1.withOpacity(0.18)
+                        : theme.colors.orbColor2.withOpacity(0.18),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.7],
@@ -281,6 +317,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildRainDrop(int index) {
+    final theme = _currentTheme(listen: true);
     final size = 2.0 + Random().nextDouble() * 3;
     final initialX = Random().nextDouble() * 320;
     
@@ -304,20 +341,20 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
               width: size,
               height: size * 3,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0x8006B6D4),
-                    Color(0x3306B6D4),
+                    theme.colors.particleColor.withOpacity(0.52),
+                    theme.colors.particleColor.withOpacity(0.22),
                     Colors.transparent,
                   ],
-                  stops: [0.0, 0.5, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
                 borderRadius: BorderRadius.circular(size),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x4D06B6D4),
+                    color: theme.colors.particleGlow.withOpacity(0.45),
                     blurRadius: 8,
                     spreadRadius: 0,
                   ),
@@ -331,6 +368,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildSparkle(int index) {
+    final theme = _currentTheme(listen: true);
     final left = Random().nextDouble() * 320;
     final top = Random().nextDouble() * 800;
     
@@ -351,12 +389,12 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22D3EE),
+                decoration: BoxDecoration(
+                  color: theme.colors.accent,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0x8022D3EE),
+                      color: theme.colors.accentGlow.withOpacity(0.55),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -371,13 +409,14 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildHeader() {
+    final theme = _currentTheme(listen: true);
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
-      decoration: const BoxDecoration(
-        color: Color(0x0DFFFFFF),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
         border: Border(
           bottom: BorderSide(
-            color: Color(0x3322D3EE),
+            color: theme.colors.glassBorder.withOpacity(0.75),
             width: 1,
           ),
         ),
@@ -391,18 +430,18 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF06B6D4),
-                      Color(0xFF3B82F6),
+                      theme.colors.accent,
+                      theme.colors.primary,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x4D06B6D4),
+                      color: theme.colors.accentGlow.withOpacity(0.45),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
@@ -422,15 +461,15 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
+                      shaderCallback: (bounds) => LinearGradient(
                         colors: [
-                          Color(0xFF67E8F9),
-                          Color(0xFF3B82F6),
+                          _mix(theme.colors.accent, Colors.white, 0.22),
+                          theme.colors.primary,
                         ],
                       ).createShader(bounds),
-                      child: const Text(
-                        'VocabMaster',
-                        style: TextStyle(
+                      child: Text(
+                        context.tr('nav.title'),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -438,19 +477,19 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Row(
+                    Row(
                       children: [
                         Icon(
                           Icons.auto_awesome,
-                          color: Color(0xB367E8F9),
+                          color: theme.colors.accent.withOpacity(0.7),
                           size: 12,
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
-                          'Navigasyon',
+                          context.tr('nav.subtitle'),
                           style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xB367E8F9),
+                            color: theme.colors.accent.withOpacity(0.7),
                           ),
                         ),
                       ],
@@ -463,7 +502,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 20),
                 style: IconButton.styleFrom(
-                  backgroundColor: const Color(0x1AFFFFFF),
+                  backgroundColor: Colors.white.withOpacity(0.1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -568,7 +607,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            item.label,
+                            context.tr(item.labelKey),
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
@@ -629,18 +668,19 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildFooter() {
+    final theme = _currentTheme(listen: true);
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0x1A06B6D4),
-            Color(0x1A3B82F6),
+            theme.colors.accent.withOpacity(0.12),
+            theme.colors.primary.withOpacity(0.12),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: Color(0x3322D3EE),
+            color: theme.colors.glassBorder.withOpacity(0.75),
             width: 1,
           ),
         ),
@@ -651,15 +691,15 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
           child: Column(
             children: [
               ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
+                shaderCallback: (bounds) => LinearGradient(
                   colors: [
-                    Color(0xFF67E8F9),
-                    Color(0xFF3B82F6),
+                    _mix(theme.colors.accent, Colors.white, 0.22),
+                    theme.colors.primary,
                   ],
                 ).createShader(bounds),
-                child: const Text(
-                  'VocabMaster v1.0',
-                  style: TextStyle(
+                child: Text(
+                  context.tr('nav.version'),
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -667,11 +707,11 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                '© 2026 Tüm hakları saklıdır',
-                style: TextStyle(
+              Text(
+                context.tr('nav.copyright2026'),
+                style: const TextStyle(
                   fontSize: 10,
-                  color: Color(0x8067E8F9),
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -681,3 +721,4 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     );
   }
 }
+

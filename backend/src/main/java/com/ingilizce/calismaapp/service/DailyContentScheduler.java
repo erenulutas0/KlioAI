@@ -18,11 +18,17 @@ public class DailyContentScheduler {
 
     private final DailyWordsService dailyWordsService;
     private final DailyExamPackService dailyExamPackService;
+    private final DailyReadingService dailyReadingService;
+    private final DailyWritingTopicService dailyWritingTopicService;
 
     public DailyContentScheduler(DailyWordsService dailyWordsService,
-                                 DailyExamPackService dailyExamPackService) {
+                                 DailyExamPackService dailyExamPackService,
+                                 DailyReadingService dailyReadingService,
+                                 DailyWritingTopicService dailyWritingTopicService) {
         this.dailyWordsService = dailyWordsService;
         this.dailyExamPackService = dailyExamPackService;
+        this.dailyReadingService = dailyReadingService;
+        this.dailyWritingTopicService = dailyWritingTopicService;
     }
 
     /**
@@ -41,6 +47,18 @@ public class DailyContentScheduler {
         } catch (Exception e) {
             log.warn("Daily exam pack prewarm failed: {}", e.toString());
         }
+
+        for (String level : DailyLevelSupport.supportedLevels()) {
+            try {
+                dailyReadingService.getDailyReading(todayUtc, level);
+            } catch (Exception e) {
+                log.warn("Daily reading prewarm failed level={}: {}", level, e.toString());
+            }
+            try {
+                dailyWritingTopicService.getDailyWritingTopic(todayUtc, level);
+            } catch (Exception e) {
+                log.warn("Daily writing prewarm failed level={}: {}", level, e.toString());
+            }
+        }
     }
 }
-

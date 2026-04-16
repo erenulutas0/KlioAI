@@ -12,6 +12,7 @@ import com.ingilizce.calismaapp.security.PasswordResetService;
 import com.ingilizce.calismaapp.security.RefreshTokenService;
 import com.ingilizce.calismaapp.service.AuthRateLimitService;
 import com.ingilizce.calismaapp.service.AuthRateLimitService.RateLimitDecision;
+import com.ingilizce.calismaapp.service.TrialAbuseProtectionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class AuthController {
     private final GoogleIdentityService googleIdentityService;
     private final AuthSecurityProperties authSecurityProperties;
     private final ClientIpResolver clientIpResolver;
+    private final TrialAbuseProtectionService trialAbuseProtectionService;
 
     public AuthController(UserRepository userRepository,
                           AuthRateLimitService authRateLimitService,
@@ -56,7 +58,8 @@ public class AuthController {
                            EmailVerificationService emailVerificationService,
                            GoogleIdentityService googleIdentityService,
                            AuthSecurityProperties authSecurityProperties,
-                           ClientIpResolver clientIpResolver) {
+                           ClientIpResolver clientIpResolver,
+                           TrialAbuseProtectionService trialAbuseProtectionService) {
         this.userRepository = userRepository;
         this.authRateLimitService = authRateLimitService;
         this.passwordEncoder = passwordEncoder;
@@ -68,6 +71,7 @@ public class AuthController {
         this.googleIdentityService = googleIdentityService;
         this.authSecurityProperties = authSecurityProperties;
         this.clientIpResolver = clientIpResolver;
+        this.trialAbuseProtectionService = trialAbuseProtectionService;
     }
 
     @PostMapping("/register")
@@ -98,8 +102,16 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Registration failed"));
             }
 
+            TrialAbuseProtectionService.TrialDecision trialDecision =
+                    trialAbuseProtectionService.evaluate(deviceId, clientIp);
             User user = new User(email, passwordEncoder.encode(password), displayName);
+            if (!trialDecision.trialEligible()) {
+                user.setTrialEligible(false);
+            }
             User savedUser = userRepository.save(user);
+            if (savedUser.isTrialEligible()) {
+                trialAbuseProtectionService.recordTrialGrant(deviceId, clientIp);
+            }
             TokenBundle tokens = issueTokens(savedUser, rememberMe, deviceId, httpRequest);
             EmailVerificationService.IssuedVerificationToken verificationToken = emailVerificationService.issue(
                     savedUser,
@@ -111,6 +123,9 @@ public class AuthController {
 
             Map<String, Object> response = buildAuthSuccessResponse(savedUser, tokens);
             response.put("emailVerificationRequired", true);
+            if (!savedUser.isTrialEligible()) {
+                response.put("trialBlockedReason", trialDecision.reason());
+            }
             maybeAttachDebugToken(response, "emailVerificationToken", verificationToken.tokenValue(), verificationToken.expiresAt());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -219,6 +234,8 @@ public class AuthController {
 
             Optional<User> userOpt = userRepository.findByEmail(email);
             User user;
+            boolean createdUser = false;
+            TrialAbuseProtectionService.TrialDecision trialDecision = TrialAbuseProtectionService.TrialDecision.allowed();
 
             if (userOpt.isPresent()) {
                 user = userOpt.get();
@@ -248,9 +265,17 @@ public class AuthController {
                     dummyPassword = googleId != null ? "google_auth_" + googleId : "google_auth_" + UUID.randomUUID();
                 }
 
+                trialDecision = trialAbuseProtectionService.evaluate(deviceId, clientIp);
                 user = new User(email, passwordEncoder.encode(dummyPassword), displayName);
                 user.setEmailVerifiedAt(LocalDateTime.now());
+                if (!trialDecision.trialEligible()) {
+                    user.setTrialEligible(false);
+                }
                 user = userRepository.save(user);
+                createdUser = true;
+                if (user.isTrialEligible()) {
+                    trialAbuseProtectionService.recordTrialGrant(deviceId, clientIp);
+                }
                 log.info("Google login user created, userId={}", user.getId());
             }
 
@@ -259,6 +284,9 @@ public class AuthController {
             Map<String, Object> response = buildAuthSuccessResponse(user, tokens);
             if (photoUrl != null && !photoUrl.isBlank()) {
                 response.put("photoUrl", photoUrl);
+            }
+            if (createdUser && !user.isTrialEligible()) {
+                response.put("trialBlockedReason", trialDecision.reason());
             }
 
             return ResponseEntity.ok(response);
@@ -292,7 +320,9 @@ public class AuthController {
                     userAgent,
                     Instant.now());
 
-            User user = rotation.previousSession().getUser();
+            Long userId = rotation.previousSession().getUser().getId();
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalStateException("Refresh token user not found"));
             JwtTokenService.IssuedAccessToken accessToken = jwtTokenService.issueAccessToken(
                     user,
                     rotation.nextToken().sessionId(),
@@ -493,6 +523,7 @@ public class AuthController {
         response.put("userTag", user.getUserTag());
         response.put("subscriptionEndDate", user.getSubscriptionEndDate());
         response.put("isSubscriptionActive", user.isSubscriptionActive());
+        response.put("trialEligible", user.isTrialEligible());
         response.put("emailVerified", user.isEmailVerified());
         response.put("emailVerificationRequired", !user.isEmailVerified());
         response.put("user", user);
@@ -570,3 +601,5 @@ public class AuthController {
                         "retryAfterSeconds", decision.retryAfterSeconds()));
     }
 }
+
+

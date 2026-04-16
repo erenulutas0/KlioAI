@@ -5,7 +5,7 @@ import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 
 class WordSelectionSection extends StatelessWidget {
-  const WordSelectionSection({Key? key}) : super(key: key);
+  const WordSelectionSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +20,10 @@ class WordSelectionSection extends StatelessWidget {
           const SizedBox(height: 16),
           
           // Word List Header
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Kelime Listesi:',
                 style: TextStyle(
                   color: AppColors.textSlate200,
@@ -256,9 +256,9 @@ class WordSelectionSection extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Text(
             'Başla',
             style: TextStyle(
@@ -330,11 +330,11 @@ class WordSelectionSection extends StatelessWidget {
                        ],
                      ),
                      Divider(color: Colors.white.withOpacity(0.1), height: 16),
-                     Row(
+                     const Row(
                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                        children: [
-                         const Text('Eklendiği Tarih', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                         Text('2026-01-13', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                         Text('Eklendiği Tarih', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                         Text('2026-01-13', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                        ],
                      ),
                    ],
@@ -360,3 +360,4 @@ class WordSelectionSection extends StatelessWidget {
     );
   }
 }
+

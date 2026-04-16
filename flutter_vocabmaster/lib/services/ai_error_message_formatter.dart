@@ -14,15 +14,16 @@ class AiErrorMessageFormatter {
         reason == 'ip-burst') {
       buffer.write('AI istek limitine ulasildi.');
     } else if (reason == 'redis-fail-closed') {
-      buffer
-          .write('AI servisi su an koruma modunda. Lutfen biraz sonra tekrar dene.');
+      buffer.write(
+          'AI servisi su an koruma modunda. Lutfen biraz sonra tekrar dene.');
     } else {
       buffer.write(
           e.message.isNotEmpty ? e.message : 'AI istegi su an tamamlanamadi.');
     }
 
     if (e.retryAfterSeconds != null && e.retryAfterSeconds! > 0) {
-      buffer.write('\nTekrar deneme: ${_formatDuration(e.retryAfterSeconds!)}.');
+      buffer
+          .write('\nTekrar deneme: ${_formatDuration(e.retryAfterSeconds!)}.');
     }
 
     if (e.banLevel != null && e.banLevel! > 0) {
@@ -50,7 +51,20 @@ class AiErrorMessageFormatter {
     if (e is ApiQuotaExceededException) {
       return forQuota(e);
     }
+    if (e is ApiUpgradeRequiredException) {
+      return forUpgrade(e);
+    }
     return fallback;
+  }
+
+  static String forUpgrade(ApiUpgradeRequiredException e) {
+    final reason = (e.reason ?? '').trim().toLowerCase();
+    if (reason == 'ai-access-disabled') {
+      return 'Ucretsiz AI suresi bitti. Devam etmek icin Premium plana gec.';
+    }
+    return e.message.isNotEmpty
+        ? e.message
+        : 'AI ozellikleri icin abonelik gerekli.';
   }
 
   static String _formatDuration(int totalSeconds) {

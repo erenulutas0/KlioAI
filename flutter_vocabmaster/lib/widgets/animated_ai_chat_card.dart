@@ -5,7 +5,7 @@ import 'modern_card.dart';
 import 'modern_background.dart';
 
 class AnimatedAIChatCard extends StatefulWidget {
-  const AnimatedAIChatCard({Key? key}) : super(key: key);
+  const AnimatedAIChatCard({super.key});
 
   @override
   State<AnimatedAIChatCard> createState() => _AnimatedAIChatCardState();
@@ -191,3 +191,4 @@ class _AnimatedAIChatCardState extends State<AnimatedAIChatCard> with TickerProv
     );
   }
 }
+

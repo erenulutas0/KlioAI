@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/providers/app_state_provider.dart';
 import 'package:vocabmaster/widgets/word_of_the_day_modal.dart';
@@ -13,14 +15,16 @@ void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     setupTestEnv();
-    _ttsChannel.setMockMethodCallHandler((_) async => null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_ttsChannel, (_) async => null);
   });
 
   tearDownAll(() {
-    _ttsChannel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_ttsChannel, null);
   });
 
-  AppStateProvider _buildAppState({
+  AppStateProvider buildAppState({
     required bool wordAdded,
     required bool sentenceAdded,
     required Map<String, dynamic> wordData,
@@ -31,6 +35,34 @@ void main() {
       wordData: wordData,
     );
   }
+
+  Widget buildTestApp({
+    required AppStateProvider appState,
+    required Map<String, dynamic> wordData,
+  }) {
+    return ChangeNotifierProvider.value(
+      value: appState,
+      child: MaterialApp(
+        locale: const Locale('tr'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: WordOfTheDayModal(
+          wordData: wordData,
+          onClose: () {},
+          enableAnimations: false,
+          enableTts: false,
+          initialStep: 5,
+        ),
+      ),
+    );
+  }
+
+  String tr(String key) => AppLocalizations(const Locale('tr')).t(key);
 
   testWidgets('Step 6 shows add buttons when word not added', (tester) async {
     final wordData = {
@@ -43,33 +75,23 @@ void main() {
       'pronunciation': 'foh-kus',
     };
 
-    final appState = _buildAppState(
+    final appState = buildAppState(
       wordAdded: false,
       sentenceAdded: false,
       wordData: wordData,
     );
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: MaterialApp(
-          home: WordOfTheDayModal(
-            wordData: wordData,
-            onClose: () {},
-            enableAnimations: false,
-            enableTts: false,
-            initialStep: 5,
-          ),
-        ),
-      ),
-    );
+    await tester
+        .pumpWidget(buildTestApp(appState: appState, wordData: wordData));
+    await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Kelimeyi Cümlesiyle Ekle'), findsOneWidget);
-    expect(find.text('Sadece Kelimeyi Ekle'), findsOneWidget);
-    expect(find.text('Kelime ekli'), findsNothing);
+    expect(find.text(tr('wotd.addWithSentence')), findsOneWidget);
+    expect(find.text(tr('wotd.addWordOnly')), findsOneWidget);
+    expect(find.text(tr('wotd.wordAdded')), findsNothing);
   });
 
-  testWidgets('Step 6 shows add sentence when word added but sentence missing', (tester) async {
+  testWidgets('Step 6 shows add sentence when word added but sentence missing',
+      (tester) async {
     final wordData = {
       'word': 'Focus',
       'translation': 'Odak',
@@ -80,32 +102,22 @@ void main() {
       'pronunciation': 'foh-kus',
     };
 
-    final appState = _buildAppState(
+    final appState = buildAppState(
       wordAdded: true,
       sentenceAdded: false,
       wordData: wordData,
     );
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: MaterialApp(
-          home: WordOfTheDayModal(
-            wordData: wordData,
-            onClose: () {},
-            enableAnimations: false,
-            enableTts: false,
-            initialStep: 5,
-          ),
-        ),
-      ),
-    );
+    await tester
+        .pumpWidget(buildTestApp(appState: appState, wordData: wordData));
+    await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Kelime ekli'), findsOneWidget);
-    expect(find.text('Cümlesini de ekle'), findsOneWidget);
+    expect(find.text(tr('wotd.wordAdded')), findsOneWidget);
+    expect(find.text(tr('wotd.addSentenceToo')), findsOneWidget);
   });
 
-  testWidgets('Step 6 shows completed state when word and sentence added', (tester) async {
+  testWidgets('Step 6 shows completed state when word and sentence added',
+      (tester) async {
     final wordData = {
       'word': 'Focus',
       'translation': 'Odak',
@@ -116,29 +128,18 @@ void main() {
       'pronunciation': 'foh-kus',
     };
 
-    final appState = _buildAppState(
+    final appState = buildAppState(
       wordAdded: true,
       sentenceAdded: true,
       wordData: wordData,
     );
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: MaterialApp(
-          home: WordOfTheDayModal(
-            wordData: wordData,
-            onClose: () {},
-            enableAnimations: false,
-            enableTts: false,
-            initialStep: 5,
-          ),
-        ),
-      ),
-    );
+    await tester
+        .pumpWidget(buildTestApp(appState: appState, wordData: wordData));
+    await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Kelime ve cümle ekli'), findsOneWidget);
-    expect(find.text('Cümlesini de ekle'), findsNothing);
+    expect(find.text(tr('wotd.wordSentenceAdded')), findsOneWidget);
+    expect(find.text(tr('wotd.addSentenceToo')), findsNothing);
   });
 }
 

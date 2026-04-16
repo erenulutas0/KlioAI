@@ -298,6 +298,26 @@ public class ChatbotControllerTest {
     }
 
     @Test
+    void generateSentencesReturnsUpgradeRequiredWhenAiAccessDisabledEvenIfCacheHit() throws Exception {
+        when(aiTokenQuotaService.getEntitlement(1L))
+                .thenReturn(new AiTokenQuotaService.Entitlement("FREE", false, 0L, false, 0));
+        when(aiTokenQuotaService.check(1L, "generate-sentences"))
+                .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
+        when(valueOperations.get(anyString()))
+                .thenReturn("[{\"englishSentence\":\"Cached sentence\",\"turkishFullTranslation\":\"Onbellekten\"}]");
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.reason").value("ai-access-disabled"))
+                .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verify(chatbotService, never()).generateSentences(anyString());
+    }
+
+    @Test
     void generateSentencesFallsBackToDefaultLevelAndLengthWhenInvalid() throws Exception {
         Map<String, Object> request = Map.of(
                 "word", "apple",
@@ -368,14 +388,47 @@ public class ChatbotControllerTest {
     }
 
     @Test
-    void generateSentencesReturnsInternalServerErrorWhenParsingFails() throws Exception {
+    void generateSentencesUsesDeterministicFallbackWhenParsingFails() throws Exception {
         when(chatbotService.generateSentences(anyString())).thenReturn(ai("not-json-at-all"));
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"apple\"}"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("I am practicing the word apple in a sentence."));
+    }
+
+    @Test
+    void generateSentencesUsesDeterministicFallbackWhenModelReturnsEmptyContent() throws Exception {
+        when(chatbotService.generateSentences(anyString())).thenReturn(ai(""));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"book\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("I am practicing the word book in a sentence."));
+    }
+
+    @Test
+    void generateSentencesRecoversFromTruncatedJsonWithAtLeastOneValidObject() throws Exception {
+        when(chatbotService.generateSentences(anyString())).thenReturn(ai("""
+                [
+                  {"englishSentence":"I read books","turkishFullTranslation":"Kitap okurum"},
+                  {"englishSentence":"I wr
+                """));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"book\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.sentences[0]").value("I read books"))
+                .andExpect(jsonPath("$.translations[0]").value("Kitap okurum"));
     }
 
     @Test
@@ -389,6 +442,46 @@ public class ChatbotControllerTest {
                 .content("{\"word\":\"book\",\"checkGrammar\":\"true\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    void generateSentencesRemovesDuplicateEnglishSentences() throws Exception {
+        when(chatbotService.generateSentences(anyString())).thenReturn(ai("""
+                {
+                  "sentences": [
+                    {"englishSentence":"I read books every evening.","turkishFullTranslation":"Her aksam kitap okurum."},
+                    {"englishSentence":"I read books every evening.","turkishFullTranslation":"Her aksam kitap okurum."},
+                    {"englishSentence":"Reading books every evening helps me relax.","turkishFullTranslation":"Her aksam kitap okumak rahatlamama yardimci olur."}
+                  ]
+                }
+                """));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"book\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.sentences[0]").value("I read books every evening."))
+                .andExpect(jsonPath("$.sentences[1]").value("Reading books every evening helps me relax."));
+    }
+
+    @Test
+    void generateSentencesAddsFreshVariationInstructionsWhenRequested() throws Exception {
+        when(chatbotService.generateSentences(anyString()))
+                .thenReturn(ai("{\"sentences\":[{\"englishSentence\":\"Fresh sentence\",\"turkishFullTranslation\":\"Taze cumle\"}]}"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\",\"fresh\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1));
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("variationSeed=")
+                        && msg.contains("Avoid reusing common previous examples")
+                        && msg.contains("Lengths must be meaningfully different")));
     }
 
     @Test
@@ -447,6 +540,24 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"sentence\":\"I am fine\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void checkGrammarReturnsUpgradeRequiredWhenAiAccessDisabled() throws Exception {
+        when(aiTokenQuotaService.getEntitlement(1L))
+                .thenReturn(new AiTokenQuotaService.Entitlement("FREE", false, 0L, false, 0));
+        when(aiTokenQuotaService.check(1L, "check-grammar"))
+                .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
+
+        mockMvc.perform(post("/api/chatbot/check-grammar")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sentence\":\"I am fine\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.reason").value("ai-access-disabled"))
+                .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verify(grammarCheckService, never()).checkGrammar(anyString());
     }
 
     @Test
@@ -808,6 +919,22 @@ public class ChatbotControllerTest {
     }
 
     @Test
+    void proxiedAiEndpointsReturnForbiddenWhenAiAccessDisabled() throws Exception {
+        when(aiTokenQuotaService.check(anyLong(), anyString()))
+                .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
+
+        mockMvc.perform(post("/api/chatbot/dictionary/lookup")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.reason").value("ai-access-disabled"))
+                .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verifyNoInteractions(aiProxyService);
+    }
+
+    @Test
     void proxiedAiEndpointsShareSameUserDailyTokenQuota() throws Exception {
         AtomicInteger checkCount = new AtomicInteger(0);
         when(aiTokenQuotaService.check(eq(1L), anyString()))
@@ -870,6 +997,7 @@ public class ChatbotControllerTest {
 
     private static User inactiveUser() {
         User user = new User();
+        user.setCreatedAt(LocalDateTime.now().minusDays(30));
         user.setSubscriptionEndDate(LocalDateTime.now().minusDays(1));
         return user;
     }

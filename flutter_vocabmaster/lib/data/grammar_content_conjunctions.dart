@@ -261,7 +261,7 @@ Not only + X + but also + X
 Cümleler veya paragraflar arasında mantıksal geçiş sağlayan sözcüklerdir. Genellikle yeni cümle başında kullanılır.
 
 🎯 EKLEME (Addition):
-• Moreover, Furthermore, In addition, Besides, Also, What\'s more
+• Moreover, Furthermore, In addition, Besides, Also, What's more
 
 🎯 ZITLIK (Contrast):
 • However, Nevertheless, Nonetheless, On the other hand, In contrast, Yet, Still

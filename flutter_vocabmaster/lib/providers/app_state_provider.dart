@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../services/offline_sync_service.dart';
-import '../services/user_data_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
-import '../services/xp_service.dart';
 import '../services/xp_manager.dart';
 import '../services/local_database_service.dart';
 import '../models/word.dart';
@@ -16,7 +14,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Bu sayede sayfalar arası geçişte veri tekrar yüklenmez
 class AppStateProvider extends ChangeNotifier {
   final OfflineSyncService _offlineSyncService = OfflineSyncService();
-  final UserDataService _userDataService = UserDataService();
   final AuthService _authService = AuthService();
   final ApiService _apiService = ApiService();
   final XPManager _xpManager = XPManager();
@@ -36,6 +33,20 @@ class AppStateProvider extends ChangeNotifier {
     });
   }
 
+  Map<String, dynamic> _buildDefaultUserStats() {
+    return {
+      'name': 'Kullanıcı',
+      'level': 1,
+      'xp': 0,
+      'xpToNextLevel': 100,
+      'totalWords': 0,
+      'streak': 0,
+      'weeklyXP': 0,
+      'dailyGoal': 5,
+      'learnedToday': 0,
+    };
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // LOADING STATES
   // ═══════════════════════════════════════════════════════════════
@@ -43,28 +54,22 @@ class AppStateProvider extends ChangeNotifier {
   bool _isLoadingWords = false;
   bool _isLoadingSentences = false;
   bool _isLoadingDailyWords = false;
+  bool _isLoadingAiEntitlement = false;
+  bool _hasResolvedAiEntitlement = false;
 
   bool get isInitialized => _isInitialized;
   bool get isLoadingWords => _isLoadingWords;
   bool get isLoadingSentences => _isLoadingSentences;
   bool get isLoadingDailyWords => _isLoadingDailyWords;
+  bool get isLoadingAiEntitlement => _isLoadingAiEntitlement;
+  bool get hasResolvedAiEntitlement => _hasResolvedAiEntitlement;
 
   // ═══════════════════════════════════════════════════════════════
   // USER DATA
   // ═══════════════════════════════════════════════════════════════
   String _userName = 'Kullanıcı';
   Map<String, dynamic>? _userInfo; // Full user info from auth
-  Map<String, dynamic> _userStats = {
-    'name': 'Kullanıcı',
-    'level': 1,
-    'xp': 0,
-    'xpToNextLevel': 100,
-    'totalWords': 0,
-    'streak': 0,
-    'weeklyXP': 0,
-    'dailyGoal': 5,
-    'learnedToday': 0,
-  };
+  late Map<String, dynamic> _userStats = _buildDefaultUserStats();
   List<Map<String, dynamic>> _weeklyActivity = [];
 
   // Profile
@@ -154,7 +159,7 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingWords = false;
       notifyListeners();
     } catch (e) {
-      print('Error loading words from local: $e');
+      debugPrint('Error loading words from local: $e');
       _isLoadingWords = false;
     }
   }
@@ -209,7 +214,7 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingSentences = false;
       notifyListeners();
     } catch (e) {
-      print('Error loading sentences from local: $e');
+      debugPrint('Error loading sentences from local: $e');
       _isLoadingSentences = false;
     }
   }
@@ -219,7 +224,8 @@ class AppStateProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════════════
   Future<void> _loadUserData() async {
     try {
-      final authUser = await _authService.getUser();
+      var authUser = await _authService.getUser();
+      authUser = await _mergeAiEntitlementSnapshot(authUser);
       final displayName = authUser?['displayName'] ?? 'Kullanıcı';
 
       // Profile settings
@@ -340,7 +346,51 @@ class AppStateProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
+      _isLoadingAiEntitlement = false;
+      _hasResolvedAiEntitlement = true;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> _mergeAiEntitlementSnapshot(
+      Map<String, dynamic>? authUser) async {
+    if (authUser == null) {
+      _isLoadingAiEntitlement = false;
+      _hasResolvedAiEntitlement = false;
+      return null;
+    }
+
+    final token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      _isLoadingAiEntitlement = false;
+      _hasResolvedAiEntitlement = false;
+      return authUser;
+    }
+
+    _isLoadingAiEntitlement = true;
+    notifyListeners();
+
+    try {
+      final quota = await _apiService.chatbotQuotaStatus();
+      final merged = Map<String, dynamic>.from(authUser)
+        ..['aiAccessEnabled'] = quota['aiAccessEnabled'] == true
+        ..['planCode'] = quota['planCode']
+        ..['trialActive'] = quota['trialActive'] == true
+        ..['trialDaysRemaining'] = quota['trialDaysRemaining']
+        ..['tokenLimit'] = quota['tokenLimit']
+        ..['tokensUsed'] = quota['tokensUsed']
+        ..['tokensRemaining'] = quota['tokensRemaining']
+        ..['quotaDateUtc'] = quota['dateUtc'];
+      await _authService.updateUser(merged);
+      _hasResolvedAiEntitlement = true;
+      return merged;
+    } catch (e) {
+      debugPrint('Error loading AI entitlement snapshot: $e');
+      _hasResolvedAiEntitlement = true;
+      return authUser;
+    } finally {
+      _isLoadingAiEntitlement = false;
     }
   }
 
@@ -354,7 +404,7 @@ class AppStateProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('total_xp_persistent', estimatedBaseXp);
     } catch (e) {
-      print('Error seeding base XP: $e');
+      debugPrint('Error seeding base XP: $e');
     }
   }
 
@@ -461,6 +511,57 @@ class AppStateProvider extends ChangeNotifier {
     await _loadUserData();
   }
 
+  void _resetSessionScopedState({
+    bool notify = true,
+    bool clearDailyWords = false,
+  }) {
+    _isInitialized = false;
+    _isLoadingWords = false;
+    _isLoadingSentences = false;
+    _isLoadingDailyWords = false;
+    _isLoadingAiEntitlement = false;
+    _hasResolvedAiEntitlement = false;
+    _isMatchmaking = false;
+
+    _userName = 'Kullanıcı';
+    _userInfo = null;
+    _userStats = _buildDefaultUserStats();
+    _weeklyActivity = [];
+
+    _profileImageType = null;
+    _profileImagePath = null;
+    _avatarSeed = '';
+
+    _allWords = [];
+    _allSentences = [];
+    if (clearDailyWords) {
+      _dailyWords = [];
+    }
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _hydrateSignedInUserState({
+    bool forceDailyWordsRefresh = false,
+  }) async {
+    await _loadWords();
+    await _loadSentences();
+    await _loadUserData();
+    await _loadDailyWords(
+      forceRefresh: forceDailyWordsRefresh || _dailyWords.isEmpty,
+    );
+  }
+
+  /// Logout veya hesap değişiminde kullanıcıya bağlı in-memory state'i temizle.
+  void clearSessionState({bool clearDailyWords = false}) {
+    _resetSessionScopedState(
+      notify: true,
+      clearDailyWords: clearDailyWords,
+    );
+  }
+
   /// Profil bilgilerini güncelle
   void updateProfileImage({String? type, String? path, String? seed}) {
     if (type != null) _profileImageType = type;
@@ -471,8 +572,13 @@ class AppStateProvider extends ChangeNotifier {
 
   /// Login sonrası kullanıcı verisini direkt set et (Flicker önlemek için)
   void setUser(Map<String, dynamic> user) {
+    _resetSessionScopedState(notify: false);
+
     _userName = user['displayName'] ?? 'Kullanıcı';
     _userInfo = user;
+    _userStats = _buildDefaultUserStats();
+    _isLoadingAiEntitlement = true;
+    _hasResolvedAiEntitlement = false;
 
     // Basit istatistikleri varsayılan olarak set et, detaylar sonra yüklenir
     _userStats['name'] = _userName;
@@ -481,13 +587,8 @@ class AppStateProvider extends ChangeNotifier {
     _isInitialized = true; // Veri var kabul et
     notifyListeners();
 
-    // Arka planda tam veriyi de çek
-    _loadUserData();
-
-    // Günün kelimeleri ilk initialize sırasında login yoksa boş kalabiliyor.
-    // Login sonrası tekrar yükle (cache varsa hızlı).
     Future(() async {
-      await _loadDailyWords(forceRefresh: _dailyWords.isEmpty);
+      await _hydrateSignedInUserState(forceDailyWordsRefresh: false);
     });
   }
 
@@ -507,7 +608,7 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingWords = false;
       notifyListeners();
     } catch (e) {
-      print('Error loading words: $e');
+      debugPrint('Error loading words: $e');
       _isLoadingWords = false;
       notifyListeners();
     }
@@ -562,7 +663,7 @@ class AppStateProvider extends ChangeNotifier {
       }
       return newWord;
     } catch (e) {
-      print('Error adding word: $e');
+      debugPrint('Error adding word: $e');
       return null;
     }
   }
@@ -633,7 +734,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error deleting word: $e');
+      debugPrint('Error deleting word: $e');
       return false;
     }
   }
@@ -703,7 +804,7 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingSentences = false;
       notifyListeners();
     } catch (e) {
-      print('Error loading sentences: $e');
+      debugPrint('Error loading sentences: $e');
       _isLoadingSentences = false;
       notifyListeners();
     }
@@ -796,7 +897,7 @@ class AppStateProvider extends ChangeNotifier {
       }
       return updatedWord;
     } catch (e) {
-      print('Error adding sentence: $e');
+      debugPrint('Error adding sentence: $e');
       return null;
     }
   }
@@ -849,7 +950,7 @@ class AppStateProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Error adding practice sentence: $e');
+      debugPrint('Error adding practice sentence: $e');
       return false;
     }
   }
@@ -896,13 +997,14 @@ class AppStateProvider extends ChangeNotifier {
             break;
           }
         }
-        if (targetSentenceKey != null && targetSentenceKey!.isNotEmpty) {
+        final sentenceKey = targetSentenceKey;
+        if (sentenceKey != null && sentenceKey.isNotEmpty) {
           final hasAnother = _allSentences.any((s) {
             if (s.isPractice) return false;
             if (s.id == sentenceId) return false;
             final sid = s.word?.id;
             if (sid == null) return false;
-            return sid == effectiveWordId && norm(s.sentence) == targetSentenceKey;
+            return sid == effectiveWordId && norm(s.sentence) == sentenceKey;
           });
           if (hasAnother) {
             shouldDeductXp = false;
@@ -936,23 +1038,26 @@ class AppStateProvider extends ChangeNotifier {
         final vmWord = vm.word;
         if (vmWord == null) return false;
         if (vmWord.id == effectiveWordId || vmWord.id == wordId) return true;
-        if (targetWordEnglish == null || targetWordEnglish!.trim().isEmpty) {
+        final wordEnglish = targetWordEnglish;
+        if (wordEnglish == null || wordEnglish.trim().isEmpty) {
           return false;
         }
-        return norm(vmWord.englishWord) == norm(targetWordEnglish!);
+        return norm(vmWord.englishWord) == norm(wordEnglish);
       }
 
       // Remove by ID and also by content, to handle localId->serverId remaps leaving stale VMs behind.
       _allSentences.removeWhere((vm) {
         if (vm.isPractice) return false;
         if (vm.id.toString() == sentenceId.toString()) return true;
-        if (targetSentenceKey == null || targetSentenceKey!.isEmpty) return false;
-        if (norm(vm.sentence) != targetSentenceKey) return false;
+        final sentenceKey = targetSentenceKey;
+        if (sentenceKey == null || sentenceKey.isEmpty) return false;
+        if (norm(vm.sentence) != sentenceKey) return false;
         if (!matchesTargetWord(vm)) return false;
         // Translation can differ (some users leave it blank), so only use it if we have it.
-        if (targetTranslationKey != null &&
-            targetTranslationKey!.isNotEmpty &&
-            norm(vm.translation) != targetTranslationKey) {
+        final translationKey = targetTranslationKey;
+        if (translationKey != null &&
+            translationKey.isNotEmpty &&
+            norm(vm.translation) != translationKey) {
           return false;
         }
         return true;
@@ -962,11 +1067,12 @@ class AppStateProvider extends ChangeNotifier {
       final indices = <int>{};
       for (int i = 0; i < _allWords.length; i++) {
         final id = _allWords[i].id;
+        final wordEnglish = targetWordEnglish;
         if (id == wordId || id == effectiveWordId) {
           indices.add(i);
-        } else if (targetWordEnglish != null &&
-            targetWordEnglish!.trim().isNotEmpty &&
-            norm(_allWords[i].englishWord) == norm(targetWordEnglish!)) {
+        } else if (wordEnglish != null &&
+            wordEnglish.trim().isNotEmpty &&
+            norm(_allWords[i].englishWord) == norm(wordEnglish)) {
           indices.add(i);
         }
       }
@@ -975,12 +1081,14 @@ class AppStateProvider extends ChangeNotifier {
         final word = _allWords[idx];
         final updatedSentences = word.sentences.where((s) {
           if (s.id == sentenceId) return false;
-          if (targetSentenceKey != null &&
-              targetSentenceKey!.isNotEmpty &&
-              norm(s.sentence) == targetSentenceKey) {
-            if (targetTranslationKey != null &&
-                targetTranslationKey!.isNotEmpty &&
-                norm(s.translation) != targetTranslationKey) {
+          final sentenceKey = targetSentenceKey;
+          if (sentenceKey != null &&
+              sentenceKey.isNotEmpty &&
+              norm(s.sentence) == sentenceKey) {
+            final translationKey = targetTranslationKey;
+            if (translationKey != null &&
+                translationKey.isNotEmpty &&
+                norm(s.translation) != translationKey) {
               return true;
             }
             return false;
@@ -1002,10 +1110,10 @@ class AppStateProvider extends ChangeNotifier {
       // 🔥 XP düşür: cümle başına 5 XP
       // XPManager.deductXP hem local DB hem SharedPreferences'i günceller
       if (shouldDeductXp) {
-        final contentKey =
-            (targetSentenceKey != null && targetSentenceKey!.isNotEmpty)
-                ? '${targetSentenceKey ?? ''}|${targetTranslationKey ?? ''}'
-                : 'id:$sentenceId';
+        final sentenceKey = targetSentenceKey;
+        final contentKey = (sentenceKey != null && sentenceKey.isNotEmpty)
+            ? '$sentenceKey|${targetTranslationKey ?? ''}'
+            : 'id:$sentenceId';
         final txId = 'deduct_sentence_${effectiveWordId}_${contentKey.hashCode}';
         await _xpManager.deductXP(5, 'Cümle silindi', transactionId: txId);
       }
@@ -1022,7 +1130,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error deleting sentence: $e');
+      debugPrint('Error deleting sentence: $e');
       return false;
     }
   }
@@ -1086,7 +1194,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error deleting practice sentence: $e');
+      debugPrint('Error deleting practice sentence: $e');
       return false;
     }
   }
@@ -1130,7 +1238,7 @@ class AppStateProvider extends ChangeNotifier {
       _isLoadingDailyWords = false;
       notifyListeners();
     } catch (e) {
-      print('Error loading daily words: $e');
+      debugPrint('Error loading daily words: $e');
       _isLoadingDailyWords = false;
       notifyListeners();
     }
@@ -1183,7 +1291,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
       return added;
     } catch (e) {
-      print('Error adding XP: $e');
+      debugPrint('Error adding XP: $e');
       return 0;
     }
   }
@@ -1197,7 +1305,7 @@ class AppStateProvider extends ChangeNotifier {
           source: source, transactionId: transactionId);
       return added;
     } catch (e) {
-      print('Error adding XP for action: $e');
+      debugPrint('Error adding XP for action: $e');
       return 0;
     }
   }
@@ -1336,3 +1444,4 @@ class AppStateProvider extends ChangeNotifier {
     return word.sentences.any((s) => s.sentence.trim().toLowerCase() == target);
   }
 }
+
