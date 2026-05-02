@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../config/app_config.dart';
 import 'auth_service.dart';
+import 'locale_text_service.dart';
 
 class SubscriptionPlan {
   final int id;
@@ -35,7 +36,6 @@ class SubscriptionPlan {
     );
   }
 
-  /// Maps plan name to Google Play product ID
   String get googlePlayProductId {
     switch (name) {
       case 'PRO_MONTHLY':
@@ -51,7 +51,6 @@ class SubscriptionPlan {
     }
   }
 
-  /// Maps plan name to Apple App Store product ID
   String get appleProductId {
     switch (name) {
       case 'PRO_MONTHLY':
@@ -78,7 +77,8 @@ class SubscriptionService {
   String? _lastVerificationError;
   DateTime? _lastRestoreAttemptAt;
 
-  /// Initialize IAP listener
+  String _text(String tr, String en) => LocaleTextService.pick(tr, en);
+
   void initializePurchaseStream() {
     final purchaseUpdated = _inAppPurchase.purchaseStream;
     _subscription = purchaseUpdated.listen(
@@ -88,17 +88,14 @@ class SubscriptionService {
     );
   }
 
-  /// Dispose the stream
   void dispose() {
     _subscription?.cancel();
   }
 
-  /// Check if IAP is available
   Future<bool> isIAPAvailable() async {
     return await _inAppPurchase.isAvailable();
   }
 
-  /// Restore previously owned purchases/subscriptions from store.
   Future<void> restorePurchases() async {
     await syncOwnedPurchases(force: true);
   }
@@ -126,7 +123,6 @@ class SubscriptionService {
     return true;
   }
 
-  /// Get available products from store
   Future<List<ProductDetails>> getStoreProducts() async {
     final Set<String> productIds = {
       'pro_monthly_subscription',
@@ -145,12 +141,14 @@ class SubscriptionService {
     return response.productDetails;
   }
 
-  /// Start Google Play / Apple IAP purchase
   Future<bool> purchaseWithIAP(SubscriptionPlan plan) async {
     try {
       final available = await isIAPAvailable();
       if (!available) {
-        onPurchaseError?.call('Uygulama içi satın alma kullanılamıyor');
+        onPurchaseError?.call(_text(
+          'Uygulama ici satin alma su an kullanilamiyor.',
+          'In-app purchases are not available right now.',
+        ));
         return false;
       }
 
@@ -158,7 +156,10 @@ class SubscriptionService {
           Platform.isIOS ? plan.appleProductId : plan.googlePlayProductId;
 
       if (productId.isEmpty) {
-        onPurchaseError?.call('Bu plan için ürün bulunamadı');
+        onPurchaseError?.call(_text(
+          'Bu plan icin magazada urun bulunamadi.',
+          'No store product was found for this plan.',
+        ));
         return false;
       }
 
@@ -166,7 +167,10 @@ class SubscriptionService {
       final product = products.where((p) => p.id == productId).firstOrNull;
 
       if (product == null) {
-        onPurchaseError?.call('Ürün mağazada bulunamadı');
+        onPurchaseError?.call(_text(
+          'Urun magazada bulunamadi.',
+          'The product could not be found in the store.',
+        ));
         return false;
       }
 
@@ -174,12 +178,14 @@ class SubscriptionService {
         productDetails: product,
       );
 
-      // For subscriptions
       final started = await _inAppPurchase.buyNonConsumable(
         purchaseParam: purchaseParam,
       );
       if (!started) {
-        onPurchaseError?.call('Satın alma başlatılamadı');
+        onPurchaseError?.call(_text(
+          'Satin alma baslatilamadi.',
+          'The purchase could not be started.',
+        ));
       }
       return started;
     } catch (e) {
@@ -187,9 +193,10 @@ class SubscriptionService {
       if (lower.contains('already') && lower.contains('owned')) {
         try {
           await syncOwnedPurchases(force: true);
-          onPurchaseError?.call(
+          onPurchaseError?.call(_text(
             'Mevcut magaza aboneligi bulundu, hesabiniza aktariliyor...',
-          );
+            'An existing store subscription was found and is being restored to your account...',
+          ));
           return false;
         } catch (_) {
           // fall through to generic error reporting below
@@ -200,12 +207,14 @@ class SubscriptionService {
         onPurchaseError?.call(mapped);
         return false;
       }
-      onPurchaseError?.call('Satın alma başlatılamadı: $e');
+      onPurchaseError?.call(_text(
+        'Satin alma baslatilamadi: $e',
+        'The purchase could not be started: $e',
+      ));
       return false;
     }
   }
 
-  /// Handle purchase updates
   void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.pending) {
@@ -215,16 +224,22 @@ class SubscriptionService {
         if (alreadyOwned) {
           try {
             await syncOwnedPurchases(force: true);
-            onPurchaseError?.call(
+            onPurchaseError?.call(_text(
               'Mevcut magaza aboneligi bulundu, hesabiniza aktariliyor...',
-            );
+              'An existing store subscription was found and is being restored to your account...',
+            ));
           } catch (e) {
-            onPurchaseError?.call('Mevcut abonelik geri yüklenemedi: $e');
+            onPurchaseError?.call(_text(
+              'Mevcut abonelik geri yuklenemedi: $e',
+              'The existing subscription could not be restored: $e',
+            ));
           }
         } else {
           final mapped = _mapPlayStoreError(purchaseDetails.error);
           onPurchaseError?.call(
-            mapped ?? purchaseDetails.error?.message ?? 'Satın alma hatası',
+            mapped ??
+                purchaseDetails.error?.message ??
+                _text('Satin alma hatasi', 'Purchase error'),
           );
         }
         if (purchaseDetails.pendingCompletePurchase) {
@@ -232,15 +247,22 @@ class SubscriptionService {
         }
       } else if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
-        // Verify purchase with backend
         final verified = await _verifyPurchaseWithBackend(purchaseDetails);
 
         if (verified) {
           _lastVerificationError = null;
-          onPurchaseSuccess?.call('Aboneliğiniz başarıyla aktifleştirildi!');
+          onPurchaseSuccess?.call(_text(
+            'Aboneliginiz basariyla aktiflestirildi.',
+            'Your subscription was activated successfully.',
+          ));
         } else {
-          onPurchaseError
-              ?.call(_lastVerificationError ?? 'Satın alma doğrulanamadı');
+          onPurchaseError?.call(
+            _lastVerificationError ??
+                _text(
+                  'Satin alma dogrulanamadi.',
+                  'The purchase could not be verified.',
+                ),
+          );
         }
 
         if (purchaseDetails.pendingCompletePurchase) {
@@ -250,32 +272,50 @@ class SubscriptionService {
     }
   }
 
-  /// Verify purchase with backend
   Future<bool> _verifyPurchaseWithBackend(
       PurchaseDetails purchaseDetails) async {
     try {
       final apiUrl = await AppConfig.apiBaseUrl;
-      final userId = await _resolveUserIdForPurchase();
-      final token = await _authService.getToken();
+      var userId = await _resolveUserIdForPurchase();
+      var token = await _authService.getToken();
       final purchaseToken =
           purchaseDetails.verificationData.serverVerificationData.trim();
 
       if (userId == null || userId <= 0) {
-        _lastVerificationError =
-            'Kullanici kimligi bulunamadi. Lutfen cikis yapip tekrar girin.';
-        debugPrint('Backend verification failed: missing userId');
-        return false;
+        final refreshed = await _authService.refreshSession();
+        if (refreshed) {
+          userId = await _resolveUserIdForPurchase();
+          token = await _authService.getToken();
+        }
+        if (userId == null || userId <= 0) {
+          _lastVerificationError = _text(
+            'Kullanici kimligi bulunamadi. Lutfen tekrar deneyin.',
+            'Your account identity could not be resolved. Please try again.',
+          );
+          debugPrint('Backend verification failed: missing userId');
+          return false;
+        }
       }
 
       if (token == null || token.isEmpty) {
-        _lastVerificationError =
-            'Oturum bulunamadi. Lutfen cikis yapip tekrar girin.';
-        debugPrint('Backend verification failed: missing token');
-        return false;
+        final refreshed = await _authService.refreshSession();
+        if (refreshed) {
+          token = await _authService.getToken();
+        }
+        if (token == null || token.isEmpty) {
+          _lastVerificationError = _text(
+            'Oturum yenilenemedi. Lutfen satin alma ekranini tekrar acip yeniden deneyin.',
+            'Your session could not be refreshed. Reopen the purchase screen and try again.',
+          );
+          debugPrint('Backend verification failed: missing token');
+          return false;
+        }
       }
       if (purchaseToken.isEmpty) {
-        _lastVerificationError =
-            'Satin alma tokeni bos geldi. Lutfen satin alimlari geri yukleyin.';
+        _lastVerificationError = _text(
+          'Satin alma tokeni bos geldi. Lutfen satin alimlarini geri yukleyin.',
+          'The purchase token is empty. Please restore your purchases and try again.',
+        );
         debugPrint(
           'Backend verification failed: empty purchase token product=${purchaseDetails.productID}',
         );
@@ -286,7 +326,6 @@ class SubscriptionService {
           ? '$apiUrl/subscription/verify/apple'
           : '$apiUrl/subscription/verify/google';
 
-      // Keep mock-mode compatibility while supporting new product IDs.
       final productId = purchaseDetails.productID;
       String planName = 'PRO_MONTHLY';
       if (productId == 'pro_annual_subscription') {
@@ -297,19 +336,33 @@ class SubscriptionService {
         planName = 'PREMIUM_PLUS';
       }
 
-      final response = await http.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId.toString(),
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'planName': planName,
-          'purchaseToken': purchaseToken,
-          'productId': purchaseDetails.productID,
-        }),
-      );
+      Future<http.Response> sendVerificationRequest(String bearerToken) {
+        return http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': userId.toString(),
+            'Authorization': 'Bearer $bearerToken',
+          },
+          body: json.encode({
+            'planName': planName,
+            'purchaseToken': purchaseToken,
+            'productId': purchaseDetails.productID,
+          }),
+        );
+      }
+
+      var response = await sendVerificationRequest(token);
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final refreshed = await _authService.refreshSession();
+        if (refreshed) {
+          token = await _authService.getToken();
+          userId = await _resolveUserIdForPurchase() ?? userId;
+          if (token != null && token.isNotEmpty) {
+            response = await sendVerificationRequest(token);
+          }
+        }
+      }
 
       if (response.statusCode != 200) {
         _lastVerificationError =
@@ -317,11 +370,20 @@ class SubscriptionService {
         debugPrint(
           'Backend verification failed: status=${response.statusCode} body=${response.body}',
         );
+        return false;
       }
 
-      return response.statusCode == 200;
+      try {
+        await _authService.refreshProfile();
+      } catch (e) {
+        debugPrint('Profile refresh after purchase verification failed: $e');
+      }
+      return true;
     } catch (e) {
-      _lastVerificationError = 'Dogrulama sirasinda baglanti hatasi: $e';
+      _lastVerificationError = _text(
+        'Dogrulama sirasinda baglanti hatasi: $e',
+        'A connection error occurred during verification: $e',
+      );
       debugPrint('Backend verification failed: $e');
       return false;
     }
@@ -346,12 +408,16 @@ class SubscriptionService {
     final code = error.code.toLowerCase();
     final message = error.message.toLowerCase();
     if (message.contains('pg-gemf-02') || code.contains('pg-gemf-02')) {
-      return 'Google Play odeme tarafinda hata olustu (PG-GEMF-02). '
-          'Play hesabinizi kontrol edip satin alimlari geri yukleyin ve tekrar deneyin.';
+      return _text(
+        'Google Play odeme tarafinda hata olustu (PG-GEMF-02). Play hesabinizi kontrol edip satin alimlarini geri yukleyin ve tekrar deneyin.',
+        'Google Play returned a payment error (PG-GEMF-02). Check your Play account, restore purchases, and try again.',
+      );
     }
     if (code == 'error' || code.contains('billingresponse.error')) {
-      return 'Google Play gecici hata verdi (BillingResponse.error). '
-          'Lutfen 1-2 dakika sonra tekrar deneyin veya geri yukleme yapin.';
+      return _text(
+        'Google Play gecici hata verdi (BillingResponse.error). Lutfen 1-2 dakika sonra tekrar deneyin veya geri yukleme yapin.',
+        'Google Play returned a temporary error (BillingResponse.error). Please try again in 1-2 minutes or restore purchases.',
+      );
     }
     return null;
   }
@@ -359,17 +425,24 @@ class SubscriptionService {
   String? _mapRawPlayError(String rawError) {
     final lower = rawError.toLowerCase();
     if (lower.contains('pg-gemf-02')) {
-      return 'Google Play odeme tarafinda hata olustu (PG-GEMF-02). '
-          'Play Store > Odemeler ve abonelikler > Abonelikler ekranindan geri yukleyip tekrar deneyin.';
+      return _text(
+        'Google Play odeme tarafinda hata olustu (PG-GEMF-02). Play Store > Odemeler ve abonelikler > Abonelikler ekranindan geri yukleyip tekrar deneyin.',
+        'Google Play returned a payment error (PG-GEMF-02). Restore the subscription from Play Store > Payments & subscriptions > Subscriptions, then try again.',
+      );
     }
     if (lower.contains('billingresponse.error') ||
         lower.contains('service unavailable')) {
-      return 'Google Play gecici hata verdi (BillingResponse.error). '
-          'Lutfen 1-2 dakika sonra tekrar deneyin.';
+      return _text(
+        'Google Play gecici hata verdi (BillingResponse.error). Lutfen 1-2 dakika sonra tekrar deneyin.',
+        'Google Play returned a temporary error (BillingResponse.error). Please try again in 1-2 minutes.',
+      );
     }
     if (lower.contains('itemalreadyowned') ||
         lower.contains('item_already_owned')) {
-      return 'Mevcut magaza aboneligi bulundu. Satin alimlariniz hesabiniza aktariliyor.';
+      return _text(
+        'Mevcut magaza aboneligi bulundu. Satin alimlariniz hesabiniza aktariliyor.',
+        'An existing store subscription was found. Your purchases are being restored to your account.',
+      );
     }
     return null;
   }
@@ -402,31 +475,58 @@ class SubscriptionService {
     } catch (_) {
       // fall through
     }
-    final normalized = '${code ?? ''} ${error ?? ''} $body'.toLowerCase();
+    final normalized = '$code $error $body'.toLowerCase();
 
     if (statusCode == 401 || statusCode == 403) {
-      return 'Oturum dogrulama hatasi. Lutfen cikis yapip tekrar girin.';
+      if (normalized.contains('user identity mismatch')) {
+        return _text(
+          'Hesap oturumu ile kullanici bilgisi eslesmedi. Oturum otomatik yenileniyor; islemi tekrar deneyin.',
+          'Your stored account data did not match the active session. The session is being repaired automatically; please try the purchase again.',
+        );
+      }
+      return _text(
+        'Oturum dogrulama hatasi. Lutfen tekrar deneyin. Sorun devam ederse uygulamayi yeniden acin.',
+        'Session verification failed. Please try again. If the issue continues, reopen the app and try once more.',
+      );
     }
     if (statusCode == 400 && normalized.contains('purchasetoken is required')) {
-      return 'Satin alma tokeni eksik geldi. Abonelik sayfasindan geri yukleme yapip tekrar deneyin.';
+      return _text(
+        'Satin alma tokeni eksik geldi. Abonelik sayfasindan geri yukleme yapip tekrar deneyin.',
+        'The purchase token was missing. Restore purchases from the subscription page and try again.',
+      );
     }
     if (statusCode == 400 &&
         normalized.contains('unable to map google product/base plan')) {
-      return 'Play Console urun-plani backend ile eslesmedi. Destek ekibiyle iletisime gecin.';
+      return _text(
+        'Play Console urun-plani backend ile eslesmedi. Destek ekibiyle iletisime gecin.',
+        'The Play Console product plan does not match the backend mapping. Please contact support.',
+      );
     }
     if (statusCode == 400 && normalized.contains('mapped plan not found')) {
-      return 'Backend plan eslemesi eksik. Destek ekibiyle iletisime gecin.';
+      return _text(
+        'Backend plan eslemesi eksik. Destek ekibiyle iletisime gecin.',
+        'The backend plan mapping is missing. Please contact support.',
+      );
     }
     if (statusCode == 400 && code == 'INVALID_PURCHASE') {
-      return 'Google satin alma kaydi dogrulanamadi. Satin alma gecmisiyle tekrar deneyin.';
+      return _text(
+        'Google satin alma kaydi dogrulanamadi. Satin alma gecmisiyle tekrar deneyin.',
+        'Google could not verify this purchase. Please try again from your purchase history.',
+      );
     }
     if (statusCode == 503 && code == 'PROVIDER_UNAVAILABLE') {
-      return 'Google dogrulama servisi su an ulasilamiyor. Biraz sonra tekrar deneyin.';
+      return _text(
+        'Google dogrulama servisi su an ulasilamiyor. Biraz sonra tekrar deneyin.',
+        'The Google verification service is currently unavailable. Please try again shortly.',
+      );
     }
     if (error != null && error.isNotEmpty) {
-      return 'Dogrulama hatasi: $error';
+      return _text('Dogrulama hatasi: $error', 'Verification error: $error');
     }
-    return 'Satin alma dogrulanamadi (HTTP $statusCode).';
+    return _text(
+      'Satin alma dogrulanamadi (HTTP $statusCode).',
+      'The purchase could not be verified (HTTP $statusCode).',
+    );
   }
 
   /// Get plans from backend
@@ -451,25 +551,58 @@ class SubscriptionService {
   /// Get user's subscription status
   Future<Map<String, dynamic>> getUserSubscriptionStatus() async {
     final apiUrl = await AppConfig.apiBaseUrl;
-    final userId = await _authService.getUserId();
-    final token = await _authService.getToken();
+    var userId = await _authService.getUserId();
+    var token = await _authService.getToken();
 
-    if (userId == null) throw Exception('Kullanıcı ID bulunamadı');
+    if (userId == null || userId <= 0 || token == null || token.isEmpty) {
+      final refreshed = await _authService.refreshSession();
+      if (refreshed) {
+        userId = await _authService.getUserId();
+        token = await _authService.getToken();
+      }
+    }
 
-    final response = await http.get(
-      Uri.parse('$apiUrl/users/$userId/subscription/status'),
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': userId.toString(),
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+    if (userId == null || userId <= 0) {
+      throw Exception(_text(
+        'Kullanici oturumu bulunamadi.',
+        'The account session could not be resolved.',
+      ));
+    }
+
+    Future<http.Response> sendStatusRequest(String? bearerToken) {
+      return http.get(
+        Uri.parse('$apiUrl/users/$userId/subscription/status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId.toString(),
+          if (bearerToken != null && bearerToken.isNotEmpty)
+            'Authorization': 'Bearer $bearerToken',
+        },
+      );
+    }
+
+    var response = await sendStatusRequest(token);
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      final refreshed = await _authService.refreshSession();
+      if (refreshed) {
+        userId = await _authService.getUserId() ?? userId;
+        token = await _authService.getToken();
+        response = await sendStatusRequest(token);
+      }
+    }
 
     if (response.statusCode == 200) {
+      try {
+        await _authService.refreshProfile();
+      } catch (e) {
+        debugPrint('Profile refresh after subscription status failed: $e');
+      }
       return json.decode(response.body);
-    } else {
-      throw Exception('Abonelik durumu alınamadı');
     }
+
+    throw Exception(
+      _buildVerificationErrorMessage(response.statusCode, response.body),
+    );
   }
 
   /// DEMO MODE: Activate subscription without payment (for testing only!)
@@ -489,6 +622,11 @@ class SubscriptionService {
     );
 
     if (response.statusCode == 200) {
+      try {
+        await _authService.refreshProfile();
+      } catch (e) {
+        debugPrint('Profile refresh after demo subscription failed: $e');
+      }
       return json.decode(response.body);
     } else {
       final errorBody = json.decode(response.body);

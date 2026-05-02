@@ -30,6 +30,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: const [Locale('en'), Locale('tr')],
         home: NeuralGameResultsScreen(
           result: buildResult(finalScore: 500),
           onPlayAgain: () {},
@@ -54,6 +56,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: const [Locale('en'), Locale('tr')],
         home: NeuralGameResultsScreen(
           result: buildResult(finalScore: 700),
           onPlayAgain: () {},

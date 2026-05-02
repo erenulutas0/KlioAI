@@ -15,6 +15,9 @@ import '../widgets/modern_background.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import '../services/locale_text_service.dart';
+import 'review_mode_selector_page.dart';
+import 'word_galaxy_page.dart';
 
 class WordsPage extends StatefulWidget {
   const WordsPage({super.key});
@@ -31,21 +34,11 @@ class _WordsPageState extends State<WordsPage> {
   Set<String> _datesWithWords = {}; // Dates that have words (YYYY-MM-DD format)
   bool _isLoading = false;
 
-  final List<String> _weekDays = [
-    'Pzt',
-    'Sal',
-    'Çar',
-    'Per',
-    'Cum',
-    'Cmt',
-    'Paz'
-  ];
-
   // Form Controllers
   final TextEditingController _englishWordController = TextEditingController();
   final TextEditingController _turkishMeaningController =
       TextEditingController();
-  String _selectedDifficulty = 'Kolay';
+  String _selectedDifficulty = 'easy';
   final bool _isAddingWord = false;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
@@ -59,6 +52,25 @@ class _WordsPageState extends State<WordsPage> {
 
   Color _mix(Color from, Color to, double amount) {
     return Color.lerp(from, to, amount) ?? from;
+  }
+
+  bool get _isTurkish => LocaleTextService.isTurkish;
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
+  List<String> get _localizedWeekDays => _isTurkish
+      ? const ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz']
+      : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  String _difficultyLabel(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return _text('Kolay', 'Easy');
+      case 'hard':
+        return _text('Zor', 'Hard');
+      default:
+        return _text('Orta', 'Medium');
+    }
   }
 
   @override
@@ -108,43 +120,43 @@ class _WordsPageState extends State<WordsPage> {
 
     if (english.isEmpty || turkish.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen tüm alanları doldurun')),
+        SnackBar(
+          content: Text(
+            _text('Lütfen tüm alanları doldurun', 'Please fill in all fields.'),
+          ),
+        ),
       );
       return;
     }
 
-    setState(() => _isLoading =
-        true); // _isAddingWord yerine _isLoading kullanalım veya _isAddingWord
+    setState(() => _isLoading = true);
 
     try {
-      String difficulty = 'easy';
-      if (_selectedDifficulty == 'Orta') difficulty = 'medium';
-      if (_selectedDifficulty == 'Zor') difficulty = 'hard';
-
       final appState = context.read<AppStateProvider>();
-
-      // AppStateProvider ile kelime ekle - XP ve Stats otomatik güncellenir
       await appState.addWord(
         english: english,
         turkish: turkish,
         addedDate: _selectedDate,
-        difficulty: difficulty,
-        source: 'manual', // Manuel ekleme XP türü
+        difficulty: _selectedDifficulty,
+        source: 'manual',
       );
 
-      // Formu temizle
       _englishWordController.clear();
       _turkishMeaningController.clear();
-      setState(() => _selectedDifficulty = 'Kolay');
+      setState(() => _selectedDifficulty = 'easy');
 
-      // Yerel listeyi yenile (AppStateProvider global listeyi güncelledi ama bu sayfa tarihe göre filtreliyor)
       await _loadWordsForDate(_selectedDate);
       await _loadDatesWithWords();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kelime başarıyla eklendi! (+10 XP)'),
+          SnackBar(
+            content: Text(
+              _text(
+                'Kelime başarıyla eklendi! (+10 XP)',
+                'Word added successfully! (+10 XP)',
+              ),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -153,7 +165,9 @@ class _WordsPageState extends State<WordsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hata oluştu: $e'),
+            content: Text(
+              _text('Hata oluştu: $e', 'Something went wrong: $e'),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -210,8 +224,8 @@ class _WordsPageState extends State<WordsPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Kelime Takviminiz',
+                      Text(
+                        _text('Kelime Takviminiz', 'Your Word Calendar'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -222,13 +236,28 @@ class _WordsPageState extends State<WordsPage> {
                         onPressed: () {
                           InfoDialog.show(
                             context,
-                            title: 'Kelimeler Sayfası',
+                            title: _text('Kelimeler Sayfası', 'Words Page'),
                             steps: [
-                              'Takvimden gün seçip o tarihte öğrendiğiniz kelimeleri inceleyin.',
-                              'Mor işaretli günler, kelime çalışması yaptığınız aktif günleri gösterir.',
-                              'Geçmiş veya gelecek tarihleri seçerek yeni kelimeler ekleyebilirsiniz.',
-                              'Her kelime için zorluk seviyesi (Kolay, Orta, Zor) belirleyerek süreci yönetin.',
-                              'Eklediğiniz kelimelere örnek cümleler ekleyerek kalıcılığı artırın.',
+                              _text(
+                                'Takvimden gun secip o tarihte ogrendiginiz kelimeleri inceleyin.',
+                                'Pick a day on the calendar to review the words learned on that date.',
+                              ),
+                              _text(
+                                'Isaretli gunler, kelime calismasi yaptiginiz aktif gunleri gosterir.',
+                                'Marked days show when you practiced vocabulary.',
+                              ),
+                              _text(
+                                'Gecmis veya gelecek tarihleri secerek yeni kelimeler ekleyebilirsiniz.',
+                                'You can select past or future dates and add new words.',
+                              ),
+                              _text(
+                                'Her kelime icin zorluk seviyesi belirleyerek sureci yonetin.',
+                                'Set a difficulty level for each word to manage review flow.',
+                              ),
+                              _text(
+                                'Eklediginiz kelimelere ornek cumleler ekleyerek kaliciligi artirin.',
+                                'Add example sentences to make each word easier to retain.',
+                              ),
                             ],
                           );
                         },
@@ -238,6 +267,8 @@ class _WordsPageState extends State<WordsPage> {
                     ],
                   ),
                   const SizedBox(height: 24),
+                  _buildWordPracticeActions(allWords.length),
+                  const SizedBox(height: 20),
 
                   // Calendar Card
                   ModernCard(
@@ -279,7 +310,7 @@ class _WordsPageState extends State<WordsPage> {
                         // Days Header
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: _weekDays
+                          children: _localizedWeekDays
                               .map((day) => Text(
                                     day,
                                     style: TextStyle(
@@ -302,8 +333,8 @@ class _WordsPageState extends State<WordsPage> {
                   const SizedBox(height: 24),
 
                   // Add New Word Form Header
-                  const Text(
-                    'Yeni Kelime Ekle',
+                  Text(
+                    _text('Yeni Kelime Ekle', 'Add New Word'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -319,7 +350,10 @@ class _WordsPageState extends State<WordsPage> {
 
                   // Learned Words List Header
                   Text(
-                    '${_selectedDate.day} ${_getMonthName(_selectedDate.month)} - Öğrenilen Kelimeler',
+                    _text(
+                      '${_selectedDate.day} ${_getMonthName(_selectedDate.month)} - Ogrenilen Kelimeler',
+                      '${_getMonthName(_selectedDate.month)} ${_selectedDate.day} - Learned Words',
+                    ),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -359,9 +393,9 @@ class _WordsPageState extends State<WordsPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Henüz kelime yok',
-                            style: TextStyle(
+                          Text(
+                            _text('Henuz kelime yok', 'No words yet'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -369,7 +403,9 @@ class _WordsPageState extends State<WordsPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Yukarıdaki formu kullanarak bu güne yeni bir kelime ekleyin.',
+                            _text(
+                                'Yukaridaki formu kullanarak bu gune yeni bir kelime ekleyin.',
+                                'Use the form above to add a new word to this day.'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.6),
@@ -392,6 +428,167 @@ class _WordsPageState extends State<WordsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWordPracticeActions(int wordCount) {
+    final selectedTheme = _currentTheme(listen: true);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                    0.16)
+                .withOpacity(0.78),
+            _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
+                    0.14)
+                .withOpacity(0.72),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: selectedTheme.colors.glassBorder.withOpacity(0.68),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: selectedTheme.colors.accentGlow.withOpacity(0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: selectedTheme.colors.accent.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: selectedTheme.colors.accent.withOpacity(0.34),
+                  ),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: selectedTheme.colors.accent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _text('Tekrar', 'Review'),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$wordCount kelimeyi toplu olarak klasik veya neural modda tekrar et.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selectedTheme.colors.textSecondary
+                            .withOpacity(0.92),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPracticeActionButton(
+                  selectedTheme: selectedTheme,
+                  label: _text('Klasik Tekrar', 'Classic Review'),
+                  icon: Icons.replay_rounded,
+                  filled: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ReviewModeSelectorPage(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPracticeActionButton(
+                  selectedTheme: selectedTheme,
+                  label: _text('Neural Tekrar', 'Neural Review'),
+                  icon: Icons.hub_rounded,
+                  filled: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WordGalaxyPage(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPracticeActionButton({
+    required AppThemeConfig selectedTheme,
+    required String label,
+    required IconData icon,
+    required bool filled,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          gradient: filled ? selectedTheme.colors.buttonGradient : null,
+          color: filled ? null : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: filled
+                ? Colors.white.withOpacity(0.18)
+                : selectedTheme.colors.accent.withOpacity(0.36),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -516,8 +713,8 @@ class _WordsPageState extends State<WordsPage> {
                               color: Colors.redAccent, size: 32),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Kelimeyi Sil',
+                        Text(
+                          _text('Kelimeyi Sil', 'Delete Word'),
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -525,7 +722,9 @@ class _WordsPageState extends State<WordsPage> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Bu kelimeyi silmek istediğinize emin misiniz? Buna bağlı tüm cümleler de kalıcı olarak silinecektir.',
+                          _text(
+                              'Bu kelimeyi silmek istediğinize emin misiniz? Buna bağlı tüm cümleler de kalıcı olarak silinecektir.',
+                              'Are you sure you want to delete this word? All related sentences will also be deleted permanently.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               color: Colors.white.withOpacity(0.7),
@@ -537,7 +736,7 @@ class _WordsPageState extends State<WordsPage> {
                             Expanded(
                               child: TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('İptal',
+                                child: Text(_text('İptal', 'Cancel'),
                                     style: TextStyle(color: Colors.white60)),
                               ),
                             ),
@@ -557,18 +756,20 @@ class _WordsPageState extends State<WordsPage> {
                                       if (deleted) {
                                         ScaffoldMessenger.of(this.context)
                                             .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Kelime ve cümleleri silindi!'),
+                                          SnackBar(
+                                            content: Text(_text(
+                                                'Kelime ve cumleleri silindi!',
+                                                'Word and related sentences were deleted.')),
                                             backgroundColor: Colors.green,
                                           ),
                                         );
                                       } else {
                                         ScaffoldMessenger.of(this.context)
                                             .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Kelime silinemedi, lütfen tekrar deneyin.'),
+                                          SnackBar(
+                                            content: Text(_text(
+                                                'Kelime silinemedi, lutfen tekrar deneyin.',
+                                                'Word could not be deleted. Please try again.')),
                                             backgroundColor: Colors.red,
                                           ),
                                         );
@@ -591,7 +792,7 @@ class _WordsPageState extends State<WordsPage> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                child: const Text('Sil'),
+                                child: Text(_text('Sil', 'Delete')),
                               ),
                             ),
                           ],
@@ -610,13 +811,13 @@ class _WordsPageState extends State<WordsPage> {
 
   Widget _buildWordCard(Word word) {
     Color difficultyColor = Colors.amber;
-    String difficultyText = 'Orta';
+    String difficultyText = _difficultyLabel('medium');
     if (word.difficulty == 'easy') {
       difficultyColor = Colors.green;
-      difficultyText = 'Kolay';
+      difficultyText = _difficultyLabel('easy');
     } else if (word.difficulty == 'hard') {
       difficultyColor = Colors.red;
-      difficultyText = 'Zor';
+      difficultyText = _difficultyLabel('hard');
     }
 
     return ModernCard(
@@ -696,7 +897,7 @@ class _WordsPageState extends State<WordsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    word.turkishMeaning.replaceAll('⭐', '').trim(),
+                    word.turkishMeaning.replaceAll('?', '').trim(),
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 15,
@@ -707,7 +908,7 @@ class _WordsPageState extends State<WordsPage> {
                     children: [
                       Expanded(
                         child: NeonButton(
-                          label: 'Cümleler',
+                          label: _text('Cumleler', 'Sentences'),
                           icon: Icons.article_outlined,
                           isCyan: true,
                           onTap: () => _showSentencesDialog(word),
@@ -716,7 +917,7 @@ class _WordsPageState extends State<WordsPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: NeonButton(
-                          label: 'Cümle Ekle',
+                          label: _text('Cumle Ekle', 'Add Sentence'),
                           icon: Icons.add,
                           isCyan: false,
                           onTap: () => _showAddSentenceDialog(word),
@@ -767,21 +968,37 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   String _getMonthName(int month) {
-    const months = [
-      '',
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık'
-    ];
+    final months = _isTurkish
+        ? const [
+            '',
+            'Ocak',
+            'Subat',
+            'Mart',
+            'Nisan',
+            'Mayis',
+            'Haziran',
+            'Temmuz',
+            'Agustos',
+            'Eylul',
+            'Ekim',
+            'Kasim',
+            'Aralik'
+          ]
+        : const [
+            '',
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December'
+          ];
     if (month < 1 || month > 12) return '';
     return months[month];
   }
@@ -821,9 +1038,15 @@ class _WordsPageState extends State<WordsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildTextField(_englishWordController, 'İngilizce Kelime'),
+          _buildTextField(
+            _englishWordController,
+            _text('Ingilizce Kelime', 'English Word'),
+          ),
           const SizedBox(height: 12),
-          _buildTextField(_turkishMeaningController, 'Türkçe Anlamı'),
+          _buildTextField(
+            _turkishMeaningController,
+            _text('Ceviri / Anlam', 'Translation / Meaning'),
+          ),
           const SizedBox(height: 12),
           _buildFormDifficultyDropdown(),
           const SizedBox(height: 20),
@@ -841,16 +1064,18 @@ class _WordsPageState extends State<WordsPage> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add, color: Colors.white),
-                          SizedBox(width: 8),
+                          const Icon(Icons.add, color: Colors.white),
+                          const SizedBox(width: 8),
                           Text(
-                            'Kelime Ekle',
-                            style: TextStyle(
+                            _text('Kelime Ekle', 'Add Word'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -910,11 +1135,11 @@ class _WordsPageState extends State<WordsPage> {
           dropdownColor:
               _mix(selectedTheme.colors.background, Colors.black, 0.20),
           style: const TextStyle(color: Colors.white),
-          items: ['Kolay', 'Orta', 'Zor'].map((String value) {
+          items: ['easy', 'medium', 'hard'].map((String value) {
             Color itemColor = Colors.white;
-            if (value == 'Kolay') itemColor = Colors.green;
-            if (value == 'Orta') itemColor = Colors.amber;
-            if (value == 'Zor') itemColor = Colors.red;
+            if (value == 'easy') itemColor = Colors.green;
+            if (value == 'medium') itemColor = Colors.amber;
+            if (value == 'hard') itemColor = Colors.red;
 
             return DropdownMenuItem<String>(
               value: value,
@@ -927,7 +1152,7 @@ class _WordsPageState extends State<WordsPage> {
                         BoxDecoration(color: itemColor, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 8),
-                  Text(value),
+                  Text(_difficultyLabel(value)),
                 ],
               ),
             );
@@ -942,4 +1167,3 @@ class _WordsPageState extends State<WordsPage> {
     );
   }
 }
-

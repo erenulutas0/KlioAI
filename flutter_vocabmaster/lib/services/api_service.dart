@@ -340,6 +340,31 @@ class ApiService {
     }
   }
 
+  Future<Word> submitWordReview({
+    required int wordId,
+    required int quality,
+  }) async {
+    try {
+      final url = await baseUrl;
+      final response = await _withProtectedRetry(
+        (headers) => client.post(
+          Uri.parse('$url/srs/submit-review'),
+          headers: headers,
+          body: json.encode({
+            'wordId': wordId,
+            'quality': quality,
+          }),
+        ),
+        json: true,
+      );
+      if (response.statusCode == 200) {
+        return Word.fromJson(json.decode(response.body));
+      }
+      throw Exception('Failed to submit review: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Error submitting review: $e');
+    }
+  }
   // ==================== SENTENCES ====================
 
   // ==================== DAILY CONTENT ====================
@@ -1097,5 +1122,3 @@ class ApiUnauthorizedException implements Exception {
   @override
   String toString() => message;
 }
-
-

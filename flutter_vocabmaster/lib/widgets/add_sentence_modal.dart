@@ -7,6 +7,7 @@ import '../providers/app_state_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import '../services/locale_text_service.dart';
 
 class AddSentenceModal extends StatefulWidget {
   final Word word;
@@ -39,6 +40,9 @@ class SentenceData {
 
 class _AddSentenceModalState extends State<AddSentenceModal>
     with TickerProviderStateMixin {
+  bool get _isTurkish => LocaleTextService.isTurkish;
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   late List<AnimationController> _orbControllers;
   late List<AnimationController> _sparkleControllers;
   List<Offset>? _sparklePositions;
@@ -110,8 +114,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
 
     if (validSentences.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Lütfen en az bir cümle ve çevirisini girin.')),
+        SnackBar(
+            content: Text(_text(
+                'Lutfen en az bir cumle ve cevirisini girin.',
+                'Please enter at least one sentence and its translation.'))),
       );
       return;
     }
@@ -137,7 +143,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  '${validSentences.length} cümle başarıyla eklendi! (+${validSentences.length * 5} XP)'),
+                  _text(
+                    '${validSentences.length} cumle basariyla eklendi! (+${validSentences.length * 5} XP)',
+                    '${validSentences.length} sentence(s) added successfully! (+${validSentences.length * 5} XP)',
+                  )),
               backgroundColor: Colors.green),
         );
       }
@@ -145,7 +154,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Hata oluştu: $e'), backgroundColor: Colors.red),
+              content: Text('${_text('Hata olustu', 'An error occurred')}: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -367,8 +376,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Cümle Ekle',
+                      Text(
+                        _text('Cumle Ekle', 'Add Sentence'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -386,7 +395,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              '${widget.word.englishWord} kelimesi için cümleler',
+                              _text(
+                                '${widget.word.englishWord} kelimesi icin cumleler',
+                                'Sentences for ${widget.word.englishWord}',
+                              ),
                               style: TextStyle(
                                 color: selectedTheme.colors.textSecondary,
                                 fontSize: 14,
@@ -492,8 +504,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'Cümle',
+                        Text(
+                          _text('Cumle', 'Sentence'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -531,7 +543,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'İngilizce Cümle',
+                      _text('Ingilizce Cumle', 'English Sentence'),
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
@@ -591,7 +603,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Türkçe Anlamı',
+                      _text('Ceviri', 'Translation'),
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
@@ -604,7 +616,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       style: const TextStyle(color: Colors.white, fontSize: 15),
                       maxLines: null,
                       decoration: InputDecoration(
-                        hintText: 'Cümlenin Türkçe çevirisi...',
+                        hintText: _text(
+                          'Cumlenin Turkce cevirisi...',
+                          'Translation of the sentence...',
+                        ),
                         hintStyle: const TextStyle(
                           color: Color(0x66FFFFFF), // white 40% opacity
                           fontSize: 15,
@@ -650,7 +665,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Zorluk Seviyesi',
+                      _text('Zorluk Seviyesi', 'Difficulty Level'),
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
@@ -707,18 +722,18 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                               sentence.difficulty = value!;
                             });
                           },
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'easy',
-                              child: Text('🟢 Kolay'),
+                              child: Text(_text('Kolay', 'Easy')),
                             ),
                             DropdownMenuItem(
                               value: 'medium',
-                              child: Text('🟡 Orta'),
+                              child: Text(_text('Orta', 'Medium')),
                             ),
                             DropdownMenuItem(
                               value: 'hard',
-                              child: Text('🔴 Zor'),
+                              child: Text(_text('Zor', 'Hard')),
                             ),
                           ],
                         ),
@@ -770,7 +785,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Yeni Cümle Ekle',
+                    _text('Yeni Cumle Ekle', 'Add New Sentence'),
                     style: TextStyle(
                       color: selectedTheme.colors.textSecondary,
                       fontSize: 16,
@@ -825,8 +840,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'İptal',
+                  child: Text(
+                    _text('Iptal', 'Cancel'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -870,9 +885,9 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'Kaydet',
+                                  _text('Kaydet', 'Save'),
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,

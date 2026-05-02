@@ -42,6 +42,23 @@ class AiPaywallHandler {
     }
 
     if (error is ApiUnauthorizedException) {
+      if (_shouldOpenSubscriptionForUnauthorized(error)) {
+        if (showSnackBar) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                error.message.isNotEmpty
+                    ? error.message
+                    : 'Bu ozellik icin abonelik gerekli.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        await openSubscription(context);
+        return true;
+      }
+
       if (showSnackBar) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -67,5 +84,28 @@ class AiPaywallHandler {
     }
 
     return false;
+  }
+
+  static bool _shouldOpenSubscriptionForUnauthorized(
+    ApiUnauthorizedException error,
+  ) {
+    final text = '${error.reason ?? ''} ${error.message}'.toLowerCase();
+    if (text.contains('missing-auth') ||
+        text.contains('oturum') ||
+        text.contains('session') ||
+        text.contains('token') ||
+        text.contains('giris') ||
+        text.contains('login')) {
+      return false;
+    }
+
+    return text.contains('abon') ||
+        text.contains('subscription') ||
+        text.contains('premium') ||
+        text.contains('upgrade') ||
+        text.contains('ai') ||
+        text.contains('yetkisiz') ||
+        text.trim() == 'unauthorized' ||
+        text.trim().endsWith(' unauthorized');
   }
 }

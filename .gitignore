@@ -38,6 +38,8 @@ npm-debug.log
 .mvn/
 .m2/
 **/.m2/
+backend/.m2-repo/
+**/.m2-repo/
 *.jar
 *.war
 *.ear
@@ -47,6 +49,9 @@ npm-debug.log
 secrets/
 
 # Large binary files and Models
+*.tar
+*.tar.gz
+*.zip
 **/piper-tts/
 *.onnx
 *.onnx.json
@@ -60,9 +65,26 @@ large_files.txt
 # Logs and output files (may contain secrets)
 backend/error_log*.txt
 backend/output*.txt
+backend/*output*.txt
+backend/*_log*.txt
+backend/detailed_test_log.txt
+backend/test_output.txt
+backend_errors.txt
+backend_log*.txt
+backend_logs.txt
+full_log.txt
+push_test.txt
+*_output.txt
 *.log
 run_log*.txt
 push_error.txt
+docs/query-plan-report.txt
+flutter_vocabmaster/analyze*.txt
+flutter_vocabmaster/coverage/
 flutter_vocabmaster/WORKLOG_*.md
 flutter_vocabmaster/.tool-shims/
 tmp_flutter_version.txt
+
+# Local agent/planning notes
+AGENTS.md
+TODO.md

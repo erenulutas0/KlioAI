@@ -40,6 +40,10 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
   late final AnimationController _lineAnimationController;
   int _lastNodeCount = 0;
 
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   @override
   void initState() {
     super.initState();
@@ -128,7 +132,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         child: TextButton.icon(
                           onPressed: widget.onExit,
                           icon: const Icon(Icons.arrow_back, size: 18),
-                          label: const Text('Menu'),
+                          label: Text(_text('Menu', 'Menu')),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white70,
                             backgroundColor: selectedTheme.colors.background
@@ -144,8 +148,14 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         word: state.currentWordSet.centerWord,
                         subtitle:
                             widget.mode == NeuralGameMode.turkishTranslation
-                                ? 'Turkce karsiligini yaz'
-                                : 'Related word mode',
+                                ? _text(
+                                    'Turkce karsiligini yaz',
+                                    'Type the Turkish meaning',
+                                  )
+                                : _text(
+                                    'Iliskili kelime modu',
+                                    'Related word mode',
+                                  ),
                         timeLeft: state.timeLeft,
                         progress: state.timeLeft / 60,
                       ),
@@ -209,8 +219,14 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         shake: state.isError && state.feedbackMessage != null,
                         hintText:
                             widget.mode == NeuralGameMode.turkishTranslation
-                                ? 'Turkce karsiligini yaz'
-                                : 'Type a related word',
+                                ? _text(
+                                    'Turkce karsiligini yaz',
+                                    'Type the Turkish meaning',
+                                  )
+                                : _text(
+                                    'Iliskili kelime yaz',
+                                    'Type a related word',
+                                  ),
                         onSubmit: (word) {
                           context.read<NeuralGameBloc>().add(
                                 SubmitWordEvent(

@@ -21,7 +21,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   // Controllers
   late AnimationController _glowController;
   late TextEditingController _emailController;
@@ -34,26 +35,24 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _showPassword = false;
   bool _isButtonPressed = false;
   bool _rememberMe = false;
-  
+
   // Animation for Glow
   late Animation<double> _glowAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
     _nameController = TextEditingController();
-    
-    _glowController = AnimationController(
-        vsync: this, 
-        duration: const Duration(seconds: 2)
-    )..repeat(reverse: true);
-    
+
+    _glowController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+
     _glowAnimation = Tween<double>(begin: 0.3, end: 0.6).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut)
-    );
+        CurvedAnimation(parent: _glowController, curve: Curves.easeInOut));
   }
 
   @override
@@ -68,49 +67,44 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // final authService = getIt<AuthService?>(); 
+    // final authService = getIt<AuthService?>();
     // AuthService singleton olduğu için:
     final auth = AuthService();
-    
+
     Map<String, dynamic> result;
-    
+
     if (isSignUp) {
-      result = await auth.register(
-        _nameController.text.trim(),
-        _emailController.text.trim(), 
-        _passwordController.text.trim()
-      );
+      result = await auth.register(_nameController.text.trim(),
+          _emailController.text.trim(), _passwordController.text.trim());
     } else {
       result = await auth.login(
-        _emailController.text.trim(), 
-        _passwordController.text.trim(),
-        rememberMe: _rememberMe // AuthService'e rememberMe parametresi ekledik
-      );
+          _emailController.text.trim(), _passwordController.text.trim(),
+          rememberMe:
+              _rememberMe // AuthService'e rememberMe parametresi ekledik
+          );
     }
 
     if (result['success'] == true) {
       if (mounted) {
         // Provider'a kullanıcı verisini hemen set et (Anında güncel veri görünsün)
         if (result['user'] != null) {
-          Provider.of<AppStateProvider>(context, listen: false).setUser(result['user']);
+          Provider.of<AppStateProvider>(context, listen: false)
+              .setUser(result['user']);
         }
 
         if (widget.onLoginSuccess != null) {
           widget.onLoginSuccess!();
         } else {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainScreen())
-          );
+              MaterialPageRoute(builder: (_) => const MainScreen()));
         }
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? context.tr('login.error.generic')),
-            backgroundColor: Colors.red,
-          )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result['message'] ?? context.tr('login.error.generic')),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }
@@ -118,7 +112,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Future<void> _handleGoogleLogin() async {
     final auth = AuthService();
     final result = await auth.googleLogin();
-    
+
     if (result['success'] == true) {
       if (mounted) {
         if (result['user'] != null) {
@@ -128,21 +122,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           ).setUser(result['user']);
         }
         Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainScreen())
-        );
+            MaterialPageRoute(builder: (_) => const MainScreen()));
       }
     } else {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? context.tr('login.error.google')),
-            backgroundColor: Colors.red,
-          )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result['message'] ?? context.tr('login.error.google')),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -159,21 +149,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               gradient: AppColors.backgroundGradient,
             ),
           ),
-          
+
           // 2. Orbs (Background layer)
           ...List.generate(6, (index) => const FloatingOrb()),
 
           // 3. Raindrops
-          ...List.generate(40, (index) => RaindropWidget(screenWidth: size.width, screenHeight: size.height)),
+          ...List.generate(
+              40,
+              (index) => RaindropWidget(
+                  screenWidth: size.width, screenHeight: size.height)),
 
           // 4. Content
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: LoginSpacing.mainPaddingH, 
-                  vertical: LoginSpacing.mainPaddingV
-                ),
+                    horizontal: LoginSpacing.mainPaddingH,
+                    vertical: LoginSpacing.mainPaddingV),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 448),
                   child: Column(
@@ -200,46 +192,47 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedBuilder(
-          animation: _glowAnimation,
-          builder: (context, child) {
-            return Container(
-              width: 80, // Keeping outer container slightly larger for glow effect
-              height: 80,
-              alignment: Alignment.center,
-              child: Container(
-                width: LoginSpacing.logoSize,
-                height: LoginSpacing.logoSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.cyan400.withOpacity(0.3),
-                      AppColors.blue500.withOpacity(0.3),
+            animation: _glowAnimation,
+            builder: (context, child) {
+              return Container(
+                width:
+                    80, // Keeping outer container slightly larger for glow effect
+                height: 80,
+                alignment: Alignment.center,
+                child: Container(
+                  width: LoginSpacing.logoSize,
+                  height: LoginSpacing.logoSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.cyan400.withOpacity(0.3),
+                        AppColors.blue500.withOpacity(0.3),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: AppColors.cyan500.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            AppColors.cyan500.withOpacity(_glowAnimation.value),
+                        blurRadius: 30 * _glowAnimation.value + 10,
+                        spreadRadius: 0,
+                      ),
                     ],
                   ),
-                  border: Border.all(
-                    color: AppColors.cyan500.withOpacity(0.3),
-                    width: 1,
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    size: LoginSpacing.logoIconSize,
+                    color: AppColors.cyan400,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.cyan500.withOpacity(_glowAnimation.value),
-                      blurRadius: 30 * _glowAnimation.value + 10,
-                      spreadRadius: 0,
-                    ),
-                  ],
                 ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: LoginSpacing.logoIconSize,
-                  color: AppColors.cyan400,
-                ),
-              ),
-            );
-          }
-        ),
+              );
+            }),
         const SizedBox(height: LoginSpacing.logoMarginBottom),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
@@ -250,7 +243,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ],
           ).createShader(bounds),
           child: const Text(
-            'VocabMaster',
+            'KlioAI',
             style: TextStyle(
               fontSize: LoginSpacing.titleFontSize,
               fontWeight: FontWeight.bold,
@@ -303,13 +296,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   _buildTabToggle(),
                   const SizedBox(height: LoginSpacing.tabMarginBottom),
                   if (isSignUp) ...[
-                     _buildInputField(
-                       label: context.tr('login.name'),
-                       placeholder: context.tr('login.name.placeholder'),
-                       icon: Icons.person_outline,
-                       controller: _nameController,
-                     ),
-                     const SizedBox(height: LoginSpacing.fieldSpacing),
+                    _buildInputField(
+                      label: context.tr('login.name'),
+                      placeholder: context.tr('login.name.placeholder'),
+                      icon: Icons.person_outline,
+                      controller: _nameController,
+                    ),
+                    const SizedBox(height: LoginSpacing.fieldSpacing),
                   ],
                   _buildInputField(
                     label: context.tr('login.email'),
@@ -331,7 +324,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         size: 18,
                         color: AppColors.cyan400.withOpacity(0.5),
                       ),
-                      onPressed: () => setState(() => _showPassword = !_showPassword),
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
                     ),
                   ),
                   if (!isSignUp) ...[
@@ -339,31 +333,41 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     LoginPageHelper(
                       isSignUp: isSignUp,
                       rememberMe: _rememberMe,
-                      onRememberMeChanged: (val) => setState(() => _rememberMe = val ?? false),
+                      onRememberMeChanged: (val) =>
+                          setState(() => _rememberMe = val ?? false),
                     ).buildRememberMe(context),
                   ],
-                  SizedBox(height: isSignUp ? LoginSpacing.fieldSpacing + 4 : LoginSpacing.fieldSpacing + 10),
+                  SizedBox(
+                      height: isSignUp
+                          ? LoginSpacing.fieldSpacing + 4
+                          : LoginSpacing.fieldSpacing + 10),
                   _buildSubmitButton(),
                   const SizedBox(height: LoginSpacing.buttonMarginBottom),
                   _buildDivider(),
                   const SizedBox(height: LoginSpacing.dividerMarginV),
                   _buildSocialButtons(),
-                   if (isSignUp) ...[
+                  if (isSignUp) ...[
                     const SizedBox(height: LoginSpacing.termsMarginTop),
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
-                        style: const TextStyle(fontSize: LoginSpacing.termsFontSize, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                            fontSize: LoginSpacing.termsFontSize,
+                            color: Color(0xFF64748B)),
                         children: [
                           TextSpan(text: context.tr('login.terms.prefix')),
                           TextSpan(
                             text: context.tr('login.terms.terms'),
-                            style: TextStyle(color: const Color(0xFF22D3EE).withOpacity(0.7)),
+                            style: TextStyle(
+                                color:
+                                    const Color(0xFF22D3EE).withOpacity(0.7)),
                           ),
                           TextSpan(text: context.tr('login.terms.and')),
                           TextSpan(
                             text: context.tr('login.terms.privacy'),
-                            style: TextStyle(color: const Color(0xFF22D3EE).withOpacity(0.7)),
+                            style: TextStyle(
+                                color:
+                                    const Color(0xFF22D3EE).withOpacity(0.7)),
                           ),
                           TextSpan(text: context.tr('login.terms.suffix')),
                         ],
@@ -389,8 +393,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
       child: Row(
         children: [
-          Expanded(child: _buildToggleItem(context.tr('login.tab.signIn'), !isSignUp, () => setState(() => isSignUp = false))),
-          Expanded(child: _buildToggleItem(context.tr('login.tab.signUp'), isSignUp, () => setState(() => isSignUp = true))),
+          Expanded(
+              child: _buildToggleItem(context.tr('login.tab.signIn'), !isSignUp,
+                  () => setState(() => isSignUp = false))),
+          Expanded(
+              child: _buildToggleItem(context.tr('login.tab.signUp'), isSignUp,
+                  () => setState(() => isSignUp = true))),
         ],
       ),
     );
@@ -401,20 +409,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(vertical: LoginSpacing.tabButtonVertical),
-        decoration: isActive ? BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.cyan500.withOpacity(0.2),
-              AppColors.blue500.withOpacity(0.2),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppColors.cyan400.withOpacity(0.3),
-            width: 1,
-          ),
-        ) : null,
+        padding: const EdgeInsets.symmetric(
+            vertical: LoginSpacing.tabButtonVertical),
+        decoration: isActive
+            ? BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.cyan500.withOpacity(0.2),
+                    AppColors.blue500.withOpacity(0.2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.cyan400.withOpacity(0.3),
+                  width: 1,
+                ),
+              )
+            : null,
         child: Center(
           child: Text(
             title,
@@ -443,7 +454,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: LoginSpacing.labelFontSize, color: const Color(0xFF67E8F9).withOpacity(0.9)),
+          style: TextStyle(
+              fontSize: LoginSpacing.labelFontSize,
+              color: const Color(0xFF67E8F9).withOpacity(0.9)),
         ),
         const SizedBox(height: LoginSpacing.labelMarginBottom),
         Container(
@@ -456,28 +469,36 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             controller: controller,
             keyboardType: keyboardType,
             obscureText: obscureText,
-            style: const TextStyle(color: Colors.white, fontSize: LoginSpacing.inputFontSize),
+            style: const TextStyle(
+                color: Colors.white, fontSize: LoginSpacing.inputFontSize),
             cursorColor: AppColors.cyan400,
-             validator: (value) {
-                if (value == null || value.isEmpty) return context.tr('common.required');
-                return null;
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return context.tr('common.required');
+              }
+              return null;
             },
             decoration: InputDecoration(
               isDense: true,
               hintText: placeholder,
-              hintStyle: const TextStyle(color: AppColors.slate500, fontSize: LoginSpacing.inputFontSize),
+              hintStyle: const TextStyle(
+                  color: AppColors.slate500,
+                  fontSize: LoginSpacing.inputFontSize),
               prefixIcon: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: LoginSpacing.iconPadding),
-                child: Icon(icon, color: AppColors.cyan400.withOpacity(0.5), size: LoginSpacing.iconSize),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LoginSpacing.iconPadding),
+                child: Icon(icon,
+                    color: AppColors.cyan400.withOpacity(0.5),
+                    size: LoginSpacing.iconSize),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 40),
               suffixIcon: suffixIcon,
-              suffixIconConstraints: const BoxConstraints(minWidth: 40, maxHeight: 40),
+              suffixIconConstraints:
+                  const BoxConstraints(minWidth: 40, maxHeight: 40),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: LoginSpacing.inputPaddingH, 
-                vertical: LoginSpacing.inputPaddingV
-              ),
+                  horizontal: LoginSpacing.inputPaddingH,
+                  vertical: LoginSpacing.inputPaddingV),
             ),
           ),
         ),
@@ -489,8 +510,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return GestureDetector(
       onTapDown: (_) => setState(() => _isButtonPressed = true),
       onTapUp: (_) {
-         setState(() => _isButtonPressed = false);
-         _handleSubmit();
+        setState(() => _isButtonPressed = false);
+        _handleSubmit();
       },
       onTapCancel: () => setState(() => _isButtonPressed = false),
       child: AnimatedScale(
@@ -499,25 +520,28 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: LoginSpacing.buttonPaddingV),
+          padding:
+              const EdgeInsets.symmetric(vertical: LoginSpacing.buttonPaddingV),
           decoration: BoxDecoration(
             gradient: AppColors.buttonGradient,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppColors.cyan500.withOpacity(_isButtonPressed ? 0.6 : 0.4),
+                color:
+                    AppColors.cyan500.withOpacity(_isButtonPressed ? 0.6 : 0.4),
                 blurRadius: _isButtonPressed ? 30 : 20,
               ),
             ],
           ),
           child: Center(
             child: Text(
-              isSignUp ? context.tr('login.submit.signUp') : context.tr('login.submit.signIn'),
+              isSignUp
+                  ? context.tr('login.submit.signUp')
+                  : context.tr('login.submit.signIn'),
               style: const TextStyle(
-                color: Colors.white, 
-                fontWeight: FontWeight.bold, 
-                fontSize: LoginSpacing.buttonFontSize
-              ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: LoginSpacing.buttonFontSize),
             ),
           ),
         ),
@@ -528,16 +552,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Container(height: 1, color: AppColors.slate500.withOpacity(0.3))),
+        Expanded(
+            child: Container(
+                height: 1, color: AppColors.slate500.withOpacity(0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(context.tr('common.or'), style: const TextStyle(color: AppColors.slate500, fontSize: LoginSpacing.dividerFontSize)),
+          child: Text(context.tr('common.or'),
+              style: const TextStyle(
+                  color: AppColors.slate500,
+                  fontSize: LoginSpacing.dividerFontSize)),
         ),
-        Expanded(child: Container(height: 1, color: AppColors.slate500.withOpacity(0.3))),
+        Expanded(
+            child: Container(
+                height: 1, color: AppColors.slate500.withOpacity(0.3))),
       ],
     );
   }
-  
+
   Widget _buildSocialButtons() {
     return _buildSocialBtn(
       context.tr('login.social.google'),
@@ -545,7 +576,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       _handleGoogleLogin,
     );
   }
-  
+
   Widget _buildSocialBtn(String text, IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
@@ -553,7 +584,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: LoginSpacing.socialPaddingV),
+          padding:
+              const EdgeInsets.symmetric(vertical: LoginSpacing.socialPaddingV),
           decoration: BoxDecoration(
             color: AppColors.slate900.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
@@ -562,16 +594,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: LoginSpacing.socialIconSize),
+              Icon(icon,
+                  color: Colors.white, size: LoginSpacing.socialIconSize),
               const SizedBox(width: LoginSpacing.socialIconSpacing),
-              Text(
-                text, 
-                style: const TextStyle(
-                  color: Colors.white, 
-                  fontWeight: FontWeight.w500, 
-                  fontSize: LoginSpacing.socialFontSize
-                )
-              ),
+              Text(text,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                      fontSize: LoginSpacing.socialFontSize)),
             ],
           ),
         ),
@@ -587,13 +617,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(color: AppColors.slate400, fontSize: LoginSpacing.infoFontSize),
+          style: const TextStyle(
+              color: AppColors.slate400, fontSize: LoginSpacing.infoFontSize),
           children: [
-            TextSpan(text: isSignUp ? context.tr('login.haveAccount') : context.tr('login.noAccount')),
             TextSpan(
-              text: isSignUp ? context.tr('login.switch.signIn') : context.tr('login.switch.signUp'),
-              style: const TextStyle(color: AppColors.cyan400, fontWeight: FontWeight.bold),
-              recognizer: TapGestureRecognizer()..onTap = () => setState(() => isSignUp = !isSignUp),
+                text: isSignUp
+                    ? context.tr('login.haveAccount')
+                    : context.tr('login.noAccount')),
+            TextSpan(
+              text: isSignUp
+                  ? context.tr('login.switch.signIn')
+                  : context.tr('login.switch.signUp'),
+              style: const TextStyle(
+                  color: AppColors.cyan400, fontWeight: FontWeight.bold),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () => setState(() => isSignUp = !isSignUp),
             ),
           ],
         ),
@@ -601,5 +639,3 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 }
-
-

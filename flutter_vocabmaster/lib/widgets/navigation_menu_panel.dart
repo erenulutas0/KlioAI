@@ -12,7 +12,7 @@ class MenuItemData {
   final String id;
   final String labelKey;
   final IconData icon;
-  
+
   MenuItemData({
     required this.id,
     required this.labelKey,
@@ -38,7 +38,7 @@ class NavigationMenuPanel extends StatefulWidget {
   State<NavigationMenuPanel> createState() => _NavigationMenuPanelState();
 }
 
-class _NavigationMenuPanelState extends State<NavigationMenuPanel> 
+class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     with TickerProviderStateMixin {
   late List<AnimationController> _orbControllers;
   late List<AnimationController> _rainControllers;
@@ -46,7 +46,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
 
   AppThemeConfig _currentTheme({required bool listen}) {
     try {
-      return Provider.of<ThemeProvider?>(context, listen: listen)?.currentTheme ??
+      return Provider.of<ThemeProvider?>(context, listen: listen)
+              ?.currentTheme ??
           VocabThemes.defaultTheme;
     } catch (_) {
       return VocabThemes.defaultTheme;
@@ -58,10 +59,12 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   final List<MenuItemData> mainPages = [
-    MenuItemData(id: 'profile-settings', labelKey: 'nav.profile', icon: Icons.person),
+    MenuItemData(
+        id: 'profile-settings', labelKey: 'nav.profile', icon: Icons.person),
     MenuItemData(id: 'home', labelKey: 'nav.home', icon: Icons.home),
     MenuItemData(id: 'words', labelKey: 'nav.words', icon: Icons.book),
-    MenuItemData(id: 'sentences', labelKey: 'nav.sentences', icon: Icons.description),
+    MenuItemData(
+        id: 'sentences', labelKey: 'nav.sentences', icon: Icons.description),
     MenuItemData(id: 'practice', labelKey: 'nav.practice', icon: Icons.school),
     // MVP: Social features disabled for v1.0
     // MenuItemData(id: 'chat', labelKey: 'nav.chat', icon: Icons.chat_bubble),
@@ -71,12 +74,19 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   ];
 
   final List<MenuItemData> specialPages = [
-    MenuItemData(id: 'speaking', labelKey: 'nav.speaking', icon: Icons.chat_bubble_outline),
+    MenuItemData(
+        id: 'speaking',
+        labelKey: 'nav.speaking',
+        icon: Icons.chat_bubble_outline),
     MenuItemData(id: 'repeat', labelKey: 'nav.repeat', icon: Icons.replay),
-    MenuItemData(id: 'dictionary', labelKey: 'nav.dictionary', icon: Icons.book),
-    MenuItemData(id: 'xp-history', labelKey: 'nav.xpHistory', icon: Icons.history),
-    MenuItemData(id: 'settings', labelKey: 'nav.settings', icon: Icons.settings),
-    MenuItemData(id: 'language', labelKey: 'language.label', icon: Icons.language),
+    MenuItemData(
+        id: 'dictionary', labelKey: 'nav.dictionary', icon: Icons.book),
+    MenuItemData(
+        id: 'xp-history', labelKey: 'nav.xpHistory', icon: Icons.history),
+    MenuItemData(
+        id: 'settings', labelKey: 'nav.settings', icon: Icons.settings),
+    MenuItemData(
+        id: 'language', labelKey: 'language.label', icon: Icons.language),
   ];
 
   @override
@@ -100,16 +110,16 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     _rainControllers = List.generate(20, (i) {
       final duration = 2.0 + Random().nextDouble() * 2;
       final delay = Random().nextDouble() * 3;
-      
+
       final controller = AnimationController(
         vsync: this,
         duration: Duration(milliseconds: (duration * 1000).toInt()),
       );
-      
+
       Future.delayed(Duration(milliseconds: (delay * 1000).toInt()), () {
         if (mounted) controller.repeat();
       });
-      
+
       return controller;
     });
 
@@ -117,16 +127,16 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     _sparkleControllers = List.generate(10, (i) {
       final duration = 2.0 + Random().nextDouble() * 2;
       final delay = Random().nextDouble() * 3;
-      
+
       final controller = AnimationController(
         vsync: this,
         duration: Duration(milliseconds: (duration * 1000).toInt()),
       );
-      
+
       Future.delayed(Duration(milliseconds: (delay * 1000).toInt()), () {
         if (mounted) controller.repeat();
       });
-      
+
       return controller;
     });
   }
@@ -150,12 +160,12 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     // Based on user logic:
     // Tabs: home (0), words (1), sentences (3), practice (4)
     // Navigations: profile-settings, chat, stats, speaking, repeat, dictionary
-    
+
     // We pass the ID back to the parent to handle
     if (['home', 'words', 'sentences', 'practice'].contains(pageId)) {
-        widget.onTabChange(pageId);
+      widget.onTabChange(pageId);
     } else {
-        widget.onNavigate(pageId);
+      widget.onNavigate(pageId);
     }
   }
 
@@ -167,7 +177,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     final specialStart = _mix(theme.colors.primary, theme.colors.accent, 0.45);
     final specialEnd = theme.colors.accent;
 
-    return Drawer( // Wrapped in Drawer to work with Scaffold.drawer
+    return Drawer(
+      // Wrapped in Drawer to work with Scaffold.drawer
       backgroundColor: Colors.transparent,
       elevation: 0,
       width: 320, // As per prompt container width
@@ -191,7 +202,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
           children: [
             // Layer 2: Animated effects
             _buildAnimatedEffects(),
-            
+
             // Layer 3: Content
             Column(
               children: [
@@ -208,9 +219,9 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                       ),
                       const SizedBox(height: 6),
                       ...mainPages.map((page) => _buildMenuItemWrapper(page)),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Special Pages
                       _buildSectionHeader(
                         context.tr('nav.specialPages'),
@@ -218,7 +229,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                         specialEnd,
                       ),
                       const SizedBox(height: 6),
-                      ...specialPages.map((page) => _buildMenuItemWrapper(page)),
+                      ...specialPages
+                          .map((page) => _buildMenuItemWrapper(page)),
                     ],
                   ),
                 ),
@@ -232,33 +244,33 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   }
 
   Widget _buildMenuItemWrapper(MenuItemData page) {
-      final theme = _currentTheme(listen: true);
-      // Determine if active
-      bool isActive = false;
-      if (['home', 'words', 'sentences', 'practice'].contains(page.id)) {
-          isActive = widget.activeTab == page.id;
-      } else {
-          isActive = widget.currentPage == page.id;
-      }
-      
-      // Colors based on section
-      final bool isSpecial = specialPages.contains(page);
-      
-      return _buildMenuItem(
-        item: page,
-        isActive: isActive,
-        onTap: () => _handleNavigation(page.id),
-        activeStartColor: isSpecial
-            ? _mix(theme.colors.primary, theme.colors.accent, 0.45)
-            : _mix(theme.colors.accent, theme.colors.primary, 0.20),
-        activeEndColor: isSpecial ? theme.colors.accent : theme.colors.primary,
-        iconColor: isSpecial
-            ? _mix(theme.colors.accent, Colors.white, 0.18)
-            : _mix(theme.colors.primary, Colors.white, 0.18),
-        shadowColor: isSpecial
-            ? theme.colors.accentGlow.withOpacity(0.45)
-            : theme.colors.accentGlow.withOpacity(0.35),
-      );
+    final theme = _currentTheme(listen: true);
+    // Determine if active
+    bool isActive = false;
+    if (['home', 'words', 'sentences', 'practice'].contains(page.id)) {
+      isActive = widget.activeTab == page.id;
+    } else {
+      isActive = widget.currentPage == page.id;
+    }
+
+    // Colors based on section
+    final bool isSpecial = specialPages.contains(page);
+
+    return _buildMenuItem(
+      item: page,
+      isActive: isActive,
+      onTap: () => _handleNavigation(page.id),
+      activeStartColor: isSpecial
+          ? _mix(theme.colors.primary, theme.colors.accent, 0.45)
+          : _mix(theme.colors.accent, theme.colors.primary, 0.20),
+      activeEndColor: isSpecial ? theme.colors.accent : theme.colors.primary,
+      iconColor: isSpecial
+          ? _mix(theme.colors.accent, Colors.white, 0.18)
+          : _mix(theme.colors.primary, Colors.white, 0.18),
+      shadowColor: isSpecial
+          ? theme.colors.accentGlow.withOpacity(0.45)
+          : theme.colors.accentGlow.withOpacity(0.35),
+    );
   }
 
   Widget _buildAnimatedEffects() {
@@ -285,7 +297,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
         final opacity = 0.3 + 0.3 * sin(value * 2 * pi);
         final offsetX = 20 * sin(value * 2 * pi);
         final offsetY = -30 * cos(value * 2 * pi);
-        
+
         return Positioned(
           left: index * 30.0 * 3.2 + offsetX,
           top: index * 40.0 * 6 + offsetY,
@@ -301,8 +313,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   gradient: RadialGradient(
                     colors: [
                       index % 2 == 0
-                        ? theme.colors.orbColor1.withOpacity(0.18)
-                        : theme.colors.orbColor2.withOpacity(0.18),
+                          ? theme.colors.orbColor1.withOpacity(0.18)
+                          : theme.colors.orbColor2.withOpacity(0.18),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.7],
@@ -320,18 +332,18 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     final theme = _currentTheme(listen: true);
     final size = 2.0 + Random().nextDouble() * 3;
     final initialX = Random().nextDouble() * 320;
-    
+
     return AnimatedBuilder(
       animation: _rainControllers[index],
       builder: (context, child) {
         final value = _rainControllers[index].value;
         final yPos = -20 + (800 * value);
-        final opacity = value < 0.2 
-          ? value / 0.2 
-          : value > 0.8 
-            ? (1 - value) / 0.2 
-            : 1.0;
-        
+        final opacity = value < 0.2
+            ? value / 0.2
+            : value > 0.8
+                ? (1 - value) / 0.2
+                : 1.0;
+
         return Positioned(
           left: initialX,
           top: yPos,
@@ -371,14 +383,14 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     final theme = _currentTheme(listen: true);
     final left = Random().nextDouble() * 320;
     final top = Random().nextDouble() * 800;
-    
+
     return AnimatedBuilder(
       animation: _sparkleControllers[index],
       builder: (context, child) {
         final value = _sparkleControllers[index].value;
         final scale = value < 0.5 ? value * 3 : (1 - value) * 3;
         final opacity = value < 0.5 ? value * 2 : (1 - value) * 2;
-        
+
         return Positioned(
           left: left,
           top: top,
@@ -411,7 +423,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
   Widget _buildHeader() {
     final theme = _currentTheme(listen: true);
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 56, 18, 20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         border: Border(
@@ -427,18 +439,15 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 58,
+                height: 58,
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      theme.colors.accent,
-                      theme.colors.primary,
-                    ],
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colors.accent.withOpacity(0.28),
                   ),
-                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: theme.colors.accentGlow.withOpacity(0.45),
@@ -447,60 +456,24 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.emoji_events,
-                  color: Colors.white,
-                  size: 20,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/images/mainLogo.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.auto_awesome_rounded,
+                      color: theme.colors.accent,
+                      size: 26,
+                    ),
+                  ),
                 ),
               ),
-              
-              const SizedBox(width: 12),
-              
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: [
-                          _mix(theme.colors.accent, Colors.white, 0.22),
-                          theme.colors.primary,
-                        ],
-                      ).createShader(bounds),
-                      child: Text(
-                        context.tr('nav.title'),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          color: theme.colors.accent.withOpacity(0.7),
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.tr('nav.subtitle'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colors.accent.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
+              const Spacer(),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 20),
+                icon:
+                    const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 20),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.1),
                   shape: RoundedRectangleBorder(
@@ -578,24 +551,25 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       gradient: isActive
-                        ? LinearGradient(
-                            colors: [activeStartColor, activeEndColor],
-                          )
-                        : null,
+                          ? LinearGradient(
+                              colors: [activeStartColor, activeEndColor],
+                            )
+                          : null,
                       color: isActive ? null : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: isActive
-                        ? [
-                            BoxShadow(
-                              color: shadowColor,
-                              blurRadius: 16,
-                              spreadRadius: 0,
-                            ),
-                          ]
-                        : null,
+                          ? [
+                              BoxShadow(
+                                color: shadowColor,
+                                blurRadius: 16,
+                                spreadRadius: 0,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Row(
                       children: [
@@ -611,7 +585,9 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
-                              color: isActive ? Colors.white : const Color(0xCCFFFFFF),
+                              color: isActive
+                                  ? Colors.white
+                                  : const Color(0xCCFFFFFF),
                               fontFamily: 'Inter',
                             ),
                           ),
@@ -641,7 +617,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
       builder: (context, value, child) {
         final scale = 1.0 + 0.2 * sin(value * 2 * pi);
         final opacity = 0.7 + 0.3 * sin(value * 2 * pi);
-        
+
         return Transform.scale(
           scale: scale,
           child: Opacity(
@@ -721,4 +697,3 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     );
   }
 }
-

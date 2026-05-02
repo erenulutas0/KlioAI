@@ -80,6 +80,10 @@ class _AIBotChatPageState extends State<AIBotChatPage>
   // Floating particles animation
   late AnimationController _particleController;
 
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   @override
   void initState() {
     super.initState();
@@ -194,7 +198,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           // Zaten seçiliyse standart hoşgeldin mesajı
           if (_messages.isEmpty) {
             _addBotMessage(
-              'Tekrar merhaba! Ben ${_selectedVoice?.name ?? 'AI Bot'}. İngilizce pratiğine kaldığımız yerden devam edelim mi? 👋',
+              _text(
+                  'Tekrar merhaba! Ben ${_selectedVoice?.name ?? 'AI Bot'}. Ingilizce pratigine kaldigimiz yerden devam edelim mi?',
+                  'Welcome back! I am ${_selectedVoice?.name ?? 'AI Bot'}. Shall we continue your English practice from where you left off?'),
             );
           }
         }
@@ -228,7 +234,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
         // Yeni karakterin hoşgeldin mesajı
         _addBotMessage(
-          'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksanıyla konuşacağım için çok heyecanlıyım! Hadi başlayalım. 🚀',
+          _text(
+              'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksaniyla konusacagim icin cok heyecanliyim. Hadi baslayalim.',
+              'Hi! I am ${voice.name}. I am excited to practice with you in a ${voice.accent} accent. Let us get started.'),
           speak: true,
         );
       }
@@ -401,14 +409,17 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
         final errorText = e.toString();
         // User-friendly connection error message
-        String errorMsg =
-            'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+        String errorMsg = _text(
+            'Baglanti hatasi. Internet baglantinizi kontrol edip tekrar deneyin.',
+            'Connection error. Check your internet connection and try again.');
         if (errorText.contains('SocketException') ||
             errorText.contains('Failed host lookup')) {
-          errorMsg =
-              'İnternet bağlantısı yok. WiFi veya mobil veriyi kontrol et!';
+          errorMsg = _text(
+              'Internet baglantisi yok. Wi-Fi veya mobil veriyi kontrol et.',
+              'No internet connection. Check your Wi-Fi or mobile data.');
         } else if (errorText.contains('TimeoutException')) {
-          errorMsg = 'Sunucu yanıt vermiyor. Biraz sonra tekrar dene!';
+          errorMsg = _text('Sunucu yanit vermiyor. Biraz sonra tekrar dene.',
+              'The server is not responding. Please try again shortly.');
         }
         _addBotMessage(errorMsg);
       }
@@ -456,15 +467,21 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1e293b),
-        title: const Text('Yeni Sohbet', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Mevcut sohbeti temizleyip yeni bir konuşma başlamak istiyor musun?',
-          style: TextStyle(color: Colors.white70),
+        title: Text(
+          _text('Yeni Sohbet', 'New Chat'),
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          _text(
+              'Mevcut sohbeti temizleyip yeni bir konusma baslatmak istiyor musun?',
+              'Do you want to clear this conversation and start a new one?'),
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal', style: TextStyle(color: Colors.white54)),
+            child: Text(_text('Iptal', 'Cancel'),
+                style: const TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
@@ -475,11 +492,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 _activeScenarioName = null;
                 _activeScenarioContext = null;
               });
-              _addBotMessage(
-                  'Yeni bir sohbete başladık! Seninle konuşmak güzel. 😊');
+              _addBotMessage(_text(
+                  'Yeni bir sohbete basladik. Seninle konusmak guzel.',
+                  'We started a new chat. It is great to talk with you.'));
             },
-            child:
-                const Text('Evet', style: TextStyle(color: Color(0xFF0ea5e9))),
+            child: Text(_text('Evet', 'Yes'),
+                style: const TextStyle(color: Color(0xFF0ea5e9))),
           ),
         ],
       ),
@@ -492,7 +510,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       {
         'id': 'job_interview_followup',
         'name': 'Job Interview Follow-up',
-        'subtitle': 'Mülakat Sonrası Takip',
+        'subtitle':
+            _text('Mulakat Sonrasi Takip', 'Follow up after an interview'),
         'icon': Icons.business_center,
         'color': const Color(0xFF8b5cf6),
         'welcomeMessage':
@@ -501,7 +520,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       {
         'id': 'academic_presentation_qa',
         'name': 'Academic Presentation Q&A',
-        'subtitle': 'Akademik Sunum Soru-Cevap',
+        'subtitle':
+            _text('Akademik Sunum Soru-Cevap', 'Academic presentation Q&A'),
         'icon': Icons.school,
         'color': const Color(0xFF0ea5e9),
         'welcomeMessage':
@@ -510,7 +530,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       {
         'id': 'disagreement_colleague',
         'name': 'Disagreement with Colleague',
-        'subtitle': 'Meslektaşla Anlaşmazlık',
+        'subtitle':
+            _text('Meslektasla Anlasmazlik', 'Disagreement with a colleague'),
         'icon': Icons.people_outline,
         'color': const Color(0xFFf59e0b),
         'welcomeMessage':
@@ -519,7 +540,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       {
         'id': 'explaining_to_manager',
         'name': 'Explaining to Manager',
-        'subtitle': 'Yöneticiye Açıklama',
+        'subtitle':
+            _text('Yoneticiye Aciklama', 'Explain a situation to your manager'),
         'icon': Icons.person_outline,
         'color': const Color(0xFF10b981),
         'welcomeMessage':
@@ -564,12 +586,13 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       color: Color(0xFF0ea5e9), size: 24),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Konuşma Senaryosu Seç',
+                        _text('Konusma Senaryosu Sec',
+                            'Choose a Speaking Scenario'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -577,7 +600,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                         ),
                       ),
                       Text(
-                        'Profesyonel durumları pratik edin',
+                        _text('Profesyonel durumlari pratik edin',
+                            'Practice realistic professional situations'),
                         style: TextStyle(color: Colors.white54, fontSize: 12),
                       ),
                     ],
@@ -606,7 +630,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                         color: Color(0xFF22c55e), size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      'Aktif: $_activeScenarioName',
+                      '${_text('Aktif', 'Active')}: $_activeScenarioName',
                       style: const TextStyle(
                           color: Color(0xFF22c55e), fontSize: 12),
                     ),
@@ -723,12 +747,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             color: Colors.white70, size: 22),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Serbest Sohbet',
+                              _text('Serbest Sohbet', 'Free Chat'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -736,7 +760,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                               ),
                             ),
                             Text(
-                              'Normal konuşma pratiği',
+                              _text('Normal konusma pratigi',
+                                  'Standard speaking practice'),
                               style: TextStyle(
                                   color: Colors.white54, fontSize: 11),
                             ),
@@ -784,7 +809,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           children: [
             const Icon(Icons.theater_comedy, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            Expanded(child: Text('$scenarioName senaryosu başladı!')),
+            Expanded(
+                child: Text(_text('$scenarioName senaryosu basladi.',
+                    '$scenarioName scenario started.'))),
           ],
         ),
         backgroundColor: const Color(0xFF8b5cf6),
@@ -807,7 +834,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     });
 
     _addBotMessage(
-      'Serbest sohbete döndük! Ben ${_selectedVoice?.name ?? 'Amy'}. Ne hakkında konuşmak istersin? 😊',
+      _text(
+          'Serbest sohbete donduk! Ben ${_selectedVoice?.name ?? 'Amy'}. Ne hakkinda konusmak istersin?',
+          'We are back to free chat. I am ${_selectedVoice?.name ?? 'Amy'}. What would you like to talk about?'),
       speak: true,
     );
   }
@@ -849,8 +878,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sohbet kaydedildi! ✓'),
+          SnackBar(
+            content: Text(_text('Sohbet kaydedildi.', 'Conversation saved.')),
             backgroundColor: Color(0xFF22c55e),
             duration: Duration(seconds: 2),
           ),
@@ -907,8 +936,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 children: [
                   const Icon(Icons.history, color: Color(0xFF0ea5e9)),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Sohbet Geçmişi',
+                  Text(
+                    _text('Sohbet Gecmisi', 'Conversation History'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -917,7 +946,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   ),
                   const Spacer(),
                   Text(
-                    '${conversations.length} sohbet',
+                    _text('${conversations.length} sohbet',
+                        '${conversations.length} chats'),
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
@@ -927,9 +957,11 @@ class _AIBotChatPageState extends State<AIBotChatPage>
             // List
             Expanded(
               child: conversations.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Henüz kayıtlı sohbet yok.\nBir sohbeti kaydetmek için 💾 butonuna bas.',
+                        _text(
+                            'Henuz kayitli sohbet yok.\nBir sohbeti kaydetmek icin kaydet butonuna bas.',
+                            'No saved conversations yet.\nTap the save button to keep a chat.'),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.white38),
                       ),
@@ -946,7 +978,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             conv['messages'] as List<dynamic>? ?? [];
                         final firstUserMsg = messages.firstWhere(
                           (m) => m['isBot'] == false,
-                          orElse: () => {'text': 'Sohbet'},
+                          orElse: () =>
+                              {'text': _text('Sohbet', 'Conversation')},
                         );
 
                         return Dismissible(
@@ -980,7 +1013,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                                     color: Colors.white, fontSize: 14),
                               ),
                               subtitle: Text(
-                                '${conv['voiceName']} • ${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')} • ${conv['messageCount']} mesaj',
+                                _text(
+                                    '${conv['voiceName']} • ${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')} • ${conv['messageCount']} mesaj',
+                                    '${conv['voiceName']} • ${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')} • ${conv['messageCount']} messages'),
                                 style: const TextStyle(
                                     color: Colors.white38, fontSize: 11),
                               ),
@@ -1021,7 +1056,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${conv['voiceName']} ile sohbet yüklendi'),
+        content: Text(_text('${conv['voiceName']} ile sohbet yuklendi',
+            'Conversation with ${conv['voiceName']} loaded.')),
         backgroundColor: const Color(0xFF0ea5e9),
         duration: const Duration(seconds: 2),
       ),
@@ -1039,8 +1075,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sohbet silindi'),
+        SnackBar(
+          content: Text(_text('Sohbet silindi', 'Conversation deleted.')),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 1),
         ),
@@ -1105,8 +1141,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mikrofon izni gerekli.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_text('Mikrofon izni gerekli.',
+                'Microphone permission is required.'))));
       }
       return;
     }
@@ -1152,7 +1189,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ses algılama başlatılamadı.')),
+            SnackBar(
+                content: Text(_text('Ses algilama baslatilamadi.',
+                    'Voice recognition could not be started.'))),
           );
         }
       }
@@ -1295,9 +1334,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                         _activeScenario != null
                             ? '$_activeScenarioName'
                             : (_selectedVoice != null
-                                ? '${_selectedVoice!.accent} • Sohbete hazır'
+                                ? _text(
+                                    '${_selectedVoice!.accent} • Sohbete hazir',
+                                    '${_selectedVoice!.accent} • Ready to chat')
                                 : (_ttsAvailable
-                                    ? 'Online - Sesli cevap aktif'
+                                    ? _text('Online - Sesli cevap aktif',
+                                        'Online - Voice replies enabled')
                                     : 'Online - Ready to chat')),
                         style: TextStyle(
                           color: _activeScenario != null
@@ -1342,14 +1384,15 @@ class _AIBotChatPageState extends State<AIBotChatPage>
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'new',
                 child: Row(
                   children: [
                     Icon(Icons.add_circle_outline,
                         color: Colors.white54, size: 20),
                     SizedBox(width: 12),
-                    Text('Yeni Sohbet', style: TextStyle(color: Colors.white)),
+                    Text(_text('Yeni Sohbet', 'New Chat'),
+                        style: const TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -1364,7 +1407,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             : Colors.white24,
                         size: 20),
                     const SizedBox(width: 12),
-                    Text('Sohbeti Kaydet',
+                    Text(_text('Sohbeti Kaydet', 'Save Conversation'),
                         style: TextStyle(
                             color: _messages.isNotEmpty
                                 ? Colors.white
@@ -1372,25 +1415,25 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'history',
                 child: Row(
                   children: [
                     Icon(Icons.history, color: Colors.white54, size: 20),
                     SizedBox(width: 12),
-                    Text('Sohbet Geçmişi',
+                    Text(_text('Sohbet Gecmisi', 'Conversation History'),
                         style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'voice',
                 child: Row(
                   children: [
                     Icon(Icons.record_voice_over,
                         color: Colors.white54, size: 20),
                     SizedBox(width: 12),
-                    Text('Konuşmacı Değiştir',
+                    Text(_text('Konusmaci Degistir', 'Change Speaker'),
                         style: TextStyle(color: Colors.white)),
                   ],
                 ),
@@ -1409,8 +1452,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                     const SizedBox(width: 12),
                     Text(
                       _activeScenario != null
-                          ? 'Senaryo: $_activeScenarioName'
-                          : 'Senaryo Seç',
+                          ? '${_text('Senaryo', 'Scenario')}: $_activeScenarioName'
+                          : _text('Senaryo Sec', 'Choose Scenario'),
                       style: TextStyle(
                         color: _activeScenario != null
                             ? const Color(0xFF8b5cf6)
@@ -1435,8 +1478,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                     const SizedBox(width: 12),
                     Text(
                         _blurBotMessages
-                            ? 'Metni Göster'
-                            : 'Metni Gizle (Dinleme)',
+                            ? _text('Metni Goster', 'Show Text')
+                            : _text('Metni Gizle (Dinleme)',
+                                'Hide Text (Listening)'),
                         style: const TextStyle(color: Colors.white)),
                   ],
                 ),
@@ -1609,14 +1653,14 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                                 color: Colors.black38,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.touch_app,
                                       color: Colors.white70, size: 14),
                                   SizedBox(width: 4),
                                   Text(
-                                    'Görmek için dokun',
+                                    _text('Gormek icin dokun', 'Tap to reveal'),
                                     style: TextStyle(
                                         color: Colors.white70, fontSize: 11),
                                   ),
@@ -1858,7 +1902,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _autoSendMode ? 'Otomatik' : 'Manuel',
+                        _autoSendMode
+                            ? _text('Otomatik', 'Automatic')
+                            : _text('Manuel', 'Manual'),
                         style: TextStyle(
                           color: _autoSendMode
                               ? const Color(0xFF22c55e)
@@ -1874,8 +1920,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
               const SizedBox(width: 12),
               Text(
                 _autoSendMode
-                    ? 'Sessizlikte otomatik gönderir'
-                    : 'Sen gönder butonuna bas',
+                    ? _text('Sessizlikte otomatik gonderir',
+                        'Sends automatically after silence')
+                    : _text('Sen gonder butonuna bas', 'Tap send manually'),
                 style: const TextStyle(
                   color: Colors.white38,
                   fontSize: 11,
@@ -1950,4 +1997,3 @@ class ParticlesPainter extends CustomPainter {
     return oldDelegate.animationValue != animationValue;
   }
 }
-

@@ -9,13 +9,15 @@ import '../services/api_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
-import '../services/xp_manager.dart'; 
+import '../services/xp_manager.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
 
 class RepeatPage extends StatefulWidget {
-  const RepeatPage({super.key});
+  const RepeatPage({super.key, this.initialWordId});
+
+  final int? initialWordId;
 
   @override
   State<RepeatPage> createState() => _RepeatPageState();
@@ -49,7 +51,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
 
   AppThemeConfig _theme({bool listen = false}) {
     try {
-      return Provider.of<ThemeProvider?>(context, listen: listen)?.currentTheme ??
+      return Provider.of<ThemeProvider?>(context, listen: listen)
+              ?.currentTheme ??
           VocabThemes.defaultTheme;
     } catch (_) {
       return VocabThemes.defaultTheme;
@@ -67,15 +70,32 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     _initTts();
 
     // Initialize controllers
-    _iconController = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _rotationController = AnimationController(duration: const Duration(milliseconds: 300), vsync: this);
-    _orb1Controller = AnimationController(duration: const Duration(seconds: 6), vsync: this)..repeat(reverse: true);
-    _orb2Controller = AnimationController(duration: const Duration(seconds: 8), vsync: this)..repeat(reverse: true);
-    _orb3Controller = AnimationController(duration: const Duration(seconds: 10), vsync: this)..repeat(reverse: true);
-    _shimmerController = AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat();
+    _iconController = AnimationController(
+        duration: const Duration(milliseconds: 800), vsync: this);
+    _rotationController = AnimationController(
+        duration: const Duration(milliseconds: 300), vsync: this);
+    _orb1Controller =
+        AnimationController(duration: const Duration(seconds: 6), vsync: this)
+          ..repeat(reverse: true);
+    _orb2Controller =
+        AnimationController(duration: const Duration(seconds: 8), vsync: this)
+          ..repeat(reverse: true);
+    _orb3Controller =
+        AnimationController(duration: const Duration(seconds: 10), vsync: this)
+          ..repeat(reverse: true);
+    _shimmerController =
+        AnimationController(duration: const Duration(seconds: 2), vsync: this)
+          ..repeat();
 
-    _statsAnimations = List.generate(2, (i) => AnimationController(duration: const Duration(milliseconds: 500), vsync: this));
-    _particleControllers = List.generate(5, (i) => AnimationController(duration: const Duration(seconds: 3), vsync: this)..repeat());
+    _statsAnimations = List.generate(
+        2,
+        (i) => AnimationController(
+            duration: const Duration(milliseconds: 500), vsync: this));
+    _particleControllers = List.generate(
+        5,
+        (i) => AnimationController(
+            duration: const Duration(seconds: 3), vsync: this)
+          ..repeat());
 
     // Start animations
     _iconController.forward();
@@ -86,8 +106,12 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     try {
       final loadedWords = await _apiService.getAllWords();
       if (mounted) {
+        final initialIndex = widget.initialWordId == null
+            ? 0
+            : loadedWords.indexWhere((word) => word.id == widget.initialWordId);
         setState(() {
           words = loadedWords;
+          _currentIndex = initialIndex >= 0 ? initialIndex : 0;
           isLoading = false;
         });
       }
@@ -113,7 +137,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) _statsAnimations[0].forward();
     });
-    Future.delayed(const Duration(milliseconds: 400), () { 
+    Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _statsAnimations[1].forward();
     });
   }
@@ -144,11 +168,14 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     // XP ekle
     if (!mounted) return;
     final appState = context.read<AppStateProvider>();
-    await appState.addXPForAction(XPActionTypes.reviewComplete, source: 'Tekrar');
+    await appState.addXPForAction(XPActionTypes.reviewComplete,
+        source: 'Tekrar');
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Öğrenildi olarak işaretlendi! (+5 XP)'), duration: Duration(milliseconds: 800)),
+      const SnackBar(
+          content: Text('Öğrenildi olarak işaretlendi! (+5 XP)'),
+          duration: Duration(milliseconds: 800)),
     );
     _handleNext();
   }
@@ -246,7 +273,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
 
           // Orbs
           _buildAnimatedOrb(_orb1Controller, top: 80, left: 40),
-          _buildAnimatedOrb(_orb2Controller, top: MediaQuery.of(context).size.height / 3, right: 40),
+          _buildAnimatedOrb(_orb2Controller,
+              top: MediaQuery.of(context).size.height / 3, right: 40),
           _buildAnimatedOrb(_orb3Controller, bottom: 160),
 
           // Main View Column (No Scroll)
@@ -257,7 +285,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                 // Flashcard Area - Expands to fill available space
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: _buildFlashcard(currentCard),
                   ),
                 ),
@@ -271,7 +300,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAnimatedOrb(AnimationController controller, {double? top, double? bottom, double? left, double? right}) {
+  Widget _buildAnimatedOrb(AnimationController controller,
+      {double? top, double? bottom, double? left, double? right}) {
     final theme = _theme(listen: true);
     return Positioned(
       top: top,
@@ -322,10 +352,11 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white.withOpacity(0.2)),
                   ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                  child: const Icon(Icons.arrow_back,
+                      color: Colors.white, size: 20),
                 ),
               ),
-              
+
               // Title
               Column(
                 children: [
@@ -346,7 +377,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              
+
               // Refresh Button
               AnimatedBuilder(
                 animation: _rotationController,
@@ -354,11 +385,11 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   return Transform.rotate(
                     angle: _rotationController.value * math.pi,
                     child: IconButton(
-                       icon: const Icon(Icons.refresh, color: Colors.white),
-                       onPressed: () {
-                         _rotationController.forward(from: 0);
-                         _loadWords();
-                       },
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      onPressed: () {
+                        _rotationController.forward(from: 0);
+                        _loadWords();
+                      },
                     ),
                   );
                 },
@@ -366,7 +397,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Stats Pills
           Row(
             children: [
@@ -396,7 +427,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatsPill(int index, {required IconData icon, required String label, required List<Color> gradient}) {
+  Widget _buildStatsPill(int index,
+      {required IconData icon,
+      required String label,
+      required List<Color> gradient}) {
     return Expanded(
       child: SlideTransition(
         position: Tween<Offset>(
@@ -508,11 +542,12 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 24),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                           // Accent Line
+                          // Accent Line
                           Container(
                             height: 4,
                             width: 120,
@@ -521,13 +556,14 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                 colors: [
                                   theme.colors.accent,
                                   theme.colors.primary,
-                                  _mix(theme.colors.primary, theme.colors.accent, 0.5),
+                                  _mix(theme.colors.primary,
+                                      theme.colors.accent, 0.5),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          
+
                           // Top Section: Badge & Speaker
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -535,7 +571,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
@@ -563,7 +600,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.volume_up, color: Colors.white),
+                                  icon: const Icon(Icons.volume_up,
+                                      color: Colors.white),
                                   style: IconButton.styleFrom(
                                     backgroundColor:
                                         theme.colors.primary.withOpacity(0.45),
@@ -574,7 +612,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                               ],
                             ),
                           ),
-                          
+
                           // Word Display (Variable Size) - Scrollable
                           Expanded(
                             flex: 3,
@@ -586,17 +624,21 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                     Text(
                                       card.englishWord,
                                       style: TextStyle(
-                                        fontSize: _getWordFontSize(card.englishWord),
+                                        fontSize:
+                                            _getWordFontSize(card.englishWord),
                                         fontWeight: FontWeight.bold,
                                         height: 1.1,
                                         foreground: Paint()
                                           ..shader = LinearGradient(
                                             colors: [
-                                              _mix(theme.colors.accent, Colors.white, 0.2),
+                                              _mix(theme.colors.accent,
+                                                  Colors.white, 0.2),
                                               theme.colors.primaryLight,
-                                              _mix(theme.colors.primary, theme.colors.accent, 0.45),
+                                              _mix(theme.colors.primary,
+                                                  theme.colors.accent, 0.45),
                                             ],
-                                          ).createShader(const Rect.fromLTWH(0, 0, 300, 70)),
+                                          ).createShader(const Rect.fromLTWH(
+                                              0, 0, 300, 70)),
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -604,8 +646,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                     Text(
                                       card.turkishMeaning,
                                       style: TextStyle(
-                                        color: const Color(0xFFE0F2FE).withOpacity(0.8),
-                                        fontSize: _getMeaningFontSize(card.turkishMeaning),
+                                        color: const Color(0xFFE0F2FE)
+                                            .withOpacity(0.8),
+                                        fontSize: _getMeaningFontSize(
+                                            card.turkishMeaning),
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -614,7 +658,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-                          
+
                           // Example Box (Flexible & Scrollable)
                           if (card.sentences.isNotEmpty)
                             Expanded(
@@ -625,9 +669,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                             )
                           else
                             const Spacer(flex: 2),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Action Buttons
                           _buildActionButtons(),
                         ],
@@ -636,11 +680,11 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              
+
               // Particles
-               ...List.generate(5, (i) {
+              ...List.generate(5, (i) {
                 return Positioned(
-                  bottom: 40, 
+                  bottom: 40,
                   left: 20.0 + (i * 40),
                   child: AnimatedBuilder(
                     animation: _particleControllers[i],
@@ -679,11 +723,14 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     return 22.0;
   }
 
-
   Widget _buildExampleBox(Word card) {
     final theme = _theme(listen: true);
-    final example = card.sentences.isNotEmpty ? card.sentences.first.sentence : 'No example sentence';
-    final exampleTr = card.sentences.isNotEmpty ? card.sentences.first.translation : 'Çeviri yok';
+    final example = card.sentences.isNotEmpty
+        ? card.sentences.first.sentence
+        : 'No example sentence';
+    final exampleTr = card.sentences.isNotEmpty
+        ? card.sentences.first.translation
+        : 'Çeviri yok';
 
     return ModernCard(
       padding: const EdgeInsets.all(16),
@@ -694,7 +741,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: constraints.maxHeight > 0 ? constraints.maxHeight : 0,
+                minHeight:
+                    constraints.maxHeight > 0 ? constraints.maxHeight : 0,
               ),
               child: IntrinsicHeight(
                 child: Column(
@@ -712,7 +760,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     ),
                     if (_showTranslation) ...[
                       const SizedBox(height: 8),
-                      Container(height: 1, color: Colors.white.withOpacity(0.1)),
+                      Container(
+                          height: 1, color: Colors.white.withOpacity(0.1)),
                       const SizedBox(height: 8),
                       Text(
                         exampleTr,
@@ -723,7 +772,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                         textAlign: TextAlign.center,
                       ),
                     ] else ...[
-                       const SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       GestureDetector(
                         onTap: () => setState(() => _showTranslation = true),
                         child: Text(
@@ -763,7 +812,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEC4899).withOpacity(0.3)),
+                  border: Border.all(
+                      color: const Color(0xFFEC4899).withOpacity(0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -817,7 +867,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   children: [
                     Icon(
                       _learnPressed ? Icons.star : Icons.star_border,
-                      color: _learnPressed ? const Color(0xFFFDE047) : Colors.white,
+                      color: _learnPressed
+                          ? const Color(0xFFFDE047)
+                          : Colors.white,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
@@ -871,9 +923,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     child: Text(
                       'Önceki',
                       style: TextStyle(
-                         color: Colors.white,
-                         fontSize: 16,
-                         fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -927,4 +979,3 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     );
   }
 }
-

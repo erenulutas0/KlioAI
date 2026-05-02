@@ -115,7 +115,12 @@ class AppStateProvider extends ChangeNotifier {
 
   List<Word> get allWords => _allWords;
   List<SentenceViewModel> get allSentences => _allSentences;
-  List<Map<String, dynamic>> get dailyWords => _dailyWords;
+  List<Map<String, dynamic>> get dailyWords {
+    final usableWords = _sanitizeDailyWords(_dailyWords);
+    if (usableWords.isNotEmpty) return usableWords;
+    final todayDate = DateTime.now().toIso8601String().split('T')[0];
+    return _buildOfflineDailyWords(todayDate);
+  }
 
   // ═══════════════════════════════════════════════════════════════
   // INITIALIZATION - Uygulama açılışında çağrılır (HIZLI)
@@ -588,7 +593,7 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
 
     Future(() async {
-      await _hydrateSignedInUserState(forceDailyWordsRefresh: false);
+      await _hydrateSignedInUserState(forceDailyWordsRefresh: true);
     });
   }
 
@@ -619,6 +624,50 @@ class AppStateProvider extends ChangeNotifier {
     await _loadWords();
     await _loadSentencesFromLocal();
     await _loadUserData();
+  }
+
+  /// Word Galaxy ve benzeri akislardan SRS review submit et.
+  Future<Word?> submitWordReview({
+    required int wordId,
+    required int quality,
+  }) async {
+    try {
+      final updatedWord = await _apiService.submitWordReview(
+        wordId: wordId,
+        quality: quality,
+      );
+
+      await _localDb.saveWord(updatedWord);
+
+      final index = _allWords.indexWhere((w) => w.id == wordId);
+      if (index != -1) {
+        _allWords[index] = updatedWord;
+      }
+
+      if (_allSentences.isNotEmpty) {
+        _allSentences = _allSentences.map((sentenceVm) {
+          if (sentenceVm.word?.id != wordId) {
+            return sentenceVm;
+          }
+          return SentenceViewModel(
+            id: sentenceVm.id,
+            sentence: sentenceVm.sentence,
+            translation: sentenceVm.translation,
+            difficulty: sentenceVm.difficulty,
+            word: updatedWord,
+            isPractice: sentenceVm.isPractice,
+            date: sentenceVm.date,
+          );
+        }).toList();
+      }
+
+      await _loadUserData();
+      notifyListeners();
+      return updatedWord;
+    } catch (e) {
+      debugPrint('Error submitting word review: $e');
+      return null;
+    }
   }
 
   /// Kelime ekle - ve listeyi güncelle
@@ -979,8 +1028,8 @@ class AppStateProvider extends ChangeNotifier {
           targetTranslationKey = norm(matched.translation);
           effectiveWordId = w.id;
           targetWordEnglish = w.englishWord;
-          final hasAnother = w.sentences.any(
-              (s) => s.id != sentenceId && norm(s.sentence) == targetSentenceKey);
+          final hasAnother = w.sentences.any((s) =>
+              s.id != sentenceId && norm(s.sentence) == targetSentenceKey);
           if (hasAnother) shouldDeductXp = false;
           break;
         } catch (_) {}
@@ -1031,8 +1080,9 @@ class AppStateProvider extends ChangeNotifier {
             difficulty: 'easy',
             sentences: const []),
       );
-      targetWordEnglish ??=
-          (effectiveWord.englishWord.isNotEmpty ? effectiveWord.englishWord : null);
+      targetWordEnglish ??= (effectiveWord.englishWord.isNotEmpty
+          ? effectiveWord.englishWord
+          : null);
 
       bool matchesTargetWord(SentenceViewModel vm) {
         final vmWord = vm.word;
@@ -1114,7 +1164,8 @@ class AppStateProvider extends ChangeNotifier {
         final contentKey = (sentenceKey != null && sentenceKey.isNotEmpty)
             ? '$sentenceKey|${targetTranslationKey ?? ''}'
             : 'id:$sentenceId';
-        final txId = 'deduct_sentence_${effectiveWordId}_${contentKey.hashCode}';
+        final txId =
+            'deduct_sentence_${effectiveWordId}_${contentKey.hashCode}';
         await _xpManager.deductXP(5, 'Cümle silindi', transactionId: txId);
       }
 
@@ -1153,7 +1204,8 @@ class AppStateProvider extends ChangeNotifier {
         }
       }
       final targetSentence = targetVm != null ? norm(targetVm.sentence) : '';
-      final targetTranslation = targetVm != null ? norm(targetVm.translation) : '';
+      final targetTranslation =
+          targetVm != null ? norm(targetVm.translation) : '';
 
       final deleted = await _offlineSyncService
           .deletePracticeSentence(sentenceId.toString());
@@ -1180,7 +1232,8 @@ class AppStateProvider extends ChangeNotifier {
           ? '$targetSentence|$targetTranslation'
           : 'id:${sentenceId.toString()}';
       final txId = 'deduct_practice_${contentKey.hashCode}';
-      await _xpManager.deductXP(5, 'Pratik cümlesi silindi', transactionId: txId);
+      await _xpManager.deductXP(5, 'Pratik cümlesi silindi',
+          transactionId: txId);
 
       // UI state'i de güncelle
       final newTotalXp = await _xpManager.getTotalXP(forceRefresh: true);
@@ -1213,12 +1266,15 @@ class AppStateProvider extends ChangeNotifier {
       final cachedJson = prefs.getString('daily_words_cache');
 
       if (!forceRefresh && lastDate == todayDate && cachedJson != null) {
-        // Cache'den yükle
+        // Cache'den yükle; boş cache eski oturum/reinstall senaryosunda ekranı kilitlemesin.
         final List<dynamic> decoded = jsonDecode(cachedJson);
-        _dailyWords = decoded.cast<Map<String, dynamic>>();
-        _isLoadingDailyWords = false;
-        notifyListeners();
-        return;
+        final cachedWords = _sanitizeDailyWords(decoded);
+        if (cachedWords.isNotEmpty) {
+          _dailyWords = cachedWords;
+          _isLoadingDailyWords = false;
+          notifyListeners();
+          return;
+        }
       }
 
       // Yeni veri getir
@@ -1227,21 +1283,129 @@ class AppStateProvider extends ChangeNotifier {
         // Backward-compatible fallback (BYOK) for dev/offline environments.
         words = await GroqService.getDailyWords();
       }
-
-      if (words.isNotEmpty) {
-        _dailyWords = words;
-        // Cache'e kaydet
-        await prefs.setString('daily_words_date', todayDate);
-        await prefs.setString('daily_words_cache', jsonEncode(words));
+      words = _sanitizeDailyWords(words);
+      if (words.isEmpty) {
+        words = _buildOfflineDailyWords(todayDate);
       }
+
+      _dailyWords = words;
+      // Cache'e kaydet
+      await prefs.setString('daily_words_date', todayDate);
+      await prefs.setString('daily_words_cache', jsonEncode(words));
 
       _isLoadingDailyWords = false;
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading daily words: $e');
+      final todayDate = DateTime.now().toIso8601String().split('T')[0];
+      _dailyWords = _buildOfflineDailyWords(todayDate);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('daily_words_date', todayDate);
+        await prefs.setString('daily_words_cache', jsonEncode(_dailyWords));
+      } catch (_) {}
       _isLoadingDailyWords = false;
       notifyListeners();
     }
+  }
+
+  List<Map<String, dynamic>> _sanitizeDailyWords(Iterable<dynamic> rawWords) {
+    return rawWords
+        .whereType<Map>()
+        .map((word) => Map<String, dynamic>.from(word))
+        .where((word) {
+      final english =
+          (word['word'] ?? word['englishWord'] ?? '').toString().trim();
+      return english.isNotEmpty;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _buildOfflineDailyWords(String dateKey) {
+    final seed = dateKey.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
+    final pool = <Map<String, dynamic>>[
+      {
+        'word': 'resilient',
+        'translation': 'dayanikli',
+        'definition': 'Able to recover quickly after difficulty.',
+        'exampleSentence': 'A resilient plan can survive unexpected changes.',
+        'exampleTranslation':
+            'Dayanikli bir plan beklenmeyen degisikliklere dayanabilir.',
+        'partOfSpeech': 'adjective',
+        'difficulty': 'medium',
+        'synonyms': ['flexible', 'strong'],
+      },
+      {
+        'word': 'clarify',
+        'translation': 'acikliga kavusturmak',
+        'definition': 'To make an idea or statement easier to understand.',
+        'exampleSentence': 'Can you clarify the main goal of the project?',
+        'exampleTranslation':
+            'Projenin ana hedefini acikliga kavusturabilir misin?',
+        'partOfSpeech': 'verb',
+        'difficulty': 'easy',
+        'synonyms': ['explain', 'simplify'],
+      },
+      {
+        'word': 'insight',
+        'translation': 'kavrayis',
+        'definition': 'A clear understanding of a person, situation, or idea.',
+        'exampleSentence': 'The chart gave us useful insight into user habits.',
+        'exampleTranslation':
+            'Grafik bize kullanici aliskanliklari hakkinda faydali kavrayis sagladi.',
+        'partOfSpeech': 'noun',
+        'difficulty': 'medium',
+        'synonyms': ['understanding', 'awareness'],
+      },
+      {
+        'word': 'adapt',
+        'translation': 'uyum saglamak',
+        'definition': 'To change so something works better in a new situation.',
+        'exampleSentence': 'Teams adapt faster when feedback is clear.',
+        'exampleTranslation':
+            'Geri bildirim net oldugunda ekipler daha hizli uyum saglar.',
+        'partOfSpeech': 'verb',
+        'difficulty': 'easy',
+        'synonyms': ['adjust', 'modify'],
+      },
+      {
+        'word': 'evaluate',
+        'translation': 'degerlendirmek',
+        'definition':
+            'To judge the value, quality, or importance of something.',
+        'exampleSentence': 'We evaluate each answer before saving it.',
+        'exampleTranslation': 'Her cevabi kaydetmeden once degerlendiririz.',
+        'partOfSpeech': 'verb',
+        'difficulty': 'medium',
+        'synonyms': ['assess', 'review'],
+      },
+      {
+        'word': 'consistent',
+        'translation': 'tutarli',
+        'definition': 'Acting or happening in the same reliable way over time.',
+        'exampleSentence':
+            'Consistent practice makes new words easier to remember.',
+        'exampleTranslation':
+            'Tutarli pratik yeni kelimeleri hatirlamayi kolaylastirir.',
+        'partOfSpeech': 'adjective',
+        'difficulty': 'easy',
+        'synonyms': ['steady', 'regular'],
+      },
+      {
+        'word': 'prioritize',
+        'translation': 'oncelik vermek',
+        'definition': 'To decide which tasks or ideas are most important.',
+        'exampleSentence': 'Prioritize the words you forget most often.',
+        'exampleTranslation': 'En sik unuttugun kelimelere oncelik ver.',
+        'partOfSpeech': 'verb',
+        'difficulty': 'medium',
+        'synonyms': ['rank', 'focus'],
+      },
+    ];
+
+    return List.generate(5, (index) {
+      final word = pool[(seed + index) % pool.length];
+      return Map<String, dynamic>.from(word);
+    });
   }
 
   /// Günün kelimelerini yenile
@@ -1444,4 +1608,3 @@ class AppStateProvider extends ChangeNotifier {
     return word.sentences.any((s) => s.sentence.trim().toLowerCase() == target);
   }
 }
-

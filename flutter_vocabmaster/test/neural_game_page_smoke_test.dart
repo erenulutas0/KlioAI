@@ -14,15 +14,17 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
+        locale: Locale('en'),
+        supportedLocales: [Locale('en'), Locale('tr')],
         home: NeuralGamePage(),
       ),
     );
 
-    expect(find.text('Neural Word Network'), findsOneWidget);
-    expect(find.text('Oyunu Baslat'), findsOneWidget);
+    expect(find.text('Neural Network'), findsOneWidget);
+    expect(find.text('Start Game'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Oyunu Baslat'));
-    await tester.tap(find.text('Oyunu Baslat'));
+    await tester.ensureVisible(find.text('Start Game'));
+    await tester.tap(find.text('Start Game'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
@@ -33,6 +35,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
-    expect(find.text('Neural Word Network'), findsOneWidget);
+    expect(find.text('Neural Network'), findsOneWidget);
   });
 }

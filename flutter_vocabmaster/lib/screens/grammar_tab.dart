@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../data/grammar_data.dart';
 import '../data/grammar_repository.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_catalog.dart';
+import '../theme/theme_provider.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import 'grammar_topic_detail_page.dart';
@@ -13,148 +18,160 @@ class GrammarTab extends StatefulWidget {
 }
 
 class _GrammarTabState extends State<GrammarTab> {
-  String _selectedFilter = 'Tümü'; // Tümü, Temel, İleri, Sınav
+  String _selectedFilter = 'all';
+
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
+  AppThemeConfig _currentTheme() {
+    try {
+      return Provider.of<ThemeProvider?>(context, listen: true)?.currentTheme ??
+          VocabThemes.defaultTheme;
+    } catch (_) {
+      return VocabThemes.defaultTheme;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selectedTheme = _currentTheme();
     final allTopics = GrammarRepository.getAllTopics();
     final topics = _filterTopics(allTopics);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header
         Padding(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 20),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: selectedTheme.colors.accent.withOpacity(0.12),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFF8b5cf6), // Purple
+                    color: selectedTheme.colors.accent,
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF8b5cf6).withOpacity(0.3),
+                      color: selectedTheme.colors.accentGlow.withOpacity(0.35),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
                   ],
                 ),
-                child: const Icon(Icons.menu_book_outlined, color: Colors.white, size: 24),
+                child: const Icon(
+                  Icons.menu_book_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Gramer Çalışma',
-                      style: TextStyle(
+                      _text('Gramer Calisma', 'Grammar Practice'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      'Konu anlatımları ve detaylı notlar',
-                      style: TextStyle(
+                      _text(
+                        'Konu anlatimlari ve detayli notlar',
+                        'Grammar notes and topic guides',
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
-
-        // Filter Chips
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 20),
           child: Row(
             children: [
-              _buildFilterChip('Tümü', null),
+              _buildFilterChip('all'),
               const SizedBox(width: 8),
-              _buildFilterChip('Temel (Core)', 'core'),
+              _buildFilterChip('core'),
               const SizedBox(width: 8),
-              _buildFilterChip('İleri (Adv)', 'advanced'),
+              _buildFilterChip('advanced'),
               const SizedBox(width: 8),
-              _buildFilterChip('Sınav (Exam)', 'exam'),
+              _buildFilterChip('exam'),
               const SizedBox(width: 8),
-              _buildFilterChip('Bonus', 'bonus'),
+              _buildFilterChip('bonus'),
             ],
           ),
         ),
-
-        // Topics Grid
         ...topics.map((topic) => _buildTopicCard(context, topic)),
-        
-        const SizedBox(height: 80), // Bottom padding
+        const SizedBox(height: 80),
       ],
     );
   }
 
   List<GrammarTopic> _filterTopics(List<GrammarTopic> all) {
-    if (_selectedFilter == 'Tümü') return all;
-    
-    String levelKey = '';
-    if (_selectedFilter.contains('Temel')) {
-      levelKey = 'core';
-    } else if (_selectedFilter.contains('İleri')) {
-      levelKey = 'advanced';
-    } else if (_selectedFilter.contains('Sınav')) {
-      levelKey = 'exam';
-    } else if (_selectedFilter == 'Bonus') {
-      levelKey = 'bonus';
-    }
-    
-    return all.where((t) => t.level == levelKey).toList();
+    if (_selectedFilter == 'all') return all;
+    return all.where((topic) => topic.level == _selectedFilter).toList();
   }
 
-  Widget _buildFilterChip(String label, String? levelKey) {
-    bool isSelected = false;
-    if (levelKey == null) {
-      isSelected = _selectedFilter == 'Tümü';
-    } else {
-      isSelected = _selectedFilter.contains(levelKey == 'core' ? 'Temel' : (levelKey == 'advanced' ? 'İleri' : (levelKey == 'exam' ? 'Sınav' : 'Bonus')));
+  String _filterLabel(String key) {
+    switch (key) {
+      case 'core':
+        return _text('Temel', 'Core');
+      case 'advanced':
+        return _text('Ileri', 'Advanced');
+      case 'exam':
+        return _text('Sinav', 'Exam');
+      case 'bonus':
+        return 'Bonus';
+      default:
+        return _text('Tumu', 'All');
     }
+  }
 
-    Color color = Colors.grey;
-    if(levelKey != null) {
-        color = GrammarLevelColors.getColor(levelKey);
-    } else {
-        color = Colors.blue; 
-    }
+  Widget _buildFilterChip(String key) {
+    final selectedTheme = _currentTheme();
+    final isSelected = _selectedFilter == key;
+    final accent = selectedTheme.colors.accent;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = label;
-        });
-      },
+      onTap: () => setState(() => _selectedFilter = key),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected
+              ? accent.withOpacity(0.18)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? color : Colors.white.withOpacity(0.1),
-            width: 1.5,
+            color: isSelected
+                ? accent.withOpacity(0.76)
+                : Colors.white.withOpacity(0.10),
+            width: 1.2,
           ),
         ),
         child: Text(
-          label,
+          _filterLabel(key),
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white60,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.white : Colors.white70,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
         ),
       ),
@@ -162,12 +179,15 @@ class _GrammarTabState extends State<GrammarTab> {
   }
 
   Widget _buildTopicCard(BuildContext context, GrammarTopic topic) {
+    final selectedTheme = _currentTheme();
     final subtopicCount = topic.subtopics.length;
-    final exampleCount = topic.subtopics.isNotEmpty && topic.subtopics[0].id != 'coming_soon' 
-      ? topic.subtopics.fold(0, (sum, sub) => sum + sub.examples.length) 
-      : 0;
-      
-    final isComingSoon = topic.subtopics.isNotEmpty && topic.subtopics[0].id == 'coming_soon';
+    final exampleCount =
+        topic.subtopics.isNotEmpty && topic.subtopics[0].id != 'coming_soon'
+            ? topic.subtopics.fold(0, (sum, sub) => sum + sub.examples.length)
+            : 0;
+    final isComingSoon =
+        topic.subtopics.isNotEmpty && topic.subtopics[0].id == 'coming_soon';
+    final accent = selectedTheme.colors.accent;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -175,7 +195,11 @@ class _GrammarTabState extends State<GrammarTab> {
         onTap: () {
           if (isComingSoon) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Bu içerik yakında eklenecek!'), duration: Duration(seconds: 1)),
+              SnackBar(
+                content:
+                    Text(_text('Bu icerik yakinda eklenecek!', 'Coming soon!')),
+                duration: const Duration(seconds: 1),
+              ),
             );
             return;
           }
@@ -194,26 +218,25 @@ class _GrammarTabState extends State<GrammarTab> {
           showGlow: false,
           child: Row(
             children: [
-              // Icon Box
               Container(
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: topic.color.withOpacity(0.1),
+                  color: accent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: topic.color.withOpacity(0.3)),
+                  border: Border.all(color: accent.withOpacity(0.32)),
                 ),
-                child: Icon(topic.icon, color: topic.color, size: 28),
+                child: Icon(topic.icon, color: accent, size: 28),
               ),
               const SizedBox(width: 16),
-              
-              // Text Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      topic.titleTr,
+                      _isTurkish ? topic.titleTr : topic.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -222,32 +245,39 @@ class _GrammarTabState extends State<GrammarTab> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      topic.title,
+                      _isTurkish ? topic.title : _filterLabel(topic.level),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: selectedTheme.colors.textSecondary
+                            .withOpacity(0.78),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              
-              // Badge
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isComingSoon ? Colors.grey.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                      color: isComingSoon
+                          ? Colors.white.withOpacity(0.05)
+                          : accent.withOpacity(0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isComingSoon ? 'Yakında' : '$subtopicCount Başlık',
+                      isComingSoon
+                          ? _text('Yakinda', 'Soon')
+                          : _text(
+                              '$subtopicCount Baslik', '$subtopicCount Topics'),
                       style: TextStyle(
-                        color: isComingSoon ? Colors.grey : Colors.white70, 
+                        color: isComingSoon ? Colors.white54 : Colors.white70,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -255,14 +285,22 @@ class _GrammarTabState extends State<GrammarTab> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '$exampleCount+ Örnek',
-                        style: TextStyle(color: topic.color.withOpacity(0.8), fontSize: 10),
+                        _text(
+                            '$exampleCount+ Ornek', '$exampleCount+ Examples'),
+                        style: TextStyle(
+                          color: accent.withOpacity(0.85),
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                 ],
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white30, size: 14),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: selectedTheme.colors.textSecondary.withOpacity(0.35),
+                size: 14,
+              ),
             ],
           ),
         ),
@@ -270,4 +308,3 @@ class _GrammarTabState extends State<GrammarTab> {
     );
   }
 }
-

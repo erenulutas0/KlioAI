@@ -29,7 +29,7 @@ class LevelAndLengthSection extends StatelessWidget {
         children: [
           Text(
             context.tr('practice.translation.levelLengthTitle'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -39,15 +39,15 @@ class LevelAndLengthSection extends StatelessWidget {
 
           Text(
             context.tr('practice.translation.levelLabel'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: Colors.white70,
             ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Level buttons grid
           SizedBox(
             height: 100,
@@ -64,12 +64,14 @@ class LevelAndLengthSection extends StatelessWidget {
                 final levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
                 final level = levels[index];
                 final isSelected = selectedLevel == level;
-                
+
                 return GestureDetector(
                   onTap: () => onLevelChanged(level),
                   child: ModernCard(
                     borderRadius: BorderRadius.circular(16),
-                    variant: isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
+                    variant: isSelected
+                        ? BackgroundVariant.accent
+                        : BackgroundVariant.secondary,
                     showGlow: isSelected,
                     padding: EdgeInsets.zero,
                     child: Center(
@@ -78,7 +80,8 @@ class LevelAndLengthSection extends StatelessWidget {
                         style: TextStyle(
                           color: isSelected ? Colors.white : Colors.white70,
                           fontSize: 16,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w600,
                         ),
                       ),
                     ),
@@ -87,20 +90,20 @@ class LevelAndLengthSection extends StatelessWidget {
               },
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           Text(
             context.tr('practice.translation.lengthLabel'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: Colors.white70,
             ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           _buildLengthOption(
             context: context,
             label: context.tr('practice.translation.length.short'),
@@ -134,7 +137,8 @@ class LevelAndLengthSection extends StatelessWidget {
       child: ModernCard(
         width: double.infinity,
         borderRadius: BorderRadius.circular(16),
-        variant: isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
+        variant:
+            isSelected ? BackgroundVariant.accent : BackgroundVariant.secondary,
         showGlow: isSelected,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         child: Row(
@@ -161,4 +165,3 @@ class LevelAndLengthSection extends StatelessWidget {
     );
   }
 }
-

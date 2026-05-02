@@ -14,6 +14,7 @@ import '../screens/quick_dictionary_page.dart';
 import '../screens/social_feed_page.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
+import '../services/locale_text_service.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -23,6 +24,9 @@ class StatsPage extends StatefulWidget {
 }
 
 class _StatsPageState extends State<StatsPage> {
+  bool get _isTurkish => LocaleTextService.isTurkish;
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+  List<String> get _dayNames => _isTurkish ? const ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'] : const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   final UserDataService _userDataService = UserDataService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   
@@ -148,7 +152,7 @@ class _StatsPageState extends State<StatsPage> {
                           child: _buildTopStatCard(
                             icon: Icons.menu_book,
                             value: (userStats['totalWords'] ?? 0).toString(),
-                            label: 'Toplam Kelime',
+                            label: _text('Toplam Kelime', 'Total Words'),
                             color: const Color(0xFF06b6d4),
                           ),
                         ),
@@ -157,7 +161,7 @@ class _StatsPageState extends State<StatsPage> {
                           child: _buildTopStatCard(
                             icon: Icons.local_fire_department,
                             value: (userStats['streak'] ?? 0).toString(),
-                            label: 'Gün Serisi',
+                            label: _text('Gün Serisi', 'Day Streak'),
                             color: const Color(0xFF06b6d4),
                           ),
                         ),
@@ -247,7 +251,7 @@ class _StatsPageState extends State<StatsPage> {
   Widget _buildWeeklyProgressCard(List<Map<String, dynamic>> weeklyActivity) {
     // Haftalık aktivite verilerinden bar chart data oluştur
     final weeklyData = weeklyActivity.asMap().entries.map((entry) {
-      final dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      final dayNames = _dayNames;
       final dayIndex = entry.key;
       final count = entry.value['count'] as int? ?? 0;
       return {
@@ -265,12 +269,12 @@ class _StatsPageState extends State<StatsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(Icons.calendar_today, color: Color(0xFF06b6d4), size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Haftalık İlerleme',
+                  _text('Haftalık İlerleme', 'Weekly Progress'),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -282,7 +286,7 @@ class _StatsPageState extends State<StatsPage> {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'Henüz veri yok',
+                _text('Henüz veri yok', 'No data yet'),
                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
               ),
             ),
@@ -301,12 +305,12 @@ class _StatsPageState extends State<StatsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.calendar_today, color: Color(0xFF06b6d4), size: 20),
               SizedBox(width: 8),
               Text(
-                'Haftalık İlerleme',
+                _text('Haftalık İlerleme', 'Weekly Progress'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -407,12 +411,12 @@ class _StatsPageState extends State<StatsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'XP Gelişimi',
+                  _text('XP Gelişimi', 'XP Progress'),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -424,7 +428,7 @@ class _StatsPageState extends State<StatsPage> {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'Henüz XP kazanılmadı',
+                _text('Henüz XP kazanılmadı', 'No XP earned yet'),
                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
               ),
             ),
@@ -443,12 +447,12 @@ class _StatsPageState extends State<StatsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
               SizedBox(width: 8),
               Text(
-                'XP Gelişimi',
+                _text('XP Gelişimi', 'XP Progress'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -477,7 +481,7 @@ class _StatsPageState extends State<StatsPage> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+                        final days = _dayNames;
                         if (value.toInt() >= 0 && value.toInt() < days.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
@@ -550,12 +554,12 @@ class _StatsPageState extends State<StatsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.emoji_events, color: Color(0xFF06b6d4), size: 20),
               SizedBox(width: 8),
               Text(
-                'Başarılar',
+                _text('Başarılar', 'Achievements'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,

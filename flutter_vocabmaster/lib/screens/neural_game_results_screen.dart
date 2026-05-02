@@ -32,6 +32,10 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
   int _bestScore = 0;
   bool _isNewBest = false;
 
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   @override
   void initState() {
     super.initState();
@@ -118,8 +122,8 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                             ),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Run Complete',
+                          Text(
+                            _text('Oturum Tamamlandi', 'Run Complete'),
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -128,7 +132,10 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Center word: ${widget.result.centerWord}',
+                            _text(
+                              'Merkez kelime: ${widget.result.centerWord}',
+                              'Center word: ${widget.result.centerWord}',
+                            ),
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.72),
                               fontSize: 14,
@@ -137,8 +144,14 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           const SizedBox(height: 4),
                           Text(
                             widget.result.mode.name == 'turkishTranslation'
-                                ? 'Mode: Turkce Karsilik'
-                                : 'Mode: Iliskili Kelime',
+                                ? _text(
+                                    'Mod: Turkce Karsilik',
+                                    'Mode: Turkish Meaning',
+                                  )
+                                : _text(
+                                    'Mod: Iliskili Kelime',
+                                    'Mode: Related Word',
+                                  ),
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.62),
                               fontSize: 12,
@@ -159,8 +172,9 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Discovered Words',
+                                Text(
+                                  _text('Kesfedilen Kelimeler',
+                                      'Discovered Words'),
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
@@ -206,7 +220,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                             child: ElevatedButton.icon(
                               onPressed: widget.onPlayAgain,
                               icon: const Icon(Icons.replay_rounded),
-                              label: const Text('Tekrar Oyna'),
+                              label: Text(_text('Tekrar Oyna', 'Play Again')),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: selectedTheme.colors.primary,
                                 foregroundColor: Colors.white,
@@ -221,7 +235,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           TextButton.icon(
                             onPressed: widget.onBackToMenu,
                             icon: const Icon(Icons.grid_view_rounded),
-                            label: const Text('Menuye Don'),
+                            label: Text(_text('Menuye Don', 'Back to Menu')),
                             style: TextButton.styleFrom(
                                 foregroundColor:
                                     selectedTheme.colors.textSecondary),
@@ -254,7 +268,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
         Expanded(
           child: _statCard(
             selectedTheme,
-            'Skor',
+            _text('Skor', 'Score'),
             widget.result.finalScore.toString(),
             selectedTheme.colors.accent,
           ),
@@ -263,7 +277,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
         Expanded(
           child: _statCard(
             selectedTheme,
-            'Kelime',
+            _text('Kelime', 'Words'),
             widget.result.totalWords.toString(),
             selectedTheme.colors.primary,
           ),
@@ -272,7 +286,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
         Expanded(
           child: _statCard(
             selectedTheme,
-            'Max Combo',
+            _text('Max Combo', 'Max Combo'),
             'x${widget.result.maxCombo}',
             selectedTheme.colors.primaryDark,
           ),
@@ -313,10 +327,12 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
               fontSize: 20,
             ),
           ),
-          if (label == 'Skor') ...[
+          if (label == _text('Skor', 'Score')) ...[
             const SizedBox(height: 2),
             Text(
-              _isNewBest ? 'New best' : 'Best: $_bestScore',
+              _isNewBest
+                  ? _text('Yeni en iyi skor', 'New best')
+                  : _text('En iyi: $_bestScore', 'Best: $_bestScore'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

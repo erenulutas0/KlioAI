@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_page.dart';
-import 'screens/repeat_page.dart';
 import 'screens/dictionary_page.dart';
 import 'screens/words_page.dart';
 import 'screens/sentences_page.dart';
@@ -22,12 +21,15 @@ import 'screens/notifications_page.dart';
 import 'screens/xp_history_page.dart';
 import 'screens/language_selection_page.dart';
 import 'screens/settings_page.dart';
+import 'screens/review_mode_selector_page.dart';
+import 'screens/support_tickets_page.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
 import 'widgets/matchmaking_banner.dart';
+import 'widgets/theme_side_tab.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/language_provider.dart';
 import 'l10n/app_localizations.dart';
@@ -46,6 +48,7 @@ void main() async {
   final offlineSyncService = OfflineSyncService();
   await offlineSyncService.initialize();
   final authService = AuthService();
+  await authService.enforceMandatorySessionResetIfNeeded();
   if (await authService.isLoggedIn()) {
     await offlineSyncService.initialDataLoad();
   }
@@ -90,7 +93,7 @@ void main() async {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: languageProvider),
       ],
-      child: const VocabMasterApp(),
+      child: const KlioAIApp(),
     ),
   );
 
@@ -98,8 +101,8 @@ void main() async {
   appStateProvider.initialize();
 }
 
-class VocabMasterApp extends StatelessWidget {
-  const VocabMasterApp({super.key});
+class KlioAIApp extends StatelessWidget {
+  const KlioAIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +110,7 @@ class VocabMasterApp extends StatelessWidget {
     final selectedLocale = context.watch<LanguageProvider>().locale;
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: context.tr('app.name'),
       debugShowCheckedModeBanner: false,
       locale: selectedLocale,
@@ -127,6 +131,9 @@ class VocabMasterApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: Colors.transparent,
         fontFamily: 'Inter',
+      ),
+      builder: (context, child) => ThemeSideTab(
+        child: child ?? const SizedBox.shrink(),
       ),
       home: const AppEntryGate(),
     );
@@ -181,8 +188,9 @@ class _MainScreenState extends State<MainScreen> {
         });
         break;
       case 'repeat':
-        // If repeat is requested from home, go to Practice tab (index 4)
-        setState(() => _currentIndex = 4);
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ReviewModeSelectorPage()),
+        );
         break;
       case 'dictionary':
         Navigator.of(context).push(
@@ -211,6 +219,11 @@ class _MainScreenState extends State<MainScreen> {
       case 'settings':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const SettingsPage()),
+        );
+        break;
+      case 'support':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SupportTicketsPage()),
         );
         break;
     }
@@ -365,7 +378,8 @@ class _MainScreenState extends State<MainScreen> {
                       current == code
                           ? Icons.radio_button_checked
                           : Icons.radio_button_unchecked,
-                      color: current == code ? Colors.cyanAccent : Colors.white70,
+                      color:
+                          current == code ? Colors.cyanAccent : Colors.white70,
                     ),
                     title: Text(
                       _localizedLanguageLabel(code),
@@ -522,7 +536,9 @@ class _MainScreenState extends State<MainScreen> {
               break;
             case 'repeat':
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RepeatPage()),
+                MaterialPageRoute(
+                  builder: (_) => const ReviewModeSelectorPage(),
+                ),
               );
               break;
             case 'dictionary':
@@ -607,4 +623,3 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 }
-

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import '../widgets/animated_background.dart';
 import '../widgets/info_dialog.dart';
 import '../models/word.dart';
@@ -15,10 +14,10 @@ import '../widgets/animated_ai_chat_card.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/level_and_length_section.dart';
-import 'subscription_page.dart';
 import '../providers/app_state_provider.dart';
 import 'grammar_tab.dart';
 import 'neural_game_page.dart';
+import 'word_galaxy_page.dart';
 import '../services/daily_practice_progress_service.dart';
 import '../services/app_market_config.dart';
 import '../services/ai_access_policy.dart';
@@ -44,6 +43,7 @@ class _PracticePageState extends State<PracticePage>
   static const String _modeSpeaking = 'speaking';
   static const String _modeExams = 'exams';
   static const String _modeNeural = 'neural';
+  static const String _modeWordGalaxy = 'word_galaxy';
 
   static const String _subModeSelect = 'select';
   static const String _subModeManual = 'manual';
@@ -93,6 +93,7 @@ class _PracticePageState extends State<PracticePage>
     if (AppMarketConfig.isExamModuleEnabled(locale)) {
       modes.add(_modeExams);
     }
+    modes.add(_modeWordGalaxy);
     modes.add(_modeNeural);
     return modes;
   }
@@ -109,6 +110,10 @@ class _PracticePageState extends State<PracticePage>
         return context.tr('practice.mode.speaking');
       case _modeExams:
         return context.tr('practice.mode.exams');
+      case _modeWordGalaxy:
+        return Localizations.localeOf(context).languageCode == 'tr'
+            ? 'Kelime Evreni'
+            : 'Word Galaxy';
       case _modeNeural:
         return context.tr('practice.mode.neural');
       default:
@@ -146,6 +151,10 @@ class _PracticePageState extends State<PracticePage>
       case 'sinavlar':
       case 'exams':
         return _modeExams;
+      case 'kelime evreni':
+      case 'word galaxy':
+      case 'word_galaxy':
+        return _modeWordGalaxy;
       case 'neural oyun':
       case 'neural':
         return _modeNeural;
@@ -340,7 +349,9 @@ class _PracticePageState extends State<PracticePage>
       GlobalState.isMatching.value = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(service.errorMessage ?? context.tr('common.error'))),
+          SnackBar(
+              content:
+                  Text(service.errorMessage ?? context.tr('common.error'))),
         );
       }
     }
@@ -425,15 +436,17 @@ class _PracticePageState extends State<PracticePage>
                     ),
                     child: Column(
                       children: [
-                        _buildDetailRow(
-                            context.tr('practice.wordDetail.level'),
+                        _buildDetailRow(context.tr('practice.wordDetail.level'),
                             word.difficulty.toUpperCase()),
                         const Divider(color: Colors.white10, height: 16),
-                        _buildDetailRow(context.tr('practice.wordDetail.addedDate'),
+                        _buildDetailRow(
+                            context.tr('practice.wordDetail.addedDate'),
                             word.learnedDate.toIso8601String().split('T')[0]),
                         if (word.notes != null && word.notes!.isNotEmpty) ...[
                           const Divider(color: Colors.white10, height: 16),
-                          _buildDetailRow(context.tr('practice.wordDetail.notes'), word.notes!),
+                          _buildDetailRow(
+                              context.tr('practice.wordDetail.notes'),
+                              word.notes!),
                         ],
                       ],
                     ),
@@ -527,8 +540,12 @@ class _PracticePageState extends State<PracticePage>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            selectedTheme.colors.accent.withOpacity(0.96),
-                            selectedTheme.colors.primary.withOpacity(0.96),
+                            _mix(selectedTheme.colors.background,
+                                    selectedTheme.colors.accent, 0.48)
+                                .withOpacity(0.92),
+                            _mix(selectedTheme.colors.background,
+                                    selectedTheme.colors.primary, 0.48)
+                                .withOpacity(0.92),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -537,7 +554,7 @@ class _PracticePageState extends State<PracticePage>
                         boxShadow: [
                           BoxShadow(
                             color: selectedTheme.colors.accentGlow
-                                .withOpacity(0.44),
+                                .withOpacity(0.22),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -548,7 +565,8 @@ class _PracticePageState extends State<PracticePage>
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.school, color: Colors.white, size: 28),
+                              const Icon(Icons.school,
+                                  color: Colors.white, size: 28),
                               const SizedBox(width: 12),
                               Text(
                                 context.tr('practice.start'),
@@ -570,7 +588,8 @@ class _PracticePageState extends State<PracticePage>
                                   context.tr('practice.modes.point.read'),
                                   context.tr('practice.modes.point.speaking'),
                                   context.tr('practice.modes.point.writing'),
-                                  context.tr('practice.modes.point.consistency'),
+                                  context
+                                      .tr('practice.modes.point.consistency'),
                                 ],
                               );
                             },
@@ -633,6 +652,8 @@ class _PracticePageState extends State<PracticePage>
         AppMarketConfig.isExamModuleEnabled(
             Localizations.maybeLocaleOf(context))) {
       return _buildExamsTab();
+    } else if (_selectedMode == _modeWordGalaxy) {
+      return _buildWordGalaxyTab();
     } else if (_selectedMode == _modeNeural) {
       return _buildNeuralGameTab();
     } else if (_selectedMode == _modeGrammar) {
@@ -970,8 +991,8 @@ class _PracticePageState extends State<PracticePage>
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF4ade80), // Green dot
+                            decoration: BoxDecoration(
+                              color: _currentTheme().colors.accent,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -1054,8 +1075,8 @@ class _PracticePageState extends State<PracticePage>
                           ),
                           Text(
                             context.tr('practice.examPrep.subtitle'),
-                            style: const
-                                TextStyle(color: Colors.white54, fontSize: 13),
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 13),
                           ),
                         ],
                       ),
@@ -1110,24 +1131,24 @@ class _PracticePageState extends State<PracticePage>
   }
 
   Widget _buildExamsTab() {
+    final selectedTheme = _currentTheme();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header
         Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: selectedTheme.colors.accent.withOpacity(0.12),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: const Color(0xFFEF4444), // Red for Exams
+                  color: selectedTheme.colors.accent,
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFEF4444).withOpacity(0.3),
+                    color: selectedTheme.colors.accentGlow.withOpacity(0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -1136,30 +1157,35 @@ class _PracticePageState extends State<PracticePage>
               child: const Icon(Icons.school, color: Colors.white, size: 24),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.tr('practice.exams.title'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('practice.exams.title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  context.tr('practice.exams.subtitle'),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
+                  Text(
+                    context.tr('practice.exams.subtitle'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             )
           ],
         ),
         const SizedBox(height: 24),
-
         ModernCard(
           showGlow: true,
           borderRadius: BorderRadius.circular(20),
@@ -1169,9 +1195,10 @@ class _PracticePageState extends State<PracticePage>
               Text(
                 context.tr('practice.exams.turkiye'),
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -1179,35 +1206,35 @@ class _PracticePageState extends State<PracticePage>
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 24),
-              SizedBox(
+              ModernCard(
                 width: double.infinity,
-                child: ModernCard(
-                  variant: BackgroundVariant.accent,
-                  showGlow: true,
-                  borderRadius: BorderRadius.circular(16),
-                  padding: EdgeInsets.zero,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ExamSelectionPage()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                variant: BackgroundVariant.accent,
+                showGlow: true,
+                borderRadius: BorderRadius.circular(16),
+                padding: EdgeInsets.zero,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ExamSelectionPage(),
                       ),
-                      child: Text(context.tr('practice.exams.go'),
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    context.tr('practice.exams.go'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -1303,7 +1330,8 @@ class _PracticePageState extends State<PracticePage>
                 hintText: context.tr('practice.translation.manualHint'),
                 hintStyle: const TextStyle(color: Colors.white54),
                 border: InputBorder.none,
-                prefixIcon: const Icon(Icons.edit_outlined, color: Colors.white70),
+                prefixIcon:
+                    const Icon(Icons.edit_outlined, color: Colors.white70),
               ),
             ),
           ),
@@ -1374,7 +1402,8 @@ class _PracticePageState extends State<PracticePage>
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
-                    Text('${_selectedWordIds.length} ${context.tr('practice.selected')}',
+                    Text(
+                        '${_selectedWordIds.length} ${context.tr('practice.selected')}',
                         style: TextStyle(
                             color: selectedTheme.colors.accent,
                             fontWeight: FontWeight.bold)),
@@ -1478,7 +1507,8 @@ class _PracticePageState extends State<PracticePage>
                                                       BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
-                                                  context.tr('practice.wordTag'),
+                                                  context
+                                                      .tr('practice.wordTag'),
                                                   style: TextStyle(
                                                     color: selectedTheme
                                                         .colors.accent,
@@ -1682,12 +1712,12 @@ class _PracticePageState extends State<PracticePage>
       children: [
         _buildLevelChip(level),
         if (isCompleted)
-          const Positioned(
+          Positioned(
             top: 4,
             right: 4,
             child: Icon(
               Icons.check_circle,
-              color: Color(0xFF22C55E),
+              color: _currentTheme().colors.accent,
               size: 14,
             ),
           ),
@@ -1717,8 +1747,10 @@ class _PracticePageState extends State<PracticePage>
     );
   }
 
-  Widget _buildNeuralGameTab() {
+  Widget _buildWordGalaxyTab() {
     final selectedTheme = _currentTheme();
+    final isTurkish = Localizations.localeOf(context).languageCode == 'tr';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1746,7 +1778,7 @@ class _PracticePageState extends State<PracticePage>
                     ),
                   ],
                 ),
-                child: const Icon(Icons.hub_rounded,
+                child: const Icon(Icons.auto_awesome_mosaic_rounded,
                     color: Colors.white, size: 26),
               ),
               const SizedBox(width: 14),
@@ -1755,7 +1787,7 @@ class _PracticePageState extends State<PracticePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('practice.neural.title'),
+                      isTurkish ? 'Kelime Evreni' : 'Word Galaxy',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1764,7 +1796,9 @@ class _PracticePageState extends State<PracticePage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      context.tr('practice.neural.desc'),
+                      isTurkish
+                          ? 'Kelimeleri ag seklinde gor, cumlelerini incele ve yeni cumleler ekle.'
+                          : 'Explore your words as a network, review their sentences, and add new ones.',
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 13, height: 1.35),
                     ),
@@ -1782,22 +1816,25 @@ class _PracticePageState extends State<PracticePage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _NeuralGameInfoRow(
-                icon: Icons.timer_outlined,
-                title: context.tr('practice.neural.info.time'),
-                value: context.tr('practice.neural.info.timeValue'),
+              _WordGalaxyInfoRow(
+                icon: Icons.hub_outlined,
+                value: isTurkish
+                    ? 'Kelimeler odak node etrafinda katmanli dizilir.'
+                    : 'Words are arranged in layered rings around the focus node.',
               ),
               const SizedBox(height: 8),
-              _NeuralGameInfoRow(
-                icon: Icons.bolt_outlined,
-                title: context.tr('practice.neural.info.score'),
-                value: context.tr('practice.neural.info.scoreValue'),
+              _WordGalaxyInfoRow(
+                icon: Icons.notes_rounded,
+                value: isTurkish
+                    ? 'Kartlara dokunup mevcut cumleleri gor ve yeni cumle ekle.'
+                    : 'Tap cards to review existing sentences and add new ones.',
               ),
               const SizedBox(height: 8),
-              _NeuralGameInfoRow(
-                icon: Icons.auto_awesome_outlined,
-                title: context.tr('practice.neural.info.goal'),
-                value: context.tr('practice.neural.info.goalValue'),
+              _WordGalaxyInfoRow(
+                icon: Icons.wallpaper_rounded,
+                value: isTurkish
+                    ? 'Galaksi, kara delik ve samanyolu arkaplanlari arasindan sec.'
+                    : 'Pick between galaxy, black hole, and milky way backgrounds.',
               ),
             ],
           ),
@@ -1813,7 +1850,7 @@ class _PracticePageState extends State<PracticePage>
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const NeuralGamePage()),
+                MaterialPageRoute(builder: (_) => const WordGalaxyPage()),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -1827,7 +1864,7 @@ class _PracticePageState extends State<PracticePage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  context.tr('practice.neural.start'),
+                  isTurkish ? 'Kelime Evrenini Ac' : 'Open Word Galaxy',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1845,144 +1882,212 @@ class _PracticePageState extends State<PracticePage>
     );
   }
 
+  Widget _buildNeuralGameTab() {
+    final selectedTheme = _currentTheme();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = MediaQuery.sizeOf(context).height < 720;
+        final iconSize = compact ? 42.0 : 48.0;
+        final titleSize = compact ? 17.0 : 19.0;
+        final bodySize = compact ? 11.0 : 12.0;
+
+        return ModernCard(
+          variant: BackgroundVariant.primary,
+          borderRadius: BorderRadius.circular(18),
+          padding: EdgeInsets.all(compact ? 14 : 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: iconSize,
+                    height: iconSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          selectedTheme.colors.primary,
+                          selectedTheme.colors.accent,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              selectedTheme.colors.accentGlow.withOpacity(0.22),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(Icons.hub_rounded,
+                        color: Colors.white, size: compact ? 21 : 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.tr('practice.neural.title'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: titleSize,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          context.tr('practice.neural.desc'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: bodySize,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: compact ? 10 : 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _NeuralCompactInfoTile(
+                      icon: Icons.timer_outlined,
+                      title: context.tr('practice.neural.info.time'),
+                      value: context.tr('practice.neural.info.timeValue'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _NeuralCompactInfoTile(
+                      icon: Icons.bolt_outlined,
+                      title: context.tr('practice.neural.info.score'),
+                      value: context.tr('practice.neural.info.scoreValue'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _NeuralCompactInfoTile(
+                      icon: Icons.auto_awesome_outlined,
+                      title: context.tr('practice.neural.info.goal'),
+                      value: context.tr('practice.neural.info.goalValue'),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: compact ? 10 : 12),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: selectedTheme.colors.buttonGradient,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: SizedBox(
+                  height: compact ? 42 : 46,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const NeuralGamePage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          context.tr('practice.neural.start'),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: compact ? 14 : 15,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: compact ? 18 : 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: compact ? 6 : 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Widget that shows PRO lock overlay for non-subscribers
   Widget _buildProLockedWidget(
       {required Widget child, required String featureName}) {
     return child;
   }
+}
 
-  Widget _buildLockedScreen() {
-    final selectedTheme = _currentTheme();
-    return Scaffold(
-      backgroundColor: selectedTheme.colors.background,
-      body: Stack(
-        children: [
-          const AnimatedBackground(isDark: true),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: _mix(
-                        selectedTheme.colors.background,
-                        Colors.white,
-                        0.08,
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color:
-                              selectedTheme.colors.glassBorder.withOpacity(0.3),
-                          width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              selectedTheme.colors.accentGlow.withOpacity(0.3),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.lock_outline_rounded,
-                      size: 64,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    context.tr('practice.locked'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.tr('practice.lockedDesc'),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
-                  ModernCard(
-                    variant: BackgroundVariant.accent,
-                    borderRadius: BorderRadius.circular(16),
-                    padding: EdgeInsets.zero,
-                    showGlow: true,
-                    child: InkWell(
-                      onTap: () async {
-                        final appState = context.read<AppStateProvider>();
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SubscriptionPage()),
-                        );
-                        // Refresh subscription status when returning
-                        if (mounted) {
-                          appState.refreshUserData();
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 32),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.flash_on, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(
-                              context.tr('practice.upgradeToPro'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      context.tr('common.backToHome'),
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+class _WordGalaxyInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String value;
+
+  const _WordGalaxyInfoRow({
+    required this.icon,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    ThemeProvider? themeProvider;
+    try {
+      themeProvider = Provider.of<ThemeProvider?>(context, listen: true);
+    } catch (_) {
+      themeProvider = null;
+    }
+    final selectedTheme =
+        themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: selectedTheme.colors.accent, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _NeuralGameInfoRow extends StatelessWidget {
+class _NeuralCompactInfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
 
-  const _NeuralGameInfoRow({
+  const _NeuralCompactInfoTile({
     required this.icon,
     required this.title,
     required this.value,
@@ -1999,29 +2104,45 @@ class _NeuralGameInfoRow extends StatelessWidget {
     final selectedTheme =
         themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
 
-    return Row(
-      children: [
-        Icon(icon, color: selectedTheme.colors.accent, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.045),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selectedTheme.colors.accent.withOpacity(0.18),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: selectedTheme.colors.accent, size: 15),
+          const SizedBox(height: 3),
+          Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

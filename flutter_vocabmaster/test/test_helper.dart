@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/services/local_database_service.dart';
@@ -12,6 +13,7 @@ void setupTestEnv() {
 
   // Mock SharedPreferences
   SharedPreferences.setMockInitialValues({});
+  FlutterSecureStorage.setMockInitialValues({});
 
   // Force test DB mode to avoid cross-test locks
   LocalDatabaseService.enableTestMode();
@@ -22,7 +24,7 @@ Future<void> clearDatabase() async {
   final dbService = LocalDatabaseService();
   await dbService.close();
   // Ensure the DB is initialized
-  await dbService.database; 
+  await dbService.database;
   // Clear all tables
   await dbService.clearAll();
 }

@@ -79,6 +79,9 @@ public class AuthController {
                                                         HttpServletRequest httpRequest) {
         String email = normalizeEmail(request.get("email"));
         log.info("Processing registration request for email={}", email);
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
         try {
             String clientIp = resolveClientIp(httpRequest);
             RateLimitDecision rateLimitDecision = authRateLimitService.checkRegister(clientIp);
@@ -143,6 +146,9 @@ public class AuthController {
             email = normalizeEmail(request.get("email"));
         }
         log.info("Processing login request for email={}", email);
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
 
         try {
             String clientIp = resolveClientIp(httpRequest);
@@ -381,6 +387,9 @@ public class AuthController {
     @PostMapping("/password-reset/request")
     public ResponseEntity<Map<String, Object>> requestPasswordReset(@RequestBody Map<String, String> request,
                                                                     HttpServletRequest httpRequest) {
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
         String clientIp = resolveClientIp(httpRequest);
         RateLimitDecision rateLimitDecision = authRateLimitService.checkPasswordResetRequest(clientIp);
         if (rateLimitDecision.blocked()) {
@@ -415,6 +424,9 @@ public class AuthController {
     @PostMapping("/password-reset/confirm")
     public ResponseEntity<Map<String, Object>> confirmPasswordReset(@RequestBody Map<String, String> request,
                                                                     HttpServletRequest httpRequest) {
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
         String rawToken = request.get("token");
         String newPassword = request.get("newPassword");
 
@@ -444,6 +456,9 @@ public class AuthController {
     @PostMapping("/email-verification/request")
     public ResponseEntity<Map<String, Object>> requestEmailVerification(@RequestBody Map<String, String> request,
                                                                         HttpServletRequest httpRequest) {
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
         String clientIp = resolveClientIp(httpRequest);
         RateLimitDecision rateLimitDecision = authRateLimitService.checkPasswordResetRequest(clientIp);
         if (rateLimitDecision.blocked()) {
@@ -477,6 +492,9 @@ public class AuthController {
     @PostMapping("/email-verification/confirm")
     public ResponseEntity<Map<String, Object>> confirmEmailVerification(@RequestBody Map<String, String> request,
                                                                         HttpServletRequest httpRequest) {
+        if (!authSecurityProperties.isEmailPasswordEnabled()) {
+            return emailPasswordAuthDisabled();
+        }
         String rawToken = request.get("token");
         if (rawToken == null || rawToken.isBlank()) {
             return ResponseEntity.badRequest()
@@ -599,6 +617,13 @@ public class AuthController {
                         "error", message,
                         "success", false,
                         "retryAfterSeconds", decision.retryAfterSeconds()));
+    }
+
+    private ResponseEntity<Map<String, Object>> emailPasswordAuthDisabled() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                        "error", "Email/password authentication is disabled",
+                        "success", false));
     }
 }
 

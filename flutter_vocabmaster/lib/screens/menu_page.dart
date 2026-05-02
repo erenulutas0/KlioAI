@@ -17,7 +17,7 @@ class MenuPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   const Text(
+                  const Text(
                     'Menü',
                     style: TextStyle(
                       color: Colors.white,
@@ -29,12 +29,12 @@ class MenuPage extends StatelessWidget {
                   _buildMenuItem(context, Icons.person, 'Profil', () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ProfilePage()),
+                      MaterialPageRoute(
+                          builder: (context) => const ProfilePage()),
                     );
                   }),
                   _buildMenuItem(context, Icons.settings, 'Ayarlar', () {}),
                   _buildMenuItem(context, Icons.info, 'Hakkında', () {}),
-                  _buildMenuItem(context, Icons.logout, 'Çıkış Yap', () {}, isDestructive: true),
                 ],
               ),
             ),
@@ -44,7 +44,9 @@ class MenuPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
+  Widget _buildMenuItem(
+      BuildContext context, IconData icon, String title, VoidCallback onTap,
+      {bool isDestructive = false}) {
     return ListTile(
       leading: Icon(icon, color: isDestructive ? Colors.red : Colors.white),
       title: Text(
@@ -59,4 +61,3 @@ class MenuPage extends StatelessWidget {
     );
   }
 }
-

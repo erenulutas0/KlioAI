@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -17,6 +18,11 @@ class AuthService {
   static const String _userDataKey = 'user_data';
   static const String _rememberMeKey = 'remember_me';
   static const String _deviceIdKey = 'install_device_id';
+  static const String _forcedResetMigrationKey =
+      'forced_auth_reset_2026_04_23_v2';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
@@ -40,7 +46,7 @@ class AuthService {
 
   GoogleSignIn _createGoogleSignIn() {
     final serverClientId = readDotEnvOrDefault('GOOGLE_WEB_CLIENT_ID');
-    if (serverClientId != null && serverClientId.isNotEmpty) {
+    if (serverClientId.isNotEmpty) {
       return GoogleSignIn(
         scopes: ['email', 'profile'],
         serverClientId: serverClientId,
@@ -56,7 +62,8 @@ class AuthService {
     if (_cachedToken != null) return _cachedToken;
 
     final prefs = await SharedPreferences.getInstance();
-    _cachedToken = prefs.getString(_tokenKey);
+    await _removeLegacyOfflineCredentials(prefs);
+    _cachedToken = await _readSecureOrMigrate(_tokenKey, prefs);
     return _cachedToken;
   }
 
@@ -64,7 +71,7 @@ class AuthService {
     if (_cachedRefreshToken != null) return _cachedRefreshToken;
 
     final prefs = await SharedPreferences.getInstance();
-    _cachedRefreshToken = prefs.getString(_refreshTokenKey);
+    _cachedRefreshToken = await _readSecureOrMigrate(_refreshTokenKey, prefs);
     return _cachedRefreshToken;
   }
 
@@ -79,7 +86,7 @@ class AuthService {
     final suffix = List.generate(16, (_) => random.nextInt(256))
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
         .join();
-    final deviceId = 'vm-' + suffix;
+    final deviceId = 'vm-$suffix';
     await prefs.setString(_deviceIdKey, deviceId);
     return deviceId;
   }
@@ -89,7 +96,8 @@ class AuthService {
     if (_cachedUser != null) return _cachedUser;
 
     final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString(_userDataKey);
+    await _removeLegacyOfflineCredentials(prefs);
+    final userData = await _readSecureOrMigrate(_userDataKey, prefs);
     if (userData != null) {
       try {
         _cachedUser = jsonDecode(userData);
@@ -156,9 +164,6 @@ class AuthService {
 
         await saveSession(token, refreshToken, user, rememberMe: rememberMe);
 
-        // Offline giriş için şifre hash'ini kaydet
-        await _saveOfflineCredentials(email, password, user);
-
         return {'success': true, 'user': user};
       } else {
         return {
@@ -167,91 +172,13 @@ class AuthService {
         };
       }
     } catch (e) {
-      // Bağlantı hatası durumunda offline giriş dene
-      debugPrint('Online login failed for $loginUri, trying offline: $e');
-      final offline = await _tryOfflineLogin(email, password);
-      if (offline['success'] == true) {
-        return offline;
-      }
-      // Offline login yoksa/başarısızsa, online hatayı mesajda göster ki root-cause net olsun.
-      final offlineMsg = offline['message']?.toString().trim();
-      final msgPrefix = (offlineMsg != null && offlineMsg.isNotEmpty)
-          ? '$offlineMsg\n'
-          : '';
+      debugPrint('Online login failed for $loginUri: $e');
       return {
         'success': false,
         'message':
-            '${msgPrefix}Bağlantı hatası: $e\nURL: ${loginUri?.toString() ?? 'cozulmedi'}',
+            'Bağlantı hatası: $e\nURL: ${loginUri?.toString() ?? 'cozulmedi'}',
       };
     }
-  }
-
-  Future<void> _saveOfflineCredentials(
-      String email, String password, Map<String, dynamic> user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('offline_email', email.toLowerCase());
-    await prefs.setString('offline_password_hash', _hashPassword(password));
-    // User data is already saved in saveSession via user_data key
-  }
-
-  Future<Map<String, dynamic>> _tryOfflineLogin(
-      String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final cachedEmail = prefs.getString('offline_email');
-    final cachedPasswordHash = prefs.getString('offline_password_hash');
-    final cachedUserData =
-        prefs.getString(_userDataKey); // saveSession'da kullanılan key
-
-    if (cachedEmail == null ||
-        cachedPasswordHash == null ||
-        cachedUserData == null) {
-      return {
-        'success': false,
-        'message':
-            'İnternet bağlantısı yok ve kayıtlı offline oturum bulunamadı.'
-      };
-    }
-
-    // Email kontrolü (hashlenmiş email ile de yapılabilirdi ama basitçe lowercase)
-    // Email veya Tag girişi olduğu için cachedEmail ile eşleşiyor mu basitçe bakıyoruz
-    // Tag ile offline giriş zor olabilir, sadece email'i cacheledik.
-    // Kullanıcıya kolaylık olsun diye, eğer inputcached email ile eşleşiyorsa kabul edelim.
-
-    if (email.toLowerCase() != cachedEmail.toLowerCase()) {
-      // Belki kullanıcı tag girdi? Offline modda tag desteği zor.
-      // Şimdilik sadece email match
-      return {
-        'success': false,
-        'message':
-            'Offline modda email eşleşmedi. Lütfen son kullandığınız email ile deneyin.'
-      };
-    }
-
-    if (_hashPassword(password) != cachedPasswordHash) {
-      return {'success': false, 'message': 'Şifre hatalı (Offline)'};
-    }
-
-    // Başarılı Offline Giriş
-    try {
-      final user = jsonDecode(cachedUserData);
-      // Token'ı yenilemeye gerek yok, eskisi kalsın veya dummy
-      // _cachedUser vs güncellenmeli
-      _cachedUser = user;
-      return {'success': true, 'user': user, 'isOffline': true};
-    } catch (e) {
-      return {'success': false, 'message': 'Offline kullanıcı verisi bozuk.'};
-    }
-  }
-
-  String _hashPassword(String password) {
-    // Basit hash - gerçek production için crypto kütüphanesi kullanılmalı
-    var hash = 0;
-    for (var i = 0; i < password.length; i++) {
-      hash = ((hash << 5) - hash) + password.codeUnitAt(i);
-      hash = hash & 0xFFFFFFFF;
-    }
-    return hash.toString();
   }
 
   Map<String, dynamic> _decodeResponseBodyMap(
@@ -467,9 +394,13 @@ class AuthService {
       await _clearLocalLearningState(prefs);
     }
 
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_refreshTokenKey, refreshToken);
-    await prefs.setString(_userDataKey, jsonEncode(user));
+    await _writeSecureString(_tokenKey, token);
+    await _writeSecureString(_refreshTokenKey, refreshToken);
+    await _writeSecureString(_userDataKey, jsonEncode(user));
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_userDataKey);
+    await _removeLegacyOfflineCredentials(prefs);
     await prefs.setBool(_rememberMeKey, rememberMe);
     _cachedToken = token;
     _cachedRefreshToken = refreshToken;
@@ -481,8 +412,9 @@ class AuthService {
 
   /// Kullanıcı bilgilerini güncelle
   Future<void> updateUser(Map<String, dynamic> user) async {
+    await _writeSecureString(_userDataKey, jsonEncode(user));
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userDataKey, jsonEncode(user));
+    await prefs.remove(_userDataKey);
     _cachedUser = user;
   }
 
@@ -512,11 +444,13 @@ class AuthService {
     // Yerel verileri temizle
     final prefs = await SharedPreferences.getInstance();
     await _clearLocalLearningState(prefs);
+    await _deleteSecureString(_tokenKey);
+    await _deleteSecureString(_refreshTokenKey);
+    await _deleteSecureString(_userDataKey);
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userDataKey);
-    await prefs.remove('offline_email');
-    await prefs.remove('offline_password_hash');
+    await _removeLegacyOfflineCredentials(prefs);
     // Remember me kalsın mı? Genelde logout olunca her şey silinir.
 
     _cachedToken = null;
@@ -527,13 +461,77 @@ class AuthService {
     } catch (_) {}
   }
 
+  Future<bool> enforceMandatorySessionResetIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_forcedResetMigrationKey) == true) {
+      return false;
+    }
+
+    await _clearLocalSessionOnly(prefs, disconnectGoogle: true);
+    await prefs.setBool(_forcedResetMigrationKey, true);
+    _debugLog('mandatory local session reset applied');
+    return true;
+  }
+
+  Future<String?> _readSecureOrMigrate(
+      String key, SharedPreferences prefs) async {
+    final secureValue = await _readSecureString(key);
+    if (secureValue != null && secureValue.isNotEmpty) {
+      if (prefs.containsKey(key)) {
+        await prefs.remove(key);
+      }
+      return secureValue;
+    }
+
+    final legacyValue = prefs.getString(key);
+    if (legacyValue == null || legacyValue.isEmpty) {
+      return null;
+    }
+
+    await _writeSecureString(key, legacyValue);
+    await prefs.remove(key);
+    return legacyValue;
+  }
+
+  Future<String?> _readSecureString(String key) async {
+    try {
+      return await _secureStorage.read(key: key);
+    } catch (e) {
+      _debugLog('secure storage read failed for $key: $e');
+      return null;
+    }
+  }
+
+  Future<void> _writeSecureString(String key, String value) async {
+    try {
+      await _secureStorage.write(key: key, value: value);
+    } catch (e) {
+      _debugLog('secure storage write failed for $key: $e');
+      throw StateError('Secure session storage is unavailable');
+    }
+  }
+
+  Future<void> _deleteSecureString(String key) async {
+    try {
+      await _secureStorage.delete(key: key);
+    } catch (e) {
+      _debugLog('secure storage delete failed for $key: $e');
+    }
+  }
+
+  Future<void> _removeLegacyOfflineCredentials(SharedPreferences prefs) async {
+    await prefs.remove('offline_email');
+    await prefs.remove('offline_password_hash');
+  }
+
   Future<int?> _resolveStoredUserId(SharedPreferences prefs) async {
-    final cachedId = _toInt(_cachedUser?['id']) ?? _toInt(_cachedUser?['userId']);
+    final cachedId =
+        _toInt(_cachedUser?['id']) ?? _toInt(_cachedUser?['userId']);
     if (cachedId != null && cachedId > 0) {
       return cachedId;
     }
 
-    final rawUser = prefs.getString(_userDataKey);
+    final rawUser = await _readSecureOrMigrate(_userDataKey, prefs);
     if (rawUser == null || rawUser.isEmpty) {
       return null;
     }
@@ -573,6 +571,33 @@ class AuthService {
     XPManager.clearIdempotencyCache();
   }
 
+  Future<void> _clearLocalSessionOnly(
+    SharedPreferences prefs, {
+    required bool disconnectGoogle,
+  }) async {
+    await _clearLocalLearningState(prefs);
+    await _deleteSecureString(_tokenKey);
+    await _deleteSecureString(_refreshTokenKey);
+    await _deleteSecureString(_userDataKey);
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_userDataKey);
+    await prefs.remove(_rememberMeKey);
+    await _removeLegacyOfflineCredentials(prefs);
+    _cachedToken = null;
+    _cachedRefreshToken = null;
+    _cachedUser = null;
+
+    if (disconnectGoogle) {
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {}
+    }
+  }
+
   /// Profil bilgilerini backend'den yenile
   Future<Map<String, dynamic>?> refreshProfile() async {
     final userId = await getUserId();
@@ -600,24 +625,79 @@ class AuthService {
       context: 'refresh-profile',
       url: Uri.parse('$baseUrl/users/$userId'),
     );
-    final merged = Map<String, dynamic>.from(await getUser() ?? <String, dynamic>{})
-      ..addAll(profile);
+    final merged =
+        Map<String, dynamic>.from(await getUser() ?? <String, dynamic>{})
+          ..addAll(profile);
     await updateUser(merged);
     return merged;
   }
 
   /// Kullanıcı ID'sini al
-  Future<int?> getUserId() async {
-    final user = await getUser();
-    final userId = _toInt(user?['id']) ?? _toInt(user?['userId']);
-    if (userId != null && userId > 0) {
-      if (!_hasLoggedUserIdResolution) {
-        _debugLog('getUserId resolved from user payload: $userId');
-        _hasLoggedUserIdResolution = true;
-      }
-      return userId;
+  Future<bool> refreshSession() async {
+    final refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return false;
     }
 
+    try {
+      final baseUrl = await AppConfig.apiBaseUrl;
+      final deviceId = await getOrCreateDeviceId();
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
+        body: jsonEncode({
+          'refreshToken': refreshToken,
+          'deviceInfo': 'Flutter Mobile App',
+          'deviceId': deviceId,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        _debugLog('refreshSession failed with status=${response.statusCode}');
+        return false;
+      }
+
+      final data = _decodeResponseBodyMap(
+        response.body,
+        context: 'refresh-session',
+        url: Uri.parse('$baseUrl/auth/refresh'),
+      );
+      final newAccessToken =
+          (data['accessToken'] ?? data['sessionToken'])?.toString();
+      final newRefreshToken = (data['refreshToken'] ?? refreshToken).toString();
+      if (newAccessToken == null || newAccessToken.isEmpty) {
+        return false;
+      }
+
+      final currentUser =
+          Map<String, dynamic>.from(await getUser() ?? <String, dynamic>{});
+      final refreshedUserId = _toInt(data['userId']);
+      if (refreshedUserId != null && refreshedUserId > 0) {
+        currentUser['id'] = refreshedUserId;
+        currentUser['userId'] = refreshedUserId;
+      }
+      currentUser['role'] = data['role'] ?? currentUser['role'] ?? 'USER';
+      currentUser['email'] = currentUser['email'] ?? '';
+      currentUser['displayName'] = currentUser['displayName'] ?? 'User';
+      currentUser['userTag'] = currentUser['userTag'] ?? '#00000';
+
+      await saveSession(
+        newAccessToken,
+        newRefreshToken,
+        currentUser,
+      );
+      return true;
+    } catch (e) {
+      _debugLog('refreshSession exception=$e');
+      return false;
+    }
+  }
+
+  Future<int?> getUserId() async {
+    final user = await getUser();
     final token = await getToken();
     final jwtUserId = _extractUserIdFromJwt(token);
     if (jwtUserId != null && jwtUserId > 0) {
@@ -625,13 +705,23 @@ class AuthService {
         _debugLog('getUserId resolved from jwt: $jwtUserId');
         _hasLoggedUserIdResolution = true;
       }
-      if (user != null) {
+      final storedUserId = _toInt(user?['id']) ?? _toInt(user?['userId']);
+      if (user != null && storedUserId != jwtUserId) {
         final updatedUser = Map<String, dynamic>.from(user);
         updatedUser['id'] = jwtUserId;
         updatedUser['userId'] = jwtUserId;
         await updateUser(updatedUser);
       }
       return jwtUserId;
+    }
+
+    final userId = _toInt(user?['id']) ?? _toInt(user?['userId']);
+    if (userId != null && userId > 0) {
+      if (!_hasLoggedUserIdResolution) {
+        _debugLog('getUserId resolved from user payload: $userId');
+        _hasLoggedUserIdResolution = true;
+      }
+      return userId;
     }
     if (!_hasLoggedUserIdFailure) {
       _debugLog('getUserId could not resolve user id');
@@ -702,6 +792,3 @@ class AuthService {
     }
   }
 }
-
-
-

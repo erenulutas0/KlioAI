@@ -7,6 +7,7 @@ import '../services/ai_error_message_formatter.dart';
 import '../services/groq_service.dart';
 import '../services/chatbot_service.dart';
 import '../services/ai_paywall_handler.dart';
+import '../services/locale_text_service.dart';
 
 class DictionaryPage extends StatefulWidget {
   const DictionaryPage({super.key});
@@ -16,6 +17,9 @@ class DictionaryPage extends StatefulWidget {
 }
 
 class _DictionaryPageState extends State<DictionaryPage> {
+  bool get _isTurkish => LocaleTextService.isTurkish;
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
   final ChatbotService _chatbotService = ChatbotService();
@@ -151,8 +155,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Kelime bugüne kaydedildi!'),
+          SnackBar(
+            content: Text(_text('Kelime bugüne kaydedildi!', 'Word saved to today!')),
             backgroundColor: Colors.green,
           ),
         );
@@ -211,9 +215,9 @@ class _DictionaryPageState extends State<DictionaryPage> {
                             icon: const Icon(Icons.arrow_back,
                                 color: Colors.white),
                           ),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Hızlı Sözlük',
+                              _text('Hizli Sozluk', 'Quick Dictionary'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -238,7 +242,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           controller: _searchController,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            hintText: 'İngilizce kelime yazın (örn: apple)',
+                            hintText: _text(
+                              'Ingilizce kelime yazin (orn: apple)',
+                              'Type an English word (e.g. apple)',
+                            ),
                             hintStyle:
                                 TextStyle(color: Colors.white.withOpacity(0.5)),
                             prefixIcon: Icon(Icons.search,
@@ -276,13 +283,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : const Row(
+                              : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.search, color: Colors.white),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Ara',
+                                      _text('Ara', 'Search'),
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -350,13 +357,19 @@ class _DictionaryPageState extends State<DictionaryPage> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Herhangi bir İngilizce kelime arayın',
+              _text(
+                'Herhangi bir Ingilizce kelime arayin',
+                'Search for any English word',
+              ),
               style:
                   TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
-              'AI ile detaylı anlamları getirin',
+              _text(
+                'AI ile detayli anlamlari getirin',
+                'Get detailed meanings with AI',
+              ),
               style:
                   TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
             ),
@@ -383,7 +396,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
           const Text('🔍', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
           Text(
-            'Sonuç bulunamadı',
+            _text('Sonuc bulunamadi', 'No result found'),
             style:
                 TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
           ),
@@ -395,7 +408,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
   Widget _buildLocalWordResult(Word word) {
     final example = word.sentences.isNotEmpty
         ? word.sentences.first.sentence
-        : 'Örnek cümle yok';
+        : _text('Ornek cumle yok', 'No example sentence');
     final exampleTr =
         word.sentences.isNotEmpty ? word.sentences.first.translation : '';
 
@@ -435,12 +448,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.green),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check, color: Colors.green, size: 16),
                       SizedBox(width: 4),
-                      Text('Kayıtlı',
+                      Text(_text('Kayitli', 'Saved'),
                           style: TextStyle(color: Colors.green, fontSize: 12)),
                     ],
                   ),
@@ -559,7 +572,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
 
           // Meanings
           Text(
-            'Anlamlar (${meanings.length})',
+            '${_text('Anlamlar', 'Meanings')} (${meanings.length})',
             style: const TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -721,8 +734,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         const SizedBox(width: 8),
                         Text(
                           selectedMeaningIndices.isEmpty
-                              ? 'Tümünü Bugüne Kaydet'
-                              : '${selectedMeaningIndices.length} Anlamı Kaydet',
+                              ? _text('Tumunu Bugune Kaydet', 'Save All to Today')
+                              : '${selectedMeaningIndices.length} ${_text('Anlami Kaydet', 'Save Meaning')}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -736,7 +749,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
 
           const SizedBox(height: 16),
           Text(
-            'Kaydetmek istediğiniz anlamları seçebilirsiniz',
+            _text(
+              'Kaydetmek istediginiz anlamlari secebilirsiniz',
+              'You can choose which meanings to save',
+            ),
             style:
                 TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
             textAlign: TextAlign.center,

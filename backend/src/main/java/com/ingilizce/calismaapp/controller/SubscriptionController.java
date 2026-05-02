@@ -293,7 +293,8 @@ public class SubscriptionController {
         int durationDays = resolveEffectiveDurationDays(plan);
         if (verifiedExpiryUtc != null && verifiedExpiryUtc.isAfter(now)) {
             if (currentEnd == null || currentEnd.isBefore(now)) {
-                return verifiedExpiryUtc;
+                LocalDateTime minimumPlanEnd = now.plusDays(durationDays);
+                return verifiedExpiryUtc.isAfter(minimumPlanEnd) ? verifiedExpiryUtc : minimumPlanEnd;
             }
             return verifiedExpiryUtc.isAfter(currentEnd) ? verifiedExpiryUtc : currentEnd;
         }

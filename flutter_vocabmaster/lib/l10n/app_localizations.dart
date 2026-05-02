@@ -58,7 +58,7 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _translations = {
     'en': {
-      'app.name': 'VocabMaster',
+      'app.name': 'KlioAI',
       'common.continue': 'Continue',
       'common.cancel': 'Cancel',
       'common.close': 'Close',
@@ -73,7 +73,6 @@ class AppLocalizations {
       'common.recommended': 'Recommended',
       'common.loading': 'Loading...',
       'common.level': 'Level',
-
       'language.label': 'Language',
       'language.setup.title': 'Choose your app language',
       'language.setup.subtitle':
@@ -88,7 +87,6 @@ class AppLocalizations {
       'language.arabic': 'Arabic',
       'language.chinese': 'Chinese',
       'language.changed': 'Language updated',
-
       'settings.title': 'Settings',
       'settings.subtitle': 'Manage your app preferences',
       'settings.language.title': 'App Language',
@@ -102,9 +100,7 @@ class AppLocalizations {
       'settings.about.title': 'About',
       'settings.about.subtitle':
           'Language is saved per user and applied across the app.',
-
       'splash.loading': 'Preparing your learning space...',
-
       'nav.home': 'Home',
       'nav.words': 'Words',
       'nav.sentences': 'Sentences',
@@ -118,30 +114,27 @@ class AppLocalizations {
       'nav.settings': 'Settings',
       'nav.mainPages': 'Main Pages',
       'nav.specialPages': 'Special Pages',
-      'nav.title': 'VocabMaster',
+      'nav.title': 'KlioAI',
       'nav.subtitle': 'Navigation',
-      'nav.version': 'VocabMaster v1.0',
+      'nav.version': 'KlioAI v1.0',
       'nav.copyright2026': '© 2026 All rights reserved',
       'nav.selectChatMode': 'Choose Chat Mode',
-
       'chat.friends.title': 'Chat with Friends',
       'chat.friends.subtitle': 'Talk with online friends',
       'chat.ai.title': 'Chat with AI',
       'chat.ai.subtitle': 'Practice with your AI assistant',
-
       'landing.subtitle': 'A next-generation AI-powered language experience',
       'landing.cta': 'Get Started',
       'landing.trust.secure': 'Secure',
       'landing.trust.fast': 'Fast',
       'landing.trust.global': 'Global',
-      'landing.footer.copy': '© 2025 VocabMaster. All rights reserved.',
+      'landing.footer.copy': '© 2025 KlioAI. All rights reserved.',
       'landing.footer.subtitle':
           'A next-generation AI-powered language experience',
       'landing.stat.aiModels': 'AI Models',
       'landing.stat.activeUsers': 'Active Users',
       'landing.stat.features': 'Features',
       'landing.stat.satisfaction': 'Satisfaction',
-
       'landing.feature.speaking.title': 'AI-Powered Speaking',
       'landing.feature.speaking.subtitle': '6 Voice Personas',
       'landing.feature.speaking.description':
@@ -150,7 +143,6 @@ class AppLocalizations {
       'landing.feature.speaking.h1': 'TTS Voice Support',
       'landing.feature.speaking.h2': 'Real-time Responses',
       'landing.feature.speaking.h3': 'Personalized Profiles',
-
       'landing.feature.writing.title': 'AI Writing Assistant',
       'landing.feature.writing.subtitle': 'A1-C2 Level Support',
       'landing.feature.writing.description':
@@ -159,7 +151,6 @@ class AppLocalizations {
       'landing.feature.writing.h1': 'Topic Generation',
       'landing.feature.writing.h2': 'Instant Evaluation',
       'landing.feature.writing.h3': 'Short/Medium/Long Formats',
-
       'landing.feature.social.title': 'Social Learning Platform',
       'landing.feature.social.subtitle': 'Global Community',
       'landing.feature.social.description':
@@ -168,7 +159,6 @@ class AppLocalizations {
       'landing.feature.social.h1': 'Live Feed',
       'landing.feature.social.h2': 'Interactive Posts',
       'landing.feature.social.h3': 'Friend System',
-
       'landing.feature.progress.title': 'Smart Progress Tracking',
       'landing.feature.progress.subtitle': 'Daily & Weekly Goals',
       'landing.feature.progress.description':
@@ -177,7 +167,6 @@ class AppLocalizations {
       'landing.feature.progress.h1': 'Circular Progress',
       'landing.feature.progress.h2': 'Animated Stats',
       'landing.feature.progress.h3': 'Glow Effects',
-
       'landing.feature.speechPractice.title': 'Speaking Practice',
       'landing.feature.speechPractice.subtitle': 'Real-time Feedback',
       'landing.feature.speechPractice.description':
@@ -186,7 +175,6 @@ class AppLocalizations {
       'landing.feature.speechPractice.h1': 'Voice Selection',
       'landing.feature.speechPractice.h2': 'Pronunciation Check',
       'landing.feature.speechPractice.h3': 'Conversation Flow',
-
       'login.subtitle': 'Start your vocabulary journey',
       'login.name': 'Full Name',
       'login.name.placeholder': 'Your name',
@@ -210,7 +198,6 @@ class AppLocalizations {
       'login.noAccount': "Don't have an account yet? ",
       'login.switch.signIn': 'Sign in',
       'login.switch.signUp': 'Sign up',
-
       'practice.mode.translate': 'Translation',
       'practice.mode.reading': 'Reading',
       'practice.mode.writing': 'Writing',
@@ -231,36 +218,30 @@ class AppLocalizations {
           'Write essays and get instant AI feedback.',
       'practice.modes.point.consistency':
           'Improve all language skills consistently with regular practice.',
-
       'practice.reading.title': 'Reading & Comprehension',
       'practice.reading.subtitle': 'Read and understand passages',
       'practice.reading.levelLabel': 'Level:',
-      'practice.reading.dailyInfo1':
-          'Each level has one daily reading test.',
+      'practice.reading.dailyInfo1': 'Each level has one daily reading test.',
       'practice.reading.dailyInfo2':
           'Checked levels indicate completed practice for today.',
       'practice.reading.start': 'Start Reading',
-
       'practice.writing.title': 'Writing Practice',
       'practice.writing.subtitle': 'AI-supported writing and evaluation',
       'practice.writing.card.title': 'Improve Your Writing Skills',
       'practice.writing.card.desc':
           'Write level-appropriate texts and receive instant AI feedback.',
-
-      'practice.speaking.title': 'Speak with VocabMaster',
+      'practice.speaking.title': 'Speak with KlioAI',
       'practice.speaking.subtitle': 'Ready for English speaking practice!',
       'practice.aiAssistants': 'AI Assistants',
       'practice.examPrep.title': 'Get Ready for Exams!',
       'practice.examPrep.subtitle': 'Practice IELTS & TOEFL speaking',
       'practice.examPrep.button': 'Start Exam Practice',
-
       'practice.exams.title': 'Exam Center',
       'practice.exams.subtitle': 'YDS, YOKDIL and Global Exams',
       'practice.exams.turkiye': 'Turkey Exams',
       'practice.exams.desc':
           'Test yourself with exam-like question sets and focused modules.',
       'practice.exams.go': 'Go to Exam Center',
-
       'practice.translation.title': 'Translation',
       'practice.translation.subtitle': 'Practice Mode',
       'practice.submode.select': 'Select',
@@ -298,7 +279,6 @@ class AppLocalizations {
       'practice.locked': 'Practice Mode Locked',
       'practice.lockedDesc':
           'Upgrade to PRO to unlock advanced practice modes and accelerate your learning journey.',
-
       'home.today': 'Today',
       'home.thisWeek': 'This week',
       'home.total': 'Total',
@@ -317,7 +297,8 @@ class AppLocalizations {
       'home.info.title': 'How Home Works',
       'home.info.step1': 'Track your XP and level progress at the top card.',
       'home.info.step2': 'Open daily words and add them quickly.',
-      'home.info.step3': 'Use quick access cards for words, sentences, and review.',
+      'home.info.step3':
+          'Use quick access cards for words, sentences, and review.',
       'home.info.step4': 'Follow weekly activity and keep your streak.',
       'home.info.step5': 'Tap + actions to add word or word with sentence.',
       'home.dailyWords.title': 'Daily Words',
@@ -355,7 +336,6 @@ class AppLocalizations {
           'Word and sentence are already added',
       'home.card.addSentence': 'Add Sentence',
       'home.card.wordSentenceAdded': 'Word + Sentence Added',
-
       'wotd.title': 'Word of the Day',
       'wotd.step.word': 'Word',
       'wotd.step.meaning': 'Meaning',
@@ -385,7 +365,6 @@ class AppLocalizations {
       'wotd.check': 'Check',
       'wotd.next': 'Next',
       'wotd.continue': 'Continue',
-
       'profile.accountSettings': 'Account Settings',
       'profile.editProfile': 'Edit Profile',
       'profile.notificationPrefs': 'Notification Preferences',
@@ -414,7 +393,7 @@ class AppLocalizations {
       'profile.privacy.messagesValue': 'Friends only',
     },
     'tr': {
-      'app.name': 'VocabMaster',
+      'app.name': 'KlioAI',
       'common.continue': 'Devam Et',
       'common.cancel': 'Iptal',
       'common.close': 'Kapat',
@@ -429,10 +408,10 @@ class AppLocalizations {
       'common.recommended': 'Onerilen',
       'common.loading': 'Yukleniyor...',
       'common.level': 'Seviye',
-
       'language.label': 'Dil',
       'language.setup.title': 'Uygulama dilini sec',
-      'language.setup.subtitle': 'Bu ayari menu uzerinden sonra da degistirebilirsin.',
+      'language.setup.subtitle':
+          'Bu ayari menu uzerinden sonra da degistirebilirsin.',
       'language.setup.detected': 'Algilanan dil',
       'language.setup.select': 'Dil sec',
       'language.setup.help':
@@ -443,7 +422,6 @@ class AppLocalizations {
       'language.arabic': 'Arapca',
       'language.chinese': 'Cince',
       'language.changed': 'Dil guncellendi',
-
       'settings.title': 'Ayarlar',
       'settings.subtitle': 'Uygulama tercihlerini yonet',
       'settings.language.title': 'Uygulama Dili',
@@ -457,9 +435,7 @@ class AppLocalizations {
       'settings.about.title': 'Hakkinda',
       'settings.about.subtitle':
           'Dil secimi kullanici bazli kaydedilir ve uygulama genelinde uygulanir.',
-
       'splash.loading': 'Ogrenme alani hazirlaniyor...',
-
       'nav.home': 'Ana Sayfa',
       'nav.words': 'Kelimeler',
       'nav.sentences': 'Cumleler',
@@ -473,30 +449,27 @@ class AppLocalizations {
       'nav.settings': 'Ayarlar',
       'nav.mainPages': 'Ana Sayfalar',
       'nav.specialPages': 'Ozel Sayfalar',
-      'nav.title': 'VocabMaster',
+      'nav.title': 'KlioAI',
       'nav.subtitle': 'Navigasyon',
-      'nav.version': 'VocabMaster v1.0',
+      'nav.version': 'KlioAI v1.0',
       'nav.copyright2026': '© 2026 Tum haklari saklidir',
       'nav.selectChatMode': 'Sohbet Modu Secin',
-
       'chat.friends.title': 'Arkadaslarla Sohbet',
       'chat.friends.subtitle': 'Online arkadaslarla konus',
       'chat.ai.title': 'AI ile Sohbet',
       'chat.ai.subtitle': 'Yapay zeka asistani ile pratik yap',
-
       'landing.subtitle': 'Yapay zeka destekli yeni nesil dil ogrenme deneyimi',
       'landing.cta': 'Hemen Basla',
       'landing.trust.secure': 'Guvenli',
       'landing.trust.fast': 'Hizli',
       'landing.trust.global': 'Global',
-      'landing.footer.copy': '© 2025 VocabMaster. Tum haklari saklidir.',
+      'landing.footer.copy': '© 2025 KlioAI. Tum haklari saklidir.',
       'landing.footer.subtitle':
           'Yapay zeka destekli yeni nesil dil ogrenme deneyimi',
       'landing.stat.aiModels': 'AI Modeller',
       'landing.stat.activeUsers': 'Aktif Kullanici',
       'landing.stat.features': 'Ozellik',
       'landing.stat.satisfaction': 'Memnuniyet',
-
       'landing.feature.speaking.title': 'AI-Powered Konusma',
       'landing.feature.speaking.subtitle': '6 Farkli Konusmaci Modeli',
       'landing.feature.speaking.description':
@@ -505,7 +478,6 @@ class AppLocalizations {
       'landing.feature.speaking.h1': 'TTS Ses Destegi',
       'landing.feature.speaking.h2': 'Gercek Zamanli Yanit',
       'landing.feature.speaking.h3': 'Kisisellestirilmis Profiller',
-
       'landing.feature.writing.title': 'Yapay Zeka Yazma Asistani',
       'landing.feature.writing.subtitle': 'A1-C2 Seviye Destegi',
       'landing.feature.writing.description':
@@ -514,7 +486,6 @@ class AppLocalizations {
       'landing.feature.writing.h1': 'Konu Olusturma',
       'landing.feature.writing.h2': 'Gercek Zamanli Degerlendirme',
       'landing.feature.writing.h3': 'Kisa/Orta/Uzun Format',
-
       'landing.feature.social.title': 'Sosyal Ogrenme Platformu',
       'landing.feature.social.subtitle': 'Global Topluluk',
       'landing.feature.social.description':
@@ -523,7 +494,6 @@ class AppLocalizations {
       'landing.feature.social.h1': 'Canli Feed',
       'landing.feature.social.h2': 'Etkilesimli Gonderiler',
       'landing.feature.social.h3': 'Arkadaslik Sistemi',
-
       'landing.feature.progress.title': 'Akilli Ilerleme Takibi',
       'landing.feature.progress.subtitle': 'Gunluk & Haftalik Hedefler',
       'landing.feature.progress.description':
@@ -532,7 +502,6 @@ class AppLocalizations {
       'landing.feature.progress.h1': 'Circular Progress',
       'landing.feature.progress.h2': 'Animated Stats',
       'landing.feature.progress.h3': 'Glow Effects',
-
       'landing.feature.speechPractice.title': 'Konusma Pratigi',
       'landing.feature.speechPractice.subtitle': 'Gercek Zamanli Feedback',
       'landing.feature.speechPractice.description':
@@ -541,7 +510,6 @@ class AppLocalizations {
       'landing.feature.speechPractice.h1': 'Voice Selection',
       'landing.feature.speechPractice.h2': 'Pronunciation Check',
       'landing.feature.speechPractice.h3': 'Conversation Flow',
-
       'login.subtitle': 'Kelime ogrenme yolculugunuza baslayin',
       'login.name': 'Isim Soyisim',
       'login.name.placeholder': 'Adiniz Soyadiniz',
@@ -565,7 +533,6 @@ class AppLocalizations {
       'login.noAccount': 'Henuz hesabin yok mu? ',
       'login.switch.signIn': 'Giris yapin',
       'login.switch.signUp': 'Kayit olun',
-
       'practice.mode.translate': 'Cevirme',
       'practice.mode.reading': 'Okuma',
       'practice.mode.writing': 'Yazma',
@@ -586,7 +553,6 @@ class AppLocalizations {
           'Yazma bolumunde kompozisyonlar olusturup anlik geri bildirim alin.',
       'practice.modes.point.consistency':
           'Duzenli pratik yaparak tum dil becerilerini birlikte gelistirin.',
-
       'practice.reading.title': 'Okuma & Anlama',
       'practice.reading.subtitle': 'Metinleri okuyun ve anlayin',
       'practice.reading.levelLabel': 'Seviye:',
@@ -595,27 +561,23 @@ class AppLocalizations {
       'practice.reading.dailyInfo2':
           'Tikli seviyeler bugun tamamlanan alistirmalari gosterir.',
       'practice.reading.start': 'Okumaya Basla',
-
       'practice.writing.title': 'Yazma Pratigi',
       'practice.writing.subtitle': 'AI destekli yazma ve degerlendirme',
       'practice.writing.card.title': 'Yazma Becerilerini Gelistir',
       'practice.writing.card.desc':
           'Seviyene uygun konularda yazilar yaz, yapay zeka aninda degerlendirsin.',
-
-      'practice.speaking.title': 'VocabMaster ile Konusma',
+      'practice.speaking.title': 'KlioAI ile Konusma',
       'practice.speaking.subtitle': 'Ingilizce konusma pratigi icin hazir!',
       'practice.aiAssistants': 'AI Asistanlari',
       'practice.examPrep.title': 'Kendini Sinavlara Hazirla!',
       'practice.examPrep.subtitle': 'IELTS & TOEFL konusma pratigi yap',
       'practice.examPrep.button': 'Sinava Hazirlan',
-
       'practice.exams.title': 'Sinav Merkezi',
       'practice.exams.subtitle': 'YDS, YOKDIL ve Global Sinavlar',
       'practice.exams.turkiye': 'Turkiye Sinavlari',
       'practice.exams.desc':
           'OSYM formatinda hazirlanmis ozgun sorularla kendini dene.',
       'practice.exams.go': 'Sinav Merkezine Git',
-
       'practice.translation.title': 'Cevirme',
       'practice.translation.subtitle': 'Pratik Modu',
       'practice.submode.select': 'Sec',
@@ -653,7 +615,6 @@ class AppLocalizations {
       'practice.locked': 'Pratik Modu Kilitli',
       'practice.lockedDesc':
           'Ileri seviye pratik modlarina erismek ve dil ogrenme yolculugunu hizlandirmak icin PRO uye olmalisin.',
-
       'home.today': 'Bugun',
       'home.thisWeek': 'Bu hafta',
       'home.total': 'Toplam',
@@ -672,7 +633,8 @@ class AppLocalizations {
       'home.info.title': 'Ana Sayfa Bilgisi',
       'home.info.step1': 'Ust karttan XP ve seviye ilerlemeni takip et.',
       'home.info.step2': 'Gunluk kelimeleri acip hizlica kutuphanene ekle.',
-      'home.info.step3': 'Hizli erisim kartlariyla kelime, cumle ve tekrar bolumune git.',
+      'home.info.step3':
+          'Hizli erisim kartlariyla kelime, cumle ve tekrar bolumune git.',
       'home.info.step4': 'Haftalik aktivite kartindan serini takip et.',
       'home.info.step5': 'Artidan kelimeyi tek veya cumlesiyle ekleyebilirsin.',
       'home.dailyWords.title': 'Gunun Kelimeleri',
@@ -706,11 +668,9 @@ class AppLocalizations {
       'home.sheet.addWordWithSentenceSubtitle':
           'Kelimeyi ve ornek cumleyi birlikte ekle',
       'home.sheet.noExampleSentence': 'Bu kelime icin ornek cumle yok',
-      'home.sheet.wordAndSentenceAlreadyAdded':
-          'Kelime ve cumle zaten eklendi',
+      'home.sheet.wordAndSentenceAlreadyAdded': 'Kelime ve cumle zaten eklendi',
       'home.card.addSentence': 'Cumlesini Ekle',
       'home.card.wordSentenceAdded': 'Kelime + Cumle Eklendi',
-
       'wotd.title': 'Gunun Kelimesi',
       'wotd.step.word': 'Kelime',
       'wotd.step.meaning': 'Anlam',
@@ -740,7 +700,6 @@ class AppLocalizations {
       'wotd.check': 'Kontrol Et',
       'wotd.next': 'Ileri',
       'wotd.continue': 'Devam Et',
-
       'profile.accountSettings': 'Hesap Ayarlari',
       'profile.editProfile': 'Profili Duzenle',
       'profile.notificationPrefs': 'Bildirim Tercihleri',
@@ -769,7 +728,7 @@ class AppLocalizations {
       'profile.privacy.messagesValue': 'Sadece arkadaslar',
     },
     'de': {
-      'app.name': 'VocabMaster',
+      'app.name': 'KlioAI',
       'common.continue': 'Weiter',
       'common.cancel': 'Abbrechen',
       'common.close': 'Schliessen',
@@ -784,7 +743,6 @@ class AppLocalizations {
       'common.recommended': 'Empfohlen',
       'common.loading': 'Laedt...',
       'common.level': 'Niveau',
-
       'language.label': 'Sprache',
       'language.setup.title': 'Waehle deine App-Sprache',
       'language.setup.subtitle':
@@ -799,12 +757,10 @@ class AppLocalizations {
       'language.arabic': 'Arabisch',
       'language.chinese': 'Chinesisch',
       'language.changed': 'Sprache aktualisiert',
-
       'settings.title': 'Einstellungen',
       'settings.subtitle': 'Verwalte deine App-Einstellungen',
       'settings.language.title': 'App-Sprache',
-      'settings.language.subtitle':
-          'Waehle die Sprache fuer alle UI-Texte',
+      'settings.language.subtitle': 'Waehle die Sprache fuer alle UI-Texte',
       'settings.language.sheetTitle': 'Sprache auswaehlen',
       'settings.language.current': 'Aktuelle Sprache',
       'settings.tour.title': 'App-Tour',
@@ -814,9 +770,7 @@ class AppLocalizations {
       'settings.about.title': 'Info',
       'settings.about.subtitle':
           'Die Sprache wird pro Nutzer gespeichert und appweit angewendet.',
-
       'splash.loading': 'Dein Lernbereich wird vorbereitet...',
-
       'nav.home': 'Start',
       'nav.words': 'Woerter',
       'nav.sentences': 'Saetze',
@@ -830,31 +784,28 @@ class AppLocalizations {
       'nav.settings': 'Einstellungen',
       'nav.mainPages': 'Hauptseiten',
       'nav.specialPages': 'Spezialseiten',
-      'nav.title': 'VocabMaster',
+      'nav.title': 'KlioAI',
       'nav.subtitle': 'Navigation',
-      'nav.version': 'VocabMaster v1.0',
+      'nav.version': 'KlioAI v1.0',
       'nav.copyright2026': '© 2026 Alle Rechte vorbehalten',
       'nav.selectChatMode': 'Chat-Modus waehlen',
-
       'chat.friends.title': 'Mit Freunden chatten',
       'chat.friends.subtitle': 'Sprich mit Online-Freunden',
       'chat.ai.title': 'Mit KI chatten',
       'chat.ai.subtitle': 'Uebe mit deinem KI-Assistenten',
-
       'landing.subtitle':
           'Ein KI-gestuetztes Sprachlernerlebnis der naechsten Generation',
       'landing.cta': 'Jetzt starten',
       'landing.trust.secure': 'Sicher',
       'landing.trust.fast': 'Schnell',
       'landing.trust.global': 'Global',
-      'landing.footer.copy': '© 2025 VocabMaster. Alle Rechte vorbehalten.',
+      'landing.footer.copy': '© 2025 KlioAI. Alle Rechte vorbehalten.',
       'landing.footer.subtitle':
           'Ein KI-gestuetztes Sprachlernerlebnis der naechsten Generation',
       'landing.stat.aiModels': 'KI-Modelle',
       'landing.stat.activeUsers': 'Aktive Nutzer',
       'landing.stat.features': 'Funktionen',
       'landing.stat.satisfaction': 'Zufriedenheit',
-
       'landing.feature.speaking.title': 'KI-gestuetztes Sprechen',
       'landing.feature.speaking.subtitle': '6 Sprach-Personas',
       'landing.feature.speaking.description':
@@ -863,7 +814,6 @@ class AppLocalizations {
       'landing.feature.speaking.h1': 'TTS Sprachunterstuetzung',
       'landing.feature.speaking.h2': 'Antworten in Echtzeit',
       'landing.feature.speaking.h3': 'Personalisierte Profile',
-
       'landing.feature.writing.title': 'KI Schreibassistent',
       'landing.feature.writing.subtitle': 'A1-C2 Unterstuetzung',
       'landing.feature.writing.description':
@@ -872,7 +822,6 @@ class AppLocalizations {
       'landing.feature.writing.h1': 'Themenvorschlaege',
       'landing.feature.writing.h2': 'Sofortige Bewertung',
       'landing.feature.writing.h3': 'Kurz/Mittel/Lang Formate',
-
       'landing.feature.social.title': 'Soziale Lernplattform',
       'landing.feature.social.subtitle': 'Globale Community',
       'landing.feature.social.description':
@@ -881,7 +830,6 @@ class AppLocalizations {
       'landing.feature.social.h1': 'Live Feed',
       'landing.feature.social.h2': 'Interaktive Posts',
       'landing.feature.social.h3': 'Freundesystem',
-
       'landing.feature.progress.title': 'Intelligentes Fortschritts-Tracking',
       'landing.feature.progress.subtitle': 'Taegliche & Woechentliche Ziele',
       'landing.feature.progress.description':
@@ -890,7 +838,6 @@ class AppLocalizations {
       'landing.feature.progress.h1': 'Kreisfortschritt',
       'landing.feature.progress.h2': 'Animierte Statistiken',
       'landing.feature.progress.h3': 'Glow-Effekte',
-
       'landing.feature.speechPractice.title': 'Sprechtraining',
       'landing.feature.speechPractice.subtitle': 'Feedback in Echtzeit',
       'landing.feature.speechPractice.description':
@@ -899,7 +846,6 @@ class AppLocalizations {
       'landing.feature.speechPractice.h1': 'Stimmwahl',
       'landing.feature.speechPractice.h2': 'Aussprache-Check',
       'landing.feature.speechPractice.h3': 'Gespraechsfluss',
-
       'login.subtitle': 'Starte deine Vokabel-Lernreise',
       'login.name': 'Vollstaendiger Name',
       'login.name.placeholder': 'Dein Name',
@@ -923,7 +869,6 @@ class AppLocalizations {
       'login.noAccount': 'Noch kein Konto? ',
       'login.switch.signIn': 'Anmelden',
       'login.switch.signUp': 'Registrieren',
-
       'practice.mode.translate': 'Uebersetzung',
       'practice.mode.reading': 'Lesen',
       'practice.mode.writing': 'Schreiben',
@@ -944,7 +889,6 @@ class AppLocalizations {
           'Schreibe Texte und erhalte sofortiges KI-Feedback.',
       'practice.modes.point.consistency':
           'Trainiere regelmaessig und entwickle alle Sprachbereiche gemeinsam.',
-
       'practice.reading.title': 'Lesen & Verstehen',
       'practice.reading.subtitle': 'Lies Texte und verstehe Inhalte',
       'practice.reading.levelLabel': 'Niveau:',
@@ -953,27 +897,23 @@ class AppLocalizations {
       'practice.reading.dailyInfo2':
           'Markierte Niveaus wurden heute bereits abgeschlossen.',
       'practice.reading.start': 'Lesen starten',
-
       'practice.writing.title': 'Schreibtraining',
       'practice.writing.subtitle': 'KI-gestuetztes Schreiben und Bewertung',
       'practice.writing.card.title': 'Verbessere dein Schreiben',
       'practice.writing.card.desc':
           'Schreibe niveaugerechte Texte und erhalte sofortiges KI-Feedback.',
-
-      'practice.speaking.title': 'Mit VocabMaster sprechen',
+      'practice.speaking.title': 'Mit KlioAI sprechen',
       'practice.speaking.subtitle': 'Bereit fuer Englisch-Sprechtraining!',
       'practice.aiAssistants': 'KI-Assistenten',
       'practice.examPrep.title': 'Bereite dich auf Pruefungen vor!',
       'practice.examPrep.subtitle': 'Uebe IELTS & TOEFL Speaking',
       'practice.examPrep.button': 'Pruefung starten',
-
       'practice.exams.title': 'Pruefungszentrum',
       'practice.exams.subtitle': 'YDS, YOKDIL und globale Pruefungen',
       'practice.exams.turkiye': 'Tuerkei-Pruefungen',
       'practice.exams.desc':
           'Teste dich mit pruefungsnahen Aufgaben und Fokus-Modulen.',
       'practice.exams.go': 'Zum Pruefungszentrum',
-
       'practice.translation.title': 'Uebersetzung',
       'practice.translation.subtitle': 'Uebungsmodus',
       'practice.submode.select': 'Auswaehlen',
@@ -1011,7 +951,6 @@ class AppLocalizations {
       'practice.locked': 'Uebungsmodus gesperrt',
       'practice.lockedDesc':
           'Upgrade auf PRO, um erweiterte Uebungsmodi freizuschalten und schneller voranzukommen.',
-
       'home.today': 'Heute',
       'home.thisWeek': 'Diese Woche',
       'home.total': 'Gesamt',
@@ -1030,9 +969,11 @@ class AppLocalizations {
       'home.info.title': 'Startseiten-Info',
       'home.info.step1': 'Verfolge XP und Level oben auf der Karte.',
       'home.info.step2': 'Oeffne Tageswoerter und fuege sie schnell hinzu.',
-      'home.info.step3': 'Nutze Schnellzugriff fuer Woerter, Saetze und Review.',
+      'home.info.step3':
+          'Nutze Schnellzugriff fuer Woerter, Saetze und Review.',
       'home.info.step4': 'Behalte Wochenaktivitaet und Serie im Blick.',
-      'home.info.step5': 'Mit + kannst du Wort allein oder mit Satz hinzufuegen.',
+      'home.info.step5':
+          'Mit + kannst du Wort allein oder mit Satz hinzufuegen.',
       'home.dailyWords.title': 'Tageswoerter',
       'home.dailyWords.empty': 'Fuer heute sind keine Tageswoerter verfuegbar.',
       'home.quickAccess.title': 'Schnellzugriff',
@@ -1068,7 +1009,6 @@ class AppLocalizations {
           'Wort und Satz sind bereits hinzugefuegt',
       'home.card.addSentence': 'Satz hinzufuegen',
       'home.card.wordSentenceAdded': 'Wort + Satz hinzugefuegt',
-
       'wotd.title': 'Wort des Tages',
       'wotd.step.word': 'Wort',
       'wotd.step.meaning': 'Bedeutung',
@@ -1098,7 +1038,6 @@ class AppLocalizations {
       'wotd.check': 'Pruefen',
       'wotd.next': 'Weiter',
       'wotd.continue': 'Weiter',
-
       'profile.accountSettings': 'Kontoeinstellungen',
       'profile.editProfile': 'Profil bearbeiten',
       'profile.notificationPrefs': 'Benachrichtigungseinstellungen',
@@ -1127,7 +1066,7 @@ class AppLocalizations {
       'profile.privacy.messagesValue': 'Nur Freunde',
     },
     'ar': {
-      'app.name': 'VocabMaster',
+      'app.name': 'KlioAI',
       'common.continue': 'متابعة',
       'common.cancel': 'إلغاء',
       'common.close': 'إغلاق',
@@ -1172,7 +1111,8 @@ class AppLocalizations {
           'أعد تشغيل الجولة الإرشادية للميزات الرئيسية في أي وقت.',
       'settings.tour.cta': 'إعادة تشغيل الجولة',
       'settings.about.title': 'حول',
-      'settings.about.subtitle': 'يتم حفظ اللغة لكل مستخدم وتطبيقها على كامل التطبيق.',
+      'settings.about.subtitle':
+          'يتم حفظ اللغة لكل مستخدم وتطبيقها على كامل التطبيق.',
       'home.dailyWords.title': 'كلمات اليوم',
       'home.dailyWords.empty': 'لا توجد كلمات يومية لهذا اليوم.',
       'home.quickAccess.title': 'وصول سريع',
@@ -1199,7 +1139,7 @@ class AppLocalizations {
       'profile.appSettings': 'إعدادات التطبيق',
     },
     'zh': {
-      'app.name': 'VocabMaster',
+      'app.name': 'KlioAI',
       'common.continue': '继续',
       'common.cancel': '取消',
       'common.close': '关闭',
@@ -1272,7 +1212,8 @@ class AppLocalizations {
   };
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override

@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Icon Animations
     _iconController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     setState(() {
       _currentPage = index;
     });
-    
+
     // Reset and replay icon animation
     _iconController.reset();
     _iconController.forward();
@@ -154,7 +154,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const Positioned.fill(
             child: AnimatedBackground(isDark: true),
           ),
-          
+
           // Background Orbs (Pulse Animation)
           const PulsingOrb(
             size: 200, // Reduced size slightly so it's not overwhelming
@@ -162,7 +162,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             alignment: Alignment(-0.8, -0.8), // Top Left
             duration: 4,
           ),
-           const PulsingOrb(
+          const PulsingOrb(
             size: 300,
             color: Color(0xFF3b82f6),
             alignment: Alignment(0.8, 0.8), // Bottom Right
@@ -197,11 +197,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     value = _pageController.page! - index;
                     value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
                   }
-                  
+
                   // Apply Scale and Opacity based on scroll position
                   return Center(
                     child: SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.8, // Limit height
+                      height: MediaQuery.of(context).size.height *
+                          0.8, // Limit height
                       child: Opacity(
                         opacity: value.clamp(0.0, 1.0),
                         child: Transform.scale(
@@ -216,25 +217,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               );
             },
           ),
-          
+
           // Bottom Controls
-            Positioned(
-              bottom: 40,
-              left: 20,
+          Positioned(
+            bottom: 40,
+            left: 20,
             right: 20,
             child: Column(
               children: [
                 // Swipe Hint removed
                 const SizedBox(height: 20),
-                
+
                 // Pagination Dots
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(pages.length, (index) => _buildDot(index)),
+                  children:
+                      List.generate(pages.length, (index) => _buildDot(index)),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // Navigation Buttons (Back / Next)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -255,8 +257,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.white24),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                           child: Text(context.tr('common.back')),
                         ),
@@ -274,30 +278,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               );
                             },
                       style: ElevatedButton.styleFrom(
-                         backgroundColor: const Color(0xFF0ea5e9),
-                         foregroundColor: Colors.white,
-                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                         elevation: 8,
-                         shadowColor: const Color(0xFF0ea5e9).withOpacity(0.4),
-                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: const Color(0xFF0ea5e9),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 12),
+                        elevation: 8,
+                        shadowColor: const Color(0xFF0ea5e9).withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                           if (_currentPage == pages.length - 1) 
-                             const Icon(Icons.auto_awesome, size: 18)
-                           else 
-                             Text(context.tr('common.next')),
-                           if (_currentPage == pages.length - 1)
-                             Padding(
-                               padding: EdgeInsets.only(left: 8.0),
-                               child: Text(context.tr('common.start')),
-                             )
-                           else
-                             const Padding(
-                               padding: EdgeInsets.only(left: 4.0),
-                               child: Icon(Icons.arrow_forward, size: 18),
-                             ),
+                          if (_currentPage == pages.length - 1)
+                            const Icon(Icons.auto_awesome, size: 18)
+                          else
+                            Text(context.tr('common.next')),
+                          if (_currentPage == pages.length - 1)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: Text(context.tr('common.start')),
+                            )
+                          else
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4.0),
+                              child: Icon(Icons.arrow_forward, size: 18),
+                            ),
                         ],
                       ),
                     ),
@@ -332,7 +338,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildPageContent(int index) {
     final data = _pages(context)[index];
-    
+
     // Key ensures StaggeredFeatures rebuilds and restarts animation on page change
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -378,9 +384,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               );
             },
           ),
-          
+
           const SizedBox(height: 50),
-          
+
           Text(
             data.title,
             textAlign: TextAlign.center,
@@ -400,13 +406,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               height: 1.5,
             ),
           ),
-          
+
           const SizedBox(height: 50),
-          
+
           // Features
           // Re-create widget when index changes to restart animations
           StaggeredFeatures(
-            key: ValueKey(index), 
+            key: ValueKey(index),
             features: data.featureTexts,
           ),
         ],
@@ -492,7 +498,7 @@ class _FloatingParticlesState extends State<FloatingParticles>
           builder: (context, child) {
             return Positioned(
               // Position particles relative to the container (120x120)
-              top: 20 + _yAnimations[i].value, 
+              top: 20 + _yAnimations[i].value,
               left: 40 + (i * 20.0), // Spread horizontally
               child: Opacity(
                 opacity: _opacityAnimations[i].value,
@@ -516,7 +522,7 @@ class _FloatingParticlesState extends State<FloatingParticles>
 class StaggeredFeatures extends StatefulWidget {
   final List<String> features;
   const StaggeredFeatures({super.key, required this.features});
-  
+
   @override
   State<StaggeredFeatures> createState() => _StaggeredFeaturesState();
 }
@@ -538,7 +544,7 @@ class _StaggeredFeaturesState extends State<StaggeredFeatures>
       double start = (index * 0.2); // 0.0, 0.2, 0.4
       double end = start + 0.5;
       if (end > 1.0) end = 1.0;
-      
+
       return Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _controller,
@@ -570,7 +576,8 @@ class _StaggeredFeaturesState extends State<StaggeredFeatures>
                   opacity: _animations[i].value.clamp(0.0, 1.0),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(16),
@@ -585,7 +592,10 @@ class _StaggeredFeaturesState extends State<StaggeredFeatures>
                         Text(
                           widget.features[i],
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -687,4 +697,3 @@ class _PulsingOrbState extends State<PulsingOrb>
     );
   }
 }
-

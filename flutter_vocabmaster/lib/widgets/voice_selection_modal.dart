@@ -26,7 +26,8 @@ class VoiceSelectionModal extends StatefulWidget {
   State<VoiceSelectionModal> createState() => _VoiceSelectionModalState();
 
   /// Modal'ı göster
-  static Future<VoiceModel?> show(BuildContext context, {VoiceModel? currentVoice}) async {
+  static Future<VoiceModel?> show(BuildContext context,
+      {VoiceModel? currentVoice}) async {
     return showGeneralDialog<VoiceModel>(
       context: context,
       barrierDismissible: true,
@@ -61,38 +62,42 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
     with TickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _pulseController;
-  
+
   final PiperTtsService _ttsService = PiperTtsService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts(); // Fallback TTS
-  
+
   int _currentPage = 0;
   VoiceModel? _selectedVoice;
   bool _isPlaying = false;
-  
+
   final List<VoiceModel> _voices = VoiceModel.availableVoices;
+
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Mevcut seçimi bul
     if (widget.currentVoice != null) {
       _selectedVoice = widget.currentVoice;
       _currentPage = _voices.indexWhere((v) => v.id == widget.currentVoice!.id);
       if (_currentPage < 0) _currentPage = 0;
     }
-    
+
     _pageController = PageController(
       initialPage: _currentPage,
       viewportFraction: 0.85,
     );
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
-    
+
     _initFlutterTts(); // Fallback TTS hazırla
   }
 
@@ -101,7 +106,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
     await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
-    
+
     _flutterTts.setCompletionHandler(() {
       if (mounted) {
         _pulseController.stop();
@@ -111,7 +116,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
     });
 
     _flutterTts.setErrorHandler((msg) {
-       if (mounted) {
+      if (mounted) {
         _pulseController.stop();
         _pulseController.reset();
         setState(() => _isPlaying = false);
@@ -143,7 +148,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
 
     try {
       debugPrint('Sentezleniyor: ${voice.name} (${voice.piperVoice})');
-      
+
       // 1. Önce Piper TTS dene
       Uint8List? audioData;
       try {
@@ -154,16 +159,16 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
       } catch (e) {
         debugPrint('Piper TTS Synth Error: $e');
       }
-      
+
       if (audioData != null && mounted) {
         // Geçici dosya oluştur ve oynat (Daha güvenilir)
         final tempDir = await getTemporaryDirectory();
         final tempFile = File('${tempDir.path}/voice_sample.wav');
         await tempFile.writeAsBytes(audioData);
-        
+
         await _audioPlayer.setFilePath(tempFile.path);
         await _audioPlayer.play();
-        
+
         // Oynatma bitince butonu resetle
         _audioPlayer.playerStateStream.listen((state) {
           if (state.processingState == ProcessingState.completed) {
@@ -178,19 +183,19 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
         // 2. Piper başarısızsa Fallback: Flutter TTS (System)
         if (!mounted) return;
         debugPrint('Piper başarısız veya veri yok, System TTS kullanılıyor...');
-        
+
         // Locale ayarla (örn: en-US, en-GB)
         // FlutterTts genelde '-' kullanır (en-US), bizim model '_' kullanıyorsa replace yapalım
         String locale = voice.locale.replaceAll('_', '-');
         await _flutterTts.setLanguage(locale);
-        
+
         // Cinsiyete göre pitch ayarı
         if (voice.gender == 'female') {
-           await _flutterTts.setPitch(1.1);
+          await _flutterTts.setPitch(1.1);
         } else {
-           await _flutterTts.setPitch(0.9);
+          await _flutterTts.setPitch(0.9);
         }
-        
+
         await _flutterTts.speak(voice.sampleText);
       }
     } catch (e) {
@@ -199,12 +204,13 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
         _pulseController.stop();
         _pulseController.reset();
         setState(() => _isPlaying = false);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: Text('Ses çalınamadı: ${e.toString()}'),
-             backgroundColor: Colors.red,
-           ),
+          SnackBar(
+            content: Text(_text('Ses calinamadi: ${e.toString()}',
+                'Voice sample could not be played: ${e.toString()}')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -222,7 +228,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
       debugPrint('Save voice error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Kaydetme başarısız')),
+          SnackBar(content: Text(_text('Kaydetme basarisiz', 'Saving failed'))),
         );
       }
     }
@@ -267,13 +273,14 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: SingleChildScrollView( // Overflow fix
+              child: SingleChildScrollView(
+                // Overflow fix
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Header
                     _buildHeader(),
-                    
+
                     // Carousel
                     SizedBox(
                       height: 320, // 360 -> 320 (Reduced height)
@@ -290,7 +297,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                               return _buildVoiceCard(_voices[index], index);
                             },
                           ),
-                          
+
                           // Left Arrow
                           if (_currentPage > 0)
                             Positioned(
@@ -307,7 +314,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                                 ),
                               ),
                             ),
-                          
+
                           // Right Arrow
                           if (_currentPage < _voices.length - 1)
                             Positioned(
@@ -327,15 +334,15 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                         ],
                       ),
                     ),
-                    
+
                     // Pagination Dots
                     _buildPaginationDots(),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Footer
                     _buildFooter(),
-                    
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -356,8 +363,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Konuşmacı Seç',
+                Text(
+                  _text('Konusmaci Sec', 'Choose Speaker'),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -366,7 +373,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'En sevdiğin ses tonunu seç',
+                  _text('En sevdigin ses tonunu sec',
+                      'Choose your preferred voice'),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
                     fontSize: 14,
@@ -394,7 +402,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
   Widget _buildVoiceCard(VoiceModel voice, int index) {
     final isSelected = _selectedVoice?.id == voice.id;
     final isCurrent = _currentPage == index;
-    
+
     return AnimatedScale(
       scale: isCurrent ? 1.0 : 0.92,
       duration: const Duration(milliseconds: 200),
@@ -407,9 +415,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected 
-                ? const Color(0xFF22D3EE) 
-                : Colors.transparent,
+              color: isSelected ? const Color(0xFF22D3EE) : Colors.transparent,
               width: isSelected ? 4 : 0,
             ),
             boxShadow: [
@@ -462,7 +468,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                     ),
                   ),
                 ),
-                
+
                 // Gradient Overlay
                 Positioned.fill(
                   child: DecoratedBox(
@@ -480,7 +486,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                     ),
                   ),
                 ),
-                
+
                 // Selected Checkmark
                 if (isSelected)
                   Positioned(
@@ -499,7 +505,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                       ),
                     ),
                   ),
-                
+
                 // Info Section
                 Positioned(
                   left: 16,
@@ -517,9 +523,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 8),
-                      
+
                       // Badges
                       Row(
                         children: [
@@ -555,9 +561,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(width: 8),
-                          
+
                           // Accent Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -582,9 +588,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Play Button
                       AnimatedBuilder(
                         animation: _pulseController,
@@ -605,8 +611,14 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: _isPlaying && _currentPage == index
-                                    ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                                    : [const Color(0xFF06B6D4), const Color(0xFF0284C7)],
+                                    ? [
+                                        const Color(0xFFEF4444),
+                                        const Color(0xFFDC2626)
+                                      ]
+                                    : [
+                                        const Color(0xFF06B6D4),
+                                        const Color(0xFF0284C7)
+                                      ],
                               ),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
@@ -633,8 +645,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                                 const SizedBox(width: 8),
                                 Text(
                                   _isPlaying && _currentPage == index
-                                      ? 'Durdur'
-                                      : 'Sesi Dinle',
+                                      ? _text('Durdur', 'Stop')
+                                      : _text('Sesi Dinle', 'Play Voice'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 15,
@@ -694,8 +706,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
           width: isActive ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: isActive 
-                ? const Color(0xFF22D3EE) 
+            color: isActive
+                ? const Color(0xFF22D3EE)
                 : Colors.white.withOpacity(0.3),
             borderRadius: BorderRadius.circular(4),
           ),
@@ -714,7 +726,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                '${_selectedVoice!.name} ile devam etmek istiyor musun?',
+                _text('${_selectedVoice!.name} ile devam etmek istiyor musun?',
+                    'Do you want to continue with ${_selectedVoice!.name}?'),
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 14,
@@ -722,7 +735,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                 textAlign: TextAlign.center,
               ),
             ),
-          
+
           // Buttons
           Row(
             children: [
@@ -739,9 +752,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                         color: Colors.white.withOpacity(0.2),
                       ),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
-                        'İptal',
+                        _text('Iptal', 'Cancel'),
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
@@ -752,9 +765,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // Save Button
               Expanded(
                 flex: 2,
@@ -778,9 +791,9 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Kaydet',
+                          _text('Kaydet', 'Save'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -799,4 +812,3 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
     );
   }
 }
-

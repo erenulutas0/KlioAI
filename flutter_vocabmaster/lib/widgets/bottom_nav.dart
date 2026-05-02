@@ -27,16 +27,18 @@ class BottomNav extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
           decoration: BoxDecoration(
-            color: selectedTheme.colors.background.withOpacity(0.72),
+            color: Color.lerp(selectedTheme.colors.background,
+                    selectedTheme.colors.primary, 0.10)!
+                .withOpacity(0.86),
             border: Border(
               top: BorderSide(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.85),
+                color: selectedTheme.colors.accent.withOpacity(0.28),
                 width: 1,
               ),
             ),
             boxShadow: [
               BoxShadow(
-                color: selectedTheme.colors.accentGlow.withOpacity(0.22),
+                color: selectedTheme.colors.accentGlow.withOpacity(0.16),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -104,7 +106,7 @@ class BottomNav extends StatelessWidget {
           gradient: selectedTheme.colors.buttonGradient,
           boxShadow: [
             BoxShadow(
-              color: selectedTheme.colors.accentGlow.withOpacity(0.6),
+              color: selectedTheme.colors.accentGlow.withOpacity(0.36),
               blurRadius: 20,
               spreadRadius: 2,
               offset: const Offset(0, 4),
@@ -145,8 +147,12 @@ class BottomNav extends StatelessWidget {
             ? BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    selectedTheme.colors.accent.withOpacity(0.95),
-                    selectedTheme.colors.primary.withOpacity(0.95),
+                    Color.lerp(selectedTheme.colors.background,
+                            selectedTheme.colors.accent, 0.62)!
+                        .withOpacity(0.94),
+                    Color.lerp(selectedTheme.colors.background,
+                            selectedTheme.colors.primary, 0.62)!
+                        .withOpacity(0.94),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -154,7 +160,7 @@ class BottomNav extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.45),
+                    color: selectedTheme.colors.accentGlow.withOpacity(0.24),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -199,4 +205,3 @@ class BottomNav extends StatelessWidget {
     );
   }
 }
-

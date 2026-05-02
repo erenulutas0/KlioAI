@@ -12,7 +12,8 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
-class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin {
+class _LandingPageState extends State<LandingPage>
+    with TickerProviderStateMixin {
   // Animation Controllers
   late AnimationController _logoController;
   late AnimationController _orb1Controller;
@@ -20,12 +21,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   late AnimationController _orb3Controller;
   late List<AnimationController> _sparkleControllers;
   late List<AnimationController> _statsAnimations;
-  
+
   // PageView
   late PageController _pageController;
   int _currentFeature = 0;
   Timer? _featureTimer;
-  
+
   // Animations
   late Animation<double> _logoScaleAnimation;
   late Animation<double> _logoRotationAnimation;
@@ -33,50 +34,64 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize controllers
-    _logoController = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this);
-    
+    _logoController = AnimationController(
+        duration: const Duration(milliseconds: 1200), vsync: this);
+
     _logoScaleAnimation = CurvedAnimation(
       parent: _logoController,
       curve: Curves.elasticOut,
     );
-    
+
     _logoRotationAnimation = Tween<double>(
-      begin: -3.14, 
+      begin: -3.14,
       end: 0.0,
     ).animate(_logoController);
 
-    _orb1Controller = AnimationController(duration: const Duration(seconds: 8), vsync: this)..repeat(reverse: true);
-    _orb2Controller = AnimationController(duration: const Duration(seconds: 10), vsync: this)..repeat(reverse: true);
-    _orb3Controller = AnimationController(duration: const Duration(seconds: 12), vsync: this)..repeat(reverse: true);
-    
-    _sparkleControllers = List.generate(4, (i) => AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat());
-    _statsAnimations = List.generate(4, (i) => AnimationController(duration: const Duration(milliseconds: 500), vsync: this));
-    
+    _orb1Controller =
+        AnimationController(duration: const Duration(seconds: 8), vsync: this)
+          ..repeat(reverse: true);
+    _orb2Controller =
+        AnimationController(duration: const Duration(seconds: 10), vsync: this)
+          ..repeat(reverse: true);
+    _orb3Controller =
+        AnimationController(duration: const Duration(seconds: 12), vsync: this)
+          ..repeat(reverse: true);
+
+    _sparkleControllers = List.generate(
+        4,
+        (i) => AnimationController(
+            duration: const Duration(seconds: 2), vsync: this)
+          ..repeat());
+    _statsAnimations = List.generate(
+        4,
+        (i) => AnimationController(
+            duration: const Duration(milliseconds: 500), vsync: this));
+
     _pageController = PageController(); // Initialize PageController
-    
+
     // Start animations
     _logoController.forward();
     _startStaggeredAnimations();
     _startFeatureRotation();
   }
-  
+
   void _startStaggeredAnimations() {
-    Future.delayed(const Duration(milliseconds: 600), () { 
-      if(mounted) _statsAnimations[0].forward(); 
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) _statsAnimations[0].forward();
     });
-    Future.delayed(const Duration(milliseconds: 700), () { 
-      if(mounted) _statsAnimations[1].forward(); 
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) _statsAnimations[1].forward();
     });
-    Future.delayed(const Duration(milliseconds: 800), () { 
-      if(mounted) _statsAnimations[2].forward(); 
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) _statsAnimations[2].forward();
     });
-    Future.delayed(const Duration(milliseconds: 900), () { 
-      if(mounted) _statsAnimations[3].forward(); 
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) _statsAnimations[3].forward();
     });
   }
-  
+
   void _startFeatureRotation() {
     _featureTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (!mounted) return;
@@ -86,11 +101,13 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         _currentFeature = 0;
       }
       if (_pageController.hasClients) {
-        _pageController.animateToPage(_currentFeature, duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+        _pageController.animateToPage(_currentFeature,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut);
       }
     });
   }
-  
+
   @override
   void dispose() {
     _featureTimer?.cancel();
@@ -107,7 +124,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     _pageController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,16 +136,21 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF020617), Color(0xFF172554), Color(0xFF020617)],
+                colors: [
+                  Color(0xFF020617),
+                  Color(0xFF172554),
+                  Color(0xFF020617)
+                ],
               ),
             ),
           ),
-          
+
           // Orb 1, 2, 3
           _buildAnimatedOrb(_orb1Controller, top: 80, left: -80),
           _buildAnimatedOrb(_orb2Controller, top: 160, right: -80, delay: 1),
-          _buildAnimatedOrb(_orb3Controller, bottom: -80, centerX: true, delay: 2),
-          
+          _buildAnimatedOrb(_orb3Controller,
+              bottom: -80, centerX: true, delay: 2),
+
           // Main content
           SafeArea(
             child: SingleChildScrollView(
@@ -163,9 +185,15 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       ),
     );
   }
-  
+
   // Widget builders...
-  Widget _buildAnimatedOrb(AnimationController controller, {double? top, double? bottom, double? left, double? right, bool centerX = false, int delay = 0}) {
+  Widget _buildAnimatedOrb(AnimationController controller,
+      {double? top,
+      double? bottom,
+      double? left,
+      double? right,
+      bool centerX = false,
+      int delay = 0}) {
     return Positioned(
       top: top,
       bottom: bottom,
@@ -190,7 +218,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF06B6D4).withOpacity(0.2), 
+                      const Color(0xFF06B6D4).withOpacity(0.2),
                       Colors.transparent
                     ],
                   ),
@@ -198,12 +226,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
               ),
             ),
           );
-          
+
           if (centerX) {
-             return SizedBox(
-               width: MediaQuery.of(context).size.width,
-               child: Center(child: orbWidget),
-             );
+            return SizedBox(
+              width: MediaQuery.of(context).size.width,
+              child: Center(child: orbWidget),
+            );
           }
           return orbWidget;
         },
@@ -215,7 +243,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     return AnimatedBuilder(
       animation: _logoController,
       builder: (context, child) {
-       return Transform.scale(
+        return Transform.scale(
           scale: _logoScaleAnimation.value,
           child: Transform.rotate(
             angle: _logoRotationAnimation.value,
@@ -259,8 +287,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         // Calculate position relative to center (0,0 is center of Stack)
         // Container is 96x96. Top-left is -48,-48
         final offsetX = ((i - 1.5) * 30.0) + ((i - 1.5) * 15.0 * progress);
-        final offsetY = -60 + (-40.0 * progress); 
-        
+        final offsetY = -60 + (-40.0 * progress);
+
         return Transform.translate(
           offset: Offset(offsetX, offsetY),
           child: Opacity(
@@ -290,7 +318,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         ],
       ).createShader(bounds),
       child: const Text(
-        'VocabMaster',
+        'KlioAI',
         style: TextStyle(
           fontSize: 48,
           fontWeight: FontWeight.bold,
@@ -313,14 +341,28 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     );
   }
 
-
-
   Widget _buildStatsGrid() {
     final stats = [
-      {'value': '6+', 'label': context.tr('landing.stat.aiModels'), 'icon': Icons.psychology},
-      {'value': '5K+', 'label': context.tr('landing.stat.activeUsers'), 'icon': Icons.people},
-      {'value': '10+', 'label': context.tr('landing.stat.features'), 'icon': Icons.star},
-      {'value': '99%', 'label': context.tr('landing.stat.satisfaction'), 'icon': Icons.favorite},
+      {
+        'value': '6+',
+        'label': context.tr('landing.stat.aiModels'),
+        'icon': Icons.psychology
+      },
+      {
+        'value': '5K+',
+        'label': context.tr('landing.stat.activeUsers'),
+        'icon': Icons.people
+      },
+      {
+        'value': '10+',
+        'label': context.tr('landing.stat.features'),
+        'icon': Icons.star
+      },
+      {
+        'value': '99%',
+        'label': context.tr('landing.stat.satisfaction'),
+        'icon': Icons.favorite
+      },
     ];
 
     return GridView.builder(
@@ -330,7 +372,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.1, // Decreased from 1.5 to provide more vertical space
+        childAspectRatio:
+            1.1, // Decreased from 1.5 to provide more vertical space
       ),
       itemCount: 4,
       itemBuilder: (context, index) {
@@ -349,7 +392,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(stats[index]['icon'] as IconData, color: const Color(0xFF22D3EE), size: 24),
+                Icon(stats[index]['icon'] as IconData,
+                    color: const Color(0xFF22D3EE), size: 24),
                 const SizedBox(height: 8),
                 Text(
                   stats[index]['value'] as String,
@@ -460,28 +504,27 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
           final feature = features[index];
           final gradient = feature['gradient'] as List<Color>;
           final highlights = feature['highlights'] as List<String>;
-          
+
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  gradient[0].withOpacity(0.1),
-                  gradient[1].withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              boxShadow: [
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    gradient[0].withOpacity(0.1),
+                    gradient[1].withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                boxShadow: [
                   BoxShadow(
                     color: gradient[0].withOpacity(0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
-              ]
-            ),
+                ]),
             child: Stack(
               children: [
                 // Top line
@@ -493,11 +536,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                     height: 4,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(colors: gradient),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(24)),
                     ),
                   ),
                 ),
-                
+
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
@@ -511,10 +555,14 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                             width: 64,
                             height: 64,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: gradient),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))]
-                            ),
+                                gradient: LinearGradient(colors: gradient),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: const [
+                                  BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 10,
+                                      offset: Offset(0, 5))
+                                ]),
                             child: Icon(
                               feature['icon'] as IconData,
                               color: Colors.white,
@@ -522,7 +570,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFF06B6D4).withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
@@ -542,7 +591,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                         ],
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Title
                       Text(
                         feature['title'] as String,
@@ -561,7 +610,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Description
                       Text(
                         feature['description'] as String,
@@ -572,21 +621,23 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Highlights
                       ...highlights.map((highlight) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Row(
                             children: [
-                              Icon(Icons.check_circle, color: gradient[0], size: 18),
+                              Icon(Icons.check_circle,
+                                  color: gradient[0], size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   highlight,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: const Color(0xFFE0F2FE).withOpacity(0.9),
+                                    color: const Color(0xFFE0F2FE)
+                                        .withOpacity(0.9),
                                   ),
                                 ),
                               ),
@@ -624,9 +675,12 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
             height: 8,
             decoration: BoxDecoration(
               gradient: _currentFeature == index
-                  ? const LinearGradient(colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)])
+                  ? const LinearGradient(
+                      colors: [Color(0xFF22D3EE), Color(0xFF3B82F6)])
                   : null,
-              color: _currentFeature == index ? null : Colors.white.withOpacity(0.3),
+              color: _currentFeature == index
+                  ? null
+                  : Colors.white.withOpacity(0.3),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -634,8 +688,6 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       }),
     );
   }
-
-
 
   Widget _buildCTAButton() {
     return GestureDetector(
@@ -734,7 +786,4 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       ),
     );
   }
-
-
 }
-

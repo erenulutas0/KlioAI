@@ -89,7 +89,7 @@ class GooglePlaySubscriptionReconciliationServiceTest {
 
         assertEquals(PaymentTransaction.Status.SUCCESS, tx.getStatus());
         assertEquals("PREMIUM", tx.getUser().getAiPlanCode());
-        assertEquals(LocalDateTime.ofInstant(expiry, ZoneOffset.UTC), tx.getUser().getSubscriptionEndDate());
+        assertEquals(LocalDateTime.ofInstant(now, ZoneOffset.UTC).plusDays(30), tx.getUser().getSubscriptionEndDate());
     }
 
     @Test
@@ -162,4 +162,3 @@ class GooglePlaySubscriptionReconciliationServiceTest {
         return tx;
     }
 }
-

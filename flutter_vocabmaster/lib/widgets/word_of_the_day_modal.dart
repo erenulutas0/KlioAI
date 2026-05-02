@@ -415,8 +415,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.volume_up, color: Colors.white),
-                  SizedBox(width: 8),
+                  const Icon(Icons.volume_up, color: Colors.white),
+                  const SizedBox(width: 8),
                   Text(
                     context.tr('wotd.listen'),
                     style: const TextStyle(
@@ -631,7 +631,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
       children: [
         Text(
           context.tr('wotd.pronunciationPractice'),
-          style: TextStyle(
+          style: const TextStyle(
               color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 40),
@@ -670,8 +670,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.volume_up, size: 28, color: Colors.white),
-                SizedBox(width: 12),
+                const Icon(Icons.volume_up, size: 28, color: Colors.white),
+                const SizedBox(width: 12),
                 Text(
                   context.tr('wotd.listenAgain'),
                   style: const TextStyle(
@@ -866,7 +866,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           const SizedBox(height: 24),
           Text(
             context.tr('wotd.great'),
-            style: TextStyle(
+            style: const TextStyle(
                 color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),

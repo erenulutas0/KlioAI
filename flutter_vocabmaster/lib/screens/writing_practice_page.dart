@@ -30,6 +30,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       DailyPracticeProgressService();
   Map<String, bool> _completedLevels = {};
 
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   final List<LevelOption> _levels = [
     LevelOption('A1', 'A1', [const Color(0xFF22C55E), const Color(0xFF10B981)]),
     LevelOption('A2', 'A2', [const Color(0xFF60A5FA), const Color(0xFF06B6D4)]),
@@ -69,8 +73,13 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       backgroundColor: Colors.transparent, // Transparent for AnimatedBackground
       extendBodyBehindAppBar: true, // Allow background to show through AppBar
       appBar: AppBar(
-        title: const Text('Yazma Pratiği',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          _text('Yazma Pratigi', 'Writing Practice'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -131,7 +140,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       variant: BackgroundVariant.primary,
       child: Row(
         children: [
-          // Icon
           Container(
             width: 48,
             height: 48,
@@ -148,25 +156,26 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Text
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AI ile Yazma Pratiği',
-                  style: TextStyle(
+                  _text('AI ile Yazma Pratigi', 'AI Writing Practice'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Seviyene uygun konularda yaz, yapay zeka değerlendirsin',
-                  style: TextStyle(
-                    color: Color(0xFFBAE6FD), // cyan-200
+                  _text(
+                    'Seviyene uygun konularda yaz, yapay zeka degerlendirsin',
+                    'Write on level-appropriate topics and get AI evaluation',
+                  ),
+                  style: const TextStyle(
+                    color: Color(0xFFBAE6FD),
                     fontSize: 12,
                   ),
                 ),
@@ -186,18 +195,17 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.gps_fixed,
                 color: Color(0xFF22D3EE),
                 size: 20,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
-                'Zorluk Seç',
-                style: TextStyle(
+                _text('Zorluk Sec', 'Choose Difficulty'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -206,8 +214,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Level Grid (3x2)
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -263,7 +269,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             },
           ),
           const SizedBox(height: 16),
-
           if (_completedLevels[_selectedLevel] == true)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -271,23 +276,23 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF22C55E).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: const Color(0xFF22C55E).withOpacity(0.35)),
+                border: Border.all(
+                  color: const Color(0xFF22C55E).withOpacity(0.35),
+                ),
               ),
-              child: const Text(
-                'Bu seviyedeki gunluk yazma alistirmasi tamamlandi. Ayni konuyu tekrar coze bilirsin.',
-                style: TextStyle(color: Colors.white, fontSize: 12),
+              child: Text(
+                _text(
+                  'Bu seviyedeki gunluk yazma alistirmasi tamamlandi. Ayni konuyu tekrar cozebilirsin.',
+                  'Today\'s writing task for this level is already completed. You can still retry the same topic.',
+                ),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ),
-
-          // Divider
           Container(
             height: 1,
             color: const Color(0x1AFFFFFF),
           ),
           const SizedBox(height: 16),
-
-          // Konu Oluştur Button
           GestureDetector(
             onTap: _isLoading ? null : _handleGenerateTopic,
             child: ModernCard(
@@ -305,7 +310,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isLoading ? 'Konu Hazırlanıyor...' : 'Günün Konusunu Getir',
+                    _isLoading
+                        ? _text('Konu Hazirlaniyor...', 'Preparing topic...')
+                        : _text('Gunun Konusunu Getir', 'Get Today\'s Topic'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -317,9 +324,12 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Her seviye icin gunluk tek konu verilir. Ayni seviyede tekrar ayni konu acilir.',
-            style: TextStyle(
+          Text(
+            _text(
+              'Her seviye icin gunluk tek konu verilir. Ayni seviyede tekrar ayni konu acilir.',
+              'Each level provides one daily topic. Reopening the same level brings back the same topic.',
+            ),
+            style: const TextStyle(
               color: Color(0xB3FFFFFF),
               fontSize: 12,
             ),
@@ -500,24 +510,23 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             runSpacing: 10,
             spacing: 10,
             children: [
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.edit,
                     color: Color(0xFF22D3EE),
                     size: 20,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
-                    'Yazınızı Buraya Yazın',
-                    style: TextStyle(
+                    _text('Yazinizi Buraya Yazin', 'Write Here'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -534,9 +543,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                     size: 16,
                   ),
                   const SizedBox(width: 4),
-                  const Text(
-                    'Kelime: ',
-                    style: TextStyle(
+                  Text(
+                    _text('Kelime: ', 'Words: '),
+                    style: const TextStyle(
                       color: Color(0xB3FFFFFF),
                       fontSize: 14,
                     ),
@@ -554,8 +563,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Textarea
           Container(
             height: 320,
             padding: const EdgeInsets.all(16),
@@ -568,7 +575,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
-              controller: _textController, // Use persistent controller
+              controller: _textController,
               maxLines: null,
               expands: true,
               style: const TextStyle(
@@ -577,10 +584,12 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 height: 1.8,
                 fontFamily: 'serif',
               ),
-              decoration: const InputDecoration(
-                hintText:
-                    'Yazınızı buraya yazın... Duygularınızı, düşüncelerinizi özgürce ifade edin. Her kelime öğrenme yolculuğunuzda bir adımdır.',
-                hintStyle: TextStyle(
+              decoration: InputDecoration(
+                hintText: _text(
+                  'Yazinizi buraya yazin... Duygularinizi ve dusuncelerinizi ozgurce ifade edin. Her kelime ogrenme yolculugunuzda bir adimdir.',
+                  'Write here... Express your ideas clearly and freely. Every word is a step in your learning journey.',
+                ),
+                hintStyle: const TextStyle(
                   color: Color(0x66FFFFFF),
                   fontSize: 16,
                 ),
@@ -589,8 +598,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Tip Box
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -612,20 +619,22 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
+                    text: TextSpan(
+                      style: const TextStyle(
                         color: Color(0xFFE0F2FE),
                         fontSize: 14,
                         height: 1.5,
                       ),
                       children: [
                         TextSpan(
-                          text: 'Yazı İpuçları: ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          text: _text('Yazi Ipuclari: ', 'Writing Tips: '),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(
-                          text:
-                              'Cümlelerinizi net ve anlaşılır tutun. Geçiş kelimelerini kullanarak fikirlerinizi birbirine bağlayın. Yaratıcı olun ve kendi sesinizi buldurma çekinmeyin!',
+                          text: _text(
+                            'Cumlelerinizi net ve anlasilir tutun. Gecis kelimelerini kullanarak fikirlerinizi birbirine baglayin. Yaratici olun ve kendi sesinizi bulmaktan cekinmeyin.',
+                            'Keep your sentences clear and organized. Use transition words to connect your ideas. Be creative and write in your own voice.',
+                          ),
                         ),
                       ],
                     ),
@@ -642,7 +651,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
   Widget _buildActionButtons() {
     return Row(
       children: [
-        // Ayni konu
         Expanded(
           child: GestureDetector(
             onTap: _resetCurrentWritingAttempt,
@@ -650,18 +658,18 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               borderRadius: BorderRadius.circular(12),
               variant: BackgroundVariant.secondary,
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.refresh,
                     color: Colors.white,
                     size: 20,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
-                    'Aynı Konuyu Tekrar Çöz',
-                    style: TextStyle(
+                    _text('Ayni Konuyu Tekrar Coz', 'Retry Same Topic'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -673,8 +681,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           ),
         ),
         const SizedBox(width: 12),
-
-        // Değerlendir
         Expanded(
           child: GestureDetector(
             onTap: _userText.trim().length < 10 ? null : _handleSubmitWriting,
@@ -704,7 +710,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      _isLoading ? 'Değerlendiriliyor...' : 'Değerlendir',
+                      _isLoading
+                          ? _text('Degerlendiriliyor...', 'Evaluating...')
+                          : _text('Degerlendir', 'Evaluate'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -749,7 +757,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       if (!mounted) return;
       final msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : 'Hata: $e';
+          : _text('Hata: $e', 'Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
@@ -813,19 +821,18 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x4DA78BFA), // purple-400/30
-            Color(0x4DEC4899), // pink-500/30
+            Color(0x4DA78BFA),
+            Color(0x4DEC4899),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4DC084FC), // purple-400/30
+          color: const Color(0x4DC084FC),
           width: 1.5,
         ),
       ),
       child: Column(
         children: [
-          // Award Icon
           Container(
             width: 96,
             height: 96,
@@ -842,11 +849,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Title
-          const Text(
-            'Harika İş Çıkardınız! 🎉',
-            style: TextStyle(
+          Text(
+            _text('Harika Is Cikardin!', 'Great Work!'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -854,8 +859,6 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-
-          // Score
           ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
               colors: [Color(0xFFC084FC), Color(0xFFF472B6)],
@@ -870,12 +873,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ),
           const SizedBox(height: 8),
-
-          // Subtitle
-          const Text(
-            '100 üzerinden puanınız',
-            style: TextStyle(
-              color: Color(0xFFF5D0FE), // purple-200
+          Text(
+            _text('100 uzerinden puaniniz', 'Your score out of 100'),
+            style: const TextStyle(
+              color: Color(0xFFF5D0FE),
               fontSize: 16,
             ),
           ),
@@ -892,30 +893,30 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1A22C55E), // green-500/10
-            Color(0x1A10B981), // emerald-500/10
+            Color(0x1A22C55E),
+            Color(0x1A10B981),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4D4ADE80), // green-400/30
+          color: const Color(0x4D4ADE80),
           width: 1.5,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.check_circle,
                 color: Color(0xFF4ADE80),
                 size: 20,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
-                'Güçlü Yönler',
-                style: TextStyle(
+                _text('Guclu Yonler', 'Strengths'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -971,30 +972,30 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x1AF97316), // orange-500/10
-            Color(0x1A22D3EE), // cyan-400/10 mixed
+            Color(0x1AF97316),
+            Color(0x1A22D3EE),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0x4DF97316), // orange/30
+          color: const Color(0x4DF97316),
           width: 1.5,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.lightbulb,
                 color: Color(0xFFFDBA74),
                 size: 20,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
-                'Geliştirilebilir Alanlar',
-                style: TextStyle(
+                _text('Gelistirilebilir Alanlar', 'Areas to Improve'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -1056,17 +1057,17 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.auto_awesome,
                 color: Color(0xFF22D3EE),
                 size: 20,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
-                'Detaylı Geri Bildirim',
-                style: TextStyle(
+                _text('Detayli Geri Bildirim', 'Detailed Feedback'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -1075,45 +1076,34 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Grammar
           _buildFeedbackSection(
-            title: '📝 Gramer',
+            title: _text('Gramer', 'Grammar'),
             content: _evaluation!.grammar,
             color: const Color(0xFF06B6D4),
           ),
           const SizedBox(height: 16),
-
-          // Vocabulary
           _buildFeedbackSection(
-            title: '📚 Kelime Dağarcığı',
+            title: _text('Kelime Dagarcigi', 'Vocabulary'),
             content: _evaluation!.vocabulary,
             color: const Color(0xFFA78BFA),
           ),
           const SizedBox(height: 16),
-
-          // Coherence
           _buildFeedbackSection(
-            title: '🔗 Tutarlılık',
+            title: _text('Tutarlilik', 'Coherence'),
             content: _evaluation!.coherence,
             color: const Color(0xFF3B82F6),
           ),
           const SizedBox(height: 16),
-
-          // Context Relevance
           if (_evaluation!.contextRelevance.isNotEmpty) ...[
             _buildFeedbackSection(
-              title: '🎯 Konu Uyumu',
+              title: _text('Konu Uyumu', 'Topic Relevance'),
               content: _evaluation!.contextRelevance,
-              color:
-                  const Color(0xFFF43F5E), // Red/Pink to highlight importance
+              color: const Color(0xFFF43F5E),
             ),
             const SizedBox(height: 16),
           ],
-
-          // Overall
           _buildFeedbackSection(
-            title: '⭐ Genel Değerlendirme',
+            title: _text('Genel Degerlendirme', 'Overall Evaluation'),
             content: _evaluation!.overall,
             color: const Color(0xFFEC4899),
           ),
@@ -1181,18 +1171,18 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.refresh,
               color: Colors.white,
               size: 20,
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
-              'Başka Seviye Seç',
-              style: TextStyle(
+              _text('Baska Seviye Sec', 'Choose Another Level'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,

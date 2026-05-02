@@ -176,9 +176,16 @@ public class GooglePlaySubscriptionReconciliationService {
         if (accessEnabled) {
             tx.setStatus(PaymentTransaction.Status.SUCCESS);
             user.setAiPlanCode(resolveAiPlanCode(effectivePlan));
-            if (expiry != null) {
-                user.setSubscriptionEndDate(LocalDateTime.ofInstant(expiry, ZoneOffset.UTC));
-            }
+            user.setSubscriptionEndDate(resolveReconciledSubscriptionEnd(user, effectivePlan, expiry, now));
+            return;
+        }
+
+        LocalDateTime currentEnd = user.getSubscriptionEndDate();
+        LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
+        if (currentEnd != null && currentEnd.isAfter(nowUtc)) {
+            tx.setStatus(PaymentTransaction.Status.SUCCESS);
+            log.info("Google reconcile preserved active local entitlement userId={}, txId={}, state={}, expiry={}, end={}",
+                    user.getId(), tx.getId(), state, expiry, currentEnd);
             return;
         }
 
@@ -233,6 +240,33 @@ public class GooglePlaySubscriptionReconciliationService {
     private void downgradeUserNow(User user, Instant now) {
         user.setSubscriptionEndDate(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
         user.setAiPlanCode(AiPlanTier.FREE.name());
+    }
+
+    private LocalDateTime resolveReconciledSubscriptionEnd(
+            User user,
+            SubscriptionPlan plan,
+            Instant verifiedExpiry,
+            Instant now) {
+        LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
+        LocalDateTime resolved = nowUtc.plusDays(resolveEffectiveDurationDays(plan));
+        LocalDateTime currentEnd = user.getSubscriptionEndDate();
+        if (currentEnd != null && currentEnd.isAfter(resolved)) {
+            resolved = currentEnd;
+        }
+        if (verifiedExpiry != null) {
+            LocalDateTime verifiedEnd = LocalDateTime.ofInstant(verifiedExpiry, ZoneOffset.UTC);
+            if (verifiedEnd.isAfter(resolved)) {
+                resolved = verifiedEnd;
+            }
+        }
+        return resolved;
+    }
+
+    private int resolveEffectiveDurationDays(SubscriptionPlan plan) {
+        if (plan == null || plan.getDurationDays() == null || plan.getDurationDays() < 1) {
+            return 30;
+        }
+        return Math.max(30, plan.getDurationDays());
     }
 
     private String resolveAiPlanCode(SubscriptionPlan plan) {

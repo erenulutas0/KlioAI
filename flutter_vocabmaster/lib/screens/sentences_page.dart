@@ -1,16 +1,18 @@
-import 'package:flutter/material.dart';
 import 'dart:ui';
+
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/animated_background.dart';
-import '../models/word.dart';
+
 import '../models/sentence_view_model.dart';
-import '../widgets/add_sentence_from_sentences_modal.dart';
-import '../widgets/modern_card.dart';
-import '../widgets/modern_background.dart';
+import '../models/word.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import '../widgets/add_sentence_from_sentences_modal.dart';
+import '../widgets/animated_background.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/modern_background.dart';
 
 class SentencesPage extends StatefulWidget {
   const SentencesPage({super.key});
@@ -20,8 +22,11 @@ class SentencesPage extends StatefulWidget {
 }
 
 class _SentencesPageState extends State<SentencesPage> {
-  String _activeFilter = 'Tümü'; // Tümü, Kolay, Orta, Zor
   final TextEditingController _searchController = TextEditingController();
+  String _activeFilter = 'all';
+
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -54,57 +59,157 @@ class _SentencesPageState extends State<SentencesPage> {
   }
 
   void _onSearchChanged() {
-    setState(() {}); // Trigger rebuild for filtering
+    setState(() {});
   }
 
-  // Filtreleme metodu - artık AppState'ten gelen verileri filtreler
+  String _difficultyLabel(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return _text('Kolay', 'Easy');
+      case 'medium':
+        return _text('Orta', 'Medium');
+      case 'hard':
+        return _text('Zor', 'Hard');
+      default:
+        return _text('Orta', 'Medium');
+    }
+  }
+
+  String _filterLabel(String filter) {
+    switch (filter) {
+      case 'easy':
+        return _text('Kolay', 'Easy');
+      case 'medium':
+        return _text('Orta', 'Medium');
+      case 'hard':
+        return _text('Zor', 'Hard');
+      default:
+        return _text('Tumu', 'All');
+    }
+  }
+
   List<SentenceViewModel> _getFilteredSentences(
-      List<SentenceViewModel> allSentences) {
-    final query = _searchController.text.toLowerCase();
+    List<SentenceViewModel> allSentences,
+  ) {
+    final query = _searchController.text.trim().toLowerCase();
 
     return allSentences.where((vm) {
-      final matchesQuery = vm.sentence.toLowerCase().contains(query) ||
+      final matchesQuery = query.isEmpty ||
+          vm.sentence.toLowerCase().contains(query) ||
           vm.translation.toLowerCase().contains(query) ||
           (vm.word?.englishWord.toLowerCase().contains(query) ?? false);
-
-      final matchesFilter = _activeFilter == 'Tümü' ||
-          _mapDifficulty(vm.difficulty) == _activeFilter;
-
+      final matchesFilter =
+          _activeFilter == 'all' || vm.difficulty == _activeFilter;
       return matchesQuery && matchesFilter;
     }).toList();
   }
 
-  String _mapDifficulty(String diff) {
-    if (diff == 'easy') return 'Kolay';
-    if (diff == 'medium') return 'Orta';
-    if (diff == 'hard') return 'Zor';
-    return 'Orta';
-  }
+  Future<void> _showAddNewSentenceDialog() async {
+    final appState = context.read<AppStateProvider>();
+    final allWords = appState.allWords;
 
-  void _setActiveFilter(String filter) {
-    setState(() => _activeFilter = filter);
+    AddSentenceFromSentencesModal.show(context, onSave: (items) async {
+      try {
+        var addedCount = 0;
+
+        for (final item in items) {
+          final sentence = item.english.trim();
+          final translation = item.turkish.trim();
+          if (sentence.isEmpty) continue;
+
+          final difficulty = item.difficulty;
+
+          if (!item.addToTodaysWords) {
+            final success = await appState.addPracticeSentence(
+              englishSentence: sentence,
+              turkishTranslation: translation,
+              difficulty: difficulty,
+            );
+            if (success) {
+              addedCount++;
+            }
+            continue;
+          }
+
+          var targetWord = item.selectedWord.trim();
+          if (targetWord.isEmpty) {
+            targetWord = _text('Genel', 'General');
+          }
+
+          int? wordId;
+          final existingWord = allWords.cast<Word?>().firstWhere(
+                (word) =>
+                    word != null &&
+                    word.englishWord.toLowerCase() == targetWord.toLowerCase(),
+                orElse: () => null,
+              );
+
+          if (existingWord != null) {
+            wordId = existingWord.id;
+          } else {
+            final wordMeaning = item.selectedWordTurkish.trim().isEmpty
+                ? _text('Genel', 'General')
+                : item.selectedWordTurkish.trim();
+            final newWord = await appState.addWord(
+              english: targetWord,
+              turkish: wordMeaning,
+              addedDate: DateTime.now(),
+              difficulty: 'medium',
+            );
+            wordId = newWord?.id;
+          }
+
+          if (wordId != null && wordId != 0) {
+            await appState.addSentenceToWord(
+              wordId: wordId,
+              sentence: sentence,
+              translation: translation,
+              difficulty: difficulty,
+            );
+            addedCount++;
+          }
+        }
+
+        if (!mounted || addedCount == 0) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _text(
+                '$addedCount cumle eklendi! +${addedCount * 5} XP',
+                '$addedCount sentences added! +${addedCount * 5} XP',
+              ),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_text('Hata: $e', 'Error: $e')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final selectedTheme = _currentTheme(listen: true);
-    // AppStateProvider'dan cümleleri al
     final appState = context.watch<AppStateProvider>();
     final allSentences = appState.allSentences;
+    final filteredSentences = _getFilteredSentences(allSentences);
     final isLoading = appState.isLoadingSentences;
 
-    // Filtrelenmiş cümleler
-    final filteredSentences = _getFilteredSentences(allSentences);
-
-    // Calculate stats
-    int total = allSentences.length;
-    int easy = allSentences.where((s) => s.difficulty == 'easy').length;
-    int medium = allSentences.where((s) => s.difficulty == 'medium').length;
-    int hard = allSentences.where((s) => s.difficulty == 'hard').length;
+    final total = allSentences.length;
+    final easy = allSentences.where((s) => s.difficulty == 'easy').length;
+    final medium = allSentences.where((s) => s.difficulty == 'medium').length;
+    final hard = allSentences.where((s) => s.difficulty == 'hard').length;
 
     return Scaffold(
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 100.0),
+        padding: const EdgeInsets.only(bottom: 100),
         child: Container(
           width: 65,
           height: 65,
@@ -140,26 +245,36 @@ class _SentencesPageState extends State<SentencesPage> {
           SafeArea(
             child: Column(
               children: [
-                // Top Stats
-                Container(
+                Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatItem(
-                          'Toplam', total.toString(), Colors.redAccent),
+                        _text('Toplam', 'Total'),
+                        total.toString(),
+                        Colors.redAccent,
+                      ),
                       _buildStatItem(
-                          'Kolay', easy.toString(), Colors.greenAccent),
+                        _text('Kolay', 'Easy'),
+                        easy.toString(),
+                        Colors.greenAccent,
+                      ),
                       _buildStatItem(
-                          'Orta', medium.toString(), Colors.amberAccent),
-                      _buildStatItem('Zor', hard.toString(), Colors.red),
+                        _text('Orta', 'Medium'),
+                        medium.toString(),
+                        Colors.amberAccent,
+                      ),
+                      _buildStatItem(
+                        _text('Zor', 'Hard'),
+                        hard.toString(),
+                        Colors.red,
+                      ),
                     ],
                   ),
                 ),
-
-                // Search Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
@@ -175,63 +290,38 @@ class _SentencesPageState extends State<SentencesPage> {
                     child: TextField(
                       controller: _searchController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        icon: Icon(Icons.search, color: Colors.white54),
-                        hintText: 'Cümlelerde ara...',
-                        hintStyle: TextStyle(color: Colors.white54),
+                      decoration: InputDecoration(
+                        icon: const Icon(Icons.search, color: Colors.white54),
+                        hintText:
+                            _text('Cumlelerde ara...', 'Search sentences...'),
+                        hintStyle: const TextStyle(color: Colors.white54),
                         border: InputBorder.none,
                       ),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
-                // Filter Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: [
-                      _buildFilterChip('Tümü'),
+                      _buildFilterChip('all'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Kolay'),
+                      _buildFilterChip('easy'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Orta'),
+                      _buildFilterChip('medium'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Zor'),
+                      _buildFilterChip('hard'),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
-                // List
                 Expanded(
                   child: isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : filteredSentences.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.notes,
-                                      size: 64,
-                                      color: Colors.white.withOpacity(0.2)),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _activeFilter == 'Tümü'
-                                        ? 'Henüz cümle eklenmedi.'
-                                        : _activeFilter == 'Zor'
-                                            ? 'Daha zor kelime eklenmedi.'
-                                            : 'Henüz $_activeFilter seviyesinde cümle eklenmedi.',
-                                    style: TextStyle(
-                                        color: Colors.white.withOpacity(0.5),
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                            )
+                          ? _buildEmptyState()
                           : ListView.builder(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
@@ -240,60 +330,9 @@ class _SentencesPageState extends State<SentencesPage> {
                                 final vm = filteredSentences[index];
                                 return SentenceCard(
                                   vm: vm,
-                                  mapDifficulty: _mapDifficulty,
-                                  onDelete: () async {
-                                    try {
-                                      final appState =
-                                          this.context.read<AppStateProvider>();
-
-                                      // 🔧 ID'yi int'e çevir (dynamic olabilir)
-                                      // ID'yi direkt kullan (String veya int olabilir)
-                                      final dynamic sentenceId = vm.id;
-                                      bool deleted = false;
-
-                                      if (vm.isPractice) {
-                                        // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
-                                        deleted = await appState
-                                            .deletePracticeSentence(sentenceId);
-                                      } else {
-                                        if (vm.word != null) {
-                                          final int? numericSentenceId =
-                                              sentenceId is int
-                                                  ? sentenceId
-                                                  : int.tryParse(
-                                                      sentenceId.toString());
-                                          if (numericSentenceId == null) {
-                                            throw Exception(
-                                                'Geçersiz cümle ID: $sentenceId');
-                                          }
-                                          // 🔥 AppStateProvider üzerinden sil (UI anında güncellenir)
-                                          deleted = await appState
-                                              .deleteSentenceFromWord(
-                                            wordId: vm.word!.id,
-                                            sentenceId: numericSentenceId,
-                                          );
-                                        }
-                                      }
-                                      if (!deleted) {
-                                        throw Exception(
-                                            'Cümle silinemedi, lütfen tekrar deneyin.');
-                                      }
-
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(this.context)
-                                            .showSnackBar(const SnackBar(
-                                                content: Text('Cümle silindi!'),
-                                                backgroundColor: Colors.green));
-                                      }
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(this.context)
-                                            .showSnackBar(SnackBar(
-                                                content: Text('Hata: $e'),
-                                                backgroundColor: Colors.red));
-                                      }
-                                    }
-                                  },
+                                  difficultyLabel:
+                                      _difficultyLabel(vm.difficulty),
+                                  onDelete: () => _deleteSentence(vm),
                                 );
                               },
                             ),
@@ -306,7 +345,94 @@ class _SentencesPageState extends State<SentencesPage> {
     );
   }
 
-  // ... (Keep _buildStatItem and others same, delete _buildSentenceCard)
+  Widget _buildEmptyState() {
+    String message;
+    if (_activeFilter == 'all') {
+      message = _text(
+        'Henuz cumle eklenmedi.',
+        'No sentences have been added yet.',
+      );
+    } else if (_activeFilter == 'hard') {
+      message = _text(
+        'Daha zor cumle eklenmedi.',
+        'No hard sentences are available yet.',
+      );
+    } else {
+      final label = _filterLabel(_activeFilter).toLowerCase();
+      message = _text(
+        'Henuz $label seviyesinde cumle eklenmedi.',
+        'No $label sentences are available yet.',
+      );
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notes, size: 64, color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSentence(SentenceViewModel vm) async {
+    try {
+      final appState = context.read<AppStateProvider>();
+      final sentenceId = vm.id;
+      var deleted = false;
+
+      if (vm.isPractice) {
+        deleted = await appState.deletePracticeSentence(sentenceId);
+      } else if (vm.word != null) {
+        final numericSentenceId = sentenceId is int
+            ? sentenceId
+            : int.tryParse(sentenceId.toString());
+        if (numericSentenceId == null) {
+          throw Exception(
+            _text(
+              'Gecersiz cumle ID: $sentenceId',
+              'Invalid sentence ID: $sentenceId',
+            ),
+          );
+        }
+        deleted = await appState.deleteSentenceFromWord(
+          wordId: vm.word!.id,
+          sentenceId: numericSentenceId,
+        );
+      }
+
+      if (!deleted) {
+        throw Exception(
+          _text(
+            'Cumle silinemedi, lutfen tekrar deneyin.',
+            'The sentence could not be deleted. Please try again.',
+          ),
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_text('Cumle silindi!', 'Sentence deleted!')),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_text('Hata: $e', 'Error: $e')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Widget _buildStatItem(String label, String value, Color color) {
     final selectedTheme = _currentTheme();
@@ -339,10 +465,10 @@ class _SentencesPageState extends State<SentencesPage> {
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _activeFilter == label;
+  Widget _buildFilterChip(String value) {
+    final isSelected = _activeFilter == value;
     return GestureDetector(
-      onTap: () => _setActiveFilter(label),
+      onTap: () => setState(() => _activeFilter = value),
       child: ModernCard(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         borderRadius: BorderRadius.circular(20),
@@ -351,7 +477,7 @@ class _SentencesPageState extends State<SentencesPage> {
         showGlow: isSelected,
         showBorder: isSelected,
         child: Text(
-          label,
+          _filterLabel(value),
           style: TextStyle(
             color: Colors.white,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -360,102 +486,17 @@ class _SentencesPageState extends State<SentencesPage> {
       ),
     );
   }
-
-  void _showAddNewSentenceDialog() {
-    final appState = context.read<AppStateProvider>();
-    final allWords = appState.allWords;
-
-    AddSentenceFromSentencesModal.show(context, onSave: (items) async {
-      try {
-        int addedCount = 0;
-
-        for (var item in items) {
-          String sentence = item.english.trim();
-          String translation = item.turkish.trim();
-          // Sadece İngilizce cümle zorunlu, Türkçe opsiyonel
-          if (sentence.isEmpty) continue;
-
-          String diff = item.difficulty;
-
-          if (!item.addToTodaysWords) {
-            // Bağımsız pratik cümlesi - AppStateProvider üzerinden ekle
-            final success = await appState.addPracticeSentence(
-              englishSentence: sentence,
-              turkishTranslation: translation,
-              difficulty: diff,
-            );
-            if (success) addedCount++;
-          } else {
-            String targetWord = item.selectedWord.trim();
-            if (targetWord.isEmpty) targetWord = "Genel";
-
-            int? wordId;
-            final existingWord = allWords.firstWhere(
-                (w) => w.englishWord.toLowerCase() == targetWord.toLowerCase(),
-                orElse: () => Word(
-                    id: -1,
-                    englishWord: '',
-                    turkishMeaning: '',
-                    learnedDate: DateTime.now(),
-                    difficulty: 'easy',
-                    sentences: []));
-
-            if (existingWord.id != -1) {
-              wordId = existingWord.id;
-            } else {
-              final dialogMeaning = item.selectedWordTurkish.trim().isEmpty
-                  ? 'Genel'
-                  : item.selectedWordTurkish.trim();
-              // Yeni kelime ekle - AppStateProvider üzerinden
-              final newWord = await appState.addWord(
-                english: targetWord,
-                turkish: dialogMeaning,
-                addedDate: DateTime.now(),
-                difficulty: 'medium',
-              );
-              wordId = newWord?.id;
-            }
-
-            if (wordId != null && wordId != 0) {
-              // Kelimeye cümle ekle - AppStateProvider üzerinden
-              await appState.addSentenceToWord(
-                wordId: wordId,
-                sentence: sentence,
-                translation: translation,
-                difficulty: diff,
-              );
-              addedCount++;
-            }
-          }
-        }
-
-        if (mounted && addedCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$addedCount cümle eklendi! +${addedCount * 5} XP'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-        }
-      }
-    });
-  }
 }
 
 class SentenceCard extends StatefulWidget {
   final SentenceViewModel vm;
-  final String Function(String) mapDifficulty;
+  final String difficultyLabel;
   final VoidCallback? onDelete;
 
   const SentenceCard({
     super.key,
     required this.vm,
-    required this.mapDifficulty,
+    required this.difficultyLabel,
     this.onDelete,
   });
 
@@ -465,6 +506,9 @@ class SentenceCard extends StatefulWidget {
 
 class _SentenceCardState extends State<SentenceCard> {
   bool _isMeaningVisible = false;
+
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -483,84 +527,92 @@ class _SentenceCardState extends State<SentenceCard> {
   Widget build(BuildContext context) {
     final selectedTheme = _currentTheme(listen: true);
     final wordText = widget.vm.word?.englishWord ?? '';
-    final difficulty = widget.mapDifficulty(widget.vm.difficulty);
-
     final sentenceText = widget.vm.sentence;
     final lowerSentence = sentenceText.toLowerCase();
     final lowerWord = wordText.toLowerCase();
-    final int index =
-        (wordText.isNotEmpty) ? lowerSentence.indexOf(lowerWord) : -1;
+    final highlightIndex =
+        wordText.isNotEmpty ? lowerSentence.indexOf(lowerWord) : -1;
 
-    List<InlineSpan> spans = [];
-    if (index != -1) {
-      // Before the word
-      if (index > 0) {
-        spans.add(TextSpan(
-          text: sentenceText.substring(0, index),
-          style:
-              const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
-        ));
+    final spans = <InlineSpan>[];
+    if (highlightIndex != -1) {
+      if (highlightIndex > 0) {
+        spans.add(
+          TextSpan(
+            text: sentenceText.substring(0, highlightIndex),
+            style:
+                const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+          ),
+        );
       }
 
-      // The highlighted word
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: selectedTheme.colors.accent.withOpacity(0.30),
-            borderRadius: BorderRadius.circular(8),
-            border:
-                Border.all(color: selectedTheme.colors.accent.withOpacity(0.5)),
-            boxShadow: [
-              BoxShadow(
-                color: selectedTheme.colors.accentGlow.withOpacity(0.26),
-                blurRadius: 8,
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: selectedTheme.colors.accent.withOpacity(0.30),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selectedTheme.colors.accent.withOpacity(0.5),
               ),
-            ],
-          ),
-          child: Text(
-            sentenceText.substring(index, index + wordText.length),
-            style: TextStyle(
-              color: Color.lerp(selectedTheme.colors.accent, Colors.white, 0.2),
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              boxShadow: [
+                BoxShadow(
+                  color: selectedTheme.colors.accentGlow.withOpacity(0.26),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: Text(
+              sentenceText.substring(
+                highlightIndex,
+                highlightIndex + wordText.length,
+              ),
+              style: TextStyle(
+                color:
+                    Color.lerp(selectedTheme.colors.accent, Colors.white, 0.2),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
-      ));
+      );
 
-      // After the word
-      if (index + wordText.length < sentenceText.length) {
-        spans.add(TextSpan(
-          text: sentenceText.substring(index + wordText.length),
-          style:
-              const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
-        ));
+      if (highlightIndex + wordText.length < sentenceText.length) {
+        spans.add(
+          TextSpan(
+            text: sentenceText.substring(highlightIndex + wordText.length),
+            style:
+                const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+          ),
+        );
       }
     } else {
-      spans.add(TextSpan(
-        text: sentenceText,
-        style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
-      ));
+      spans.add(
+        TextSpan(
+          text: sentenceText,
+          style:
+              const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+        ),
+      );
     }
 
     Color badgeColor;
-    Color badgeBgColor;
-
-    switch (difficulty) {
-      case 'Kolay':
+    Color badgeBackground;
+    switch (widget.vm.difficulty) {
+      case 'easy':
         badgeColor = Colors.greenAccent;
-        badgeBgColor = Colors.green.withOpacity(0.2);
+        badgeBackground = Colors.green.withOpacity(0.2);
         break;
-      case 'Zor':
+      case 'hard':
         badgeColor = Colors.redAccent;
-        badgeBgColor = Colors.red.withOpacity(0.2);
+        badgeBackground = Colors.red.withOpacity(0.2);
         break;
       default:
         badgeColor = Colors.amberAccent;
-        badgeBgColor = Colors.amber.withOpacity(0.2);
+        badgeBackground = Colors.amber.withOpacity(0.2);
     }
 
     return Container(
@@ -592,20 +644,21 @@ class _SentenceCardState extends State<SentenceCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Label & Delete
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: badgeBgColor,
+                        color: badgeBackground,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: badgeColor.withOpacity(0.3)),
                       ),
                       child: Text(
-                        difficulty.toUpperCase(),
+                        widget.difficultyLabel.toUpperCase(),
                         style: TextStyle(
                           color: badgeColor,
                           fontSize: 11,
@@ -615,96 +668,37 @@ class _SentenceCardState extends State<SentenceCard> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          color: Colors.white54, size: 20),
-                      onPressed: widget.onDelete != null
-                          ? () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  backgroundColor: _mix(
-                                    selectedTheme.colors.background,
-                                    Colors.black,
-                                    0.22,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16)),
-                                  title: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.2),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: const Icon(Icons.delete_forever,
-                                            color: Colors.red, size: 24),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      const Text('Cümleyi Sil',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18)),
-                                    ],
-                                  ),
-                                  content: const Text(
-                                    'Bu cümleyi silmek istediğinize emin misiniz?',
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('İptal',
-                                          style:
-                                              TextStyle(color: Colors.white54)),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        widget.onDelete!();
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8)),
-                                      ),
-                                      child: const Text('Sil',
-                                          style:
-                                              TextStyle(color: Colors.white)),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                          : null,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: widget.onDelete == null
+                          ? null
+                          : () => _confirmDelete(selectedTheme),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
-                // Sentence with Highlight
                 RichText(
                   text: TextSpan(
                     children: spans,
                     style: const TextStyle(height: 1.5),
                   ),
                 ),
-
-                // Meaning (Collapsible)
                 AnimatedCrossFade(
                   firstChild: const SizedBox(height: 0),
                   secondChild: Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
+                    padding: const EdgeInsets.only(top: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                            height: 1, color: Colors.white.withOpacity(0.1)),
+                          height: 1,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                         const SizedBox(height: 16),
                         Row(
                           children: [
@@ -712,14 +706,15 @@ class _SentenceCardState extends State<SentenceCard> {
                                 color: Colors.white54, size: 16),
                             const SizedBox(width: 8),
                             Expanded(
-                                child: Text(
-                              widget.vm.translation, // Use VM translation
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
+                              child: Text(
+                                widget.vm.translation,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
-                            )),
+                            ),
                           ],
                         ),
                       ],
@@ -730,10 +725,7 @@ class _SentenceCardState extends State<SentenceCard> {
                       : CrossFadeState.showFirst,
                   duration: const Duration(milliseconds: 300),
                 ),
-
                 const SizedBox(height: 12),
-
-                // Toggle Button
                 GestureDetector(
                   onTap: () {
                     setState(() {
@@ -742,7 +734,7 @@ class _SentenceCardState extends State<SentenceCard> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    color: Colors.transparent, // Hit test için
+                    color: Colors.transparent,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -755,11 +747,14 @@ class _SentenceCardState extends State<SentenceCard> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _isMeaningVisible ? "Anlamı Gizle" : "Anlamı Göster",
+                          _isMeaningVisible
+                              ? _text('Anlami Gizle', 'Hide Meaning')
+                              : _text('Anlami Goster', 'Show Meaning'),
                           style: TextStyle(
-                              color: selectedTheme.colors.accent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14),
+                            color: selectedTheme.colors.accent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
@@ -772,5 +767,65 @@ class _SentenceCardState extends State<SentenceCard> {
       ),
     );
   }
-}
 
+  Future<void> _confirmDelete(AppThemeConfig selectedTheme) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor:
+            _mix(selectedTheme.colors.background, Colors.black, 0.22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child:
+                  const Icon(Icons.delete_forever, color: Colors.red, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _text('Cumleyi Sil', 'Delete Sentence'),
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          _text(
+            'Bu cumleyi silmek istediginize emin misiniz?',
+            'Are you sure you want to delete this sentence?',
+          ),
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              _text('Iptal', 'Cancel'),
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onDelete?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              _text('Sil', 'Delete'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

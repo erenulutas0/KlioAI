@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants/sentence_modal_colors.dart';
+import '../services/locale_text_service.dart';
+
+String _modalText(String tr, String en) => LocaleTextService.isTurkish ? tr : en;
 
 class SentenceItem {
   final int id;
@@ -61,7 +64,6 @@ class AddSentenceFromSentencesModal extends StatefulWidget {
 class _AddSentenceFromSentencesModalState 
     extends State<AddSentenceFromSentencesModal>
     with TickerProviderStateMixin {
-  
   List<SentenceItem> sentences = [
     SentenceItem(id: 1),
   ];
@@ -396,12 +398,12 @@ class _AddSentenceFromSentencesModalState
           const SizedBox(width: 12),
           
           // Title & Subtitle
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Yeni Cümle Ekle',
+                  _modalText('Yeni Cumle Ekle', 'Add New Sentence'),
                   style: TextStyle(
                     color: SentenceModalColors.textWhite,
                     fontSize: 18,
@@ -419,7 +421,10 @@ class _AddSentenceFromSentencesModalState
                     SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        'Kelime seçerek veya seçmeden cümle ekleyin',
+                        _modalText(
+                          'Kelime secerek veya secmeden cumle ekleyin',
+                          'Add a sentence with or without selecting a word',
+                        ),
                         style: TextStyle(
                           color: SentenceModalColors.textCyan,
                           fontSize: 11,
@@ -519,7 +524,7 @@ class _AddSentenceFromSentencesModalState
             borderRadius: BorderRadius.circular(12),
             color: SentenceModalColors.orb1Color.withOpacity(0.1),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
@@ -529,7 +534,7 @@ class _AddSentenceFromSentencesModalState
               ),
               SizedBox(width: 8),
               Text(
-                'Yeni Cümle Ekle',
+                _modalText('Yeni Cumle Ekle', 'Add New Sentence'),
                 style: TextStyle(
                   color: SentenceModalColors.textCyan,
                   fontSize: 14,
@@ -579,8 +584,8 @@ class _AddSentenceFromSentencesModalState
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'İptal',
+              child: Text(
+                _modalText('Iptal', 'Cancel'),
                 style: TextStyle(
                   color: SentenceModalColors.textWhite,
                   fontSize: 14,
@@ -608,8 +613,8 @@ class _AddSentenceFromSentencesModalState
                 await widget.onSave(sentences);
                 if (mounted) Navigator.of(context).pop();
               },
-              child: const Text(
-                'Cümle Ekle',
+              child: Text(
+                _modalText('Cumle Ekle', 'Add Sentence'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -735,8 +740,8 @@ class _SentenceCardState extends State<_SentenceCard> {
                 
                 const SizedBox(width: 8),
                 
-                const Text(
-                  'Cümle',
+                Text(
+                  _modalText('Cumle', 'Sentence'),
                   style: TextStyle(
                     color: SentenceModalColors.textWhite,
                     fontWeight: FontWeight.w600,
@@ -767,8 +772,8 @@ class _SentenceCardState extends State<_SentenceCard> {
             const SizedBox(height: 8),
             
             // Word Selection (Optional)
-            const Text(
-              'Kelime Seçimi (Opsiyonel)',
+            Text(
+              _modalText('Kelime Seçimi (Opsiyonel)', 'Word Selection (Optional)'),
               style: TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
@@ -782,7 +787,7 @@ class _SentenceCardState extends State<_SentenceCard> {
               children: [
                 Expanded(
                   child: _CustomTextField(
-                    placeholder: 'İngilizce kelime',
+                    placeholder: _modalText('Ingilizce kelime', 'English word'),
                     controller: widget.sentence.selectedWordController,
                     onChanged: (value) => widget.onUpdate('selectedWord', value),
                   ),
@@ -790,7 +795,7 @@ class _SentenceCardState extends State<_SentenceCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _CustomTextField(
-                    placeholder: 'Türkçe anlamı',
+                    placeholder: _modalText('Ceviri / anlam', 'Translation / meaning'),
                     controller: widget.sentence.selectedWordTurkishController,
                     onChanged: (value) => widget.onUpdate('selectedWordTurkish', value),
                   ),
@@ -842,8 +847,8 @@ class _SentenceCardState extends State<_SentenceCard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Bugünün Kelimelerine Ekle',
+                              Text(
+                                _modalText('Bugunun Kelimelerine Ekle', 'Add to Today\'s Words'),
                                 style: TextStyle(
                                   color: SentenceModalColors.textWhite,
                                   fontSize: 12,
@@ -852,7 +857,10 @@ class _SentenceCardState extends State<_SentenceCard> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '"${widget.sentence.selectedWord}" kelimesini bugünün öğrenilen kelimelerine ekler',
+                                _modalText(
+                                  '"${widget.sentence.selectedWord}" kelimesini bugunun ogrenilen kelimelerine ekler',
+                                  'Adds "${widget.sentence.selectedWord}" to today\'s learned words',
+                                ),
                                 style: const TextStyle(
                                   color: SentenceModalColors.textWhite60,
                                   fontSize: 10,
@@ -870,8 +878,8 @@ class _SentenceCardState extends State<_SentenceCard> {
             const SizedBox(height: 8),
             
             // English Sentence
-            const Text(
-              'İngilizce Cümle',
+            Text(
+              _modalText('Ingilizce Cumle', 'English Sentence'),
               style: TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
@@ -908,8 +916,8 @@ class _SentenceCardState extends State<_SentenceCard> {
                         fontSize: 12,
                       ),
                       children: [
-                        const TextSpan(
-                          text: 'Önizleme: ',
+                        TextSpan(
+                          text: _modalText('Onizleme: ', 'Preview: '),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                           ),
@@ -927,8 +935,8 @@ class _SentenceCardState extends State<_SentenceCard> {
             const SizedBox(height: 8),
             
             // Turkish Translation
-            const Text(
-              'Türkçe Anlamı',
+            Text(
+              _modalText('Ceviri', 'Translation'),
               style: TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
@@ -939,7 +947,10 @@ class _SentenceCardState extends State<_SentenceCard> {
             const SizedBox(height: 6),
             
             _CustomTextField(
-              placeholder: 'Cümlenin Türkçe çevirisi...',
+              placeholder: _modalText(
+                'Cumlenin Turkce cevirisi...',
+                'Translation of the sentence...',
+              ),
               controller: widget.sentence.turkishController,
               onChanged: (value) => widget.onUpdate('turkish', value),
             ),
@@ -947,8 +958,8 @@ class _SentenceCardState extends State<_SentenceCard> {
             const SizedBox(height: 8),
             
             // Difficulty
-            const Text(
-              'Zorluk Seviyesi',
+            Text(
+              _modalText('Zorluk Seviyesi', 'Difficulty Level'),
               style: TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
@@ -1061,18 +1072,18 @@ class _DifficultyDropdown extends StatelessWidget {
                   fontSize: 14,
                 ),
                 icon: const SizedBox.shrink(),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'easy',
-                    child: Text('🟢 Kolay'),
+                    child: Text(_modalText('Kolay', 'Easy')),
                   ),
                   DropdownMenuItem(
                     value: 'medium',
-                    child: Text('🟡 Orta'),
+                    child: Text(_modalText('Orta', 'Medium')),
                   ),
                   DropdownMenuItem(
                     value: 'hard',
-                    child: Text('🔴 Zor'),
+                    child: Text(_modalText('Zor', 'Hard')),
                   ),
                 ],
               ),

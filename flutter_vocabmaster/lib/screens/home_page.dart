@@ -21,6 +21,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import 'support_tickets_page.dart';
 
 class HomePage extends StatefulWidget {
   final Function(String) onNavigate;
@@ -65,6 +66,10 @@ class _HomePageState extends State<HomePage>
     } catch (_) {
       return VocabThemes.defaultTheme;
     }
+  }
+
+  Color _mix(Color from, Color to, double amount) {
+    return Color.lerp(from, to, amount) ?? from;
   }
 
   @override
@@ -287,6 +292,11 @@ class _HomePageState extends State<HomePage>
                   ),
                 ),
               ),
+              Positioned(
+                right: 18,
+                bottom: 24,
+                child: _buildSupportBubble(),
+              ),
             ],
           ),
         );
@@ -303,7 +313,7 @@ class _HomePageState extends State<HomePage>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.40),
+            color: selectedTheme.colors.accentGlow.withOpacity(0.18),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -320,9 +330,13 @@ class _HomePageState extends State<HomePage>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  selectedTheme.colors.accent.withOpacity(0.34),
-                  selectedTheme.colors.primary.withOpacity(0.32),
-                  selectedTheme.colors.primaryDark.withOpacity(0.30),
+                  _mix(selectedTheme.colors.background,
+                          selectedTheme.colors.accent, 0.18)
+                      .withOpacity(0.78),
+                  _mix(selectedTheme.colors.background,
+                          selectedTheme.colors.primary, 0.16)
+                      .withOpacity(0.74),
+                  selectedTheme.colors.background.withOpacity(0.62),
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
@@ -549,6 +563,42 @@ class _HomePageState extends State<HomePage>
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportBubble() {
+    final selectedTheme = _currentTheme();
+    return SafeArea(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => SupportTicketsPage.showModal(context),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              gradient: selectedTheme.colors.buttonGradient,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selectedTheme.colors.glassBorder.withOpacity(0.76),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: selectedTheme.colors.accentGlow.withOpacity(0.30),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.support_agent_rounded,
+              color: Colors.white,
+              size: 22,
             ),
           ),
         ),
@@ -842,7 +892,7 @@ class _HomePageState extends State<HomePage>
                             children: [
                               Text(
                                 context.tr('home.dailyGoal.title'),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1263,7 +1313,7 @@ class _HomePageState extends State<HomePage>
                             children: [
                               Text(
                                 context.tr('home.weeklyActivity'),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1371,7 +1421,7 @@ class _HomePageState extends State<HomePage>
                           const SizedBox(width: 8),
                           Text(
                             context.tr('home.thisWeek'),
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -1516,6 +1566,12 @@ class _HomePageState extends State<HomePage>
     required bool withSentence,
   }) async {
     final appState = context.read<AppStateProvider>();
+    final missingWordMessage = context.tr('home.snack.missingWord');
+    final alreadyAddedMessage = context.tr('home.snack.alreadyAdded');
+    final addFailedMessage = context.tr('home.snack.addFailed');
+    final successMessage = withSentence
+        ? context.tr('home.snack.wordSentenceAdded')
+        : context.tr('home.snack.wordAdded');
 
     final wordText = (normalizedWord['word'] ?? '').toString().trim();
     final translationText =
@@ -1526,7 +1582,7 @@ class _HomePageState extends State<HomePage>
         (normalizedWord['exampleTranslation'] ?? '').toString().trim();
 
     if (wordText.isEmpty) {
-      _showHomeMessage(context.tr('home.snack.missingWord'), success: false);
+      _showHomeMessage(missingWordMessage, success: false);
       return;
     }
 
@@ -1536,7 +1592,7 @@ class _HomePageState extends State<HomePage>
         appState.hasSentenceForWord(existingWord, sentenceText);
 
     if (existingWord != null && (!withSentence || sentenceAlreadyAdded)) {
-      _showHomeMessage(context.tr('home.snack.alreadyAdded'));
+      _showHomeMessage(alreadyAddedMessage);
       return;
     }
 
@@ -1550,7 +1606,7 @@ class _HomePageState extends State<HomePage>
         source: 'daily_word',
       );
       if (targetWord == null) {
-        _showHomeMessage(context.tr('home.snack.addFailed'), success: false);
+        _showHomeMessage(addFailedMessage, success: false);
         return;
       }
     }
@@ -1567,11 +1623,7 @@ class _HomePageState extends State<HomePage>
       }
     }
 
-    _showHomeMessage(
-      withSentence
-          ? context.tr('home.snack.wordSentenceAdded')
-          : context.tr('home.snack.wordAdded'),
-    );
+    _showHomeMessage(successMessage);
   }
 
   Future<void> _showDailyWordActions(
@@ -1661,8 +1713,10 @@ class _HomePageState extends State<HomePage>
                       !canAddSentence
                           ? context.tr('home.sheet.noExampleSentence')
                           : sentenceAdded
-                              ? context.tr('home.sheet.wordAndSentenceAlreadyAdded')
-                              : context.tr('home.sheet.addWordWithSentenceSubtitle'),
+                              ? context
+                                  .tr('home.sheet.wordAndSentenceAlreadyAdded')
+                              : context
+                                  .tr('home.sheet.addWordWithSentenceSubtitle'),
                       style: TextStyle(color: Colors.white.withOpacity(0.65)),
                     ),
                   ),
@@ -1695,10 +1749,75 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildDailyWordsSection(
-      List<Map<String, dynamic>> dailyWords,
-      bool isLoadingDailyWords,
-      AppStateProvider appState) {
+  List<Map<String, dynamic>> _fallbackDailyWords() {
+    final todayKey = DateTime.now().toIso8601String().split('T')[0];
+    final seed = todayKey.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
+    final pool = <Map<String, dynamic>>[
+      {
+        'word': 'resilient',
+        'translation': 'dayanikli',
+        'definition': 'Able to recover quickly after difficulty.',
+        'exampleSentence': 'A resilient plan can survive unexpected changes.',
+        'exampleTranslation':
+            'Dayanikli bir plan beklenmeyen degisikliklere dayanabilir.',
+        'partOfSpeech': 'adjective',
+        'difficulty': 'medium',
+        'synonyms': ['flexible', 'strong'],
+      },
+      {
+        'word': 'clarify',
+        'translation': 'acikliga kavusturmak',
+        'definition': 'To make an idea easier to understand.',
+        'exampleSentence': 'Can you clarify the main goal of the project?',
+        'exampleTranslation':
+            'Projenin ana hedefini acikliga kavusturabilir misin?',
+        'partOfSpeech': 'verb',
+        'difficulty': 'easy',
+        'synonyms': ['explain', 'simplify'],
+      },
+      {
+        'word': 'insight',
+        'translation': 'kavrayis',
+        'definition': 'A clear understanding of a situation or idea.',
+        'exampleSentence': 'The chart gave us useful insight into user habits.',
+        'exampleTranslation':
+            'Grafik bize kullanici aliskanliklari hakkinda faydali kavrayis sagladi.',
+        'partOfSpeech': 'noun',
+        'difficulty': 'medium',
+        'synonyms': ['understanding', 'awareness'],
+      },
+      {
+        'word': 'adapt',
+        'translation': 'uyum saglamak',
+        'definition': 'To change so something works better in a new situation.',
+        'exampleSentence': 'Teams adapt faster when feedback is clear.',
+        'exampleTranslation':
+            'Geri bildirim net oldugunda ekipler daha hizli uyum saglar.',
+        'partOfSpeech': 'verb',
+        'difficulty': 'easy',
+        'synonyms': ['adjust', 'modify'],
+      },
+      {
+        'word': 'consistent',
+        'translation': 'tutarli',
+        'definition': 'Happening in the same reliable way over time.',
+        'exampleSentence':
+            'Consistent practice makes new words easier to remember.',
+        'exampleTranslation':
+            'Tutarli pratik yeni kelimeleri hatirlamayi kolaylastirir.',
+        'partOfSpeech': 'adjective',
+        'difficulty': 'easy',
+        'synonyms': ['steady', 'regular'],
+      },
+    ];
+
+    return List.generate(5, (index) {
+      return Map<String, dynamic>.from(pool[(seed + index) % pool.length]);
+    });
+  }
+
+  Widget _buildDailyWordsSection(List<Map<String, dynamic>> dailyWords,
+      bool isLoadingDailyWords, AppStateProvider appState) {
     final selectedTheme = _currentTheme();
     if (isLoadingDailyWords) {
       return SizedBox(
@@ -1709,11 +1828,19 @@ class _HomePageState extends State<HomePage>
       );
     }
 
-    final normalizedWords = dailyWords
+    var normalizedWords = dailyWords
         .map(_normalizeDailyWord)
         .where((word) => (word['word'] ?? '').toString().trim().isNotEmpty)
         .take(5)
         .toList();
+
+    if (normalizedWords.isEmpty) {
+      normalizedWords = _fallbackDailyWords()
+          .map(_normalizeDailyWord)
+          .where((word) => (word['word'] ?? '').toString().trim().isNotEmpty)
+          .take(5)
+          .toList();
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1733,7 +1860,7 @@ class _HomePageState extends State<HomePage>
               const SizedBox(width: 8),
               Text(
                 context.tr('home.dailyWords.title'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1750,44 +1877,35 @@ class _HomePageState extends State<HomePage>
             ],
           ),
           const SizedBox(height: 14),
-          if (normalizedWords.isEmpty)
-            Text(
-              context.tr('home.dailyWords.empty'),
-              style: TextStyle(
-                color: selectedTheme.colors.textSecondary,
-                fontSize: 13,
-              ),
-            )
-          else
-            SizedBox(
-              height: 180,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: normalizedWords.length,
-                itemBuilder: (context, index) {
-                  final wordData = normalizedWords[index];
-                  final wordText = (wordData['word'] ?? '').toString();
-                  final sentenceText =
-                      (wordData['exampleSentence'] ?? '').toString();
-                  final existingWord = appState.findWordByEnglish(wordText);
-                  final isWordAdded = existingWord != null;
-                  final isSentenceAdded = existingWord != null &&
-                      sentenceText.isNotEmpty &&
-                      appState.hasSentenceForWord(existingWord, sentenceText);
+          SizedBox(
+            height: 180,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: normalizedWords.length,
+              itemBuilder: (context, index) {
+                final wordData = normalizedWords[index];
+                final wordText = (wordData['word'] ?? '').toString();
+                final sentenceText =
+                    (wordData['exampleSentence'] ?? '').toString();
+                final existingWord = appState.findWordByEnglish(wordText);
+                final isWordAdded = existingWord != null;
+                final isSentenceAdded = existingWord != null &&
+                    sentenceText.isNotEmpty &&
+                    appState.hasSentenceForWord(existingWord, sentenceText);
 
-                  return DailyWordCard(
-                    wordData: wordData,
-                    index: index,
-                    isWordAdded: isWordAdded,
-                    isSentenceAdded: isSentenceAdded,
-                    onTap: () => _openDailyWordModal(wordData),
-                    onQuickAdd: () => _showDailyWordActions(wordData),
-                    onAddSentence: () =>
-                        _addDailyWordToLibrary(wordData, withSentence: true),
-                  );
-                },
-              ),
+                return DailyWordCard(
+                  wordData: wordData,
+                  index: index,
+                  isWordAdded: isWordAdded,
+                  isSentenceAdded: isSentenceAdded,
+                  onTap: () => _openDailyWordModal(wordData),
+                  onQuickAdd: () => _showDailyWordActions(wordData),
+                  onAddSentence: () =>
+                      _addDailyWordToLibrary(wordData, withSentence: true),
+                );
+              },
             ),
+          ),
         ],
       ),
     );
@@ -1825,6 +1943,16 @@ class _HomePageState extends State<HomePage>
         'subtitle': context.tr('home.quick.review.subtitle'),
         'route': 'repeat',
       },
+      {
+        'icon': Icons.support_agent_rounded,
+        'title': Localizations.localeOf(context).languageCode == 'tr'
+            ? 'Destek'
+            : 'Support',
+        'subtitle': Localizations.localeOf(context).languageCode == 'tr'
+            ? 'Ticketlarini gor ve yeni talep ac'
+            : 'Open and review your tickets',
+        'route': 'support',
+      },
     ];
 
     return Column(
@@ -1832,7 +1960,7 @@ class _HomePageState extends State<HomePage>
       children: [
         Text(
           context.tr('home.quickAccess.title'),
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -1935,7 +2063,7 @@ class _HomePageState extends State<HomePage>
         children: [
           Text(
             context.tr('home.recent.title'),
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -2038,7 +2166,9 @@ class _HomePageState extends State<HomePage>
       case 'zor':
         return context.tr('home.difficulty.hard');
       default:
-        return difficulty.isEmpty ? context.tr('home.difficulty.default') : difficulty;
+        return difficulty.isEmpty
+            ? context.tr('home.difficulty.default')
+            : difficulty;
     }
   }
 }
@@ -2365,5 +2495,3 @@ class _DayCardState extends State<_DayCard>
     );
   }
 }
-
-

@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/app_tour_service.dart';
 import '../providers/app_state_provider.dart';
-import '../main.dart'; 
+import '../main.dart';
 import 'landing_page.dart';
 import 'onboarding_screen.dart';
 import '../widgets/animated_background.dart';
@@ -39,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (user != null && mounted) {
         Provider.of<AppStateProvider>(context, listen: false).setUser(user);
       }
-      
+
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -86,15 +85,16 @@ class _SplashScreenState extends State<SplashScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.auto_awesome, 
-                    size: 60, 
-                    color: Colors.cyan
+                  child: Image.asset(
+                    'assets/images/mainLogo.png',
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.contain,
                   ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'VocabMaster',
+                  'KlioAI',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -120,4 +120,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-

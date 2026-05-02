@@ -221,6 +221,45 @@ class AuthControllerUnitTest {
     }
 
     @Test
+    void emailPasswordEndpoints_ShouldReturnForbidden_WhenDisabled() throws Exception {
+        authSecurityProperties.setEmailPasswordEnabled(false);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "user@test.com",
+                                "password", "pass123"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Email/password authentication is disabled"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "user@test.com",
+                                "password", "pass123"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "user@test.com"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+
+        mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "user@test.com"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(authRateLimitService, never()).checkRegister(anyString());
+        verify(authRateLimitService, never()).checkLogin(anyString(), anyString());
+        verify(authRateLimitService, never()).checkPasswordResetRequest(anyString());
+        verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
     void googleLogin_ShouldNotSave_WhenExistingUserHasCustomDisplayName() throws Exception {
         User user = new User("google@test.com", "hash", "Custom Name");
         user.setId(10L);

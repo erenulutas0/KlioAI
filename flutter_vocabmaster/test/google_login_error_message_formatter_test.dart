@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_vocabmaster/services/google_login_error_message_formatter.dart';
+import 'package:vocabmaster/services/google_login_error_message_formatter.dart';
 
 void main() {
   test('formats offline ngrok backend response as stale build guidance', () {

@@ -39,7 +39,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       singleInstance: !isTest,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -77,6 +77,10 @@ class LocalDatabaseService {
         learnedDate TEXT NOT NULL,
         notes TEXT,
         difficulty TEXT DEFAULT 'easy',
+        nextReviewDate TEXT,
+        reviewCount INTEGER DEFAULT 0,
+        easeFactor REAL DEFAULT 2.5,
+        lastReviewDate TEXT,
         syncStatus TEXT DEFAULT 'synced',
         createdAt TEXT NOT NULL
       )
@@ -177,6 +181,16 @@ class LocalDatabaseService {
       await _ensureColumnExists(db, 'sync_queue', 'nextRetryAt',
           "ALTER TABLE sync_queue ADD COLUMN nextRetryAt TEXT");
     }
+    if (oldVersion < 4) {
+      await _ensureColumnExists(db, 'words', 'nextReviewDate',
+          "ALTER TABLE words ADD COLUMN nextReviewDate TEXT");
+      await _ensureColumnExists(db, 'words', 'reviewCount',
+          "ALTER TABLE words ADD COLUMN reviewCount INTEGER DEFAULT 0");
+      await _ensureColumnExists(db, 'words', 'easeFactor',
+          "ALTER TABLE words ADD COLUMN easeFactor REAL DEFAULT 2.5");
+      await _ensureColumnExists(db, 'words', 'lastReviewDate',
+          "ALTER TABLE words ADD COLUMN lastReviewDate TEXT");
+    }
     // XP history tablosu eksikse ekle (korumalı)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS xp_history (
@@ -210,6 +224,13 @@ class LocalDatabaseService {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString());
+  }
+
+  double? _toNullableDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   DateTime? _tryParseDateTime(dynamic value) {
@@ -269,39 +290,43 @@ class LocalDatabaseService {
           : (rawWordId is num)
               ? rawWordId.toInt()
               : 0;
-       final intLocalId = (rawLocalId is int)
-           ? rawLocalId
-           : (rawLocalId is num)
-               ? rawLocalId.toInt()
-               : intWordId;
-       final sentences = await db.query(
-         'sentences',
-         where: 'wordId = ? OR localWordId = ?',
-         whereArgs: [intWordId, intLocalId],
-         orderBy: 'createdAt DESC',
-       );
+      final intLocalId = (rawLocalId is int)
+          ? rawLocalId
+          : (rawLocalId is num)
+              ? rawLocalId.toInt()
+              : intWordId;
+      final sentences = await db.query(
+        'sentences',
+        where: 'wordId = ? OR localWordId = ?',
+        whereArgs: [intWordId, intLocalId],
+        orderBy: 'createdAt DESC',
+      );
 
-       words.add(Word(
-         id: intWordId != 0 ? intWordId : intLocalId,
-         englishWord: wordMap['englishWord'] ?? '',
+      words.add(Word(
+        id: intWordId != 0 ? intWordId : intLocalId,
+        englishWord: wordMap['englishWord'] ?? '',
         turkishMeaning: wordMap['turkishMeaning'] ?? '',
         learnedDate: DateTime.parse(wordMap['learnedDate']),
         notes: wordMap['notes'],
         difficulty: wordMap['difficulty'] ?? 'easy',
-         sentences: sentences
-             .map((s) => Sentence(
-                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,
-                   sentence: s['sentence'] as String? ?? '',
-                   translation: s['translation'] as String? ?? '',
-                   wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
-                   difficulty: s['difficulty'] as String?,
-                   createdAt: _tryParseDateTime(s['createdAt']),
-                 ))
-             .toList(),
-       ));
-     }
+        nextReviewDate: _tryParseDateTime(wordMap['nextReviewDate']),
+        reviewCount: _toNullableInt(wordMap['reviewCount']) ?? 0,
+        easeFactor: _toNullableDouble(wordMap['easeFactor']),
+        lastReviewDate: _tryParseDateTime(wordMap['lastReviewDate']),
+        sentences: sentences
+            .map((s) => Sentence(
+                  id: s['id'] as int? ?? s['localId'] as int? ?? 0,
+                  sentence: s['sentence'] as String? ?? '',
+                  translation: s['translation'] as String? ?? '',
+                  wordId: wordMap['id'] ?? wordMap['localId'] ?? 0,
+                  difficulty: s['difficulty'] as String?,
+                  createdAt: _tryParseDateTime(s['createdAt']),
+                ))
+            .toList(),
+      ));
+    }
 
-     return words;
+    return words;
   }
 
   /// Kelime kaydet (online'dan gelen)
@@ -312,8 +337,11 @@ class LocalDatabaseService {
 
     // Do not resurrect locally-deleted content while a delete is pending in the queue.
     if (pendingWordDeletes.contains(word.id)) {
-      await db.delete('words', where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
-      await db.delete('sentences', where: 'wordId = ? OR localWordId = ?', whereArgs: [word.id, word.id]);
+      await db.delete('words',
+          where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
+      await db.delete('sentences',
+          where: 'wordId = ? OR localWordId = ?',
+          whereArgs: [word.id, word.id]);
       return;
     }
 
@@ -341,8 +369,15 @@ class LocalDatabaseService {
           'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
           'notes': word.notes,
           'difficulty': word.difficulty,
+          'nextReviewDate':
+              word.nextReviewDate?.toIso8601String().split('T')[0],
+          'reviewCount': word.reviewCount,
+          'easeFactor': word.easeFactor,
+          'lastReviewDate':
+              word.lastReviewDate?.toIso8601String().split('T')[0],
           'syncStatus': 'synced',
-          'createdAt': preservedWordCreatedAt ?? DateTime.now().toIso8601String(),
+          'createdAt':
+              preservedWordCreatedAt ?? DateTime.now().toIso8601String(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace);
 
@@ -381,7 +416,8 @@ class LocalDatabaseService {
       }
       final preservedSentenceLocalId = existingSentenceLocalIds[sentence.id];
       final preservedLocalWordId = existingSentenceLocalWordIds[sentence.id];
-      final preservedSentenceCreatedAt = existingSentenceCreatedAts[sentence.id];
+      final preservedSentenceCreatedAt =
+          existingSentenceCreatedAts[sentence.id];
 
       await db.insert(
           'sentences',
@@ -419,8 +455,8 @@ class LocalDatabaseService {
         existingWordCreatedAts[id] = row['createdAt']?.toString();
       }
     }
-    final existingSentenceRows =
-        await db.query('sentences', columns: ['id', 'localId', 'localWordId', 'createdAt']);
+    final existingSentenceRows = await db.query('sentences',
+        columns: ['id', 'localId', 'localWordId', 'createdAt']);
     final existingSentenceLocalIds = <int, int?>{};
     final existingSentenceLocalWordIds = <int, int?>{};
     final existingSentenceCreatedAts = <int, String?>{};
@@ -436,8 +472,11 @@ class LocalDatabaseService {
     for (var word in words) {
       if (pendingWordDeletes.contains(word.id)) {
         // Keep local deletion consistent while delete is pending.
-        batch.delete('words', where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
-        batch.delete('sentences', where: 'wordId = ? OR localWordId = ?', whereArgs: [word.id, word.id]);
+        batch.delete('words',
+            where: 'id = ? OR localId = ?', whereArgs: [word.id, word.id]);
+        batch.delete('sentences',
+            where: 'wordId = ? OR localWordId = ?',
+            whereArgs: [word.id, word.id]);
         continue;
       }
       batch.insert(
@@ -450,6 +489,12 @@ class LocalDatabaseService {
             'learnedDate': word.learnedDate.toIso8601String().split('T')[0],
             'notes': word.notes,
             'difficulty': word.difficulty,
+            'nextReviewDate':
+                word.nextReviewDate?.toIso8601String().split('T')[0],
+            'reviewCount': word.reviewCount,
+            'easeFactor': word.easeFactor,
+            'lastReviewDate':
+                word.lastReviewDate?.toIso8601String().split('T')[0],
             'syncStatus': 'synced',
             'createdAt': existingWordCreatedAts[word.id] ??
                 DateTime.now().toIso8601String(),
@@ -639,8 +684,7 @@ class LocalDatabaseService {
 
     final rows = await db.query(
       'sentences',
-      where:
-          'wordId IN ($placeholders) OR localWordId IN ($placeholders)',
+      where: 'wordId IN ($placeholders) OR localWordId IN ($placeholders)',
       whereArgs: [...idList, ...idList],
     );
 
@@ -738,7 +782,8 @@ class LocalDatabaseService {
     }
     final pendingDeletes = await _getPendingDeleteItemIds('practice_sentences');
     if (pendingDeletes.contains(sentence.id)) {
-      await db.delete('practice_sentences', where: 'id = ?', whereArgs: [sentence.id]);
+      await db.delete('practice_sentences',
+          where: 'id = ?', whereArgs: [sentence.id]);
       return;
     }
 
@@ -766,8 +811,7 @@ class LocalDatabaseService {
     // Only practice sentences are persisted locally.
     sentences = sentences.where((s) => s.source == 'practice').toList();
 
-    final pendingDeletes =
-        await _getPendingDeleteItemIds('practice_sentences');
+    final pendingDeletes = await _getPendingDeleteItemIds('practice_sentences');
 
     final serverIds =
         sentences.map((s) => s.id).where((id) => id.trim().isNotEmpty).toSet();
@@ -789,8 +833,7 @@ class LocalDatabaseService {
             List.filled(effectiveServerIds.length, '?').join(',');
         await txn.delete(
           'practice_sentences',
-          where:
-              'syncStatus != ? AND id NOT IN ($placeholders)',
+          where: 'syncStatus != ? AND id NOT IN ($placeholders)',
           whereArgs: ['pending', ...effectiveServerIds],
         );
       }
@@ -1053,8 +1096,9 @@ class LocalDatabaseService {
       }
     }
 
-    final oldestPendingSeconds =
-        oldestCreatedAt == null ? null : now.difference(oldestCreatedAt).inSeconds;
+    final oldestPendingSeconds = oldestCreatedAt == null
+        ? null
+        : now.difference(oldestCreatedAt).inSeconds;
 
     return <String, dynamic>{
       'pendingTotal': pendingItems.length,
@@ -1403,6 +1447,10 @@ class LocalDatabaseService {
         learnedDate: DateTime.parse(wordMap['learnedDate']),
         notes: wordMap['notes'],
         difficulty: wordMap['difficulty'] ?? 'easy',
+        nextReviewDate: _tryParseDateTime(wordMap['nextReviewDate']),
+        reviewCount: _toNullableInt(wordMap['reviewCount']) ?? 0,
+        easeFactor: _toNullableDouble(wordMap['easeFactor']),
+        lastReviewDate: _tryParseDateTime(wordMap['lastReviewDate']),
         sentences: sentences
             .map((s) => Sentence(
                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,

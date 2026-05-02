@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/locale_text_service.dart';
 
 class LanguageProvider extends ChangeNotifier {
   static const String _languageCodeKey = 'app_language_code';
@@ -35,6 +36,7 @@ class LanguageProvider extends ChangeNotifier {
 
     _hasExplicitSelection =
         selected && savedCode != null && savedCode.isNotEmpty && promptSeen;
+    LocaleTextService.setAppLocale(_locale);
     _initialized = true;
     notifyListeners();
   }
@@ -45,6 +47,7 @@ class LanguageProvider extends ChangeNotifier {
       return;
     }
     _locale = normalized;
+    LocaleTextService.setAppLocale(_locale);
     _hasExplicitSelection = true;
     notifyListeners();
 
