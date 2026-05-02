@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'analytics_service.dart';
 import 'auth_service.dart';
 
 class DailyPracticeProgressService {
@@ -63,6 +64,12 @@ class DailyPracticeProgressService {
         'completedAt': DateTime.now().toIso8601String(),
       },
     );
+    await AnalyticsService.logPracticeCompleted(
+      type: 'reading',
+      level: level,
+      score: score,
+      totalQuestions: totalQuestions,
+    );
   }
 
   Future<ReadingReviewData?> getReadingResult(String level) async {
@@ -118,6 +125,11 @@ class DailyPracticeProgressService {
         'score': score,
         'completedAt': DateTime.now().toIso8601String(),
       },
+    );
+    await AnalyticsService.logPracticeCompleted(
+      type: 'writing',
+      level: level,
+      score: score,
     );
   }
 

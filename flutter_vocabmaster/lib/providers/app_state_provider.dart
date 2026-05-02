@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/xp_manager.dart';
 import '../services/local_database_service.dart';
+import '../services/analytics_service.dart';
 import '../models/word.dart';
 import '../models/sentence_view_model.dart';
 import '../services/groq_service.dart';
@@ -708,6 +709,11 @@ class AppStateProvider extends ChangeNotifier {
               source: source, transactionId: txId);
         }
 
+        await AnalyticsService.logFirstWordAdded(
+          source: source ?? 'manual',
+          difficulty: difficulty,
+        );
+
         notifyListeners();
       }
       return newWord;
@@ -894,6 +900,8 @@ class AppStateProvider extends ChangeNotifier {
         await addXPForAction(XPActionTypes.addSentence,
             source: 'Cümle Ekleme', transactionId: txId);
 
+        await AnalyticsService.logFirstSentenceAdded(difficulty: difficulty);
+
         // Cümle listesini ANLINDA güncelle (UI hemen görsün)
         // 🔥 Önce aynı cümle var mı kontrol et (çift eklemeyi engelle)
         if (updatedWord.sentences.isNotEmpty) {
@@ -993,6 +1001,8 @@ class AppStateProvider extends ChangeNotifier {
         // XP ekle (pratik cümlesi başına 5 XP) - içerik tabanlı txId ile
         await addXPForAction(XPActionTypes.addPracticeSentence,
             source: 'Pratik Cümlesi', transactionId: txId);
+
+        await AnalyticsService.logFirstSentenceAdded(difficulty: difficulty);
 
         notifyListeners();
         return true;

@@ -4,6 +4,7 @@ import '../providers/app_state_provider.dart';
 import '../screens/subscription_page.dart';
 import '../screens/login_page.dart';
 import 'ai_error_message_formatter.dart';
+import 'analytics_service.dart';
 import 'api_service.dart';
 import 'auth_service.dart';
 
@@ -12,6 +13,7 @@ class AiPaywallHandler {
     if (!context.mounted) {
       return;
     }
+    await AnalyticsService.logPaywallShown(source: 'ai_access_required');
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SubscriptionPage()),

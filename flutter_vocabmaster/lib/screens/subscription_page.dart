@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../services/auth_service.dart';
+import '../services/analytics_service.dart';
 import '../services/subscription_service.dart';
 import '../widgets/modern_background.dart';
 
@@ -22,6 +23,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   bool _isPurchasing = false;
   bool _hasActiveSubscription = false;
   String? _subscriptionEndDateLabel;
+  String? _pendingPurchasePlanName;
   static const String _singlePlanName = 'PRO_MONTHLY';
   static const double _singlePlanDisplayPrice = 20;
   static const String _singlePlanDisplayCurrency = 'TRY';
@@ -31,6 +33,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.logPaywallShown(source: 'subscription_page');
     _initializeIAP();
     _loadPlans().then((_) => _syncOwnedPurchasesIfNeeded());
   }
@@ -40,6 +43,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     _subscriptionService.onPurchaseSuccess = (message) async {
       if (!mounted) return;
       setState(() => _isPurchasing = false);
+      await AnalyticsService.logPurchaseCompleted(
+        planName: _pendingPurchasePlanName,
+      );
+      _pendingPurchasePlanName = null;
       await _loadPlans();
       if (!mounted) return;
       _showSuccessDialog(message);
@@ -190,6 +197,15 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   void _startPayment(SubscriptionPlan plan) async {
     if (_isPurchasing) return;
+
+    _pendingPurchasePlanName = plan.name;
+    await AnalyticsService.logPurchaseStarted(
+      planName: plan.name,
+      currency: plan.name == _singlePlanName
+          ? _singlePlanDisplayCurrency
+          : plan.currency,
+      price: plan.name == _singlePlanName ? _singlePlanDisplayPrice : plan.price,
+    );
 
     setState(() => _isPurchasing = true);
 

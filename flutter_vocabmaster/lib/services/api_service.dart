@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/word.dart';
 import '../models/sentence_practice.dart';
 import '../config/app_config.dart';
+import 'analytics_service.dart';
 import 'auth_service.dart';
 
 class ApiService {
@@ -78,6 +80,18 @@ class ApiService {
     response = await send(headers);
     if (response.statusCode == 401) {
       throw _unauthorizedFromResponse(response);
+    }
+    return response;
+  }
+
+  Future<http.Response> _withAiRetry(
+    Future<http.Response> Function(Map<String, String> headers) send, {
+    required String feature,
+    bool json = false,
+  }) async {
+    final response = await _withProtectedRetry(send, json: json);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      unawaited(AnalyticsService.logFirstAiUse(feature: feature));
     }
     return response;
   }
@@ -661,7 +675,7 @@ class ApiService {
     bool fresh = false,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/generate-sentences'),
         headers: headers,
@@ -673,6 +687,7 @@ class ApiService {
           'fresh': fresh,
         }),
       ),
+      feature: 'generate_sentences',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -693,7 +708,7 @@ class ApiService {
     List<String> sentences = const [],
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/save-to-today'),
         headers: headers,
@@ -703,6 +718,7 @@ class ApiService {
           'sentences': sentences,
         }),
       ),
+      feature: 'save_word_to_today',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -737,12 +753,13 @@ class ApiService {
       body['englishSentence'] = referenceEnglishSentence;
     }
 
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/check-translation'),
         headers: headers,
         body: json.encode(body),
       ),
+      feature: 'check_translation',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -763,7 +780,7 @@ class ApiService {
     String? scenarioContext,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/chat'),
         headers: headers,
@@ -773,6 +790,7 @@ class ApiService {
           if (scenarioContext != null) 'scenarioContext': scenarioContext,
         }),
       ),
+      feature: 'chat',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -796,12 +814,13 @@ class ApiService {
     required String part,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/speaking-test/generate-questions'),
         headers: headers,
         body: json.encode({'testType': testType, 'part': part}),
       ),
+      feature: 'speaking_test_generate_questions',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -822,7 +841,7 @@ class ApiService {
     required String responseText,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/speaking-test/evaluate'),
         headers: headers,
@@ -832,6 +851,7 @@ class ApiService {
           'response': responseText,
         }),
       ),
+      feature: 'speaking_test_evaluate',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -853,12 +873,13 @@ class ApiService {
     required String word,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/lookup'),
         headers: headers,
         body: json.encode({'word': word}),
       ),
+      feature: 'dictionary_lookup',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -877,12 +898,13 @@ class ApiService {
     required String word,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/lookup-detailed'),
         headers: headers,
         body: json.encode({'word': word}),
       ),
+      feature: 'dictionary_lookup_detailed',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -902,12 +924,13 @@ class ApiService {
     required String sentence,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/explain'),
         headers: headers,
         body: json.encode({'word': word, 'sentence': sentence}),
       ),
+      feature: 'dictionary_explain',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -928,7 +951,7 @@ class ApiService {
     required String context,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/generate-specific-sentence'),
         headers: headers,
@@ -938,6 +961,7 @@ class ApiService {
           'context': context,
         }),
       ),
+      feature: 'dictionary_generate_specific_sentence',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -956,12 +980,13 @@ class ApiService {
     required String level,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/reading/generate'),
         headers: headers,
         body: json.encode({'level': level}),
       ),
+      feature: 'reading_generate',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -981,12 +1006,13 @@ class ApiService {
     required String wordCount,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/writing/generate-topic'),
         headers: headers,
         body: json.encode({'level': level, 'wordCount': wordCount}),
       ),
+      feature: 'writing_generate_topic',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -1007,12 +1033,13 @@ class ApiService {
     required Map<String, dynamic> topic,
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/writing/evaluate'),
         headers: headers,
         body: json.encode({'text': text, 'level': level, 'topic': topic}),
       ),
+      feature: 'writing_evaluate',
       json: true,
     );
     if (response.statusCode == 200) {
@@ -1037,7 +1064,7 @@ class ApiService {
     String track = 'general',
   }) async {
     final url = await baseUrl;
-    final response = await _withProtectedRetry(
+    final response = await _withAiRetry(
       (headers) => client.post(
         Uri.parse('$url/chatbot/exam/generate'),
         headers: headers,
@@ -1051,6 +1078,7 @@ class ApiService {
           'targetScore': targetScore,
         }),
       ),
+      feature: 'exam_generate',
       json: true,
     );
     if (response.statusCode == 200) {

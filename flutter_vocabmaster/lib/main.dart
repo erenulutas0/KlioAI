@@ -1,3 +1,7 @@
+import 'dart:ui';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -28,6 +32,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
+import 'services/analytics_service.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'widgets/theme_side_tab.dart';
 import 'providers/app_state_provider.dart';
@@ -35,8 +40,12 @@ import 'providers/language_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
 
+bool _firebaseTelemetryEnabled = false;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _firebaseTelemetryEnabled = await _initializeFirebaseTelemetry();
+
   try {
     await dotenv.load(fileName: ".env");
   } catch (_) {
@@ -49,6 +58,10 @@ void main() async {
   await offlineSyncService.initialize();
   final authService = AuthService();
   await authService.enforceMandatorySessionResetIfNeeded();
+  final currentUserId = await authService.getUserId();
+  if (currentUserId != null && currentUserId > 0) {
+    await AnalyticsService.setUserId(currentUserId.toString());
+  }
   if (await authService.isLoggedIn()) {
     await offlineSyncService.initialDataLoad();
   }
@@ -101,6 +114,24 @@ void main() async {
   appStateProvider.initialize();
 }
 
+Future<bool> _initializeFirebaseTelemetry() async {
+  try {
+    await Firebase.initializeApp();
+    FlutterError.onError =
+        FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+    AnalyticsService.setEnabled(true);
+    return true;
+  } catch (e) {
+    AnalyticsService.setEnabled(false);
+    debugPrint('Firebase telemetry disabled: $e');
+    return false;
+  }
+}
+
 class KlioAIApp extends StatelessWidget {
   const KlioAIApp({super.key});
 
@@ -111,6 +142,8 @@ class KlioAIApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
+      navigatorObservers:
+          _firebaseTelemetryEnabled ? [AnalyticsService.navigatorObserver] : [],
       title: context.tr('app.name'),
       debugShowCheckedModeBanner: false,
       locale: selectedLocale,
@@ -174,18 +207,51 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _logTabScreen(_currentIndex);
+    });
   }
 
   String? _practiceInitialMode;
+
+  void _selectTab(int index, {String? practiceInitialMode}) {
+    setState(() {
+      _currentIndex = index;
+      if (practiceInitialMode != null) {
+        _practiceInitialMode = practiceInitialMode;
+      }
+    });
+    _logTabScreen(index);
+  }
+
+  void _logTabScreen(int index) {
+    AnalyticsService.logScreenView(
+      _screenNameForIndex(index),
+      screenClass: 'MainScreen',
+    );
+  }
+
+  String _screenNameForIndex(int index) {
+    switch (index) {
+      case 1:
+        return 'words';
+      case 2:
+        return 'menu';
+      case 3:
+        return 'sentences';
+      case 4:
+        return 'practice';
+      case 0:
+      default:
+        return 'home';
+    }
+  }
 
   void _onNavigate(String page) {
     switch (page) {
       case 'speaking':
       case 'practice_speaking':
-        setState(() {
-          _currentIndex = 4;
-          _practiceInitialMode = 'speaking';
-        });
+        _selectTab(4, practiceInitialMode: 'speaking');
         break;
       case 'repeat':
         Navigator.of(context).push(
@@ -198,10 +264,10 @@ class _MainScreenState extends State<MainScreen> {
         );
         break;
       case 'words':
-        setState(() => _currentIndex = 1);
+        _selectTab(1);
         break;
       case 'sentences':
-        setState(() => _currentIndex = 3);
+        _selectTab(3);
         break;
       case 'notifications':
         Navigator.of(context).push(
@@ -512,16 +578,16 @@ class _MainScreenState extends State<MainScreen> {
 
           switch (id) {
             case 'home':
-              setState(() => _currentIndex = 0);
+              _selectTab(0);
               break;
             case 'words':
-              setState(() => _currentIndex = 1);
+              _selectTab(1);
               break;
             case 'sentences':
-              setState(() => _currentIndex = 3);
+              _selectTab(3);
               break;
             case 'practice':
-              setState(() => _currentIndex = 4);
+              _selectTab(4);
               break;
           }
         },
@@ -529,10 +595,7 @@ class _MainScreenState extends State<MainScreen> {
           Navigator.pop(context);
           switch (id) {
             case 'speaking':
-              setState(() {
-                _currentIndex = 4;
-                _practiceInitialMode = 'speaking';
-              });
+              _selectTab(4, practiceInitialMode: 'speaking');
               break;
             case 'repeat':
               Navigator.of(context).push(
@@ -595,9 +658,7 @@ class _MainScreenState extends State<MainScreen> {
                   if (index == 2) {
                     _scaffoldKey.currentState?.openDrawer();
                   } else {
-                    setState(() {
-                      _currentIndex = index;
-                    });
+                    _selectTab(index);
                   }
                 },
               ),

@@ -10,6 +10,7 @@ import '../widgets/floating_orb.dart';
 import 'login_page_helper.dart'; // Helper import
 import '../main.dart'; // For MainScreen navigation
 import '../services/auth_service.dart'; // Explicit import
+import '../services/analytics_service.dart';
 import '../l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
@@ -85,6 +86,19 @@ class _LoginPageState extends State<LoginPage>
     }
 
     if (result['success'] == true) {
+      final userId = _extractUserId(result);
+      if (isSignUp) {
+        await AnalyticsService.logSignupCompleted(
+          method: 'email',
+          userId: userId,
+        );
+      } else {
+        await AnalyticsService.logLoginCompleted(
+          method: 'email',
+          userId: userId,
+        );
+      }
+
       if (mounted) {
         // Provider'a kullanıcı verisini hemen set et (Anında güncel veri görünsün)
         if (result['user'] != null) {
@@ -114,6 +128,11 @@ class _LoginPageState extends State<LoginPage>
     final result = await auth.googleLogin();
 
     if (result['success'] == true) {
+      await AnalyticsService.logLoginCompleted(
+        method: 'google',
+        userId: _extractUserId(result),
+      );
+
       if (mounted) {
         if (result['user'] != null) {
           Provider.of<AppStateProvider>(
@@ -132,6 +151,18 @@ class _LoginPageState extends State<LoginPage>
         ));
       }
     }
+  }
+
+  String? _extractUserId(Map<String, dynamic> result) {
+    final user = result['user'];
+    if (user is Map) {
+      final id = user['id'] ?? user['userId'];
+      if (id != null) {
+        return id.toString();
+      }
+    }
+    final id = result['userId'] ?? result['id'];
+    return id?.toString();
   }
 
   @override
