@@ -1,7 +1,7 @@
 name: vocabmaster
 description: A vocabulary learning app with gamification features
 publish_to: 'none'
-version: 1.1.3+281
+version: 1.1.3+282
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -56,6 +56,7 @@ flutter:
   assets:
     - assets/images/mainLogo.png
     - assets/images/telephone_logo.png
+    - assets/images/telephone_logo_foreground.png
 
   # To add custom fonts to your application, add a fonts section here
   # fonts:
@@ -70,6 +71,6 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/telephone_logo.png
-  adaptive_icon_foreground: assets/images/telephone_logo.png
+  adaptive_icon_foreground: assets/images/telephone_logo_foreground.png
   adaptive_icon_background: '#0B1118'
   remove_alpha_ios: true
