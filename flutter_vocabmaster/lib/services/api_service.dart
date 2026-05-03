@@ -96,6 +96,42 @@ class ApiService {
     return response;
   }
 
+  Future<void> registerPushToken({
+    required String token,
+    required String platform,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+    bool dailyRemindersEnabled = false,
+  }) async {
+    final trimmedToken = token.trim();
+    if (trimmedToken.isEmpty) {
+      throw ArgumentError('Push token cannot be empty');
+    }
+
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/push-tokens'),
+        headers: headers,
+        body: json.encode({
+          'token': trimmedToken,
+          'platform': platform,
+          if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+          if (appVersion != null && appVersion.isNotEmpty)
+            'appVersion': appVersion,
+          if (locale != null && locale.isNotEmpty) 'locale': locale,
+          'dailyRemindersEnabled': dailyRemindersEnabled.toString(),
+        }),
+      ),
+      json: true,
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to register push token: ${response.statusCode}');
+    }
+  }
+
   Future<bool> _tryRefreshSessionCoalesced() async {
     final current = _refreshInFlight;
     if (current != null) {

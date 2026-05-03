@@ -22,6 +22,7 @@ import '../services/daily_practice_progress_service.dart';
 import '../services/app_market_config.dart';
 import '../services/ai_access_policy.dart';
 import '../services/analytics_service.dart';
+import '../services/first_session_activation_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
@@ -67,6 +68,9 @@ class _PracticePageState extends State<PracticePage>
   final DailyPracticeProgressService _dailyProgressService =
       DailyPracticeProgressService();
   Map<String, bool> _readingCompletedLevels = {};
+  final FirstSessionActivationService _activationService =
+      FirstSessionActivationService();
+  bool _firstSessionPracticeCompleted = false;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -89,7 +93,11 @@ class _PracticePageState extends State<PracticePage>
     _modeSpeaking,
   ];
 
-  List<String> _availableModesForLocale(Locale? locale) {
+  List<String> _availableModesForLocale(Locale? locale,
+      {bool compact = false}) {
+    if (compact) {
+      return const [_modeTranslate, _modeWriting, _modeSpeaking];
+    }
     final modes = <String>[..._basePracticeModes];
     if (AppMarketConfig.isExamModuleEnabled(locale)) {
       modes.add(_modeExams);
@@ -164,9 +172,9 @@ class _PracticePageState extends State<PracticePage>
     }
   }
 
-  void _ensureSelectedModeVisible() {
+  void _ensureSelectedModeVisible({bool compact = false}) {
     final locale = Localizations.maybeLocaleOf(context);
-    final availableModes = _availableModesForLocale(locale);
+    final availableModes = _availableModesForLocale(locale, compact: compact);
     if (!availableModes.contains(_selectedMode)) {
       _selectedMode = availableModes.first;
     }
@@ -184,6 +192,7 @@ class _PracticePageState extends State<PracticePage>
     super.initState();
     _loadWords();
     _loadDailyCompletionBadges();
+    _loadFirstSessionPracticeState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshPracticeAccessIfNeeded();
       _logPracticeStarted();
@@ -218,10 +227,26 @@ class _PracticePageState extends State<PracticePage>
         widget.initialMode != oldWidget.initialMode) {
       setState(() {
         _selectedMode = _normalizeModeId(widget.initialMode!);
-        _ensureSelectedModeVisible();
+        _ensureSelectedModeVisible(compact: !_firstSessionPracticeCompleted);
       });
       _logPracticeStarted();
     }
+  }
+
+  Future<void> _loadFirstSessionPracticeState() async {
+    final completed = await _activationService.isPracticeCompleted();
+    if (!mounted) return;
+    setState(() => _firstSessionPracticeCompleted = completed);
+  }
+
+  Future<void> _refreshFirstSessionPracticeState() async {
+    if (_firstSessionPracticeCompleted) return;
+    final completed = await _activationService.isPracticeCompleted();
+    if (!mounted || !completed) return;
+    setState(() {
+      _firstSessionPracticeCompleted = true;
+      _ensureSelectedModeVisible();
+    });
   }
 
   void _selectPracticeMode(String mode) {
@@ -245,7 +270,7 @@ class _PracticePageState extends State<PracticePage>
     super.didChangeDependencies();
     // 🔥 AppStateProvider değiştiğinde kelime listesini güncelle
     _syncWordsFromProvider();
-    _ensureSelectedModeVisible();
+    _ensureSelectedModeVisible(compact: !_firstSessionPracticeCompleted);
     _refreshPracticeAccessIfNeeded();
   }
 
@@ -530,7 +555,18 @@ class _PracticePageState extends State<PracticePage>
     final isEntitlementLoading = appState.isLoadingAiEntitlement &&
         !hasAiEntitlementSnapshot(appState.userInfo);
     final locale = Localizations.maybeLocaleOf(context);
-    final availableModes = _availableModesForLocale(locale);
+    if (!_firstSessionPracticeCompleted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshFirstSessionPracticeState();
+      });
+    }
+    final availableModes = _availableModesForLocale(
+      locale,
+      compact: !_firstSessionPracticeCompleted,
+    );
+    if (!availableModes.contains(_selectedMode)) {
+      _selectedMode = availableModes.first;
+    }
 
     if (isLoading || isEntitlementLoading) {
       return Scaffold(

@@ -22,6 +22,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
 import 'support_tickets_page.dart';
+import '../services/first_session_activation_service.dart';
 
 class HomePage extends StatefulWidget {
   final Function(String) onNavigate;
@@ -58,6 +59,11 @@ class _HomePageState extends State<HomePage>
   // Heartbeat timer for online status
   Timer? _heartbeatTimer;
   final SocialService _socialService = SocialService();
+  final FirstSessionActivationService _activationService =
+      FirstSessionActivationService();
+  String? _activationSelectedLevel;
+  bool _activationPracticeCompleted = false;
+  bool _activationDismissed = false;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -80,6 +86,7 @@ class _HomePageState extends State<HomePage>
       _loadOnlineUsers();
       _startHeartbeat();
     }
+    _loadActivationState();
 
     // Glow animations
     _glowAnimation1 = AnimationController(
@@ -127,6 +134,39 @@ class _HomePageState extends State<HomePage>
       duration: const Duration(seconds: 1),
       vsync: this,
     )..repeat(reverse: true);
+  }
+
+  Future<void> _loadActivationState() async {
+    final results = await Future.wait<Object?>([
+      _activationService.getSelectedLevel(),
+      _activationService.isPracticeCompleted(),
+      _activationService.isDismissed(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _activationSelectedLevel = results[0] as String?;
+      _activationPracticeCompleted = results[1] as bool? ?? false;
+      _activationDismissed = results[2] as bool? ?? false;
+    });
+  }
+
+  Future<void> _selectActivationLevel(String level) async {
+    await _activationService.setSelectedLevel(level);
+    if (!mounted) return;
+    setState(() => _activationSelectedLevel = level);
+  }
+
+  Future<void> _dismissActivationCard() async {
+    await _activationService.dismiss();
+    if (!mounted) return;
+    setState(() => _activationDismissed = true);
+  }
+
+  Future<void> _refreshActivationPracticeCompletion() async {
+    if (_activationPracticeCompleted) return;
+    final completed = await _activationService.isPracticeCompleted();
+    if (!mounted || !completed) return;
+    setState(() => _activationPracticeCompleted = true);
   }
 
   void _startHeartbeat() {
@@ -215,6 +255,11 @@ class _HomePageState extends State<HomePage>
 
     return Consumer<AppStateProvider>(
       builder: (context, appState, child) {
+        if (!_activationPracticeCompleted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _refreshActivationPracticeCompletion();
+          });
+        }
         final selectedTheme = _currentTheme(listen: true);
         final user = appState.userStats;
         final userName = appState.userName;
@@ -258,6 +303,9 @@ class _HomePageState extends State<HomePage>
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             children: [
+                              _buildFirstSessionActivation(appState),
+                              if (!_shouldHideActivationCard())
+                                const SizedBox(height: 24),
                               // Stats Cards
                               _buildStatsCards(user),
                               const SizedBox(height: 24),
@@ -662,6 +710,302 @@ class _HomePageState extends State<HomePage>
             color: Colors.white,
             fontSize: 28,
             fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _shouldHideActivationCard() {
+    return _activationDismissed;
+  }
+
+  String _activationText(String tr, String en) {
+    return Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
+  }
+
+  Widget _buildFirstSessionActivation(AppStateProvider appState) {
+    if (_shouldHideActivationCard()) {
+      return const SizedBox.shrink();
+    }
+
+    final selectedTheme = _currentTheme();
+    final wordCount = appState.allWords.length;
+    final sentenceCount = appState.allSentences.length;
+    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
+    final hasWords = wordCount >= 3;
+    final hasSentence = sentenceCount > 0;
+    final hasPractice = _activationPracticeCompleted;
+    final completedCount = [
+      hasLevel,
+      hasWords,
+      hasSentence,
+      hasPractice,
+    ].where((item) => item).length;
+    final isComplete = completedCount == 4;
+
+    String buttonLabel;
+    VoidCallback buttonAction;
+    if (!hasWords) {
+      buttonLabel = _activationText('3 kelime ekle', 'Add 3 words');
+      buttonAction = () => widget.onNavigate('words');
+    } else if (!hasSentence) {
+      buttonLabel = _activationText('İlk cümleyi ekle', 'Add first sentence');
+      buttonAction = () => widget.onNavigate('sentences');
+    } else if (!hasPractice) {
+      buttonLabel = _activationText('İlk tekrarı yap', 'Do first review');
+      buttonAction = () => widget.onNavigate('repeat');
+    } else {
+      buttonLabel = _activationText('Pratiğe devam et', 'Continue practice');
+      buttonAction = () => widget.onNavigate('practice_speaking');
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                    0.16)
+                .withOpacity(0.82),
+            _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
+                    0.12)
+                .withOpacity(0.76),
+          ],
+        ),
+        border: Border.all(
+          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: selectedTheme.colors.accentGlow.withOpacity(0.14),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: selectedTheme.colors.buttonGradient,
+                ),
+                child: const Icon(Icons.route_rounded, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _activationText(
+                        'Bugünkü tek hedef',
+                        'Today\'s one target',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _activationText(
+                        'İlk öğrenme döngünü tamamla: seviye, kelime, cümle, tekrar.',
+                        'Complete your first learning loop: level, words, sentence, review.',
+                      ),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.72),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isComplete)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _dismissActivationCard,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: completedCount / 4,
+              minHeight: 8,
+              backgroundColor: Colors.white.withOpacity(0.10),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(selectedTheme.colors.accent),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _activationText(
+              '$completedCount / 4 adım tamamlandı',
+              '$completedCount / 4 steps complete',
+            ),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            runSpacing: 10,
+            spacing: 10,
+            children: [
+              _buildActivationStep(
+                done: hasLevel,
+                title: _activationSelectedLevel ??
+                    _activationText('Seviye seç', 'Pick level'),
+                subtitle: _activationText('A1-B2 arası', 'A1-B2'),
+              ),
+              _buildActivationStep(
+                done: hasWords,
+                title: _activationText('3 kelime', '3 words'),
+                subtitle: '$wordCount / 3',
+              ),
+              _buildActivationStep(
+                done: hasSentence,
+                title: _activationText('1 cümle', '1 sentence'),
+                subtitle: '$sentenceCount',
+              ),
+              _buildActivationStep(
+                done: hasPractice,
+                title: _activationText('1 tekrar', '1 review'),
+                subtitle: hasPractice
+                    ? _activationText('Tamam', 'Done')
+                    : _activationText('Bekliyor', 'Pending'),
+              ),
+            ],
+          ),
+          if (!hasLevel) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: ['A1', 'A2', 'B1', 'B2']
+                  .map(
+                    (level) => _buildActivationLevelChip(level, selectedTheme),
+                  )
+                  .toList(),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: buttonAction,
+              icon: Icon(isComplete
+                  ? Icons.check_circle_rounded
+                  : Icons.arrow_forward_rounded),
+              label: Text(buttonLabel),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedTheme.colors.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivationStep({
+    required bool done,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: 154,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(done ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withOpacity(done ? 0.24 : 0.10),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            color: done ? Colors.white : Colors.white.withOpacity(0.48),
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.62),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivationLevelChip(String level, AppThemeConfig selectedTheme) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _selectActivationLevel(level),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selectedTheme.colors.accent.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selectedTheme.colors.accent.withOpacity(0.42),
+          ),
+        ),
+        child: Text(
+          level,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

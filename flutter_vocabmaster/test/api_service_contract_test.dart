@@ -26,6 +26,33 @@ void main() {
   const testBaseUrl = 'http://localhost:8080/api';
 
   group('ApiService Contract Tests', () {
+    test('registerPushToken posts token metadata', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.toString(), '$testBaseUrl/push-tokens');
+        expect(request.headers['Authorization'], 'Bearer test_token');
+        expect(request.headers['X-User-Id'], '4');
+
+        final body = json.decode(request.body) as Map<String, dynamic>;
+        expect(body['token'], 'fcm-token-123');
+        expect(body['platform'], 'android');
+        expect(body['deviceId'], 'device-1');
+        expect(body['locale'], 'en');
+        expect(body['dailyRemindersEnabled'], 'true');
+
+        return http.Response(json.encode({'registered': true}), 200);
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+      await api.registerPushToken(
+        token: 'fcm-token-123',
+        platform: 'android',
+        deviceId: 'device-1',
+        locale: 'en',
+        dailyRemindersEnabled: true,
+      );
+    });
+
     test('addSentenceToWord hits correct endpoint with payload', () async {
       final mockWord = {
         'id': 10,

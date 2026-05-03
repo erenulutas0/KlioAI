@@ -27,6 +27,7 @@ import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../services/locale_text_service.dart';
 import '../services/local_reminder_service.dart';
+import '../services/push_token_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -122,6 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setStateDialog(() => _pushNotifications = applied);
     setState(() => _pushNotifications = applied);
+    await PushTokenService().refreshTokenRegistration();
     if (enabled && !applied) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

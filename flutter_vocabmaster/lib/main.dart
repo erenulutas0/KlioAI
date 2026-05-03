@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -34,6 +35,7 @@ import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
 import 'services/local_reminder_service.dart';
+import 'services/push_token_service.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'widgets/theme_side_tab.dart';
 import 'providers/app_state_provider.dart';
@@ -71,6 +73,9 @@ void main() async {
     await offlineSyncService.initialDataLoad();
   }
   await LocalReminderService().initialize();
+  if (_firebaseTelemetryEnabled && await authService.isLoggedIn()) {
+    unawaited(PushTokenService().initialize());
+  }
 
   // Global App State Provider oluştur
   final appStateProvider = AppStateProvider();
@@ -132,8 +137,7 @@ class _AppOpenLifecycleObserver extends WidgetsBindingObserver {
 Future<bool> _initializeFirebaseTelemetry() async {
   try {
     await Firebase.initializeApp();
-    FlutterError.onError =
-        FirebaseCrashlytics.instance.recordFlutterFatalError;
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;

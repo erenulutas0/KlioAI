@@ -135,8 +135,14 @@ class AnalyticsService {
     String? level,
     int? score,
     int? totalQuestions,
-  }) {
-    return logEvent(
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('activation:practice_completed', true);
+    } catch (e) {
+      debugPrint('Activation practice completion marker failed: $e');
+    }
+    await logEvent(
       'practice_completed',
       parameters: {
         'type': type,
@@ -268,6 +274,20 @@ class AnalyticsService {
         'source': source,
         if (payload != null && payload.isNotEmpty) 'payload': payload,
       },
+    );
+  }
+
+  static Future<void> logPushTokenRegistered({required String platform}) {
+    return logEvent(
+      'push_token_registered',
+      parameters: {'platform': platform},
+    );
+  }
+
+  static Future<void> logPushTokenRegistrationFailed({required String reason}) {
+    return logEvent(
+      'push_token_registration_failed',
+      parameters: {'reason': _limit(reason, 90)},
     );
   }
 
