@@ -99,6 +99,32 @@ class AiTokenQuotaServiceTest {
         assertEquals(37_655, usage.tokensRemaining());
     }
 
+    @Test
+    void usageStats_ShouldExposeMemoryTotalsAndEstimatedCost() {
+        AiTokenQuotaProperties properties = new AiTokenQuotaProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setDailyTokenQuotaPerUser(50_000);
+        properties.setEstimatedCostUsdPerMillionTokens(0.20);
+
+        AiTokenQuotaProperties.ScopeLimits chatLimits = new AiTokenQuotaProperties.ScopeLimits();
+        chatLimits.setDailyTokenQuotaPerUser(20_000L);
+        properties.getScopes().put("chat", chatLimits);
+
+        TestableAiTokenQuotaService service = new TestableAiTokenQuotaService(properties);
+        service.consume(7L, "chat", 12_500);
+
+        AiTokenQuotaService.UsageStats stats = service.getUsageStats();
+
+        assertTrue(stats.enabled());
+        assertFalse(stats.redisEnabled());
+        assertEquals(1, stats.memoryGlobalSubjects());
+        assertEquals(1, stats.memoryScopeSubjects());
+        assertEquals(12_500, stats.memoryTokensUsed());
+        assertEquals(12_500, stats.totalTokensUsed());
+        assertEquals(0.0025, stats.estimatedCostUsd());
+    }
+
     private static final class TestableAiTokenQuotaService extends AiTokenQuotaService {
         private long nowMs = 1_000_000L;
 

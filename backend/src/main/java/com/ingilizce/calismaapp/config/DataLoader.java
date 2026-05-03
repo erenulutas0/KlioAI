@@ -28,18 +28,18 @@ public class DataLoader {
             ensurePlan(
                     repository,
                     "PREMIUM",
-                    new BigDecimal("5.00"),
-                    "USD",
+                    new BigDecimal("149.99"),
+                    "TRY",
                     30,
-                    "AI access with 50k daily token quota.");
+                    "AI access with 30k daily token quota.");
 
             ensurePlan(
                     repository,
                     "PREMIUM_PLUS",
-                    new BigDecimal("10.00"),
-                    "USD",
+                    new BigDecimal("999.99"),
+                    "TRY",
                     30,
-                    "AI access with 100k daily token quota.");
+                    "AI access with 60k daily token quota.");
 
             // Keep legacy plans for backward compatibility with existing clients.
             ensurePlan(

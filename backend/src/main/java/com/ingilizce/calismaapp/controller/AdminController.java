@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +41,9 @@ public class AdminController {
 
     @Autowired(required = false)
     private AiRateLimitService aiRateLimitService;
+
+    @Autowired(required = false)
+    private AiTokenQuotaService aiTokenQuotaService;
 
     @PostMapping("/reset-data")
     public String resetData() {
@@ -146,14 +150,68 @@ public class AdminController {
         return ResponseEntity.ok(body);
     }
 
-    private ResponseEntity<Map<String, Object>> requireAdminRateLimitService() {
-        if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.hasRole("ADMIN")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("success", false, "error", "Admin role required"));
+    @GetMapping("/ai-usage/stats")
+    public ResponseEntity<Map<String, Object>> aiUsageStats() {
+        ResponseEntity<Map<String, Object>> authz = requireAdmin();
+        if (authz != null) return authz;
+        if (aiTokenQuotaService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("success", false, "error", "AI token quota service unavailable"));
         }
+
+        AiTokenQuotaService.UsageStats stats = aiTokenQuotaService.getUsageStats();
+
+        Map<String, Object> quotas = new HashMap<>();
+        quotas.put("freeDailyTokenQuotaPerUser", stats.freeDailyTokenQuotaPerUser());
+        quotas.put("trialDailyTokenQuotaPerUser", stats.trialDailyTokenQuotaPerUser());
+        quotas.put("premiumDailyTokenQuotaPerUser", stats.premiumDailyTokenQuotaPerUser());
+        quotas.put("premiumPlusDailyTokenQuotaPerUser", stats.premiumPlusDailyTokenQuotaPerUser());
+
+        Map<String, Object> memory = new HashMap<>();
+        memory.put("globalSubjects", stats.memoryGlobalSubjects());
+        memory.put("scopeSubjects", stats.memoryScopeSubjects());
+        memory.put("tokensUsed", stats.memoryTokensUsed());
+
+        Map<String, Object> redis = new HashMap<>();
+        redis.put("globalSubjects", stats.redisGlobalSubjects());
+        redis.put("scopeSubjects", stats.redisScopeSubjects());
+        redis.put("tokensUsed", stats.redisTokensUsed());
+
+        Map<String, Object> cost = new HashMap<>();
+        cost.put("estimatedCostUsdPerMillionTokens", stats.estimatedCostUsdPerMillionTokens());
+        cost.put("estimatedCostUsd", stats.estimatedCostUsd());
+        cost.put("note", "Approximate projection based on configured blended token rate.");
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("enabled", stats.enabled());
+        body.put("redisEnabled", stats.redisEnabled());
+        body.put("redisFallbackMode", stats.redisFallbackMode());
+        body.put("redisFallbackActive", stats.redisFallbackActive());
+        body.put("dateUtc", stats.dateUtc());
+        body.put("totalTokensUsed", stats.totalTokensUsed());
+        body.put("quotas", quotas);
+        body.put("memory", memory);
+        body.put("redis", redis);
+        body.put("cost", cost);
+
+        return ResponseEntity.ok(body);
+    }
+
+    private ResponseEntity<Map<String, Object>> requireAdminRateLimitService() {
+        ResponseEntity<Map<String, Object>> authz = requireAdmin();
+        if (authz != null) return authz;
         if (aiRateLimitService == null) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("success", false, "error", "AI rate limit service unavailable"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<Map<String, Object>> requireAdmin() {
+        if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.hasRole("ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("success", false, "error", "Admin role required"));
         }
         return null;
     }

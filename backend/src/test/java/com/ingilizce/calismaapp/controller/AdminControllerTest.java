@@ -8,6 +8,7 @@ import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.security.JwtAuthenticationFilter;
 import com.ingilizce.calismaapp.security.UserHeaderConsistencyFilter;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -55,6 +56,9 @@ class AdminControllerTest {
 
     @MockBean
     private AiRateLimitService aiRateLimitService;
+
+    @MockBean
+    private AiTokenQuotaService aiTokenQuotaService;
 
     @Test
     void resetData_ShouldDeleteRepositoriesAndReturnSuccessMessage() throws Exception {
@@ -161,5 +165,43 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.configuredScopeCount").value(3));
 
         verify(aiRateLimitService).getAbuseStats();
+    }
+
+    @Test
+    void aiUsageStats_ShouldReturnCostSnapshot() throws Exception {
+        when(aiTokenQuotaService.getUsageStats())
+                .thenReturn(new AiTokenQuotaService.UsageStats(
+                        true,
+                        true,
+                        "deny",
+                        false,
+                        "2026-05-03",
+                        1500,
+                        5000,
+                        30000,
+                        60000,
+                        0.10,
+                        2,
+                        3,
+                        12500,
+                        4,
+                        5,
+                        22000,
+                        34500,
+                        0.0035));
+
+        mockMvc.perform(get("/api/admin/ai-usage/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.dateUtc").value("2026-05-03"))
+                .andExpect(jsonPath("$.totalTokensUsed").value(34500))
+                .andExpect(jsonPath("$.quotas.premiumDailyTokenQuotaPerUser").value(30000))
+                .andExpect(jsonPath("$.memory.tokensUsed").value(12500))
+                .andExpect(jsonPath("$.redis.tokensUsed").value(22000))
+                .andExpect(jsonPath("$.cost.estimatedCostUsdPerMillionTokens").value(0.10))
+                .andExpect(jsonPath("$.cost.estimatedCostUsd").value(0.0035));
+
+        verify(aiTokenQuotaService).getUsageStats();
     }
 }

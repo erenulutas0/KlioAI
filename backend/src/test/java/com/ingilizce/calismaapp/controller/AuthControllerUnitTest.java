@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.security.AuthSecurityProperties;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -52,7 +54,8 @@ class AuthControllerUnitTest {
     private AuthSecurityProperties authSecurityProperties;
     private ClientIpResolver clientIpResolver;
     private TrialAbuseProtectionService trialAbuseProtectionService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     @BeforeEach
     void setUp() {
@@ -107,7 +110,9 @@ class AuthControllerUnitTest {
                 authSecurityProperties,
                 clientIpResolver,
                 trialAbuseProtectionService);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .build();
     }
 
     @Test

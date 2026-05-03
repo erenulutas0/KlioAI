@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +50,29 @@ public class AiTokenQuotaService {
                               long dailyTokenLimit,
                               boolean trialActive,
                               int trialDaysRemaining) {
+    }
+
+    public record UsageStats(boolean enabled,
+                             boolean redisEnabled,
+                             String redisFallbackMode,
+                             boolean redisFallbackActive,
+                             String dateUtc,
+                             long freeDailyTokenQuotaPerUser,
+                             long trialDailyTokenQuotaPerUser,
+                             long premiumDailyTokenQuotaPerUser,
+                             long premiumPlusDailyTokenQuotaPerUser,
+                             double estimatedCostUsdPerMillionTokens,
+                             long memoryGlobalSubjects,
+                             long memoryScopeSubjects,
+                             long memoryTokensUsed,
+                             long redisGlobalSubjects,
+                             long redisScopeSubjects,
+                             long redisTokensUsed,
+                             long totalTokensUsed,
+                             double estimatedCostUsd) {
+    }
+
+    private record TokenSnapshot(long subjects, long tokensUsed) {
     }
 
     private static final String DAILY_TOKEN_PREFIX = "ai:tokens:day:";
@@ -195,6 +220,43 @@ public class AiTokenQuotaService {
 
     public Entitlement getEntitlement(Long userId) {
         return resolveEntitlement(userId);
+    }
+
+    public UsageStats getUsageStats() {
+        String dateUtc = LocalDate.now(ZoneOffset.UTC).toString();
+        TokenSnapshot memoryGlobal = getMemorySnapshot("global:");
+        TokenSnapshot memoryScope = getMemorySnapshot("scope:");
+        TokenSnapshot redisGlobal = canUseRedis()
+                ? scanRedisCounters(DAILY_TOKEN_PREFIX + dateUtc + ":*")
+                : new TokenSnapshot(0L, 0L);
+        TokenSnapshot redisScope = canUseRedis()
+                ? scanRedisCounters(DAILY_SCOPE_TOKEN_PREFIX + dateUtc + ":*")
+                : new TokenSnapshot(0L, 0L);
+
+        long memoryTokens = memoryGlobal.tokensUsed();
+        long redisTokens = redisGlobal.tokensUsed();
+        long totalTokens = safeAdd(memoryTokens, redisTokens);
+        double rate = properties.getEstimatedCostUsdPerMillionTokens();
+
+        return new UsageStats(
+                properties.isEnabled(),
+                properties.isRedisEnabled(),
+                properties.getRedisFallbackMode(),
+                redisFallbackActive.get() > 0,
+                dateUtc,
+                properties.getFreeDailyTokenQuotaPerUser(),
+                properties.getTrialDailyTokenQuotaPerUser(),
+                properties.getPremiumDailyTokenQuotaPerUser(),
+                properties.getPremiumPlusDailyTokenQuotaPerUser(),
+                rate,
+                memoryGlobal.subjects(),
+                memoryScope.subjects(),
+                memoryTokens,
+                redisGlobal.subjects(),
+                redisScope.subjects(),
+                redisTokens,
+                totalTokens,
+                roundUsd((totalTokens / 1_000_000.0) * rate));
     }
 
     private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
@@ -455,6 +517,58 @@ public class AiTokenQuotaService {
                 meterRegistry.counter(METRIC_REDIS_FALLBACK_TRANSITION_TOTAL, "state", "recovered").increment();
             }
         }
+    }
+
+    private TokenSnapshot getMemorySnapshot(String keyPrefix) {
+        long now = currentTimeMillis();
+        long subjects = 0L;
+        long tokens = 0L;
+        for (Map.Entry<String, DailyTokenCounter> entry : dailyCounters.entrySet()) {
+            if (!entry.getKey().startsWith(keyPrefix)) {
+                continue;
+            }
+            DailyTokenCounter counter = entry.getValue();
+            synchronized (counter) {
+                if (counter.dayEndMs <= 0 || now >= counter.dayEndMs) {
+                    continue;
+                }
+                subjects++;
+                tokens = safeAdd(tokens, Math.max(0L, counter.tokensUsed));
+            }
+        }
+        return new TokenSnapshot(subjects, tokens);
+    }
+
+    private TokenSnapshot scanRedisCounters(String pattern) {
+        long subjects = 0L;
+        long tokens = 0L;
+        try (Cursor<String> cursor = stringRedisTemplate.scan(
+                ScanOptions.scanOptions().match(pattern).count(1000).build())) {
+            while (cursor.hasNext()) {
+                String key = cursor.next();
+                subjects++;
+                tokens = safeAdd(tokens, parseLongOrZero(stringRedisTemplate.opsForValue().get(key)));
+            }
+            onRedisSuccess();
+        } catch (Exception ex) {
+            onRedisFailure("stats");
+            return new TokenSnapshot(0L, 0L);
+        }
+        return new TokenSnapshot(subjects, tokens);
+    }
+
+    private long safeAdd(long left, long right) {
+        if (right > 0 && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        if (right < 0 && left < Long.MIN_VALUE - right) {
+            return Long.MIN_VALUE;
+        }
+        return left + right;
+    }
+
+    private double roundUsd(double value) {
+        return Math.round(Math.max(0.0, value) * 10_000.0) / 10_000.0;
     }
 
     private void runMemoryCleanupIfNeeded(long nowMs) {

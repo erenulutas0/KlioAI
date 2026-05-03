@@ -17,10 +17,11 @@ public class AiTokenQuotaProperties {
     private int memoryMaxEntries = 100_000;
     private long memoryCleanupIntervalSeconds = 30;
     private int trialDurationDays = 7;
-    private long trialDailyTokenQuotaPerUser = 25_000;
-    private long freeDailyTokenQuotaPerUser = 0;
-    private long premiumDailyTokenQuotaPerUser = 50_000;
-    private long premiumPlusDailyTokenQuotaPerUser = 100_000;
+    private long trialDailyTokenQuotaPerUser = 5_000;
+    private long freeDailyTokenQuotaPerUser = 1_500;
+    private long premiumDailyTokenQuotaPerUser = 30_000;
+    private long premiumPlusDailyTokenQuotaPerUser = 60_000;
+    private double estimatedCostUsdPerMillionTokens = 0.10;
 
     /**
      * Global daily token budget per user (prompt + completion tokens).
@@ -149,5 +150,13 @@ public class AiTokenQuotaProperties {
 
     public void setPremiumPlusDailyTokenQuotaPerUser(long premiumPlusDailyTokenQuotaPerUser) {
         this.premiumPlusDailyTokenQuotaPerUser = Math.max(0L, premiumPlusDailyTokenQuotaPerUser);
+    }
+
+    public double getEstimatedCostUsdPerMillionTokens() {
+        return estimatedCostUsdPerMillionTokens;
+    }
+
+    public void setEstimatedCostUsdPerMillionTokens(double estimatedCostUsdPerMillionTokens) {
+        this.estimatedCostUsdPerMillionTokens = Math.max(0.0, estimatedCostUsdPerMillionTokens);
     }
 }
