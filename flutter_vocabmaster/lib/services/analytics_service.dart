@@ -245,6 +245,19 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logNotificationPreferenceChanged({
+    required String type,
+    required bool enabled,
+  }) {
+    return logEvent(
+      'notification_preference_changed',
+      parameters: {
+        'type': type,
+        'enabled': enabled,
+      },
+    );
+  }
+
   static Future<void> _logOnce({
     required String key,
     required String eventName,

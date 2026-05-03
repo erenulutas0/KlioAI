@@ -26,6 +26,7 @@ import '../theme/theme_catalog.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../services/locale_text_service.dart';
+import '../services/local_reminder_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -39,10 +40,11 @@ class _ProfilePageState extends State<ProfilePage> {
   String _text(String tr, String en) => _isTurkish ? tr : en;
 
   // State for notification settings
-  bool _pushNotifications = true;
+  bool _pushNotifications = false;
   bool _emailNotifications = true;
   bool _achievementNotifications = true;
   bool _friendRequestNotifications = true;
+  final LocalReminderService _localReminderService = LocalReminderService();
 
   // Profile picture state
   String? _profileImageType;
@@ -98,6 +100,41 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadFriends(); // Arkadaşları ayrıca yükle
     _loadSubscriptionInfo();
     _loadAiTokenQuotaStatus();
+    _loadNotificationSettings();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    final enabled = await _localReminderService.isDailyReminderEnabled();
+    if (!mounted) return;
+    setState(() => _pushNotifications = enabled);
+  }
+
+  Future<void> _setDailyReminderEnabled(
+    bool enabled,
+    StateSetter setStateDialog,
+  ) async {
+    setStateDialog(() => _pushNotifications = enabled);
+    setState(() => _pushNotifications = enabled);
+
+    final applied =
+        await _localReminderService.setDailyReminderEnabled(enabled);
+    if (!mounted) return;
+
+    setStateDialog(() => _pushNotifications = applied);
+    setState(() => _pushNotifications = applied);
+    if (enabled && !applied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'Bildirim izni verilmedi.',
+              'Notification permission was not granted.',
+            ),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void _loadSubscriptionInfo() async {
@@ -1655,7 +1692,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       context.tr('profile.notif.pushTitle'),
                       context.tr('profile.notif.pushDesc'),
                       _pushNotifications,
-                      (v) => setStateDialog(() => _pushNotifications = v)),
+                      (v) => _setDailyReminderEnabled(v, setStateDialog)),
                   const SizedBox(height: 12),
                   _buildSwitchTile(
                       context.tr('profile.notif.emailTitle'),

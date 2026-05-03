@@ -33,6 +33,7 @@ import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'services/local_reminder_service.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'widgets/theme_side_tab.dart';
 import 'providers/app_state_provider.dart';
@@ -69,6 +70,7 @@ void main() async {
   if (await authService.isLoggedIn()) {
     await offlineSyncService.initialDataLoad();
   }
+  await LocalReminderService().initialize();
 
   // Global App State Provider oluştur
   final appStateProvider = AppStateProvider();
