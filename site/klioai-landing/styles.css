@@ -88,6 +88,14 @@ a {
   font-size: 1.1rem;
 }
 
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 12px 30px rgba(85, 214, 255, 0.18);
+}
+
 .brand-text {
   font-size: 1rem;
 }
@@ -237,6 +245,31 @@ a {
   gap: 16px;
   border-radius: 30px;
   padding: 22px;
+}
+
+.app-showcase {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, rgba(85, 214, 255, 0.12), rgba(255, 142, 207, 0.1)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.app-showcase img {
+  width: min(154px, 52vw);
+  height: min(154px, 52vw);
+  border-radius: 32px;
+  object-fit: cover;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.4);
+}
+
+.app-showcase span {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .signal-card {
