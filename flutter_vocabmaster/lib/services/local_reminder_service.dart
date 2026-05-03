@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +10,8 @@ import 'analytics_service.dart';
 
 class LocalReminderService {
   static const String dailyReminderKey = 'notifications:daily_reminder_enabled';
+  static const String lastOpenedPayloadKey = 'notifications:last_opened_payload';
+  static const String lastOpenedAtKey = 'notifications:last_opened_at';
   static const int _dailyReminderId = 31001;
   static const int _dailyReminderHour = 20;
   static const int _dailyReminderMinute = 0;
@@ -43,8 +47,19 @@ class LocalReminderService {
         macOS: darwinSettings,
       );
 
-      await _notifications.initialize(settings);
+      await _notifications.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (response) {
+          unawaited(
+            _handleNotificationOpened(
+              source: 'tap',
+              payload: response.payload,
+            ),
+          );
+        },
+      );
       _initialized = true;
+      await _logLaunchFromNotificationIfNeeded();
       await refreshScheduledReminders();
     } catch (e) {
       debugPrint('Local reminder initialization skipped: $e');
@@ -117,6 +132,39 @@ class LocalReminderService {
 
   Future<void> cancelDailyReminder() async {
     await _notifications.cancel(_dailyReminderId);
+  }
+
+  Future<void> _logLaunchFromNotificationIfNeeded() async {
+    final launchDetails =
+        await _notifications.getNotificationAppLaunchDetails();
+    final response = launchDetails?.notificationResponse;
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      await _handleNotificationOpened(
+        source: 'launch',
+        payload: response?.payload,
+      );
+    }
+  }
+
+  static Future<void> _handleNotificationOpened({
+    required String source,
+    String? payload,
+  }) async {
+    try {
+      await AnalyticsService.logNotificationOpened(
+        source: source,
+        payload: payload,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(lastOpenedPayloadKey, payload ?? '');
+      await prefs.setString(
+        lastOpenedAtKey,
+        DateTime.now().toIso8601String(),
+      );
+    } catch (e) {
+      debugPrint('Notification open tracking skipped: $e');
+    }
   }
 
   Future<bool> _requestNotificationPermission() async {

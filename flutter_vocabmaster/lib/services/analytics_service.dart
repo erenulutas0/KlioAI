@@ -258,6 +258,19 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logNotificationOpened({
+    required String source,
+    String? payload,
+  }) {
+    return logEvent(
+      'notification_opened',
+      parameters: {
+        'source': source,
+        if (payload != null && payload.isNotEmpty) 'payload': payload,
+      },
+    );
+  }
+
   static Future<void> _logOnce({
     required String key,
     required String eventName,
