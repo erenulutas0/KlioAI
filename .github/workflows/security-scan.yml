@@ -29,21 +29,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
         with:
-          scan-type: fs
-          scan-ref: .
           version: v0.70.0
-          format: sarif
-          output: trivy-results.sarif
-          vuln-type: os,library
-          ignore-unfixed: true
           cache: 'false'
-          # Avoid scanning test fixtures/build outputs which can contain dummy "secret" values.
-          skip-dirs: backend/src/test,backend/target
-          severity: HIGH,CRITICAL
-          exit-code: '1'
+
+      - name: Run Trivy Vulnerability Scanner
+        run: >
+          trivy fs
+          --format sarif
+          --output trivy-results.sarif
+          --pkg-types os,library
+          --ignore-unfixed
+          --severity HIGH,CRITICAL
+          --exit-code 1
+          --skip-dirs backend/src/test
+          --skip-dirs backend/target
+          .
 
       - name: Upload Trivy SARIF
         if: always()
