@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.5</version>
+		<version>3.5.12</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.ingilizce</groupId>
@@ -18,10 +18,10 @@
 		<testcontainers.version>1.21.3</testcontainers.version>
 		<docker.api.version>1.44</docker.api.version>
 		<postgresql.version>42.7.2</postgresql.version>
-		<tomcat.version>10.1.45</tomcat.version>
+		<tomcat.version>10.1.54</tomcat.version>
 		<spring-framework.version>6.2.11</spring-framework.version>
-		<!-- Trivy: CVE-2025-41232 / CVE-2025-41248 fixed in Spring Security 6.4.10 -->
-		<spring-security.version>6.4.10</spring-security.version>
+		<spring-security.version>6.5.9</spring-security.version>
+		<netty.version>4.1.132.Final</netty.version>
 	</properties>
 	<dependencies>
 		<dependency>
