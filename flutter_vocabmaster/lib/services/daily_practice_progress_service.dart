@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'analytics_service.dart';
 import 'auth_service.dart';
+import 'in_app_review_service.dart';
 
 class DailyPracticeProgressService {
   DailyPracticeProgressService({AuthService? authService})
@@ -70,6 +71,7 @@ class DailyPracticeProgressService {
       score: score,
       totalQuestions: totalQuestions,
     );
+    await InAppReviewService().recordPracticeCompletion();
   }
 
   Future<ReadingReviewData?> getReadingResult(String level) async {
@@ -131,6 +133,7 @@ class DailyPracticeProgressService {
       level: level,
       score: score,
     );
+    await InAppReviewService().recordPracticeCompletion();
   }
 
   Future<WritingReviewData?> getWritingResult(String level) async {

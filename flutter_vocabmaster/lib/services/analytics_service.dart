@@ -238,6 +238,13 @@ class AnalyticsService {
     return logEvent('support_ticket_created', parameters: {'type': type});
   }
 
+  static Future<void> logReviewPromptRequested({required int completions}) {
+    return logEvent(
+      'review_prompt_requested',
+      parameters: {'practice_completions': completions},
+    );
+  }
+
   static Future<void> _logOnce({
     required String key,
     required String eventName,
