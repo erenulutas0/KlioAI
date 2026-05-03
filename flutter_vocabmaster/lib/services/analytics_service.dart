@@ -60,6 +60,18 @@ class AnalyticsService {
     }
   }
 
+  static Future<void> logAppOpen({String source = 'cold_start'}) {
+    return logEvent('app_open', parameters: {'source': source});
+  }
+
+  static Future<void> logOnboardingStarted({String source = 'first_run'}) {
+    return logEvent('onboarding_started', parameters: {'source': source});
+  }
+
+  static Future<void> logOnboardingCompleted({String source = 'first_run'}) {
+    return logEvent('onboarding_completed', parameters: {'source': source});
+  }
+
   static Future<void> logSignupCompleted({
     String method = 'email',
     String? userId,
@@ -135,6 +147,21 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logPracticeStarted({
+    required String type,
+    String? level,
+    String? subMode,
+  }) {
+    return logEvent(
+      'practice_started',
+      parameters: {
+        'type': type,
+        if (level != null && level.isNotEmpty) 'level': level,
+        if (subMode != null && subMode.isNotEmpty) 'sub_mode': subMode,
+      },
+    );
+  }
+
   static Future<void> logPaywallShown({String source = 'unknown'}) {
     return logEvent('paywall_shown', parameters: {'source': source});
   }
@@ -163,6 +190,54 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logPurchaseFailed({
+    String? planName,
+    String? reason,
+  }) {
+    return logEvent(
+      'purchase_failed',
+      parameters: {
+        if (planName != null && planName.isNotEmpty) 'plan_name': planName,
+        if (reason != null && reason.isNotEmpty) 'reason': _limit(reason, 90),
+      },
+    );
+  }
+
+  static Future<void> logTrialSnapshot({
+    required bool trialActive,
+    int? daysRemaining,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final wasActive = prefs.getBool('analytics:trial_was_active') ?? false;
+      if (trialActive) {
+        if (prefs.getBool('analytics:trial_started') != true) {
+          await logEvent(
+            'trial_started',
+            parameters: {
+              if (daysRemaining != null) 'days_remaining': daysRemaining,
+            },
+          );
+          await prefs.setBool('analytics:trial_started', true);
+        }
+        await prefs.setBool('analytics:trial_was_active', true);
+        return;
+      }
+
+      if (wasActive && prefs.getBool('analytics:trial_expired') != true) {
+        await logEvent('trial_expired');
+        await prefs.setBool('analytics:trial_expired', true);
+      }
+      await prefs.setBool('analytics:trial_was_active', false);
+    } catch (e) {
+      debugPrint('Analytics trial snapshot failed: $e');
+    }
+  }
+
+  static Future<void> logSupportTicketCreated({required String type}) {
+    return logEvent('support_ticket_created', parameters: {'type': type});
+  }
+
   static Future<void> _logOnce({
     required String key,
     required String eventName,
@@ -178,5 +253,12 @@ class AnalyticsService {
     } catch (e) {
       debugPrint('Analytics one-shot event failed for $eventName: $e');
     }
+  }
+
+  static String _limit(String value, int maxLength) {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return value.substring(0, maxLength);
   }
 }

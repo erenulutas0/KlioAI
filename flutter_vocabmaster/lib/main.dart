@@ -45,6 +45,10 @@ bool _firebaseTelemetryEnabled = false;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _firebaseTelemetryEnabled = await _initializeFirebaseTelemetry();
+  if (_firebaseTelemetryEnabled) {
+    AnalyticsService.logAppOpen(source: 'cold_start');
+    WidgetsBinding.instance.addObserver(_AppOpenLifecycleObserver());
+  }
 
   try {
     await dotenv.load(fileName: ".env");
@@ -112,6 +116,15 @@ void main() async {
 
   // Uygulama başlatıldıktan sonra veriyi yükle (non-blocking)
   appStateProvider.initialize();
+}
+
+class _AppOpenLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AnalyticsService.logAppOpen(source: 'resume');
+    }
+  }
 }
 
 Future<bool> _initializeFirebaseTelemetry() async {

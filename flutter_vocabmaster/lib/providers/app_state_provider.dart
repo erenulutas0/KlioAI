@@ -379,6 +379,10 @@ class AppStateProvider extends ChangeNotifier {
 
     try {
       final quota = await _apiService.chatbotQuotaStatus();
+      await AnalyticsService.logTrialSnapshot(
+        trialActive: quota['trialActive'] == true,
+        daysRemaining: _toNullableInt(quota['trialDaysRemaining']),
+      );
       final merged = Map<String, dynamic>.from(authUser)
         ..['aiAccessEnabled'] = quota['aiAccessEnabled'] == true
         ..['planCode'] = quota['planCode']
@@ -398,6 +402,13 @@ class AppStateProvider extends ChangeNotifier {
     } finally {
       _isLoadingAiEntitlement = false;
     }
+  }
+
+  int? _toNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   Future<void> _seedBaseXpIfMissing(int estimatedBaseXp) async {

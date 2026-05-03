@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import 'analytics_service.dart';
 import 'auth_service.dart';
 
 class SupportTicketService {
@@ -50,7 +51,9 @@ class SupportTicketService {
         'locale': locale,
       }),
     );
-    return _decode(response);
+    final decoded = _decode(response);
+    await AnalyticsService.logSupportTicketCreated(type: type);
+    return decoded;
   }
 
   Map<String, dynamic> _decode(http.Response response) {

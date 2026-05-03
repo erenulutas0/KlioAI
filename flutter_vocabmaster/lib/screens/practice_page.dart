@@ -21,6 +21,7 @@ import 'word_galaxy_page.dart';
 import '../services/daily_practice_progress_service.dart';
 import '../services/app_market_config.dart';
 import '../services/ai_access_policy.dart';
+import '../services/analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
@@ -185,6 +186,7 @@ class _PracticePageState extends State<PracticePage>
     _loadDailyCompletionBadges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshPracticeAccessIfNeeded();
+      _logPracticeStarted();
     });
     _searchController.addListener(_onSearchChanged);
     GlobalState.isMatching.addListener(_updateMatchingState);
@@ -218,7 +220,24 @@ class _PracticePageState extends State<PracticePage>
         _selectedMode = _normalizeModeId(widget.initialMode!);
         _ensureSelectedModeVisible();
       });
+      _logPracticeStarted();
     }
+  }
+
+  void _selectPracticeMode(String mode) {
+    if (_selectedMode == mode) {
+      return;
+    }
+    setState(() => _selectedMode = mode);
+    _logPracticeStarted(type: mode);
+  }
+
+  void _logPracticeStarted({String? type}) {
+    AnalyticsService.logPracticeStarted(
+      type: type ?? _selectedMode,
+      level: _selectedLevel,
+      subMode: _selectedSubMode,
+    );
   }
 
   @override
@@ -1659,7 +1678,7 @@ class _PracticePageState extends State<PracticePage>
   Widget _buildTopTab(String text) {
     final isSelected = _selectedMode == text;
     return GestureDetector(
-      onTap: () => setState(() => _selectedMode = text),
+      onTap: () => _selectPracticeMode(text),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         child: ModernCard(

@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
+import '../services/analytics_service.dart';
 import '../services/xp_manager.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
@@ -170,6 +171,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     final appState = context.read<AppStateProvider>();
     await appState.addXPForAction(XPActionTypes.reviewComplete,
         source: 'Tekrar');
+    await AnalyticsService.logPracticeCompleted(type: 'classic_review');
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(

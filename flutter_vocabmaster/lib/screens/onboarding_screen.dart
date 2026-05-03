@@ -4,6 +4,7 @@ import '../widgets/animated_background.dart';
 import 'login_page.dart';
 import '../l10n/app_localizations.dart';
 import '../services/app_tour_service.dart';
+import '../services/analytics_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final bool fromSettings;
@@ -30,6 +31,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.logOnboardingStarted(
+      source: widget.fromSettings ? 'settings' : 'first_run',
+    );
 
     // Icon Animations
     _iconController = AnimationController(

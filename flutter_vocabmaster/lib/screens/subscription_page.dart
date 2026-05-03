@@ -53,6 +53,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     };
     _subscriptionService.onPurchaseError = (error) {
       if (!mounted) return;
+      AnalyticsService.logPurchaseFailed(
+        planName: _pendingPurchasePlanName,
+        reason: error,
+      );
+      _pendingPurchasePlanName = null;
       final lower = error.toLowerCase();
       final syncing =
           lower.contains('senkronize') || lower.contains('aktariliyor');
@@ -216,6 +221,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     }
 
     if (!Platform.isAndroid && !Platform.isIOS) {
+      await AnalyticsService.logPurchaseFailed(
+        planName: plan.name,
+        reason: 'unsupported_platform',
+      );
+      _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -228,6 +238,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     }
 
     if (!_enableMobileIap) {
+      await AnalyticsService.logPurchaseFailed(
+        planName: plan.name,
+        reason: 'mobile_iap_disabled',
+      );
+      _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -242,11 +257,21 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       final success = await _subscriptionService.purchaseWithIAP(plan);
       if (!mounted) return;
       if (!success) {
+        await AnalyticsService.logPurchaseFailed(
+          planName: plan.name,
+          reason: 'purchase_not_started',
+        );
+        _pendingPurchasePlanName = null;
         setState(() => _isPurchasing = false);
       }
       // Purchase result will come through the stream callback
     } catch (e) {
       if (!mounted) return;
+      await AnalyticsService.logPurchaseFailed(
+        planName: plan.name,
+        reason: e.toString(),
+      );
+      _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ödeme hatası: $e')),
@@ -260,9 +285,14 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           await _subscriptionService.activateDemoSubscription(plan.id);
       if (!mounted) return;
       setState(() => _isPurchasing = false);
+      await AnalyticsService.logPurchaseCompleted(planName: plan.name);
       _showSuccessDialog(result['message'] ?? 'Demo abonelik aktif!');
     } catch (e) {
       if (!mounted) return;
+      await AnalyticsService.logPurchaseFailed(
+        planName: plan.name,
+        reason: 'demo:${e.toString()}',
+      );
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Demo hatası: $e'), backgroundColor: Colors.red),
