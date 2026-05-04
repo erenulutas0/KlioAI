@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../services/auth_service.dart';
@@ -19,6 +20,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   final SubscriptionService _subscriptionService = SubscriptionService();
   final AuthService _authService = AuthService();
   List<SubscriptionPlan> _plans = [];
+  Map<String, ProductDetails> _storeProductsById = const {};
   bool _isLoading = true;
   bool _isPurchasing = false;
   bool _hasActiveSubscription = false;
@@ -114,6 +116,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   Future<void> _loadPlans() async {
     try {
       final plans = await _subscriptionService.getPlans();
+      final storeProductsById = await _loadStoreProductsById();
       var active = false;
       String? endDate;
       try {
@@ -132,6 +135,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       if (!mounted) return;
       setState(() {
         _plans = _selectVisiblePlans(plans);
+        _storeProductsById = storeProductsById;
         _hasActiveSubscription = active;
         _subscriptionEndDateLabel = endDate;
         _isLoading = false;
@@ -144,6 +148,27 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       );
     }
   }
+
+  Future<Map<String, ProductDetails>> _loadStoreProductsById() async {
+    if (!_canUseStoreProducts) {
+      return const {};
+    }
+
+    try {
+      final products = await _subscriptionService.getStoreProducts();
+      return {
+        for (final product in products) product.id: product,
+      };
+    } catch (e) {
+      debugPrint('Store product price lookup failed: $e');
+      return const {};
+    }
+  }
+
+  bool get _canUseStoreProducts =>
+      _enableMobileIap &&
+      !_subscriptionDemoMode &&
+      (Platform.isAndroid || Platform.isIOS);
 
   List<SubscriptionPlan> _selectVisiblePlans(List<SubscriptionPlan> plans) {
     for (final plan in plans) {
@@ -162,11 +187,37 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   }
 
   String _displayPriceLabel(SubscriptionPlan plan) {
+    final storePrice = _storeProductForPlan(plan)?.price.trim();
+    if (storePrice != null && storePrice.isNotEmpty) {
+      return storePrice;
+    }
+
     final price = plan.price;
     final priceText =
         price % 1 == 0 ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
     final currency = plan.currency;
     return '$priceText $currency';
+  }
+
+  ProductDetails? _storeProductForPlan(SubscriptionPlan plan) {
+    final productId =
+        Platform.isIOS ? plan.appleProductId : plan.googlePlayProductId;
+    if (productId.isEmpty) {
+      return null;
+    }
+    return _storeProductsById[productId];
+  }
+
+  double _analyticsPriceForPlan(SubscriptionPlan plan) {
+    return _storeProductForPlan(plan)?.rawPrice ?? plan.price;
+  }
+
+  String _analyticsCurrencyForPlan(SubscriptionPlan plan) {
+    final currencyCode = _storeProductForPlan(plan)?.currencyCode.trim();
+    if (currencyCode != null && currencyCode.isNotEmpty) {
+      return currencyCode;
+    }
+    return plan.currency;
   }
 
   bool _isActiveSubscription(Map<String, dynamic> status) {
@@ -202,8 +253,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     _pendingPurchasePlanName = plan.name;
     await AnalyticsService.logPurchaseStarted(
       planName: plan.name,
-      currency: plan.currency,
-      price: plan.price,
+      currency: _analyticsCurrencyForPlan(plan),
+      price: _analyticsPriceForPlan(plan),
     );
 
     setState(() => _isPurchasing = true);
