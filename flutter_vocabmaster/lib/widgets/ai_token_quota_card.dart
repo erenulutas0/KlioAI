@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/locale_text_service.dart';
+
 class AiTokenQuotaCard extends StatelessWidget {
   final bool isLoading;
   final int tokenLimit;
@@ -22,6 +24,8 @@ class AiTokenQuotaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTurkish = LocaleTextService.isTurkish;
+    String text(String tr, String en) => isTurkish ? tr : en;
     final double remainingPercent =
         (remainingRatio * 100.0).clamp(0.0, 100.0).toDouble();
     final double usedPercent =
@@ -39,12 +43,14 @@ class AiTokenQuotaCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.bolt_outlined, color: Color(0xFF22d3ee), size: 18),
+              const Icon(Icons.bolt_outlined,
+                  color: Color(0xFF22d3ee), size: 18),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Günlük AI Token',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  text('Gunluk AI Token', 'Daily AI Tokens'),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
               GestureDetector(
@@ -68,8 +74,9 @@ class AiTokenQuotaCard extends StatelessWidget {
             )
           else if (tokenLimit <= 0)
             Text(
-              'Token kotasi aktif degil.',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+              text('Token kotasi aktif degil.', 'Token quota is not active.'),
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
             )
           else ...[
             Row(
@@ -77,11 +84,15 @@ class AiTokenQuotaCard extends StatelessWidget {
               children: [
                 Text(
                   '${tokensRemaining.toString()} / ${tokenLimit.toString()}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '%${remainingPercent.toStringAsFixed(1)} kaldi',
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                  isTurkish
+                      ? '%${remainingPercent.toStringAsFixed(1)} kaldi'
+                      : '${remainingPercent.toStringAsFixed(1)}% left',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
               ],
             ),
@@ -91,14 +102,18 @@ class AiTokenQuotaCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: remainingRatio.clamp(0.0, 1.0).toDouble(),
                 backgroundColor: Colors.white.withOpacity(0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(_barColor(remainingPercent)),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(_barColor(remainingPercent)),
                 minHeight: 12,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Kullanilan: ${tokensUsed.toString()} (%${usedPercent.toStringAsFixed(1)})${quotaDateUtc != null ? '  UTC: $quotaDateUtc' : ''}',
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
+              isTurkish
+                  ? 'Kullanilan: ${tokensUsed.toString()} (%${usedPercent.toStringAsFixed(1)})${quotaDateUtc != null ? '  UTC: $quotaDateUtc' : ''}'
+                  : 'Used: ${tokensUsed.toString()} (${usedPercent.toStringAsFixed(1)}%)${quotaDateUtc != null ? '  UTC: $quotaDateUtc' : ''}',
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
             ),
           ],
         ],
@@ -116,4 +131,3 @@ class AiTokenQuotaCard extends StatelessWidget {
     return const Color(0xFF10b981);
   }
 }
-

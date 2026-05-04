@@ -14,7 +14,8 @@ class SettingsPage extends StatelessWidget {
 
   AppThemeConfig _currentTheme(BuildContext context, {required bool listen}) {
     try {
-      return Provider.of<ThemeProvider?>(context, listen: listen)?.currentTheme ??
+      return Provider.of<ThemeProvider?>(context, listen: listen)
+              ?.currentTheme ??
           VocabThemes.defaultTheme;
     } catch (_) {
       return VocabThemes.defaultTheme;
@@ -25,12 +26,6 @@ class SettingsPage extends StatelessWidget {
     switch (code) {
       case 'tr':
         return context.tr('language.turkish');
-      case 'de':
-        return context.tr('language.german');
-      case 'ar':
-        return context.tr('language.arabic');
-      case 'zh':
-        return context.tr('language.chinese');
       default:
         return context.tr('language.english');
     }
@@ -73,7 +68,9 @@ class SettingsPage extends StatelessWidget {
                       current == code
                           ? Icons.radio_button_checked
                           : Icons.radio_button_unchecked,
-                      color: current == code ? selectedTheme.colors.accent : Colors.white70,
+                      color: current == code
+                          ? selectedTheme.colors.accent
+                          : Colors.white70,
                     ),
                     title: Text(
                       _languageLabel(context, code),
@@ -170,7 +167,8 @@ class SettingsPage extends StatelessWidget {
                           TextButton.icon(
                             onPressed: () => _showLanguageSheet(context),
                             icon: const Icon(Icons.language),
-                            label: Text(context.tr('settings.language.sheetTitle')),
+                            label: Text(
+                                context.tr('settings.language.sheetTitle')),
                             style: TextButton.styleFrom(
                               foregroundColor: selectedTheme.colors.accent,
                             ),

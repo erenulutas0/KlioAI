@@ -26,10 +26,12 @@ class StatsPage extends StatefulWidget {
 class _StatsPageState extends State<StatsPage> {
   bool get _isTurkish => LocaleTextService.isTurkish;
   String _text(String tr, String en) => _isTurkish ? tr : en;
-  List<String> get _dayNames => _isTurkish ? const ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'] : const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  List<String> get _dayNames => _isTurkish
+      ? const ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz']
+      : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   final UserDataService _userDataService = UserDataService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   bool _isLoading = true;
   List<Map<String, dynamic>> _achievements = [];
 
@@ -46,10 +48,10 @@ class _StatsPageState extends State<StatsPage> {
       // AppState'i yenile
       final appState = context.read<AppStateProvider>();
       await appState.refreshUserData();
-      
+
       // Achievements'ı ayrıca yükle
       final achievements = await _userDataService.getAchievements();
-      
+
       if (mounted) {
         setState(() {
           if (achievements.isNotEmpty) _achievements = achievements;
@@ -68,125 +70,137 @@ class _StatsPageState extends State<StatsPage> {
     final appState = context.watch<AppStateProvider>();
     final userStats = appState.userStats;
     final weeklyActivity = appState.weeklyActivity;
-    
+
     // Eğer weeklyActivity boşsa (henüz yüklenmediyse) mock data oluştur
-    final displayWeeklyActivity = weeklyActivity.isNotEmpty 
-        ? weeklyActivity 
+    final displayWeeklyActivity = weeklyActivity.isNotEmpty
+        ? weeklyActivity
         : List.generate(7, (index) => {'day': index, 'count': 0});
 
     return Scaffold(
       key: _scaffoldKey,
       drawer: NavigationMenuPanel(
-        activeTab: '', 
-        currentPage: 'stats', 
+        activeTab: '',
+        currentPage: 'stats',
         onTabChange: (id) {
-           Navigator.pop(context); 
-           if (['home', 'words', 'sentences', 'practice'].contains(id)) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => MainScreen(initialIndex: 
-                  id == 'home' ? 0 : 
-                  id == 'words' ? 1 : 
-                  id == 'sentences' ? 3 : 4
-                )),
-                (route) => false,
-              );
-           }
+          Navigator.pop(context);
+          if (['home', 'words', 'sentences', 'practice'].contains(id)) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                  builder: (_) => MainScreen(
+                      initialIndex: id == 'home'
+                          ? 0
+                          : id == 'words'
+                              ? 1
+                              : id == 'sentences'
+                                  ? 3
+                                  : 4)),
+              (route) => false,
+            );
+          }
         },
         onNavigate: (id) {
-           Navigator.pop(context);
-           
-           if (id == 'stats') return;
-               
-               if (id == 'chat') {
-                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatListPage()));
-               } else if (id == 'feed') {
-                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SocialFeedPage()));
-               } else if (id == 'speaking') {
-                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 4)), 
-                    (route) => false,
-                  );
-               } else if (id == 'dictionary') {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const QuickDictionaryPage()));
-               } else if (id == 'repeat') {
-                   Navigator.of(context).pushNamed('/review'); 
-               } else if (id == 'profile-settings') {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
-               }
-            },
+          Navigator.pop(context);
+
+          if (id == 'stats') return;
+
+          if (id == 'chat') {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ChatListPage()));
+          } else if (id == 'feed') {
+            Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SocialFeedPage()));
+          } else if (id == 'speaking') {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                  builder: (_) => const MainScreen(initialIndex: 4)),
+              (route) => false,
+            );
+          } else if (id == 'dictionary') {
+            Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QuickDictionaryPage()));
+          } else if (id == 'repeat') {
+            Navigator.of(context).pushNamed('/review');
+          } else if (id == 'profile-settings') {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ProfilePage()));
+          }
+        },
       ),
       body: Stack(
         children: [
           const AnimatedBackground(isDark: true),
           SafeArea(
             child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF06b6d4)))
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF06b6d4)))
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
+                        // Header
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.white),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _text('Istatistiklerim', 'My Stats'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'İstatistiklerim',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        const SizedBox(height: 24),
+                        // Top Stats Cards
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTopStatCard(
+                                icon: Icons.menu_book,
+                                value:
+                                    (userStats['totalWords'] ?? 0).toString(),
+                                label: _text('Toplam Kelime', 'Total Words'),
+                                color: const Color(0xFF06b6d4),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildTopStatCard(
+                                icon: Icons.local_fire_department,
+                                value: (userStats['streak'] ?? 0).toString(),
+                                label: _text('Gün Serisi', 'Day Streak'),
+                                color: const Color(0xFF06b6d4),
+                              ),
+                            ),
+                          ],
                         ),
+
+                        const SizedBox(height: 24),
+
+                        // Weekly Progress Chart
+                        _buildWeeklyProgressCard(displayWeeklyActivity),
+
+                        const SizedBox(height: 24),
+
+                        // XP Progress Chart
+                        _buildXPProgressCard(displayWeeklyActivity),
+
+                        const SizedBox(height: 24),
+
+                        // Achievements
+                        _buildAchievements(),
+
+                        const SizedBox(height: 80),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    // Top Stats Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTopStatCard(
-                            icon: Icons.menu_book,
-                            value: (userStats['totalWords'] ?? 0).toString(),
-                            label: _text('Toplam Kelime', 'Total Words'),
-                            color: const Color(0xFF06b6d4),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTopStatCard(
-                            icon: Icons.local_fire_department,
-                            value: (userStats['streak'] ?? 0).toString(),
-                            label: _text('Gün Serisi', 'Day Streak'),
-                            color: const Color(0xFF06b6d4),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Weekly Progress Chart
-                    _buildWeeklyProgressCard(displayWeeklyActivity),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // XP Progress Chart
-                    _buildXPProgressCard(displayWeeklyActivity),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Achievements
-                    _buildAchievements(),
-                    
-                    const SizedBox(height: 80),
-                  ],
-                ),
-              ),
+                  ),
           ),
         ],
       ),
@@ -196,15 +210,17 @@ class _StatsPageState extends State<StatsPage> {
           // MVP: GlobalMatchmakingSheet disabled for v1.0
           // const GlobalMatchmakingSheet(),
           BottomNav(
-            currentIndex: -1, // No tab selected usually, or maybe 2 if we consider menu? -1 is safer.
+            currentIndex:
+                -1, // No tab selected usually, or maybe 2 if we consider menu? -1 is safer.
             onTap: (index) {
               if (index == 2) {
-                 _scaffoldKey.currentState?.openDrawer();
+                _scaffoldKey.currentState?.openDrawer();
               } else {
-                 Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
-                    (route) => false,
-                 );
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                      builder: (_) => MainScreen(initialIndex: index)),
+                  (route) => false,
+                );
               }
             },
           ),
@@ -295,7 +311,9 @@ class _StatsPageState extends State<StatsPage> {
       );
     }
 
-    final maxY = weeklyData.map((d) => d['value'] as double).reduce((a, b) => a > b ? a : b);
+    final maxY = weeklyData
+        .map((d) => d['value'] as double)
+        .reduce((a, b) => a > b ? a : b);
     final chartMaxY = maxY > 0 ? (maxY + 2).ceilToDouble() : 10.0;
 
     return ModernCard(
@@ -333,12 +351,14 @@ class _StatsPageState extends State<StatsPage> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= 0 && value.toInt() < weeklyData.length) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < weeklyData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               weeklyData[value.toInt()]['day'] as String,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
                             ),
                           );
                         }
@@ -353,13 +373,16 @@ class _StatsPageState extends State<StatsPage> {
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value.toInt().toString(),
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -380,7 +403,8 @@ class _StatsPageState extends State<StatsPage> {
                         toY: entry.value['value'] as double,
                         color: const Color(0xFF06b6d4),
                         width: 16,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4)),
                       ),
                     ],
                   );
@@ -487,7 +511,8 @@ class _StatsPageState extends State<StatsPage> {
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               days[value.toInt()],
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
                             ),
                           );
                         }
@@ -502,13 +527,16 @@ class _StatsPageState extends State<StatsPage> {
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value.toInt().toString(),
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
@@ -582,16 +610,16 @@ class _StatsPageState extends State<StatsPage> {
             itemBuilder: (context, index) {
               final achievement = _achievements[index];
               final unlocked = achievement['unlocked'] as bool? ?? false;
-              
+
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: unlocked 
+                  color: unlocked
                       ? const Color(0xFF3b82f6).withOpacity(0.3)
                       : Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: unlocked 
+                    color: unlocked
                         ? const Color(0xFF3b82f6)
                         : Colors.white.withOpacity(0.1),
                   ),
@@ -608,9 +636,11 @@ class _StatsPageState extends State<StatsPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      achievement['title'] as String? ?? '',
+                      _achievementTitle(achievement),
                       style: TextStyle(
-                        color: unlocked ? Colors.white : Colors.white.withOpacity(0.5),
+                        color: unlocked
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.5),
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -618,9 +648,11 @@ class _StatsPageState extends State<StatsPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      achievement['desc'] as String? ?? '',
+                      _achievementDescription(achievement),
                       style: TextStyle(
-                        color: unlocked ? Colors.white70 : Colors.white.withOpacity(0.3),
+                        color: unlocked
+                            ? Colors.white70
+                            : Colors.white.withOpacity(0.3),
                         fontSize: 11,
                       ),
                       textAlign: TextAlign.center,
@@ -636,5 +668,59 @@ class _StatsPageState extends State<StatsPage> {
       ),
     );
   }
-}
 
+  String _achievementTitle(Map<String, dynamic> achievement) {
+    final title = achievement['title'] as String? ?? '';
+    if (_isTurkish) {
+      return title;
+    }
+    switch (title) {
+      case 'İlk Adım':
+      case 'Ilk Adim':
+        return 'First Step';
+      case '7 Gün Serisi':
+      case '7 Gun Serisi':
+        return '7-Day Streak';
+      case '100 Kelime':
+        return '100 Words';
+      case 'Haftalık Kahraman':
+      case 'Haftalik Kahraman':
+        return 'Weekly Hero';
+      case 'Seviye 10':
+        return 'Level 10';
+      case 'Usta':
+        return 'Master';
+      default:
+        return title;
+    }
+  }
+
+  String _achievementDescription(Map<String, dynamic> achievement) {
+    final description = achievement['desc'] as String? ?? '';
+    if (_isTurkish) {
+      return description;
+    }
+    switch (description) {
+      case 'İlk kelimeni öğrendin':
+      case 'Ilk kelimeni ogrendin':
+        return 'You learned your first word';
+      case '7 gün üst üste çalıştın':
+      case '7 gun ust uste calistin':
+        return 'You practiced 7 days in a row';
+      case '100 kelime öğrendin':
+      case '100 kelime ogrendin':
+        return 'You learned 100 words';
+      case 'Haftada 50 kelime öğren':
+      case 'Haftada 50 kelime ogren':
+        return 'Learn 50 words in a week';
+      case '10. seviyeye ulaş':
+      case '10. seviyeye ulas':
+        return 'Reach level 10';
+      case '500 kelime öğren':
+      case '500 kelime ogren':
+        return 'Learn 500 words';
+      default:
+        return description;
+    }
+  }
+}

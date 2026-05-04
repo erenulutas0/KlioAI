@@ -494,12 +494,6 @@ class _MainScreenState extends State<MainScreen> {
     switch (code) {
       case 'tr':
         return context.tr('language.turkish');
-      case 'de':
-        return context.tr('language.german');
-      case 'ar':
-        return context.tr('language.arabic');
-      case 'zh':
-        return context.tr('language.chinese');
       default:
         return context.tr('language.english');
     }

@@ -26,6 +26,9 @@ class _WordSentencesModalState extends State<WordSentencesModal>
   late AnimationController _animationController;
   final FlutterTts _flutterTts = FlutterTts();
 
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
       final provider = Provider.of<ThemeProvider?>(context, listen: listen);
@@ -277,7 +280,10 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Örnek Cümleler ($count)',
+                        _text(
+                          'Ornek Cumleler ($count)',
+                          'Example Sentences ($count)',
+                        ),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -335,9 +341,12 @@ class _WordSentencesModalState extends State<WordSentencesModal>
         children: [
           Icon(Icons.notes, size: 64, color: Colors.white.withOpacity(0.2)),
           const SizedBox(height: 16),
-          const Text(
-            'Henüz örnek cümle bulunmuyor.',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          Text(
+            _text(
+              'Henuz ornek cumle bulunmuyor.',
+              'No example sentences yet.',
+            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
       ),
@@ -451,7 +460,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Dinle',
+                                      _text('Dinle', 'Listen'),
                                       style: TextStyle(
                                         color:
                                             selectedTheme.colors.textSecondary,
@@ -549,8 +558,10 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                 const SizedBox(width: 8),
                                 Text(
                                   isExpanded
-                                      ? 'Çeviriyi Gizle'
-                                      : 'Çeviriyi Göster',
+                                      ? _text(
+                                          'Ceviriyi Gizle', 'Hide Translation')
+                                      : _text('Ceviriyi Goster',
+                                          'Show Translation'),
                                   style: TextStyle(
                                     color: selectedTheme.colors.textSecondary,
                                     fontSize: 14,
@@ -691,7 +702,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     .where((s) =>
                         (s.difficulty ?? 'medium').toLowerCase() == 'easy')
                     .length,
-                label: 'Kolay',
+                label: _text('Kolay', 'Easy'),
                 color: const Color(0xFF22C55E), // green-500
               ),
               const SizedBox(width: 32),
@@ -702,7 +713,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     .where((s) =>
                         (s.difficulty ?? 'medium').toLowerCase() == 'medium')
                     .length,
-                label: 'Orta',
+                label: _text('Orta', 'Medium'),
                 color: const Color(0xFFEAB308), // yellow-500
               ),
               const SizedBox(width: 32),
@@ -713,7 +724,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     .where((s) =>
                         (s.difficulty ?? 'medium').toLowerCase() == 'hard')
                     .length,
-                label: 'Zor',
+                label: _text('Zor', 'Hard'),
                 color: const Color(0xFFEF4444), // red-500
               ),
             ],
@@ -778,16 +789,15 @@ class _WordSentencesModalState extends State<WordSentencesModal>
     switch (difficulty.toLowerCase()) {
       case 'easy':
       case 'kolay':
-        return 'Kolay';
+        return _text('Kolay', 'Easy');
       case 'medium':
       case 'orta':
-        return 'Orta';
+        return _text('Orta', 'Medium');
       case 'hard':
       case 'zor':
-        return 'Zor';
+        return _text('Zor', 'Hard');
       default:
         return difficulty;
     }
   }
 }
-

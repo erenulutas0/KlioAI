@@ -497,7 +497,10 @@ class _WordsPageState extends State<WordsPage> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$wordCount kelimeyi toplu olarak klasik veya neural modda tekrar et.',
+                      _text(
+                        '$wordCount kelimeyi toplu olarak klasik veya neural modda tekrar et.',
+                        'Review $wordCount words in classic or neural mode.',
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

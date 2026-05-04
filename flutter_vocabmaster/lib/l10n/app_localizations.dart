@@ -8,10 +8,7 @@ class AppLocalizations {
   static const Locale fallbackLocale = Locale('en');
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('de'),
     Locale('tr'),
-    Locale('ar'),
-    Locale('zh'),
   ];
 
   static const LocalizationsDelegate<AppLocalizations> delegate =
@@ -45,12 +42,6 @@ class AppLocalizations {
     switch (code) {
       case 'tr':
         return 'Turkce';
-      case 'de':
-        return 'Deutsch';
-      case 'ar':
-        return 'العربية';
-      case 'zh':
-        return '中文';
       default:
         return 'English';
     }

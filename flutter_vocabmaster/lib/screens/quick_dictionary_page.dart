@@ -341,18 +341,18 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _buildDifficultyChip(_text('Kolay', 'Easy'), 'easy', selectedDifficulty,
-                      const Color(0xFF10b981), (val) {
+                  _buildDifficultyChip(_text('Kolay', 'Easy'), 'easy',
+                      selectedDifficulty, const Color(0xFF10b981), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                   const SizedBox(width: 8),
-                  _buildDifficultyChip(_text('Orta', 'Medium'), 'medium', selectedDifficulty,
-                      const Color(0xFFf59e0b), (val) {
+                  _buildDifficultyChip(_text('Orta', 'Medium'), 'medium',
+                      selectedDifficulty, const Color(0xFFf59e0b), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                   const SizedBox(width: 8),
-                  _buildDifficultyChip(_text('Zor', 'Hard'), 'hard', selectedDifficulty,
-                      const Color(0xFFef4444), (val) {
+                  _buildDifficultyChip(_text('Zor', 'Hard'), 'hard',
+                      selectedDifficulty, const Color(0xFFef4444), (val) {
                     setDialogState(() => selectedDifficulty = val);
                   }),
                 ],
@@ -439,9 +439,13 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       }
 
       if (mounted) {
-        String message = '✅ Kelime başarıyla eklendi! (+10 XP)';
+        String message =
+            _text('Kelime basariyla eklendi! (+10 XP)', 'Word added! (+10 XP)');
         if (meaning.example.isNotEmpty) {
-          message = '✅ Kelime ve cümle başarıyla eklendi! (+15 XP)';
+          message = _text(
+            'Kelime ve cumle basariyla eklendi! (+15 XP)',
+            'Word and sentence added! (+15 XP)',
+          );
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -455,7 +459,10 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(_text('Hata: $e', 'Error: $e')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -480,9 +487,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Hızlı Sözlük',
-                        style: TextStyle(
+                      Text(
+                        _text('Hizli Sozluk', 'Quick Dictionary'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -545,13 +552,14 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: Colors.white))
-                                : const Row(
+                                : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.search, color: Colors.white),
-                                      SizedBox(width: 8),
-                                      Text('Ara',
-                                          style: TextStyle(
+                                      const Icon(Icons.search,
+                                          color: Colors.white),
+                                      const SizedBox(width: 8),
+                                      Text(_text('Ara', 'Search'),
+                                          style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold)),
@@ -640,14 +648,16 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
   Widget _buildSearchResults() {
     if (_isSearching) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Color(0xFF06b6d4)),
-            SizedBox(height: 16),
-            Text('AI sözlük aranıyor...',
-                style: TextStyle(color: Colors.white70)),
+            const CircularProgressIndicator(color: Color(0xFF06b6d4)),
+            const SizedBox(height: 16),
+            Text(
+              _text('AI sozluk araniyor...', 'Searching AI dictionary...'),
+              style: const TextStyle(color: Colors.white70),
+            ),
           ],
         ),
       );
@@ -973,4 +983,3 @@ class WordMeaning {
     this.exampleTranslation = '',
   });
 }
-
