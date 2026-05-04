@@ -19,6 +19,9 @@ $baseUrl = "http://localhost:$BackendPort"
 if (-not $env:GROQ_API_KEY) {
     $env:GROQ_API_KEY = "smoke-test-key"
 }
+if (-not $env:APP_SECURITY_JWT_SECRET) {
+    $env:APP_SECURITY_JWT_SECRET = "smoke-test-jwt-secret-smoke-test-jwt-secret-32"
+}
 $env:POSTGRES_PORT = "$PostgresPort"
 $env:REDIS_PORT = "$RedisPort"
 $env:BACKEND_HTTP_PORT = "$BackendPort"
