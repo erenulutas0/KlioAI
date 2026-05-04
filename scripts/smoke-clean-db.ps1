@@ -74,8 +74,8 @@ function Wait-ApiReady {
     param([string]$Url, [int]$Attempts = 90, [int]$SleepSeconds = 2)
     for ($i = 1; $i -le $Attempts; $i++) {
         try {
-            $response = Invoke-RestMethod -Method Get -Uri "$Url/api"
-            if ($response.message -eq "English Learning App API") {
+            $response = Invoke-RestMethod -Method Get -Uri "$Url/actuator/health"
+            if ($response.status -eq "UP") {
                 Write-Host "[smoke] API ready (attempt $i/$Attempts)"
                 return
             }
@@ -84,7 +84,7 @@ function Wait-ApiReady {
         }
         Start-Sleep -Seconds $SleepSeconds
     }
-    throw "API not ready after $Attempts attempts: $Url/api"
+    throw "API not ready after $Attempts attempts: $Url/actuator/health"
 }
 
 function Assert-True {
@@ -231,6 +231,11 @@ try {
 
     $loginResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/login" -ContentType "application/json" -Body $loginBody
     Assert-True ([bool]$loginResponse.success) "Login failed."
+    Assert-True (-not [string]::IsNullOrWhiteSpace($loginResponse.accessToken)) "Login did not return an accessToken."
+    $authHeaders = @{
+        "X-User-Id" = "$userId"
+        "Authorization" = "Bearer $($loginResponse.accessToken)"
+    }
 
     Write-Host "[smoke] Creating and reading a word as critical flow..."
     $createWordBody = @{
@@ -241,11 +246,11 @@ try {
         difficulty = "easy"
     } | ConvertTo-Json
 
-    $createdWord = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/words" -ContentType "application/json" -Headers @{ "X-User-Id" = "$userId" } -Body $createWordBody
+    $createdWord = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/words" -ContentType "application/json" -Headers $authHeaders -Body $createWordBody
     $wordId = [long]$createdWord.id
     Assert-True ($wordId -gt 0) "Word creation failed: no id returned."
 
-    $words = @(Invoke-RestMethod -Method Get -Uri "$baseUrl/api/words" -Headers @{ "X-User-Id" = "$userId" })
+    $words = @(Invoke-RestMethod -Method Get -Uri "$baseUrl/api/words" -Headers $authHeaders)
     $found = @($words | Where-Object { [long]$_.id -eq $wordId }).Count -gt 0
     Assert-True $found "Created word was not returned by /api/words."
 
