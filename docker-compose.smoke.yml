@@ -1,8 +1,12 @@
 services:
   backend:
+    volumes:
+      - ./backend/config:/piper:ro
+      - ./backend/config/google-play-service-account.placeholder.json:/run/secrets/google-play-service-account.json:ro
     environment:
       GROQ_API_KEY: smoke-test-key
       APP_SECURITY_ALLOW_INSECURE_SSL: "false"
+      APP_SUBSCRIPTION_GOOGLE_PLAY_ENABLED: "false"
 
   frontend:
     profiles:
