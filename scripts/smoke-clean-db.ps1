@@ -35,6 +35,29 @@ function Invoke-Compose {
     }
 }
 
+function Invoke-ComposeBestEffort {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+    try {
+        & docker compose -p $ProjectName -f $composeBase -f $composeSmoke @Args
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "[smoke] Diagnostic compose command failed: $($Args -join ' ')"
+        }
+    } catch {
+        Write-Warning "[smoke] Diagnostic compose command threw: $($Args -join ' '): $($_.Exception.Message)"
+    }
+}
+
+function Write-SmokeDiagnostics {
+    Write-Host "[smoke] Diagnostic: docker compose ps"
+    Invoke-ComposeBestEffort @("ps")
+
+    Write-Host "[smoke] Diagnostic: recent service logs"
+    Invoke-ComposeBestEffort @(
+        "logs", "--no-color", "--tail", "200",
+        "postgres", "redis", "redis-security", "backend"
+    )
+}
+
 function Test-DockerReady {
     $dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
     if ($null -eq $dockerCmd) {
@@ -229,6 +252,12 @@ try {
     Write-Host "[smoke] SUCCESS: clean DB smoke checks passed."
     Write-Host "[smoke] Base URL: $baseUrl"
     Write-Host "[smoke] UserId: $userId, WordId: $wordId, PlanCount: $($plans.Count)"
+} catch {
+    Write-Warning "[smoke] FAILED: $($_.Exception.Message)"
+    if ($canCompose) {
+        Write-SmokeDiagnostics
+    }
+    throw
 } finally {
     if ($canCompose -and -not $KeepContainers) {
         Write-Host "[smoke] Cleaning smoke stack..."

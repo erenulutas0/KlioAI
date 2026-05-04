@@ -23,6 +23,9 @@ jobs:
   db-readiness:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      APP_SECURITY_JWT_SECRET: smoke-test-jwt-secret-smoke-test-jwt-secret-32
+      GROQ_API_KEY: smoke-test-key
 
     steps:
       - name: Checkout
