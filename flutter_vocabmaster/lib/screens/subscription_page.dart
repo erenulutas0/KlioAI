@@ -27,7 +27,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   bool _hasActiveSubscription = false;
   String? _subscriptionEndDateLabel;
   String? _pendingPurchasePlanName;
-  static const String _singlePlanName = 'PRO_MONTHLY';
+  static const List<String> _visiblePlanNames = [
+    'PRO_MONTHLY',
+    'PRO_ANNUAL',
+  ];
   final bool _enableMobileIap =
       const bool.fromEnvironment('ENABLE_MOBILE_IAP', defaultValue: true);
 
@@ -179,19 +182,20 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       (Platform.isAndroid || Platform.isIOS);
 
   List<SubscriptionPlan> _selectVisiblePlans(List<SubscriptionPlan> plans) {
-    for (final plan in plans) {
-      if (plan.name == _singlePlanName) {
-        return [plan];
-      }
+    final visiblePlans =
+        plans.where((plan) => _visiblePlanNames.contains(plan.name)).toList()
+          ..sort(
+            (a, b) => _visiblePlanNames
+                .indexOf(a.name)
+                .compareTo(_visiblePlanNames.indexOf(b.name)),
+          );
+
+    if (visiblePlans.isNotEmpty) {
+      return visiblePlans;
     }
 
-    for (final plan in plans) {
-      if (plan.name != 'FREE') {
-        return [plan];
-      }
-    }
-
-    return const [];
+    return plans.where((plan) => plan.name != 'FREE').toList()
+      ..sort((a, b) => a.price.compareTo(b.price));
   }
 
   String _displayPriceLabel(SubscriptionPlan plan) {
