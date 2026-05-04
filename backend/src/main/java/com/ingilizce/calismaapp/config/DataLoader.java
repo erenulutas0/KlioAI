@@ -48,7 +48,7 @@ public class DataLoader {
                     new BigDecimal("149.99"),
                     "TRY",
                     30,
-                    "Legacy monthly plan.");
+                    "AI access with 30k daily token quota.");
 
             ensurePlan(
                     repository,
@@ -56,7 +56,7 @@ public class DataLoader {
                     new BigDecimal("999.99"),
                     "TRY",
                     365,
-                    "Legacy annual plan.");
+                    "AI access with 60k daily token quota.");
 
             log.info("Subscription plans verified/sealed.");
         };
