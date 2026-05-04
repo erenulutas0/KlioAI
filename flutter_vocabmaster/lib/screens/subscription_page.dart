@@ -25,8 +25,6 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   String? _subscriptionEndDateLabel;
   String? _pendingPurchasePlanName;
   static const String _singlePlanName = 'PRO_MONTHLY';
-  static const double _singlePlanDisplayPrice = 20;
-  static const String _singlePlanDisplayCurrency = 'TRY';
   final bool _enableMobileIap =
       const bool.fromEnvironment('ENABLE_MOBILE_IAP', defaultValue: true);
 
@@ -164,12 +162,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   }
 
   String _displayPriceLabel(SubscriptionPlan plan) {
-    final price =
-        plan.name == _singlePlanName ? _singlePlanDisplayPrice : plan.price;
-    final priceText = price % 1 == 0 ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
-    final currency = plan.name == _singlePlanName
-        ? _singlePlanDisplayCurrency
-        : plan.currency;
+    final price = plan.price;
+    final priceText =
+        price % 1 == 0 ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
+    final currency = plan.currency;
     return '$priceText $currency';
   }
 
@@ -206,10 +202,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     _pendingPurchasePlanName = plan.name;
     await AnalyticsService.logPurchaseStarted(
       planName: plan.name,
-      currency: plan.name == _singlePlanName
-          ? _singlePlanDisplayCurrency
-          : plan.currency,
-      price: plan.name == _singlePlanName ? _singlePlanDisplayPrice : plan.price,
+      currency: plan.currency,
+      price: plan.price,
     );
 
     setState(() => _isPurchasing = true);
@@ -309,7 +303,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Geri yukleme baslatildi. Abonelik senkronu bekleniyor...'),
+          content:
+              Text('Geri yukleme baslatildi. Abonelik senkronu bekleniyor...'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -581,4 +576,3 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 }
-
