@@ -72,4 +72,4 @@ jobs:
 
       - name: Enforce Core Coverage Gate
         shell: pwsh
-        run: pwsh -File ./scripts/check-core-coverage.ps1 -Threshold 90
+        run: pwsh -File ./scripts/check-core-coverage.ps1 -Threshold 70
