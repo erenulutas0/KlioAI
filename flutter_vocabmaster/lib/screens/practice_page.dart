@@ -93,11 +93,7 @@ class _PracticePageState extends State<PracticePage>
     _modeSpeaking,
   ];
 
-  List<String> _availableModesForLocale(Locale? locale,
-      {bool compact = false}) {
-    if (compact) {
-      return const [_modeTranslate, _modeWriting, _modeSpeaking];
-    }
+  List<String> _availableModesForLocale(Locale? locale) {
     final modes = <String>[..._basePracticeModes];
     if (AppMarketConfig.isExamModuleEnabled(locale)) {
       modes.add(_modeExams);
@@ -172,9 +168,9 @@ class _PracticePageState extends State<PracticePage>
     }
   }
 
-  void _ensureSelectedModeVisible({bool compact = false}) {
+  void _ensureSelectedModeVisible() {
     final locale = Localizations.maybeLocaleOf(context);
-    final availableModes = _availableModesForLocale(locale, compact: compact);
+    final availableModes = _availableModesForLocale(locale);
     if (!availableModes.contains(_selectedMode)) {
       _selectedMode = availableModes.first;
     }
@@ -227,7 +223,7 @@ class _PracticePageState extends State<PracticePage>
         widget.initialMode != oldWidget.initialMode) {
       setState(() {
         _selectedMode = _normalizeModeId(widget.initialMode!);
-        _ensureSelectedModeVisible(compact: !_firstSessionPracticeCompleted);
+        _ensureSelectedModeVisible();
       });
       _logPracticeStarted();
     }
@@ -270,7 +266,7 @@ class _PracticePageState extends State<PracticePage>
     super.didChangeDependencies();
     // 🔥 AppStateProvider değiştiğinde kelime listesini güncelle
     _syncWordsFromProvider();
-    _ensureSelectedModeVisible(compact: !_firstSessionPracticeCompleted);
+    _ensureSelectedModeVisible();
     _refreshPracticeAccessIfNeeded();
   }
 
@@ -560,10 +556,7 @@ class _PracticePageState extends State<PracticePage>
         _refreshFirstSessionPracticeState();
       });
     }
-    final availableModes = _availableModesForLocale(
-      locale,
-      compact: !_firstSessionPracticeCompleted,
-    );
+    final availableModes = _availableModesForLocale(locale);
     if (!availableModes.contains(_selectedMode)) {
       _selectedMode = availableModes.first;
     }
