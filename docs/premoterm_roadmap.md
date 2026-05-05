@@ -146,10 +146,10 @@ Amac: Uygulamanin disaridan guvenilir ve indirilebilir gorunmesi.
 
 - [x] Landing page CTA'larini `/actuator/health` yerine Play Store linkine bagla.
 - [ ] Gercek app screenshot'lari ekle.
-- [ ] Google Play badge ekle.
-- [ ] Privacy ve Terms linklerini netlestir.
-- [ ] Play Store aciklamasini ASO odakli yaz.
-- [ ] Ana keyword setini belirle:
+- [x] Google Play badge ekle.
+- [x] Privacy ve Terms linklerini netlestir.
+- [x] Play Store aciklamasini ASO odakli yaz.
+- [x] Ana keyword setini belirle:
   - AI English learning
   - English vocabulary
   - speaking practice

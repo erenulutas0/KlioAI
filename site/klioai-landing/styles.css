@@ -129,6 +129,7 @@ a {
 .feature-band,
 .workflow,
 .infrastructure,
+.store-band,
 .cta-block,
 .metrics article {
   border: 1px solid var(--line);
@@ -154,6 +155,7 @@ a {
 .feature-intro h2,
 .workflow-copy h2,
 .infrastructure-copy h2,
+.store-band h2,
 .cta-block h2 {
   margin: 0;
   line-height: 0.95;
@@ -176,6 +178,7 @@ a {
 }
 
 .hero-actions,
+.store-links,
 .cta-actions {
   display: flex;
   flex-wrap: wrap;
@@ -212,6 +215,63 @@ a {
   border-color: var(--line-strong);
   color: var(--text);
   background: rgba(255, 255, 255, 0.03);
+}
+
+.play-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px 18px 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  background: rgba(2, 6, 13, 0.82);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.26);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.play-badge:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  background: rgba(7, 15, 29, 0.95);
+}
+
+.play-badge-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2) 54%, var(--accent-3));
+}
+
+.play-badge-icon {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 13px solid #02060d;
+}
+
+.play-badge small,
+.play-badge strong {
+  display: block;
+}
+
+.play-badge small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.play-badge strong {
+  margin-top: 1px;
+  font-size: 1.05rem;
 }
 
 .hero-signals {
@@ -319,6 +379,7 @@ a {
 .feature-band,
 .workflow,
 .infrastructure,
+.store-band,
 .cta-block {
   border-radius: 28px;
 }
@@ -364,6 +425,7 @@ a {
 .feature-band,
 .workflow,
 .infrastructure,
+.store-band,
 .cta-block {
   margin-top: 18px;
   padding: 34px;
@@ -379,6 +441,7 @@ a {
 .feature-intro h2,
 .workflow-copy h2,
 .infrastructure-copy h2,
+.store-band h2,
 .cta-block h2 {
   font-size: clamp(2.4rem, 5vw, 4.4rem);
 }
@@ -410,6 +473,17 @@ a {
   align-items: flex-end;
   justify-content: space-between;
   gap: 22px;
+}
+
+.store-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+}
+
+.store-band > div:first-child {
+  max-width: 48rem;
 }
 
 .cta-block > div:first-child {
@@ -507,6 +581,7 @@ a {
   .feature-grid,
   .workflow-steps,
   .infra-grid,
+  .store-band,
   .cta-block,
   .site-footer {
     grid-template-columns: 1fr;
@@ -539,6 +614,7 @@ a {
   .feature-band,
   .workflow,
   .infrastructure,
+  .store-band,
   .cta-block,
   .legal-hero,
   .legal-card,
@@ -550,6 +626,7 @@ a {
   .feature-band,
   .workflow,
   .infrastructure,
+  .store-band,
   .cta-block,
   .legal-hero,
   .legal-card {
@@ -561,12 +638,18 @@ a {
   }
 
   .hero-actions,
+  .store-links,
   .cta-actions {
     flex-direction: column;
   }
 
   .button {
     width: 100%;
+  }
+
+  .play-badge {
+    width: 100%;
+    justify-content: center;
   }
 
   .site-footer {
