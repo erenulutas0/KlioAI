@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,9 @@ public class AdminController {
 
     @Autowired(required = false)
     private AiTokenQuotaService aiTokenQuotaService;
+
+    @Autowired(required = false)
+    private AiProviderMetricsService aiProviderMetricsService;
 
     @PostMapping("/reset-data")
     public String resetData() {
@@ -194,6 +198,9 @@ public class AdminController {
         body.put("memory", memory);
         body.put("redis", redis);
         body.put("cost", cost);
+        if (aiProviderMetricsService != null) {
+            body.put("providerMetrics", aiProviderMetricsService.snapshot());
+        }
 
         return ResponseEntity.ok(body);
     }

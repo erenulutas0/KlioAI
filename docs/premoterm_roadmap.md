@@ -171,7 +171,7 @@ Amac: Tek provider/model riskini azaltmak ve maliyet patlamasini onlemek.
 
 - [x] `AiCompletionProvider` interface tasarla.
 - [x] Mevcut Groq cagrilarini provider interface arkasina al.
-- [ ] Provider bazli token usage ve hata oranini kaydet.
+- [x] Provider bazli token usage ve hata oranini kaydet.
 - [ ] Gunluk projected AI spend hesabi ekle.
 - [ ] Admin/log endpoint veya basit dashboard ile su metrikleri gor:
   - token usage by user

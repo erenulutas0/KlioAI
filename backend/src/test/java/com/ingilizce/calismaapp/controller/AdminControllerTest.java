@@ -8,6 +8,7 @@ import com.ingilizce.calismaapp.security.CurrentUserContext;
 import com.ingilizce.calismaapp.security.JwtAuthenticationFilter;
 import com.ingilizce.calismaapp.security.UserHeaderConsistencyFilter;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +60,9 @@ class AdminControllerTest {
 
     @MockBean
     private AiTokenQuotaService aiTokenQuotaService;
+
+    @MockBean
+    private AiProviderMetricsService aiProviderMetricsService;
 
     @Test
     void resetData_ShouldDeleteRepositoriesAndReturnSuccessMessage() throws Exception {
@@ -189,6 +193,25 @@ class AdminControllerTest {
                         22000,
                         34500,
                         0.0035));
+        when(aiProviderMetricsService.snapshot())
+                .thenReturn(new AiProviderMetricsService.Snapshot(
+                        "2026-05-03",
+                        2,
+                        1,
+                        1,
+                        100,
+                        50,
+                        150,
+                        java.util.List.of(new AiProviderMetricsService.ProviderMetric(
+                                "2026-05-03",
+                                "groq",
+                                "llama-3.3-70b-versatile",
+                                2,
+                                1,
+                                1,
+                                100,
+                                50,
+                                150))));
 
         mockMvc.perform(get("/api/admin/ai-usage/stats"))
                 .andExpect(status().isOk())
@@ -200,8 +223,11 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.memory.tokensUsed").value(12500))
                 .andExpect(jsonPath("$.redis.tokensUsed").value(22000))
                 .andExpect(jsonPath("$.cost.estimatedCostUsdPerMillionTokens").value(0.10))
-                .andExpect(jsonPath("$.cost.estimatedCostUsd").value(0.0035));
+                .andExpect(jsonPath("$.cost.estimatedCostUsd").value(0.0035))
+                .andExpect(jsonPath("$.providerMetrics.totalTokens").value(150))
+                .andExpect(jsonPath("$.providerMetrics.providers[0].provider").value("groq"));
 
         verify(aiTokenQuotaService).getUsageStats();
+        verify(aiProviderMetricsService).snapshot();
     }
 }
