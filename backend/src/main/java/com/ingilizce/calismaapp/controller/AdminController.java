@@ -184,7 +184,10 @@ public class AdminController {
         Map<String, Object> cost = new HashMap<>();
         cost.put("estimatedCostUsdPerMillionTokens", stats.estimatedCostUsdPerMillionTokens());
         cost.put("estimatedCostUsd", stats.estimatedCostUsd());
-        cost.put("note", "Approximate projection based on configured blended token rate.");
+        cost.put("utcDayElapsedSeconds", stats.utcDayElapsedSeconds());
+        cost.put("projectedTokensUsedToday", stats.projectedTokensUsedToday());
+        cost.put("projectedCostUsdToday", stats.projectedCostUsdToday());
+        cost.put("note", "Approximate projection based on configured blended token rate and current UTC-day burn rate.");
 
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);

@@ -123,6 +123,9 @@ class AiTokenQuotaServiceTest {
         assertEquals(12_500, stats.memoryTokensUsed());
         assertEquals(12_500, stats.totalTokensUsed());
         assertEquals(0.0025, stats.estimatedCostUsd());
+        assertEquals(1001, stats.utcDayElapsedSeconds());
+        assertTrue(stats.projectedTokensUsedToday() > stats.totalTokensUsed());
+        assertTrue(stats.projectedCostUsdToday() > stats.estimatedCostUsd());
     }
 
     private static final class TestableAiTokenQuotaService extends AiTokenQuotaService {

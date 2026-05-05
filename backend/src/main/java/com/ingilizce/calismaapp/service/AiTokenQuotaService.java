@@ -69,7 +69,10 @@ public class AiTokenQuotaService {
                              long redisScopeSubjects,
                              long redisTokensUsed,
                              long totalTokensUsed,
-                             double estimatedCostUsd) {
+                             double estimatedCostUsd,
+                             long utcDayElapsedSeconds,
+                             long projectedTokensUsedToday,
+                             double projectedCostUsdToday) {
     }
 
     private record TokenSnapshot(long subjects, long tokensUsed) {
@@ -237,6 +240,8 @@ public class AiTokenQuotaService {
         long redisTokens = redisGlobal.tokensUsed();
         long totalTokens = safeAdd(memoryTokens, redisTokens);
         double rate = properties.getEstimatedCostUsdPerMillionTokens();
+        long elapsedSeconds = utcDayElapsedSeconds();
+        long projectedTokens = projectedTokensForDay(totalTokens, elapsedSeconds);
 
         return new UsageStats(
                 properties.isEnabled(),
@@ -256,7 +261,10 @@ public class AiTokenQuotaService {
                 redisScope.subjects(),
                 redisTokens,
                 totalTokens,
-                roundUsd((totalTokens / 1_000_000.0) * rate));
+                roundUsd((totalTokens / 1_000_000.0) * rate),
+                elapsedSeconds,
+                projectedTokens,
+                roundUsd((projectedTokens / 1_000_000.0) * rate));
     }
 
     private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
@@ -471,6 +479,25 @@ public class AiTokenQuotaService {
         long dayMillis = TimeUnit.DAYS.toMillis(1);
         long daysSinceEpoch = Math.floorDiv(epochMillis, dayMillis);
         return daysSinceEpoch * dayMillis;
+    }
+
+    private long utcDayElapsedSeconds() {
+        long now = currentTimeMillis();
+        long elapsedMs = Math.max(0L, now - startOfUtcDay(now));
+        long elapsedSeconds = (elapsedMs / 1000L) + 1L;
+        return Math.max(1L, Math.min(TimeUnit.DAYS.toSeconds(1), elapsedSeconds));
+    }
+
+    private long projectedTokensForDay(long tokensUsed, long elapsedSeconds) {
+        if (tokensUsed <= 0L) {
+            return 0L;
+        }
+        long safeElapsed = Math.max(1L, Math.min(TimeUnit.DAYS.toSeconds(1), elapsedSeconds));
+        double projected = tokensUsed * (TimeUnit.DAYS.toSeconds(1) / (double) safeElapsed);
+        if (projected >= Long.MAX_VALUE) {
+            return Long.MAX_VALUE;
+        }
+        return Math.max(tokensUsed, Math.round(projected));
     }
 
     private long ttlOrDaySeconds(String key) {

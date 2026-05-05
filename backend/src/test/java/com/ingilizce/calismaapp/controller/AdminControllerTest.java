@@ -192,7 +192,10 @@ class AdminControllerTest {
                         5,
                         22000,
                         34500,
-                        0.0035));
+                        0.0035,
+                        43200,
+                        69000,
+                        0.0069));
         when(aiProviderMetricsService.snapshot())
                 .thenReturn(new AiProviderMetricsService.Snapshot(
                         "2026-05-03",
@@ -224,6 +227,9 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.redis.tokensUsed").value(22000))
                 .andExpect(jsonPath("$.cost.estimatedCostUsdPerMillionTokens").value(0.10))
                 .andExpect(jsonPath("$.cost.estimatedCostUsd").value(0.0035))
+                .andExpect(jsonPath("$.cost.utcDayElapsedSeconds").value(43200))
+                .andExpect(jsonPath("$.cost.projectedTokensUsedToday").value(69000))
+                .andExpect(jsonPath("$.cost.projectedCostUsdToday").value(0.0069))
                 .andExpect(jsonPath("$.providerMetrics.totalTokens").value(150))
                 .andExpect(jsonPath("$.providerMetrics.providers[0].provider").value("groq"));
 
