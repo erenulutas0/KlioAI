@@ -19,4 +19,11 @@ public interface AiCompletionProvider {
                                              Integer maxTokens,
                                              Double temperature,
                                              String modelOverride);
+
+    default String chatCompletion(List<Map<String, String>> messages,
+                                  boolean jsonResponse,
+                                  String modelOverride) {
+        CompletionResult result = chatCompletionWithUsage(messages, jsonResponse, null, null, modelOverride);
+        return result != null ? result.content() : null;
+    }
 }

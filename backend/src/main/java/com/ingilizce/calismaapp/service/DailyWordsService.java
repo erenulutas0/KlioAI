@@ -25,7 +25,7 @@ public class DailyWordsService {
     private static final String CONTENT_TYPE = "daily_words_v1";
 
     private final DailyContentRepository dailyContentRepository;
-    private final GroqService groqService;
+    private final AiCompletionProvider aiCompletionProvider;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private AiModelRoutingService aiModelRoutingService;
@@ -36,10 +36,10 @@ public class DailyWordsService {
     private final Object generationLock = new Object();
 
     public DailyWordsService(DailyContentRepository dailyContentRepository,
-                             GroqService groqService,
+                             AiCompletionProvider aiCompletionProvider,
                              ObjectMapper objectMapper) {
         this.dailyContentRepository = dailyContentRepository;
-        this.groqService = groqService;
+        this.aiCompletionProvider = aiCompletionProvider;
         this.objectMapper = objectMapper;
     }
 
@@ -116,19 +116,19 @@ public class DailyWordsService {
                 "content", prompt
         ));
 
-        String content = groqService.chatCompletion(messages, true, resolveModelForScope("daily-words-generate"));
+        String content = aiCompletionProvider.chatCompletion(messages, true, resolveModelForScope("daily-words-generate"));
         if (content == null || content.isBlank()) {
-            throw new IllegalStateException("Groq returned empty content");
+            throw new IllegalStateException("AI provider returned empty content");
         }
 
         // Ensure it's valid JSON and normalize (store compact JSON object).
         JsonNode node = parseLenientJsonObject(content);
         if (node == null || !node.isObject()) {
-            throw new IllegalStateException("Groq daily words payload is not a JSON object");
+            throw new IllegalStateException("AI daily words payload is not a JSON object");
         }
         JsonNode wordsNode = node.get("words");
         if (wordsNode == null || !wordsNode.isArray() || wordsNode.size() < 1) {
-            throw new IllegalStateException("Groq daily words payload missing 'words' array");
+            throw new IllegalStateException("AI daily words payload missing 'words' array");
         }
         return objectMapper.writeValueAsString(node);
     }

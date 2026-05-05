@@ -12,29 +12,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Groq AI ile gramer kontrolü servisi
- * (JLanguageTool yerine Llama 3.3 70B kullanır)
+ * AI ile gramer kontrolü servisi.
  */
 @Service
 public class GrammarCheckService {
 
     private static final Logger logger = LoggerFactory.getLogger(GrammarCheckService.class);
 
-    // Constructor Injection (Safe)
-    private final GroqService groqService;
+    private final AiCompletionProvider aiCompletionProvider;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private AiModelRoutingService aiModelRoutingService;
     private boolean enabled = true;
 
     @Autowired
-    public GrammarCheckService(GroqService groqService) {
-        this.groqService = groqService;
+    public GrammarCheckService(AiCompletionProvider aiCompletionProvider) {
+        this.aiCompletionProvider = aiCompletionProvider;
         this.objectMapper = new ObjectMapper();
 
         logger.info("============================================");
         logger.info("✅ GrammarCheckService Initialized");
-        logger.info("✅ GroqService status: {}", (groqService != null ? "CONNECTED" : "NULL"));
+        logger.info("✅ AiCompletionProvider status: {}", (aiCompletionProvider != null ? "CONNECTED" : "NULL"));
         logger.info("============================================");
     }
 
@@ -82,10 +80,9 @@ public class GrammarCheckService {
             userMessage.put("content", prompt);
             messages.add(userMessage);
 
-            // Groq API çağrısı
-            logger.info("🚀 Calling Groq API...");
-            String jsonResponse = groqService.chatCompletion(messages, true, resolveModelForScope("check-grammar"));
-            logger.info("📩 Groq Response received (Length: {})",
+            logger.info("🚀 Calling AI completion provider...");
+            String jsonResponse = aiCompletionProvider.chatCompletion(messages, true, resolveModelForScope("check-grammar"));
+            logger.info("📩 AI response received (Length: {})",
                     jsonResponse != null ? jsonResponse.length() : "NULL");
 
             if (jsonResponse != null) {
@@ -93,7 +90,7 @@ public class GrammarCheckService {
             }
 
         } catch (Exception e) {
-            logger.error("❌ Error checking grammar with Groq: {}", e.getMessage(), e);
+            logger.error("❌ Error checking grammar with AI provider: {}", e.getMessage(), e);
             throw new RuntimeException("Grammar Check Failed: " + e.getMessage());
         }
 

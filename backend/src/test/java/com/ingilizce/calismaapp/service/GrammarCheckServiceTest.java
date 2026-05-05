@@ -21,16 +21,16 @@ import static org.mockito.Mockito.*;
 class GrammarCheckServiceTest {
 
     @Mock
-    private GroqService groqService;
+    private AiCompletionProvider aiCompletionProvider;
 
     // We don't need to mock ObjectMapper, it's a real object initialized in
     // constructor.
     // But since it is instantiated inside constructor of Service, we can't easily
     // replace it if we wanted to.
-    // However, InjectMocks will try to constructor inject GroqService.
+    // However, InjectMocks will try to constructor inject AiCompletionProvider.
     // The real ObjectMapper will be created. That is fine.
 
-    // NOTE: InjectMocks uses the constructor that takes GroqService.
+    // NOTE: InjectMocks uses the constructor that takes AiCompletionProvider.
     @InjectMocks
     private GrammarCheckService grammarCheckService;
 
@@ -49,13 +49,13 @@ class GrammarCheckServiceTest {
                 "}]" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Bad sentence");
 
         assertTrue((Boolean) result.get("hasErrors"));
         assertEquals(1, result.get("errorCount"));
-        verify(groqService).chatCompletion(anyList(), eq(true), nullable(String.class));
+        verify(aiCompletionProvider).chatCompletion(anyList(), eq(true), nullable(String.class));
     }
 
     @Test
@@ -66,7 +66,7 @@ class GrammarCheckServiceTest {
                 "\"errors\": []" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(jsonResponse);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Good sentence");
 
@@ -75,7 +75,7 @@ class GrammarCheckServiceTest {
 
     @Test
     void checkGrammar_ShouldHandleException_AndReturnEmptyResult() {
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenThrow(new RuntimeException("API Error"));
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class))).thenThrow(new RuntimeException("API Error"));
 
         // The service catches exception and throws RuntimeException in catch block?
         // Let's check source code...
@@ -93,7 +93,7 @@ class GrammarCheckServiceTest {
 
         assertFalse((Boolean) result.get("hasErrors"));
         assertEquals(0, result.get("errorCount"));
-        verifyNoInteractions(groqService);
+        verifyNoInteractions(aiCompletionProvider);
     }
 
     @Test
@@ -102,18 +102,18 @@ class GrammarCheckServiceTest {
 
         assertFalse((Boolean) result.get("hasErrors"));
         assertEquals(0, result.get("errorCount"));
-        verifyNoInteractions(groqService);
+        verifyNoInteractions(aiCompletionProvider);
     }
 
     @Test
     void checkGrammar_ShouldReturnNoErrorResponse_WhenGroqReturnsNull() {
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(null);
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(null);
 
         Map<String, Object> result = grammarCheckService.checkGrammar("Hello");
 
         assertFalse((Boolean) result.get("hasErrors"));
         assertEquals(0, result.get("errorCount"));
-        verify(groqService).chatCompletion(anyList(), eq(true), nullable(String.class));
+        verify(aiCompletionProvider).chatCompletion(anyList(), eq(true), nullable(String.class));
     }
 
     @Test
@@ -124,7 +124,7 @@ class GrammarCheckServiceTest {
                 "\"errors\": [{\"message\": \"Error\"}]" +
                 "}";
 
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(errorJson);
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class))).thenReturn(errorJson);
 
         List<String> sentences = new ArrayList<>();
         sentences.add("S1");
@@ -139,7 +139,7 @@ class GrammarCheckServiceTest {
     void checkMultipleSentences_ShouldIgnoreNoErrorAndInvalidErrorShape() {
         String noErrorJson = "{\"hasErrors\":false,\"errorCount\":0,\"errors\":[]}";
         String invalidErrorsJson = "{\"hasErrors\":true,\"errorCount\":1,\"errors\":\"oops\"}";
-        when(groqService.chatCompletion(anyList(), eq(true), nullable(String.class)))
+        when(aiCompletionProvider.chatCompletion(anyList(), eq(true), nullable(String.class)))
                 .thenReturn(noErrorJson)
                 .thenReturn(invalidErrorsJson);
 

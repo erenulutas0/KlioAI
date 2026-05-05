@@ -43,7 +43,7 @@ public class DailyExamPackService {
     private static final int QUESTIONS_PER_TOPIC = 5;
 
     private final DailyContentRepository dailyContentRepository;
-    private final GroqService groqService;
+    private final AiCompletionProvider aiCompletionProvider;
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private AiModelRoutingService aiModelRoutingService;
@@ -53,10 +53,10 @@ public class DailyExamPackService {
     private String groqApiKey;
 
     public DailyExamPackService(DailyContentRepository dailyContentRepository,
-                                GroqService groqService,
+                                AiCompletionProvider aiCompletionProvider,
                                 ObjectMapper objectMapper) {
         this.dailyContentRepository = dailyContentRepository;
-        this.groqService = groqService;
+        this.aiCompletionProvider = aiCompletionProvider;
         this.objectMapper = objectMapper;
     }
 
@@ -148,14 +148,14 @@ public class DailyExamPackService {
                 "content", "You are a helpful exam-prep assistant. Return only valid JSON."));
         messages.add(Map.of("role", "user", "content", prompt));
 
-        String content = groqService.chatCompletion(messages, true, resolveModelForScope("exam-daily-pack-generate"));
+        String content = aiCompletionProvider.chatCompletion(messages, true, resolveModelForScope("exam-daily-pack-generate"));
         if (content == null || content.isBlank()) {
-            throw new IllegalStateException("Groq returned empty content");
+            throw new IllegalStateException("AI provider returned empty content");
         }
 
         JsonNode node = parseLenientJsonObject(content);
         if (node == null || !node.isObject()) {
-            throw new IllegalStateException("Groq daily exam payload is not a JSON object");
+            throw new IllegalStateException("AI daily exam payload is not a JSON object");
         }
 
         Map<String, Object> payload = objectMapper.convertValue(node, Map.class);

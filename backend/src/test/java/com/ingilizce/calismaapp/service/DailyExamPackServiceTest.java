@@ -33,14 +33,14 @@ class DailyExamPackServiceTest {
     private DailyContentRepository dailyContentRepository;
 
     @Mock
-    private GroqService groqService;
+    private AiCompletionProvider aiCompletionProvider;
 
     private DailyExamPackService service;
     private LocalDate date;
 
     @BeforeEach
     void setUp() {
-        service = new DailyExamPackService(dailyContentRepository, groqService, new ObjectMapper());
+        service = new DailyExamPackService(dailyContentRepository, aiCompletionProvider, new ObjectMapper());
         date = LocalDate.of(2026, 4, 15);
     }
 
@@ -65,7 +65,7 @@ class DailyExamPackServiceTest {
             assertEquals(5, questions.size());
         }
 
-        verify(groqService, never()).chatCompletion(any(), anyBoolean(), any());
+        verify(aiCompletionProvider, never()).chatCompletion(any(), anyBoolean(), any());
 
         ArgumentCaptor<DailyContent> captor = ArgumentCaptor.forClass(DailyContent.class);
         verify(dailyContentRepository).save(captor.capture());
@@ -80,7 +80,7 @@ class DailyExamPackServiceTest {
                 .thenReturn(Optional.empty());
         when(dailyContentRepository.save(any(DailyContent.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(groqService.chatCompletion(any(), anyBoolean(), any()))
+        when(aiCompletionProvider.chatCompletion(any(), anyBoolean(), any()))
                 .thenReturn("""
                         {
                           "exam": "yds",
