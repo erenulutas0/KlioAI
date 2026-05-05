@@ -23,13 +23,13 @@ import java.util.regex.Pattern;
 public class AiProxyService {
 
     private static final Logger logger = LoggerFactory.getLogger(AiProxyService.class);
-    private final GroqService groqService;
+    private final AiCompletionProvider aiCompletionProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
     @Autowired(required = false)
     private AiModelRoutingService aiModelRoutingService;
 
-    public AiProxyService(GroqService groqService) {
-        this.groqService = groqService;
+    public AiProxyService(AiCompletionProvider aiCompletionProvider) {
+        this.aiCompletionProvider = aiCompletionProvider;
     }
 
     public record AiJsonResult(Map<String, Object> json,
@@ -366,7 +366,7 @@ JSON ÇIKTI FORMATI:
         messages.add(Map.of("role", "system", "content", systemPrompt));
         messages.add(Map.of("role", "user", "content", userPrompt));
 
-        GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(
+        AiCompletionProvider.CompletionResult completion = aiCompletionProvider.chatCompletionWithUsage(
                 messages,
                 true,
                 maxTokens,
@@ -637,7 +637,7 @@ JSON ÇIKTI FORMATI:
         }
 
         List<Map<String, String>> rescueMessages = buildRescueMessages(messages);
-        GroqService.ChatCompletionResult rescue = groqService.chatCompletionWithUsage(
+        AiCompletionProvider.CompletionResult rescue = aiCompletionProvider.chatCompletionWithUsage(
                 rescueMessages,
                 false,
                 maxTokens,

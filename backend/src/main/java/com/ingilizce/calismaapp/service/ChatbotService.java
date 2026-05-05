@@ -14,13 +14,13 @@ import java.util.HashMap;
 public class ChatbotService {
 
   private static final Logger logger = LoggerFactory.getLogger(ChatbotService.class);
-  private final GroqService groqService;
+  private final AiCompletionProvider aiCompletionProvider;
   private final ObjectMapper objectMapper;
   @Autowired(required = false)
   private AiModelRoutingService aiModelRoutingService;
 
-  public ChatbotService(GroqService groqService) {
-    this.groqService = groqService;
+  public ChatbotService(AiCompletionProvider aiCompletionProvider) {
+    this.aiCompletionProvider = aiCompletionProvider;
     this.objectMapper = new ObjectMapper();
   }
 
@@ -117,7 +117,7 @@ public class ChatbotService {
       scope = "speaking-evaluate";
     }
 
-    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(
+    AiCompletionProvider.CompletionResult completion = aiCompletionProvider.chatCompletionWithUsage(
         messages,
         jsonMode,
         maxTokens,
@@ -145,7 +145,7 @@ public class ChatbotService {
     userMsg.put("content", userMessage);
     messages.add(userMsg);
 
-    GroqService.ChatCompletionResult completion = groqService.chatCompletionWithUsage(
+    AiCompletionProvider.CompletionResult completion = aiCompletionProvider.chatCompletionWithUsage(
         messages,
         false,
         maxTokens,

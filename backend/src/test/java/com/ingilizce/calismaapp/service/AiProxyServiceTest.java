@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 class AiProxyServiceTest {
 
     @Mock
-    private GroqService groqService;
+    private AiCompletionProvider aiCompletionProvider;
 
     @Mock
     private AiModelRoutingService aiModelRoutingService;
@@ -33,13 +33,13 @@ class AiProxyServiceTest {
 
     @BeforeEach
     void setUp() {
-        aiProxyService = new AiProxyService(groqService);
+        aiProxyService = new AiProxyService(aiCompletionProvider);
     }
 
     @Test
     void dictionaryLookupDetailed_ShouldReturnFallbackPayload_WhenAiContentIsBlank() {
-        when(groqService.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
-                .thenReturn(GroqService.ChatCompletionResult.of("   ", 11, 5, 16));
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("   ", 11, 5, 16));
 
         AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookupDetailed("bring about");
 
@@ -51,8 +51,8 @@ class AiProxyServiceTest {
 
     @Test
     void generateReadingPassage_ShouldReturnFallbackPayload_WhenAiContentIsNotJson() {
-        when(groqService.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
-                .thenReturn(GroqService.ChatCompletionResult.of("temporary text output", 7, 3, 10));
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("temporary text output", 7, 3, 10));
 
         AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage("Intermediate");
 
@@ -69,8 +69,8 @@ class AiProxyServiceTest {
         when(aiModelRoutingService.resolveModelForScope("dictionary-lookup")).thenReturn("openai/gpt-oss-20b");
         when(aiModelRoutingService.defaultModel()).thenReturn("llama-3.3-70b-versatile");
 
-        when(groqService.chatCompletionWithUsage(anyList(), eq(true), any(), any(), eq("openai/gpt-oss-20b")))
-                .thenReturn(GroqService.ChatCompletionResult.of("   ", 11, 4, 15));
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), eq("openai/gpt-oss-20b")))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("   ", 11, 4, 15));
 
         String rescueJson = """
                 {
@@ -81,8 +81,8 @@ class AiProxyServiceTest {
                   ]
                 }
                 """;
-        when(groqService.chatCompletionWithUsage(anyList(), eq(false), any(), any(), eq("llama-3.3-70b-versatile")))
-                .thenReturn(GroqService.ChatCompletionResult.of(rescueJson, 8, 3, 11));
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(false), any(), any(), eq("llama-3.3-70b-versatile")))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(rescueJson, 8, 3, 11));
 
         AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookup("focus");
 
