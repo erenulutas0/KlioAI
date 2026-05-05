@@ -489,8 +489,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                       ),
                     Text(
                       _text(
-                        'Dil ogrenme yolculugunu\nust seviyeye tasi',
-                        'Take your language learning\nto the next level',
+                        'AI destekli\ngunluk pratik',
+                        'AI-powered\ndaily practice',
                       ),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
@@ -503,9 +503,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     const SizedBox(height: 12),
                     Text(
                       _text(
-                        'Yapay zeka destekli ozelliklerle hizla ilerle.',
-                        'Move faster with AI-powered practice.',
+                        'Cumle uretme, konusma ve tekrar tek planda.',
+                        'Create sentences, practice speaking, and review in one plan.',
                       ),
+                      textAlign: TextAlign.center,
                       style:
                           const TextStyle(color: Colors.white60, fontSize: 16),
                     ),
@@ -642,16 +643,18 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 const SizedBox(height: 20),
                 _buildPerk(
                   Icons.check_circle,
-                  _text('AI Chat Buddy erisimi', 'AI Chat Buddy access'),
+                  _text(
+                      'AI destekli gunluk pratik', 'AI-powered daily practice'),
                 ),
                 _buildPerk(
                   Icons.check_circle,
-                  _text('IELTS speaking simulasyonu',
-                      'IELTS speaking simulation'),
+                  _text('Cumle uretme ve ceviri destegi',
+                      'Sentence creation and translation support'),
                 ),
                 _buildPerk(
                   Icons.check_circle,
-                  _text('Gelismis gramer kontrolu', 'Advanced grammar checks'),
+                  _text(
+                      'Konusma ve tekrar modlari', 'Speaking and review modes'),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(

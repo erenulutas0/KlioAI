@@ -124,15 +124,15 @@ Definition of done:
 
 Amac: Fiyat, kota ve deger algisini ayni yone cekmek.
 
-- [ ] Paywall metnini sadelestir: "AI destekli gunluk pratik, cumle uretme, konusma ve tekrar".
-- [ ] Aylik plani gorunur yap.
-- [ ] Yillik plani gorunur yap.
-- [ ] Premium Plus'i simdilik gizli tut veya net farkla sun.
-- [ ] Free tier'i sifir AI yerine dusuk ama kullanilabilir yap:
+- [x] Paywall metnini sadelestir: "AI destekli gunluk pratik, cumle uretme, konusma ve tekrar".
+- [x] Aylik plani gorunur yap.
+- [x] Yillik plani gorunur yap.
+- [x] Premium Plus'i simdilik gizli tut veya net farkla sun.
+- [x] Free tier'i sifir AI yerine dusuk ama kullanilabilir yap:
   - Oneri: `1000-3000 token/gun`
-- [ ] Kullaniciya kalan gunluk AI hakkini UI'da goster.
-- [ ] Abonelik basarili/iptal/restore eventlerini analytics'e bagla.
-- [ ] Google Play fiyatini uygulamadaki gorunen fiyatla ayni tut.
+- [x] Kullaniciya kalan gunluk AI hakkini UI'da goster.
+- [x] Abonelik basarili/iptal/restore eventlerini analytics'e bagla.
+- [x] Google Play fiyatini uygulamadaki gorunen fiyatla ayni tut.
 
 Definition of done:
 
@@ -228,7 +228,7 @@ Definition of done:
 1. [x] Firebase Analytics + Crashlytics ekle.
 2. [x] Funnel eventlerini bagla.
 3. [x] Fiyati ve token kotalarini maliyet hesabina gore duzelt.
-4. [ ] Play Store fiyatlari ile app/backend fiyatlarini hizala.
+4. [x] Play Store fiyatlari ile app/backend fiyatlarini hizala.
 5. [x] Yeni kullanici first-session flow'unu sadelestir.
 6. [x] Local notification ekle.
 7. Landing page Play Store linki + screenshot'lari ekle.
