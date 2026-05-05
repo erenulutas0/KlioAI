@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/xp_manager.dart';
 import '../services/local_database_service.dart';
 import '../services/analytics_service.dart';
+import '../services/local_reminder_service.dart';
 import '../models/word.dart';
 import '../models/sentence_view_model.dart';
 import '../services/groq_service.dart';
@@ -380,6 +381,10 @@ class AppStateProvider extends ChangeNotifier {
     try {
       final quota = await _apiService.chatbotQuotaStatus();
       await AnalyticsService.logTrialSnapshot(
+        trialActive: quota['trialActive'] == true,
+        daysRemaining: _toNullableInt(quota['trialDaysRemaining']),
+      );
+      await LocalReminderService().scheduleTrialExpiryReminder(
         trialActive: quota['trialActive'] == true,
         daysRemaining: _toNullableInt(quota['trialDaysRemaining']),
       );
@@ -1554,6 +1559,7 @@ class AppStateProvider extends ChangeNotifier {
     // Kaydet
     await prefs.setString('last_activity_date', todayStr);
     await prefs.setInt('current_streak', currentStreak);
+    await LocalReminderService().scheduleStreakGuardReminder();
 
     _userStats['streak'] = currentStreak;
 

@@ -10,11 +10,18 @@ import 'analytics_service.dart';
 
 class LocalReminderService {
   static const String dailyReminderKey = 'notifications:daily_reminder_enabled';
-  static const String lastOpenedPayloadKey = 'notifications:last_opened_payload';
+  static const String lastOpenedPayloadKey =
+      'notifications:last_opened_payload';
   static const String lastOpenedAtKey = 'notifications:last_opened_at';
   static const int _dailyReminderId = 31001;
+  static const int _streakGuardReminderId = 31002;
+  static const int _trialExpiryReminderId = 31003;
   static const int _dailyReminderHour = 20;
   static const int _dailyReminderMinute = 0;
+  static const int _streakGuardHour = 20;
+  static const int _streakGuardMinute = 30;
+  static const int _trialReminderHour = 10;
+  static const int _trialReminderMinute = 0;
   static const String _channelId = 'daily_learning_reminders';
   static const String _channelName = 'Daily learning reminders';
   static const String _channelDescription =
@@ -101,6 +108,7 @@ class LocalReminderService {
   Future<void> refreshScheduledReminders() async {
     if (await isDailyReminderEnabled()) {
       await scheduleDailyReminder();
+      await scheduleStreakGuardReminder();
     }
   }
 
@@ -111,17 +119,7 @@ class LocalReminderService {
       'KlioAI',
       'A quick practice session is ready for today.',
       _nextReminderTime(),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: DarwinNotificationDetails(),
-        macOS: DarwinNotificationDetails(),
-      ),
+      _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
@@ -130,8 +128,76 @@ class LocalReminderService {
     );
   }
 
+  Future<void> scheduleStreakGuardReminder() async {
+    await initialize();
+    if (!await isDailyReminderEnabled()) {
+      await cancelStreakGuardReminder();
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final streak = prefs.getInt('current_streak') ?? 0;
+    final lastActivityDate = prefs.getString('last_activity_date');
+    if (streak <= 0 || lastActivityDate == null || lastActivityDate.isEmpty) {
+      await cancelStreakGuardReminder();
+      return;
+    }
+
+    final scheduled = _nextStreakGuardTime(lastActivityDate);
+    if (scheduled == null) {
+      await cancelStreakGuardReminder();
+      return;
+    }
+
+    await _notifications.zonedSchedule(
+      _streakGuardReminderId,
+      'Keep your streak alive',
+      'A short KlioAI practice today keeps your $streak-day streak safe.',
+      scheduled,
+      _notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'streak_guard',
+    );
+  }
+
+  Future<void> scheduleTrialExpiryReminder({
+    required bool trialActive,
+    int? daysRemaining,
+  }) async {
+    await initialize();
+    if (!await isDailyReminderEnabled() ||
+        !trialActive ||
+        daysRemaining == null ||
+        daysRemaining <= 0) {
+      await cancelTrialExpiryReminder();
+      return;
+    }
+
+    await _notifications.zonedSchedule(
+      _trialExpiryReminderId,
+      'Your KlioAI trial is ending soon',
+      'You have $daysRemaining day${daysRemaining == 1 ? '' : 's'} left to use AI practice without interruption.',
+      _trialExpiryReminderTime(daysRemaining),
+      _notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'trial_expiring',
+    );
+  }
+
   Future<void> cancelDailyReminder() async {
     await _notifications.cancel(_dailyReminderId);
+  }
+
+  Future<void> cancelStreakGuardReminder() async {
+    await _notifications.cancel(_streakGuardReminderId);
+  }
+
+  Future<void> cancelTrialExpiryReminder() async {
+    await _notifications.cancel(_trialExpiryReminderId);
   }
 
   Future<void> _logLaunchFromNotificationIfNeeded() async {
@@ -208,6 +274,75 @@ class LocalReminderService {
       now.day,
       _dailyReminderHour,
       _dailyReminderMinute,
+    );
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    return scheduled;
+  }
+
+  NotificationDetails _notificationDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      ),
+      iOS: DarwinNotificationDetails(),
+      macOS: DarwinNotificationDetails(),
+    );
+  }
+
+  tz.TZDateTime? _nextStreakGuardTime(String lastActivityDate) {
+    final parsed = DateTime.tryParse(lastActivityDate);
+    if (parsed == null) {
+      return null;
+    }
+
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      _streakGuardHour,
+      _streakGuardMinute,
+    ).add(const Duration(days: 1));
+
+    if (!scheduled.isAfter(now)) {
+      final sameDayLateReminder = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        23,
+        0,
+      );
+      if (sameDayLateReminder.isAfter(now)) {
+        scheduled = sameDayLateReminder;
+      } else {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+    }
+    return scheduled;
+  }
+
+  tz.TZDateTime _trialExpiryReminderTime(int daysRemaining) {
+    final now = tz.TZDateTime.now(tz.local);
+    if (daysRemaining <= 2) {
+      return now.add(const Duration(minutes: 10));
+    }
+
+    final targetDay = now.add(Duration(days: daysRemaining - 2));
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      targetDay.year,
+      targetDay.month,
+      targetDay.day,
+      _trialReminderHour,
+      _trialReminderMinute,
     );
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));

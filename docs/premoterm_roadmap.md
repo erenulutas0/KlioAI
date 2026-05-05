@@ -107,8 +107,8 @@ Amac: Kullaniciya geri donmesi icin neden ve tetikleyici vermek.
 
 - [x] `flutter_local_notifications` ile lokal bildirim ekle.
 - [x] Gunluk calisma hatirlaticisi kur.
-- [ ] Streak bozulmadan once hatirlatici kur.
-- [ ] Trial bitmeden 2 gun once lokal bildirim kur.
+- [x] Streak bozulmadan once hatirlatici kur.
+- [x] Trial bitmeden 2 gun once lokal bildirim kur.
 - [x] FCM icin `firebase_messaging` ekle.
 - [x] FCM token'i backend'e kaydet.
 - [x] Backend tarafinda bildirim hedefleme endpoint'i/servisi olustur.
