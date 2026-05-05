@@ -169,8 +169,8 @@ Definition of done:
 
 Amac: Tek provider/model riskini azaltmak ve maliyet patlamasini onlemek.
 
-- [ ] `AiCompletionProvider` interface tasarla.
-- [ ] Mevcut Groq cagrilarini provider interface arkasina al.
+- [x] `AiCompletionProvider` interface tasarla.
+- [x] Mevcut Groq cagrilarini provider interface arkasina al.
 - [ ] Provider bazli token usage ve hata oranini kaydet.
 - [ ] Gunluk projected AI spend hesabi ekle.
 - [ ] Admin/log endpoint veya basit dashboard ile su metrikleri gor:
@@ -234,7 +234,7 @@ Definition of done:
 7. Landing page Play Store linki + screenshot'lari ekle.
 8. [x] In-app review prompt ekle.
 9. [x] AI usage/cost dashboard veya minimum log raporu ekle.
-10. AI provider abstraction icin ilk interface'i cikar.
+10. [x] AI provider abstraction icin ilk interface'i cikar.
 
 ## Izlenecek KPI'lar
 
