@@ -23,6 +23,8 @@ Required GitHub repo setting:
 
 - Settings -> Pages -> Build and deployment -> Source: `GitHub Actions`
 
+If the workflow fails with `Get Pages site failed` / `HttpError: Not Found`, GitHub Pages is not enabled for the repository from the API's point of view. Reopen Settings -> Pages and make sure the source is saved as `GitHub Actions`. If the repository is private, also confirm the account/organization plan supports Pages for private repositories.
+
 ## Domain
 
 Point the landing domain to GitHub Pages:
