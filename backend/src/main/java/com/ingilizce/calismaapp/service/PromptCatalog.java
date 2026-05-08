@@ -15,6 +15,10 @@ final class PromptCatalog {
     }
 
     static PromptDef generateSentences() {
+        return generateSentences(LearningLanguageProfile.defaultProfile());
+    }
+
+    static PromptDef generateSentences(LearningLanguageProfile profile) {
         String systemPrompt = """
             ROLE: Expert %s learning content designer and %s translator.
 
@@ -42,19 +46,23 @@ final class PromptCatalog {
             - "turkishFullTranslation" must be the full natural %s sentence.
             - No markdown, no explanations, no extra keys.
             """.formatted(
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.targetToSourceLabel(),
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.sourceLanguage()
+                profile.targetLanguage(),
+                profile.targetToSourceLabel(),
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
+                profile.sourceLanguage(),
+                profile.targetLanguage(),
+                profile.sourceLanguage(),
+                profile.sourceLanguage()
         );
         return new PromptDef("generate_sentences", 2, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
     static PromptDef checkTranslation() {
+        return checkTranslation(LearningLanguageProfile.defaultProfile());
+    }
+
+    static PromptDef checkTranslation(LearningLanguageProfile profile) {
         String systemPrompt = """
             ROLE: You are a supportive and encouraging %s translation checker.
 
@@ -83,19 +91,23 @@ final class PromptCatalog {
             }
             - Do not add any text before or after the JSON.
             """.formatted(
-                LearningLanguageProfile.targetToSourceLabel(),
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.feedbackLanguage(),
-                LearningLanguageProfile.feedbackLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.feedbackLanguage()
+                profile.targetToSourceLabel(),
+                profile.toPromptPolicyBlock(),
+                profile.sourceLanguage(),
+                profile.targetLanguage(),
+                profile.feedbackLanguage(),
+                profile.feedbackLanguage(),
+                profile.sourceLanguage(),
+                profile.feedbackLanguage()
         );
         return new PromptDef("check_translation_tr", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
     static PromptDef checkEnglishTranslation() {
+        return checkEnglishTranslation(LearningLanguageProfile.defaultProfile());
+    }
+
+    static PromptDef checkEnglishTranslation(LearningLanguageProfile profile) {
         String systemPrompt = """
             ROLE: You are a supportive and encouraging English Teacher.
 
@@ -121,12 +133,12 @@ final class PromptCatalog {
             }
             - Do not add any text before or after the JSON.
             """.formatted(
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.targetLanguage()
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
+                profile.sourceLanguage(),
+                profile.targetLanguage(),
+                profile.targetLanguage(),
+                profile.targetLanguage()
         );
         return new PromptDef("check_translation_en", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }
@@ -202,6 +214,10 @@ final class PromptCatalog {
     }
 
     static PromptDef evaluateSpeakingTest() {
+        return evaluateSpeakingTest(LearningLanguageProfile.defaultProfile());
+    }
+
+    static PromptDef evaluateSpeakingTest(LearningLanguageProfile profile) {
         String systemPrompt = """
             ROLE: Expert IELTS/TOEFL Speaking Test Examiner
 
@@ -245,8 +261,8 @@ final class PromptCatalog {
               "improvements": ["improvement1", "improvement2", ...]
             }
             """.formatted(
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.feedbackLanguage()
+                profile.toPromptPolicyBlock(),
+                profile.feedbackLanguage()
         );
         return new PromptDef("speaking_evaluation", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }

@@ -1,23 +1,23 @@
 # Localization Reality
 
-KlioAI's current product focus is Turkish speakers learning English.
+KlioAI's product focus is global English learning.
 
-This is a deliberate market constraint for the current production version. The UI can evolve later, but AI-generated learning content must stay consistent with this focus until source/target language parameters are introduced end to end.
+The most mature language path today is Turkish source/native language to English target language. That is an implementation maturity note, not a market-positioning limit. Public copy should not imply that KlioAI is only for Turkish users.
 
 ## Current Language Profile
 
-- Source/native language: Turkish
+- Default source/native language: Turkish
 - Target/practice language: English
-- Feedback language: Turkish unless an immersion flow explicitly asks otherwise
+- Default feedback language: Turkish unless an immersion flow explicitly asks otherwise
 - Legacy JSON keys such as `turkishTranslation` and `turkishMeaning` remain unchanged for app compatibility
 
 ## Implementation Rule
 
-Backend prompts should read language assumptions from `LearningLanguageProfile` instead of scattering hardcoded language decisions across services.
+Backend prompts should read language assumptions from `LearningLanguageProfile` instead of scattering hardcoded language decisions across services. New prompt work should accept a profile where practical, and only fall back to the default profile for compatibility.
 
 ## Next Step
 
-When KlioAI is ready for additional markets, introduce explicit request/user settings:
+Wire explicit request/user settings into all AI flows:
 
 - `sourceLanguage`
 - `targetLanguage`

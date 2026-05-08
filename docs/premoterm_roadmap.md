@@ -188,24 +188,26 @@ Definition of done:
 - Gunluk maliyet riski gorunur.
 - Scope bazli kota ve model karari veriye dayanir.
 
-## Phase 7 - Localization Reality
+## Phase 7 - Global English Learning Readiness
 
-Amac: "5 dil UI" yerine gercekten calisan pazar secmek.
+Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN akisini bozmayacak sekilde dil mimarisini genisletmek.
 
-- [x] Ilk hedef pazari net sec: English learning; TR/EN akislari en olgun desteklenen yol.
-- [x] UI'da global iddia yaparken mevcut dil olgunlugunu abartma.
+- [x] Urun konumunu netlestir: global English learning; TR/EN akislari en olgun desteklenen yol.
+- [x] UI'da/global copy'de mevcut dil olgunlugunu abartma.
 - [x] AI promptlarindaki Turkish varsayimini merkezi hale getir.
-- [ ] Daha sonra kaynak dil parametresi ekle:
+- [x] Backend prompt profili icin kaynak/hedef/geri bildirim dili temelini ekle:
   - `sourceLanguage`
   - `targetLanguage`
   - `feedbackLanguage`
-- [ ] Speaking, grammar, writing ve dictionary promptlarini bu parametrelere gore uret.
+- [ ] Request/user ayarlarindan bu profili tum AI akislarina bagla.
+- [ ] Speaking, grammar, writing ve dictionary promptlarini request/user profiline gore uret.
 - [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 
 Definition of done:
 
-- Uygulama TR pazarinda tutarli ve kaliteli calisir.
-- Diger UI dilleri kullaniciyi yaniltmaz veya kademeli olarak devreye alinir.
+- Uygulama global English learning iddiasiyla tutarli kalir.
+- TR kaynak dili ile EN ogrenme akisi kaliteli calisir.
+- Diger kaynak diller request/user profiliyle kontrollu sekilde devreye alinir.
 
 ## Phase 8 - Scale Readiness
 

@@ -39,6 +39,7 @@ public class AiProxyService {
     }
 
     public AiJsonResult dictionaryLookup(String word) {
+        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String system = """
 %s
 
@@ -50,17 +51,18 @@ You are a comprehensive %s dictionary. When given a %s word, provide a refined l
 You must respond with valid JSON only. Do not include markdown formatting.
 Format: { "word": "input_word", "type": "noun/verb/adj", "meanings": [ { "translation": "...", "context": "...", "example": "..." }, ... ] }
 """.formatted(
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.targetToSourceLabel(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage()
+                profile.toPromptPolicyBlock(),
+                profile.targetToSourceLabel(),
+                profile.targetLanguage(),
+                profile.sourceLanguage(),
+                profile.sourceLanguage(),
+                profile.targetLanguage()
         );
         return callJson(system, word, 700, 0.3, "dictionary-lookup");
     }
 
     public AiJsonResult dictionaryLookupDetailed(String word) {
+        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String prompt = """
 %s
 
@@ -90,32 +92,34 @@ Return ONLY valid JSON in this exact format:
 
 Be comprehensive - include ALL common meanings and word types for "%s".
 """.formatted(
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.targetLanguage(),
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
                 word,
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage(),
+                profile.sourceLanguage(),
+                profile.targetLanguage(),
+                profile.targetLanguage(),
+                profile.sourceLanguage(),
                 word,
                 word
         );
 
         String system = "You are a comprehensive %s dictionary for %s. Always return valid JSON. Be thorough and include all word types and meanings."
-                .formatted(LearningLanguageProfile.targetToSourceLabel(), LearningLanguageProfile.marketFocus());
+                .formatted(profile.targetToSourceLabel(), "English learning");
         return callJson(system, prompt, 900, 0.3, "dictionary-lookup-detailed");
     }
 
     public AiJsonResult dictionaryGenerateSpecificSentence(String word, String translation, String context) {
+        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String prompt = "Generate a new, simple %s sentence using the word '%s' specifically in the sense of '%s' (%s). Return valid JSON: { \"sentence\": \"...\" }"
-                .formatted(LearningLanguageProfile.targetLanguage(), word, translation, context);
+                .formatted(profile.targetLanguage(), word, translation, context);
         String system = "You are a helper generating specific example sentences. Return valid JSON only.";
         return callJson(system, prompt, 200, 0.7, "dictionary-specific-sentence");
     }
 
     public AiJsonResult dictionaryExplainWordInSentence(String word, String sentence) {
+        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String prompt = "Explain the meaning of the word '%s' inside this specific sentence: '%s'. Provide the definition in %s, keeping it very short/concise (max 15 words). Return ONLY valid JSON. Format: { \"definition\": \"...\" }"
-                .formatted(word, sentence, LearningLanguageProfile.sourceLanguage());
+                .formatted(word, sentence, profile.sourceLanguage());
         String system = "You are a dictionary helper. Return valid JSON.";
         return callJson(system, prompt, 120, 0.3, "dictionary-explain");
     }

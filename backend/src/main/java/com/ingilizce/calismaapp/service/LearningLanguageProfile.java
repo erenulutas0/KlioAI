@@ -1,47 +1,69 @@
 package com.ingilizce.calismaapp.service;
 
-final class LearningLanguageProfile {
+import java.util.Objects;
 
-    private static final String MARKET_FOCUS = "Turkish speakers learning English";
-    private static final String SOURCE_LANGUAGE = "Turkish";
-    private static final String TARGET_LANGUAGE = "English";
-    private static final String FEEDBACK_LANGUAGE = "Turkish";
+record LearningLanguageProfile(
+        String sourceLanguage,
+        String targetLanguage,
+        String feedbackLanguage
+) {
 
-    private LearningLanguageProfile() {
+    private static final String DEFAULT_SOURCE_LANGUAGE = "Turkish";
+    private static final String DEFAULT_TARGET_LANGUAGE = "English";
+
+    static final LearningLanguageProfile DEFAULT = new LearningLanguageProfile(
+            "Turkish",
+            "English",
+            "Turkish"
+    );
+
+    LearningLanguageProfile {
+        sourceLanguage = normalize(sourceLanguage, DEFAULT_SOURCE_LANGUAGE);
+        targetLanguage = normalize(targetLanguage, DEFAULT_TARGET_LANGUAGE);
+        feedbackLanguage = normalize(feedbackLanguage, sourceLanguage);
     }
 
-    static String marketFocus() {
-        return MARKET_FOCUS;
+    static LearningLanguageProfile defaultProfile() {
+        return DEFAULT;
     }
 
-    static String sourceLanguage() {
-        return SOURCE_LANGUAGE;
-    }
-
-    static String targetLanguage() {
-        return TARGET_LANGUAGE;
-    }
-
-    static String feedbackLanguage() {
-        return FEEDBACK_LANGUAGE;
-    }
-
-    static String sourceToTargetLabel() {
-        return SOURCE_LANGUAGE + " to " + TARGET_LANGUAGE;
-    }
-
-    static String targetToSourceLabel() {
-        return TARGET_LANGUAGE + " to " + SOURCE_LANGUAGE;
+    static LearningLanguageProfile of(
+            String sourceLanguage,
+            String targetLanguage,
+            String feedbackLanguage
+    ) {
+        return new LearningLanguageProfile(
+                sourceLanguage,
+                targetLanguage,
+                feedbackLanguage
+        );
     }
 
     static String promptPolicyBlock() {
+        return DEFAULT.toPromptPolicyBlock();
+    }
+
+    String sourceToTargetLabel() {
+        return sourceLanguage + " to " + targetLanguage;
+    }
+
+    String targetToSourceLabel() {
+        return targetLanguage + " to " + sourceLanguage;
+    }
+
+    String toPromptPolicyBlock() {
         return """
             LANGUAGE POLICY:
-            - Product focus: %s.
+            - Product focus: English learning.
             - Source/native language: %s.
             - Target/practice language: %s.
             - Feedback language: %s unless an immersion flow explicitly asks otherwise.
             - Keep legacy JSON keys unchanged for app compatibility.
-            """.formatted(MARKET_FOCUS, SOURCE_LANGUAGE, TARGET_LANGUAGE, FEEDBACK_LANGUAGE);
+            """.formatted(sourceLanguage, targetLanguage, feedbackLanguage);
+    }
+
+    private static String normalize(String value, String fallback) {
+        String normalized = Objects.toString(value, "").trim();
+        return normalized.isEmpty() ? fallback : normalized;
     }
 }

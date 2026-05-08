@@ -85,6 +85,7 @@ public class DailyWordsService {
     }
 
     private String generateDailyWordsPayload(LocalDate date) throws Exception {
+        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String prompt = """
                 %s
 
@@ -107,13 +108,13 @@ public class DailyWordsService {
 
                 Return only valid JSON. No markdown.
                 """.formatted(
-                LearningLanguageProfile.promptPolicyBlock(),
-                LearningLanguageProfile.targetLanguage(),
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
                 date,
-                LearningLanguageProfile.sourceLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.targetLanguage(),
-                LearningLanguageProfile.sourceLanguage()
+                profile.sourceLanguage(),
+                profile.targetLanguage(),
+                profile.targetLanguage(),
+                profile.sourceLanguage()
         );
 
         List<Map<String, String>> messages = new ArrayList<>();
