@@ -192,8 +192,8 @@ Definition of done:
 
 Amac: "5 dil UI" yerine gercekten calisan pazar secmek.
 
-- [x] Ilk hedef pazari net sec: Turkiye odakli English learning.
-- [x] UI'da global iddia yapma; once TR->EN deneyimi guclendir.
+- [x] Ilk hedef pazari net sec: English learning; TR/EN akislari en olgun desteklenen yol.
+- [x] UI'da global iddia yaparken mevcut dil olgunlugunu abartma.
 - [x] AI promptlarindaki Turkish varsayimini merkezi hale getir.
 - [ ] Daha sonra kaynak dil parametresi ekle:
   - `sourceLanguage`
