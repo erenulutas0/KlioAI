@@ -359,7 +359,7 @@ public class ChatbotControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(1));
 
-        verify(valueOperations).get(contains("Spanish:English:Spanish:apple"));
+        verify(valueOperations).get(contains("spanish:english:spanish:apple"));
         verify(chatbotService).generateSentences(anyString(), argThat((LearningLanguageProfile profile) ->
                 "Spanish".equals(profile.sourceLanguage())
                         && "English".equals(profile.targetLanguage())
@@ -1032,7 +1032,7 @@ public class ChatbotControllerTest {
                     }
                     return AiTokenQuotaService.Decision.blocked("daily-token-quota", 300, 50000, 50000);
                 });
-        when(aiProxyService.dictionaryLookup("apple"))
+        when(aiProxyService.dictionaryLookup(eq("apple"), any(LearningLanguageProfile.class)))
                 .thenReturn(new AiProxyService.AiJsonResult(
                         Map.of("word", "apple", "meanings", List.of()),
                         120,
@@ -1057,8 +1057,8 @@ public class ChatbotControllerTest {
         verify(aiTokenQuotaService).check(1L, "reading-generate");
         verify(aiTokenQuotaService).consume(1L, "dictionary-lookup", 120L);
         verify(aiTokenQuotaService, never()).consume(eq(1L), eq("reading-generate"), anyLong());
-        verify(aiProxyService, times(1)).dictionaryLookup("apple");
-        verify(aiProxyService, never()).generateReadingPassage(anyString());
+        verify(aiProxyService, times(1)).dictionaryLookup(eq("apple"), any(LearningLanguageProfile.class));
+        verify(aiProxyService, never()).generateReadingPassage(anyString(), any(LearningLanguageProfile.class));
     }
 
     @Test

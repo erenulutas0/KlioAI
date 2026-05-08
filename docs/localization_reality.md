@@ -20,6 +20,9 @@ Request-level language profiles are supported for core AI flows:
 - sentence generation
 - translation check
 - speaking evaluation
+- dictionary
+- reading
+- writing
 
 ## Next Step
 

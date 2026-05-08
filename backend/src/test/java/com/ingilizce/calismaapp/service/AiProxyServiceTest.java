@@ -3,6 +3,7 @@ package com.ingilizce.calismaapp.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -18,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -102,5 +104,36 @@ class AiProxyServiceTest {
         assertEquals("focus", result.json().get("word"));
         assertFalse(result.json().containsKey("fallback"));
         assertEquals(26, result.totalTokens());
+    }
+
+    @Test
+    void evaluateWriting_ShouldUseProvidedLanguageProfile() {
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("""
+                        {
+                          "score": 80,
+                          "strengths": [],
+                          "improvements": [],
+                          "grammar": "ok",
+                          "vocabulary": "ok",
+                          "coherence": "ok",
+                          "overall": "ok",
+                          "contextRelevance": "ok"
+                        }
+                        """, 7, 3, 10));
+
+        aiProxyService.evaluateWriting(
+                "This is my essay.",
+                "B2",
+                Map.of("topic", "Technology", "description", "AI in daily life"),
+                LearningLanguageProfile.of("German", "English", "German"));
+
+        ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), any(), any(),
+                nullable(String.class));
+        String prompt = messagesCaptor.getValue().get(1).get("content");
+        assertTrue(prompt.contains("Source/native language: German"));
+        assertTrue(prompt.contains("Target/practice language: English"));
+        assertTrue(prompt.contains("Return learner-facing feedback in German"));
     }
 }

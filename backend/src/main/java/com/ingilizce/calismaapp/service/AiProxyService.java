@@ -39,7 +39,10 @@ public class AiProxyService {
     }
 
     public AiJsonResult dictionaryLookup(String word) {
-        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
+        return dictionaryLookup(word, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult dictionaryLookup(String word, LearningLanguageProfile profile) {
         String system = """
 %s
 
@@ -62,7 +65,10 @@ Format: { "word": "input_word", "type": "noun/verb/adj", "meanings": [ { "transl
     }
 
     public AiJsonResult dictionaryLookupDetailed(String word) {
-        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
+        return dictionaryLookupDetailed(word, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult dictionaryLookupDetailed(String word, LearningLanguageProfile profile) {
         String prompt = """
 %s
 
@@ -109,7 +115,15 @@ Be comprehensive - include ALL common meanings and word types for "%s".
     }
 
     public AiJsonResult dictionaryGenerateSpecificSentence(String word, String translation, String context) {
-        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
+        return dictionaryGenerateSpecificSentence(word, translation, context, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult dictionaryGenerateSpecificSentence(
+            String word,
+            String translation,
+            String context,
+            LearningLanguageProfile profile
+    ) {
         String prompt = "Generate a new, simple %s sentence using the word '%s' specifically in the sense of '%s' (%s). Return valid JSON: { \"sentence\": \"...\" }"
                 .formatted(profile.targetLanguage(), word, translation, context);
         String system = "You are a helper generating specific example sentences. Return valid JSON only.";
@@ -117,7 +131,10 @@ Be comprehensive - include ALL common meanings and word types for "%s".
     }
 
     public AiJsonResult dictionaryExplainWordInSentence(String word, String sentence) {
-        LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
+        return dictionaryExplainWordInSentence(word, sentence, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult dictionaryExplainWordInSentence(String word, String sentence, LearningLanguageProfile profile) {
         String prompt = "Explain the meaning of the word '%s' inside this specific sentence: '%s'. Provide the definition in %s, keeping it very short/concise (max 15 words). Return ONLY valid JSON. Format: { \"definition\": \"...\" }"
                 .formatted(word, sentence, profile.sourceLanguage());
         String system = "You are a dictionary helper. Return valid JSON.";
@@ -125,6 +142,10 @@ Be comprehensive - include ALL common meanings and word types for "%s".
     }
 
     public AiJsonResult generateReadingPassage(String level) {
+        return generateReadingPassage(level, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult generateReadingPassage(String level, LearningLanguageProfile profile) {
         Map<String, Map<String, String>> levelConfig = new HashMap<>();
         levelConfig.put("A1", Map.of(
                 "wordCount", "80-120",
@@ -179,7 +200,9 @@ Be comprehensive - include ALL common meanings and word types for "%s".
         Map<String, String> config = levelConfig.getOrDefault(normalizedLevel, levelConfig.get("B1"));
 
 String prompt = """
-Generate a reading passage for English learners. Strictly follow these constraints:
+%s
+
+Generate a reading passage for %s learners. Strictly follow these constraints:
 
 LEVEL: %s
 WORD COUNT: %s words (strictly within this range)
@@ -213,6 +236,8 @@ Format:
   ]
 }
 """.formatted(
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
                 normalizedLevel,
                 config.get("wordCount"),
                 config.get("sentences"),
@@ -244,25 +269,43 @@ Format:
     }
 
     public AiJsonResult generateWritingTopic(String level, String wordCount) {
+        return generateWritingTopic(level, wordCount, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult generateWritingTopic(String level, String wordCount, LearningLanguageProfile profile) {
         long seed = System.currentTimeMillis();
         String prompt = """
-Generate a UNIQUE and creative writing topic for %s level English learners. The topic should be engaging and appropriate for someone who needs to write %s words.
+%s
+
+Generate a UNIQUE and creative writing topic for %s level %s learners. The topic should be engaging and appropriate for someone who needs to write %s words.
 IMPORTANT: Avoid generic topics like "My Daily Routine" unless explicitly asked.
 Try to be diverse (culture, science, abstract, storytelling, opinion, etc.).
 seed: %d
 
 Return JSON with:
 topic, description, level, wordCount.
-""".formatted(level, wordCount, seed);
+""".formatted(profile.toPromptPolicyBlock(), level, profile.targetLanguage(), wordCount, seed);
         return callJson("Return valid JSON only.", prompt, 450, 0.9, "writing-topic");
     }
 
     public AiJsonResult evaluateWriting(String text, String level, Map<String, Object> topic) {
+        return evaluateWriting(text, level, topic, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult evaluateWriting(
+            String text,
+            String level,
+            Map<String, Object> topic,
+            LearningLanguageProfile profile
+    ) {
         String topicTitle = topic != null && topic.get("topic") != null ? topic.get("topic").toString() : "";
         String topicDesc = topic != null && topic.get("description") != null ? topic.get("description").toString() : "";
 
         String prompt = """
-Evaluate this %s level English writing based on the following topic:
+%s
+
+Evaluate this %s level %s writing based on the following topic.
+Return learner-facing feedback in %s.
 
 TOPIC: %s
 DESCRIPTION: %s
@@ -286,7 +329,15 @@ JSON Format:
   "overall": string,
   "contextRelevance": string
 }
-""".formatted(level, topicTitle, topicDesc, text);
+""".formatted(
+                profile.toPromptPolicyBlock(),
+                level,
+                profile.targetLanguage(),
+                profile.feedbackLanguage(),
+                topicTitle,
+                topicDesc,
+                text
+        );
 
         return callJson("Return valid JSON only.", prompt, 900, 0.5, "writing-evaluate");
     }

@@ -207,9 +207,7 @@ public class ChatbotController {
         String normalizedWord = word.trim().toLowerCase();
         // Separate cache per user? Or global? Sentences are knowledge, so global is
         // fine.
-        String languageCachePart = languageProfile.sourceLanguage() + ":" + languageProfile.targetLanguage() + ":"
-                + languageProfile.feedbackLanguage();
-        String cacheKey = CACHE_KEY_PREFIX + languageCachePart + ":" + normalizedWord + ":" + String.join(",", levels) + ":"
+        String cacheKey = CACHE_KEY_PREFIX + languageCachePart(languageProfile) + ":" + normalizedWord + ":" + String.join(",", levels) + ":"
                 + String.join(",", lengths);
 
         try {
@@ -756,6 +754,12 @@ public class ChatbotController {
         return normalized.length() > 120 ? normalized.substring(0, 120) : normalized;
     }
 
+    private String languageCachePart(LearningLanguageProfile profile) {
+        return normalizeCacheToken(profile.sourceLanguage())
+                + ":" + normalizeCacheToken(profile.targetLanguage())
+                + ":" + normalizeCacheToken(profile.feedbackLanguage());
+    }
+
     private void recordCacheLookupMetric(String outcome, long latencyNanos) {
         if (meterRegistry == null) {
             return;
@@ -1113,19 +1117,20 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         if (word == null || word.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
         }
 
         String normalizedWord = normalizeCacheToken(word);
-        String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "lookup:" + normalizedWord;
+        String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "lookup:" + languageCachePart(languageProfile) + ":" + normalizedWord;
         try {
             Optional<Map<String, Object>> cached = loadMapFromCache(cacheKey);
             if (cached.isPresent()) {
                 return ResponseEntity.ok(cached.get());
             }
 
-            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookup(word.trim());
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookup(word.trim(), languageProfile);
             consumeAiTokens(userId, "dictionary-lookup", result.totalTokens());
             Map<String, Object> response = result.json() != null
                     ? result.json()
@@ -1148,19 +1153,20 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         if (word == null || word.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
         }
 
         String normalizedWord = normalizeCacheToken(word);
-        String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "lookup-detailed:" + normalizedWord;
+        String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "lookup-detailed:" + languageCachePart(languageProfile) + ":" + normalizedWord;
         try {
             Optional<Map<String, Object>> cached = loadMapFromCache(cacheKey);
             if (cached.isPresent()) {
                 return ResponseEntity.ok(cached.get());
             }
 
-            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookupDetailed(word.trim());
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryLookupDetailed(word.trim(), languageProfile);
             consumeAiTokens(userId, "dictionary-lookup-detailed", result.totalTokens());
             Map<String, Object> response = result.json() != null
                     ? result.json()
@@ -1184,19 +1190,21 @@ public class ChatbotController {
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
         String sentence = request.get("sentence") != null ? request.get("sentence").toString() : null;
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         if (word == null || word.trim().isEmpty() || sentence == null || sentence.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word and sentence are required"));
         }
 
         String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "explain:"
-                + normalizeCacheToken(word) + ":" + normalizeCacheToken(sentence);
+                + languageCachePart(languageProfile) + ":" + normalizeCacheToken(word) + ":" + normalizeCacheToken(sentence);
         try {
             Optional<Map<String, Object>> cached = loadMapFromCache(cacheKey);
             if (cached.isPresent()) {
                 return ResponseEntity.ok(cached.get());
             }
 
-            AiProxyService.AiJsonResult result = aiProxyService.dictionaryExplainWordInSentence(word.trim(), sentence.trim());
+            AiProxyService.AiJsonResult result = aiProxyService.dictionaryExplainWordInSentence(
+                    word.trim(), sentence.trim(), languageProfile);
             consumeAiTokens(userId, "dictionary-explain", result.totalTokens());
             Map<String, Object> response = result.json() != null
                     ? result.json()
@@ -1221,12 +1229,13 @@ public class ChatbotController {
         String word = request.get("word") != null ? request.get("word").toString() : null;
         String translation = request.get("translation") != null ? request.get("translation").toString() : null;
         String context = request.get("context") != null ? request.get("context").toString() : null;
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         if (word == null || word.trim().isEmpty() || translation == null || translation.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word and translation are required"));
         }
 
         String cacheKey = DICTIONARY_CACHE_KEY_PREFIX + "specific-sentence:"
-                + normalizeCacheToken(word) + ":" + normalizeCacheToken(translation) + ":"
+                + languageCachePart(languageProfile) + ":" + normalizeCacheToken(word) + ":" + normalizeCacheToken(translation) + ":"
                 + normalizeCacheToken(context);
         try {
             Optional<Map<String, Object>> cached = loadMapFromCache(cacheKey);
@@ -1237,7 +1246,8 @@ public class ChatbotController {
             AiProxyService.AiJsonResult result = aiProxyService.dictionaryGenerateSpecificSentence(
                     word.trim(),
                     translation.trim(),
-                    context != null ? context.trim() : "");
+                    context != null ? context.trim() : "",
+                    languageProfile);
             consumeAiTokens(userId, "dictionary-specific-sentence", result.totalTokens());
             Map<String, Object> response = result.json() != null
                     ? result.json()
@@ -1260,8 +1270,9 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         try {
-            AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(level);
+            AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(level, languageProfile);
             consumeAiTokens(userId, "reading-generate", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {
@@ -1281,8 +1292,9 @@ public class ChatbotController {
 
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
         String wordCount = request.get("wordCount") != null ? request.get("wordCount").toString() : "150-200";
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         try {
-            AiProxyService.AiJsonResult result = aiProxyService.generateWritingTopic(level, wordCount);
+            AiProxyService.AiJsonResult result = aiProxyService.generateWritingTopic(level, wordCount, languageProfile);
             consumeAiTokens(userId, "writing-topic", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {
@@ -1304,12 +1316,13 @@ public class ChatbotController {
         String text = request.get("text") != null ? request.get("text").toString() : null;
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
         Map<String, Object> topic = request.get("topic") instanceof Map ? (Map<String, Object>) request.get("topic") : null;
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
         if (text == null || text.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
         }
 
         try {
-            AiProxyService.AiJsonResult result = aiProxyService.evaluateWriting(text, level, topic);
+            AiProxyService.AiJsonResult result = aiProxyService.evaluateWriting(text, level, topic, languageProfile);
             consumeAiTokens(userId, "writing-evaluate", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {
