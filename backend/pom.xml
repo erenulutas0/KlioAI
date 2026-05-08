@@ -17,11 +17,11 @@
 		<java.version>17</java.version>
 		<testcontainers.version>1.21.3</testcontainers.version>
 		<docker.api.version>1.44</docker.api.version>
-		<postgresql.version>42.7.2</postgresql.version>
+		<postgresql.version>42.7.11</postgresql.version>
 		<tomcat.version>10.1.54</tomcat.version>
 		<spring-framework.version>6.2.11</spring-framework.version>
 		<spring-security.version>6.5.9</spring-security.version>
-		<netty.version>4.1.132.Final</netty.version>
+		<netty.version>4.1.133.Final</netty.version>
 	</properties>
 	<dependencies>
 		<dependency>
