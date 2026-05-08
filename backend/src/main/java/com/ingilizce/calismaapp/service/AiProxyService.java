@@ -379,8 +379,11 @@ JSON ÇIKTI FORMATI:
         int completionTokens = completion != null ? completion.completionTokens() : 0;
 
         Map<String, Object> parsed = tryParseJsonMap(cleaned);
-        if (parsed != null && !parsed.isEmpty()) {
+        if (parsed != null && !parsed.isEmpty() && isValidScopeJson(scope, parsed)) {
             return new AiJsonResult(parsed, totalTokens, promptTokens, completionTokens);
+        }
+        if (parsed != null && !parsed.isEmpty()) {
+            logger.warn("AI proxy JSON schema validation failed for scope={} keys={}", scope, parsed.keySet());
         }
 
         AiJsonResult rescue = tryRescueWithDefaultModel(
@@ -418,6 +421,34 @@ JSON ÇIKTI FORMATI:
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private boolean isValidScopeJson(String scope, Map<String, Object> parsed) {
+        if (parsed == null || parsed.isEmpty()) {
+            return false;
+        }
+        return switch (scope) {
+            case "dictionary-lookup", "dictionary-lookup-detailed" ->
+                    hasNonBlank(parsed, "word") && hasList(parsed, "meanings");
+            case "dictionary-specific-sentence" -> hasNonBlank(parsed, "sentence");
+            case "dictionary-explain" -> hasNonBlank(parsed, "definition");
+            case "reading-generate" ->
+                    hasNonBlank(parsed, "title") && hasNonBlank(parsed, "text") && hasList(parsed, "questions");
+            case "writing-topic" -> hasNonBlank(parsed, "topic") && hasNonBlank(parsed, "description");
+            case "writing-evaluate" -> parsed.containsKey("score") && hasNonBlank(parsed, "overall");
+            case "exam-generate" -> parsed.containsKey("meta") && hasList(parsed, "sections");
+            default -> true;
+        };
+    }
+
+    private boolean hasNonBlank(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value != null && !value.toString().trim().isBlank();
+    }
+
+    private boolean hasList(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value instanceof List<?> list && !list.isEmpty();
     }
 
     private Map<String, Object> buildScopeFallback(String scope, String userPrompt, String raw) {

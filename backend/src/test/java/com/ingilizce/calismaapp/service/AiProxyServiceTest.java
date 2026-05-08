@@ -64,6 +64,18 @@ class AiProxyServiceTest {
     }
 
     @Test
+    void generateReadingPassage_ShouldReturnFallbackPayload_WhenJsonSchemaIsInvalid() {
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("{\"message\":\"ok\"}", 7, 3, 10));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage("Intermediate");
+
+        assertTrue((Boolean) result.json().get("fallback"));
+        assertEquals("Daily Reading Practice", result.json().get("title"));
+        assertTrue(result.json().get("questions") instanceof List<?>);
+    }
+
+    @Test
     void dictionaryLookup_ShouldUseRescueModel_WhenPrimaryJsonParseFails() {
         ReflectionTestUtils.setField(aiProxyService, "aiModelRoutingService", aiModelRoutingService);
         when(aiModelRoutingService.resolveModelForScope("dictionary-lookup")).thenReturn("openai/gpt-oss-20b");

@@ -10,11 +10,10 @@ import java.util.Set;
 @ConfigurationProperties(prefix = "app.ai.model-routing")
 public class AiModelRoutingProperties {
     private boolean enabled = true;
-    private String defaultModel = "llama-3.3-70b-versatile";
+    private String defaultModel = "openai/gpt-oss-20b";
     private String speechModel = "llama-3.3-70b-versatile";
     private String utilityModel = "openai/gpt-oss-20b";
     private Set<String> speechScopes = new LinkedHashSet<>(Set.of(
-            "chat",
             "speaking-generate",
             "speaking-evaluate"));
 

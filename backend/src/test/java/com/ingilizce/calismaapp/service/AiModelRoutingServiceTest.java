@@ -16,12 +16,13 @@ class AiModelRoutingServiceTest {
         properties.setEnabled(true);
         properties.setSpeechModel("llama-3.3-70b-versatile");
         properties.setUtilityModel("openai/gpt-oss-20b");
-        properties.setSpeechScopes(Set.of("chat", "speaking-generate"));
+        properties.setSpeechScopes(Set.of("speaking-generate", "speaking-evaluate"));
 
         AiModelRoutingService service = new AiModelRoutingService(properties);
 
-        assertEquals("llama-3.3-70b-versatile", service.resolveModelForScope("chat"));
         assertEquals("llama-3.3-70b-versatile", service.resolveModelForScope("speaking-generate"));
+        assertEquals("llama-3.3-70b-versatile", service.resolveModelForScope("speaking-evaluate"));
+        assertEquals("openai/gpt-oss-20b", service.resolveModelForScope("chat"));
         assertEquals("openai/gpt-oss-20b", service.resolveModelForScope("dictionary-lookup"));
     }
 

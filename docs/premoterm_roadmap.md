@@ -179,8 +179,8 @@ Amac: Tek provider/model riskini azaltmak ve maliyet patlamasini onlemek.
   - token usage by model
   - provider error rate
   - quota block count
-- [ ] Pahali model kullanan scope'lari azalt.
-- [ ] JSON response isteyen islerde schema/validation ve retry limitlerini netlestir.
+- [x] Pahali model kullanan scope'lari azalt.
+- [x] JSON response isteyen islerde schema/validation ve retry limitlerini netlestir.
 
 Definition of done:
 
