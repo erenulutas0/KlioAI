@@ -72,6 +72,69 @@ class AnalyticsService {
     return logEvent('onboarding_completed', parameters: {'source': source});
   }
 
+  static Future<void> logActivationCardShown({
+    required int completedSteps,
+    required int wordCount,
+    required int sentenceCount,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_session_activation_card_shown',
+      eventName: 'first_session_activation_card_shown',
+      parameters: {
+        'completed_steps': completedSteps,
+        'word_count': wordCount,
+        'sentence_count': sentenceCount,
+      },
+    );
+  }
+
+  static Future<void> logActivationLevelSelected({
+    required String level,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_session_level_selected',
+      eventName: 'first_session_level_selected',
+      parameters: {'level': level},
+    );
+  }
+
+  static Future<void> logActivationStepCompleted({
+    required String step,
+    int? completedSteps,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_session_step_completed:$step',
+      eventName: 'first_session_step_completed',
+      parameters: {
+        'step': step,
+        if (completedSteps != null) 'completed_steps': completedSteps,
+      },
+    );
+  }
+
+  static Future<void> logActivationCompleted({
+    required int wordCount,
+    required int sentenceCount,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_session_activation_completed',
+      eventName: 'first_session_activation_completed',
+      parameters: {
+        'word_count': wordCount,
+        'sentence_count': sentenceCount,
+      },
+    );
+  }
+
+  static Future<void> logActivationDismissed({
+    required int completedSteps,
+  }) {
+    return logEvent(
+      'first_session_activation_dismissed',
+      parameters: {'completed_steps': completedSteps},
+    );
+  }
+
   static Future<void> logSignupCompleted({
     String method = 'email',
     String? userId,

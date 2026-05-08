@@ -23,6 +23,7 @@ import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
 import 'support_tickets_page.dart';
 import '../services/first_session_activation_service.dart';
+import '../services/analytics_service.dart';
 
 class HomePage extends StatefulWidget {
   final Function(String) onNavigate;
@@ -152,12 +153,18 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _selectActivationLevel(String level) async {
     await _activationService.setSelectedLevel(level);
+    await AnalyticsService.logActivationLevelSelected(level: level);
     if (!mounted) return;
     setState(() => _activationSelectedLevel = level);
   }
 
   Future<void> _dismissActivationCard() async {
+    final appState = context.read<AppStateProvider>();
+    final completedSteps = _activationCompletedSteps(appState);
     await _activationService.dismiss();
+    await AnalyticsService.logActivationDismissed(
+      completedSteps: completedSteps,
+    );
     if (!mounted) return;
     setState(() => _activationDismissed = true);
   }
@@ -260,6 +267,10 @@ class _HomePageState extends State<HomePage>
             _refreshActivationPracticeCompletion();
           });
         }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          unawaited(_trackActivationProgress(appState));
+        });
         final selectedTheme = _currentTheme(listen: true);
         final user = appState.userStats;
         final userName = appState.userName;
@@ -718,6 +729,68 @@ class _HomePageState extends State<HomePage>
 
   bool _shouldHideActivationCard() {
     return _activationDismissed;
+  }
+
+  int _activationCompletedSteps(AppStateProvider appState) {
+    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
+    final hasWords = appState.allWords.length >= 3;
+    final hasSentence = appState.allSentences.isNotEmpty;
+    final hasPractice = _activationPracticeCompleted;
+    return [
+      hasLevel,
+      hasWords,
+      hasSentence,
+      hasPractice,
+    ].where((item) => item).length;
+  }
+
+  Future<void> _trackActivationProgress(AppStateProvider appState) async {
+    if (_shouldHideActivationCard()) return;
+
+    final wordCount = appState.allWords.length;
+    final sentenceCount = appState.allSentences.length;
+    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
+    final hasWords = wordCount >= 3;
+    final hasSentence = sentenceCount > 0;
+    final hasPractice = _activationPracticeCompleted;
+    final completedSteps = _activationCompletedSteps(appState);
+
+    await AnalyticsService.logActivationCardShown(
+      completedSteps: completedSteps,
+      wordCount: wordCount,
+      sentenceCount: sentenceCount,
+    );
+
+    if (hasLevel) {
+      await AnalyticsService.logActivationStepCompleted(
+        step: 'level_selected',
+        completedSteps: completedSteps,
+      );
+    }
+    if (hasWords) {
+      await AnalyticsService.logActivationStepCompleted(
+        step: 'three_words_added',
+        completedSteps: completedSteps,
+      );
+    }
+    if (hasSentence) {
+      await AnalyticsService.logActivationStepCompleted(
+        step: 'first_sentence_added',
+        completedSteps: completedSteps,
+      );
+    }
+    if (hasPractice) {
+      await AnalyticsService.logActivationStepCompleted(
+        step: 'first_review_completed',
+        completedSteps: completedSteps,
+      );
+    }
+    if (completedSteps == 4) {
+      await AnalyticsService.logActivationCompleted(
+        wordCount: wordCount,
+        sentenceCount: sentenceCount,
+      );
+    }
   }
 
   String _activationText(String tr, String en) {

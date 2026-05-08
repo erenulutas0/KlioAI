@@ -93,7 +93,7 @@ Amac: Yeni kullaniciya her seyi gostermek yerine ilk kazanci yasatmak.
   - AI chat veya Writing
 - [ ] Word Galaxy, Neural Game, Exams ve ileri modlari progressive unlock yap.
 - [x] Home ekraninda "bugunku tek hedef" karti ekle.
-- [ ] Aktivasyon eventlerini analytics'e bagla.
+- [x] Aktivasyon eventlerini analytics'e bagla.
 
 Definition of done:
 
