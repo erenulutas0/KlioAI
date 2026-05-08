@@ -4,13 +4,13 @@ This document keeps the Play Store copy, keyword direction, and screenshot plan 
 
 ## Short Description
 
-AI-guided English practice for speaking, writing, vocabulary, and daily review.
+AI-guided English practice for Turkish speakers.
 
 ## Full Description
 
-KlioAI helps English learners build a daily practice habit with AI-supported speaking, writing, vocabulary, and review.
+KlioAI helps Turkish-speaking English learners build a daily practice habit with AI-supported speaking, writing, vocabulary, and review.
 
-Practice real conversations, write with structured feedback, save words with example sentences, and return to focused review sessions that keep difficult words visible. KlioAI is built for learners who want more than passive flashcards: each session is designed to turn saved vocabulary into active use.
+Practice real conversations, write with structured feedback, save words with example sentences, and return to focused review sessions that keep difficult words visible. KlioAI is built for Turkish speakers who want more than passive flashcards: each session is designed to turn saved vocabulary into active English use.
 
 What you can do with KlioAI:
 
@@ -21,7 +21,7 @@ What you can do with KlioAI:
 - Track progress, streaks, XP, and daily learning momentum.
 - Use theme-based learning spaces that keep practice visually focused.
 
-KlioAI is currently focused on Turkish and English learners, with English-first product copy and production-backed account, quota, and subscription systems.
+KlioAI is currently focused on Turkish native speakers learning English. Other UI languages should not be marketed as full learning-market support until source, target, and feedback language parameters are implemented end to end.
 
 ## Keyword Set
 

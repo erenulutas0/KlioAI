@@ -1,10 +1,10 @@
 # KlioAI
 
-KlioAI is an AI-assisted English learning app built for vocabulary growth, sentence practice, speaking, grammar, writing, and spaced review. The product combines structured study flows with interactive practice modes so learners can save words, create sentences, review them, and use AI feedback inside a single mobile experience.
+KlioAI is an AI-assisted English learning app currently focused on Turkish-speaking learners. It is built for vocabulary growth, sentence practice, speaking, grammar, writing, and spaced review. The product combines structured study flows with interactive practice modes so learners can save words, create sentences, review them, and use AI feedback inside a single mobile experience.
 
 ## Product Overview
 
-KlioAI focuses on practical English learning rather than passive memorization. Users can build a personal word bank, attach sentences to words, repeat content through classic and neural review modes, and use AI-powered practice tools for speaking, grammar, writing, and sentence generation.
+KlioAI focuses on practical Turkish-to-English learning rather than passive memorization. Users can build a personal word bank, attach sentences to words, repeat content through classic and neural review modes, and use AI-powered practice tools for speaking, grammar, writing, and sentence generation.
 
 Core learning experiences:
 
@@ -17,6 +17,10 @@ Core learning experiences:
 - Theme customization across the app.
 - In-app support ticket flow with daily ticket limits.
 - Google sign-in and Google Play subscription verification.
+
+## Market Focus
+
+The current production learning experience is Turkish native language to English target language. The UI may contain English product copy, but AI learning flows should not be marketed as broad multilingual support until source, target, and feedback language parameters are implemented end to end.
 
 ## Architecture
 
