@@ -205,7 +205,8 @@ Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN 
   - translation check
   - speaking evaluation
 - [x] Dictionary, reading ve writing AI proxy promptlarini request profiline gore uret.
-- [ ] User settings tarafindan varsayilan profili backend'e tasima; secenekler Turkish/English ile sinirli kalacak.
+- [x] Mevcut app language setting tarafindan varsayilan AI feedback dilini backend'e tasima; secenekler Turkish/English ile sinirli.
+- [ ] Ayrica native/source language icin explicit learning settings yuzeyi tasarla; secenekler Turkish/English ile sinirli kalacak.
 - [ ] Grammar icin non-English targetLanguage stratejisini belirle; mevcut hedef English oldugu icin LanguageTool `en-US` bilincli default.
 - [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 

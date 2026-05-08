@@ -7,6 +7,7 @@ import '../models/sentence_practice.dart';
 import '../config/app_config.dart';
 import 'analytics_service.dart';
 import 'auth_service.dart';
+import 'locale_text_service.dart';
 
 class ApiService {
   final http.Client client;
@@ -94,6 +95,14 @@ class ApiService {
       unawaited(AnalyticsService.logFirstAiUse(feature: feature));
     }
     return response;
+  }
+
+  Map<String, String> _learningLanguageProfile() {
+    return {
+      'sourceLanguage': 'Turkish',
+      'targetLanguage': 'English',
+      'feedbackLanguage': LocaleTextService.isTurkish ? 'Turkish' : 'English',
+    };
   }
 
   Future<void> registerPushToken({
@@ -721,6 +730,7 @@ class ApiService {
           'lengths': lengths,
           'checkGrammar': checkGrammar,
           'fresh': fresh,
+          ..._learningLanguageProfile(),
         }),
       ),
       feature: 'generate_sentences',
@@ -780,6 +790,7 @@ class ApiService {
     final body = <String, dynamic>{
       'direction': direction,
       'userTranslation': userTranslation,
+      ..._learningLanguageProfile(),
     };
     if (englishSentence != null) body['englishSentence'] = englishSentence;
     if (turkishSentence != null) body['turkishSentence'] = turkishSentence;
@@ -885,6 +896,7 @@ class ApiService {
           'testType': testType,
           'question': question,
           'response': responseText,
+          ..._learningLanguageProfile(),
         }),
       ),
       feature: 'speaking_test_evaluate',
@@ -913,7 +925,10 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/lookup'),
         headers: headers,
-        body: json.encode({'word': word}),
+        body: json.encode({
+          'word': word,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'dictionary_lookup',
       json: true,
@@ -938,7 +953,10 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/lookup-detailed'),
         headers: headers,
-        body: json.encode({'word': word}),
+        body: json.encode({
+          'word': word,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'dictionary_lookup_detailed',
       json: true,
@@ -964,7 +982,11 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/dictionary/explain'),
         headers: headers,
-        body: json.encode({'word': word, 'sentence': sentence}),
+        body: json.encode({
+          'word': word,
+          'sentence': sentence,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'dictionary_explain',
       json: true,
@@ -995,6 +1017,7 @@ class ApiService {
           'word': word,
           'translation': translation,
           'context': context,
+          ..._learningLanguageProfile(),
         }),
       ),
       feature: 'dictionary_generate_specific_sentence',
@@ -1020,7 +1043,10 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/reading/generate'),
         headers: headers,
-        body: json.encode({'level': level}),
+        body: json.encode({
+          'level': level,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'reading_generate',
       json: true,
@@ -1046,7 +1072,11 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/writing/generate-topic'),
         headers: headers,
-        body: json.encode({'level': level, 'wordCount': wordCount}),
+        body: json.encode({
+          'level': level,
+          'wordCount': wordCount,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'writing_generate_topic',
       json: true,
@@ -1073,7 +1103,12 @@ class ApiService {
       (headers) => client.post(
         Uri.parse('$url/chatbot/writing/evaluate'),
         headers: headers,
-        body: json.encode({'text': text, 'level': level, 'topic': topic}),
+        body: json.encode({
+          'text': text,
+          'level': level,
+          'topic': topic,
+          ..._learningLanguageProfile(),
+        }),
       ),
       feature: 'writing_evaluate',
       json: true,

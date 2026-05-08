@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/services/api_service.dart';
 import 'package:vocabmaster/services/auth_service.dart';
+import 'package:vocabmaster/services/locale_text_service.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/models/sentence_practice.dart';
 
@@ -14,6 +16,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
+    LocaleTextService.setAppLocale(const Locale('tr'));
     await AuthService().saveSession('test_token', 'test_refresh', {
       'id': 4,
       'userId': 4,
@@ -273,6 +276,53 @@ void main() {
               .having((e) => e.reason, 'reason', 'ai-access-disabled')
               .having((e) => e.upgradeRequired, 'upgradeRequired', true),
         ),
+      );
+    });
+
+    test(
+        'AI request payloads include supported language profile from app locale',
+        () async {
+      LocaleTextService.setAppLocale(const Locale('en'));
+      final seenPaths = <String>[];
+
+      final mockClient = MockClient((request) async {
+        seenPaths.add(request.url.path);
+        final body = json.decode(request.body) as Map<String, dynamic>;
+
+        expect(body['sourceLanguage'], 'Turkish');
+        expect(body['targetLanguage'], 'English');
+        expect(body['feedbackLanguage'], 'English');
+
+        if (request.url.path.endsWith('/chatbot/generate-sentences')) {
+          expect(body['word'], 'focus');
+          return http.Response(
+            json.encode({'sentences': [], 'translations': [], 'count': 0}),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/chatbot/dictionary/lookup')) {
+          expect(body['word'], 'focus');
+          return http.Response(
+            json.encode({'word': 'focus', 'meanings': []}),
+            200,
+          );
+        }
+
+        return http.Response('Not Found', 404);
+      });
+
+      final api = ApiService(client: mockClient, baseUrl: testBaseUrl);
+
+      await api.chatbotGenerateSentences(word: 'focus');
+      await api.chatbotDictionaryLookup(word: 'focus');
+
+      expect(
+        seenPaths,
+        containsAll([
+          '/api/chatbot/generate-sentences',
+          '/api/chatbot/dictionary/lookup',
+        ]),
       );
     });
 

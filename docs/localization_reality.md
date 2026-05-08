@@ -26,12 +26,22 @@ Request-level language profiles are supported for core AI flows:
 - reading
 - writing
 
+## Current Client Wiring
+
+The Flutter client now sends a supported AI language profile with quota-protected AI requests:
+
+- `sourceLanguage`: Turkish
+- `targetLanguage`: English
+- `feedbackLanguage`: Turkish or English based on the selected app UI language
+
+This keeps the mature Turkish-to-English learning path stable while allowing English UI users to receive AI feedback in English.
+
 ## Next Step
 
-Wire explicit user settings into all AI flows while keeping the current supported set to Turkish/English:
+Add an explicit learning-language settings surface before expanding beyond the current Turkish/English support window:
 
-- `sourceLanguage`
-- `targetLanguage`
-- `feedbackLanguage`
+- Native/source language
+- Target/practice language
+- Feedback language
 
 After that, rename or version legacy payload fields through a compatibility layer instead of a breaking DB/API migration.
