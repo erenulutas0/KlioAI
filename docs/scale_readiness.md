@@ -88,3 +88,19 @@ The alert set now covers:
 - Hikari pending connection waiters
 - Redis memory usage above 80%
 - Redis rejected connections
+
+## Static Landing
+
+Landing static hosting is documented in:
+
+`docs/landing_static_hosting.md`
+
+The landing page should be served by GitHub Pages, not the production VPS. This keeps marketing traffic away from the API host.
+
+## Managed Postgres
+
+The managed database migration plan is documented in:
+
+`docs/managed_postgres_migration.md`
+
+Current stance: stay on VPS PostgreSQL while traffic is low, restore tests pass, and operational load is manageable. Move when usage or reliability triggers are hit.

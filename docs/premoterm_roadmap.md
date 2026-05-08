@@ -215,8 +215,8 @@ Amac: Ilk buyume dalgasinda tamamen dusmemek.
 - [x] VPS disk doluluk alarmi ekle.
 - [x] Backend health check disinda sentetik prod smoke test ekle.
 - [x] Hikari pool, Redis memory ve JVM memory metriklerini izle.
-- [ ] Statik landing assetleri CDN/GitHub Pages tarafinda tut.
-- [ ] Gerektiginde DB'yi managed Postgres'e tasima planini dokumante et.
+- [x] Statik landing assetleri CDN/GitHub Pages tarafinda tut.
+- [x] Gerektiginde DB'yi managed Postgres'e tasima planini dokumante et.
 - [x] Scale readiness calisma notlarini dokumante et: `docs/scale_readiness.md`.
 
 Definition of done:
