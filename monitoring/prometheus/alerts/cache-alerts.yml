@@ -135,3 +135,102 @@ groups:
         annotations:
           summary: "AI rate-limit blocking spike detected"
           description: "AI rate-limit blocks reached {{ $value | printf \"%.0f\" }} in the last 5m."
+
+  - name: scale-readiness-observability
+    rules:
+      - record: node_filesystem_used_ratio:ratio5m
+        expr: |
+          1 -
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint!~"/run.*|/var/lib/docker/.+"}
+            /
+            clamp_min(node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint!~"/run.*|/var/lib/docker/.+"}, 1)
+          )
+
+      - alert: VpsDiskUsageHigh
+        expr: max(node_filesystem_used_ratio:ratio5m) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          component: vps-disk
+        annotations:
+          summary: "VPS disk usage is high"
+          description: "Disk usage is {{ $value | printf \"%.2f\" }} of capacity. Review Docker image/cache usage and old backups before deploying."
+
+      - alert: VpsDiskUsageCritical
+        expr: max(node_filesystem_used_ratio:ratio5m) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          component: vps-disk
+        annotations:
+          summary: "VPS disk usage is critical"
+          description: "Disk usage is {{ $value | printf \"%.2f\" }} of capacity. New deploys or backups may fail."
+
+      - record: backend_jvm_heap_used_ratio:ratio5m
+        expr: |
+          sum(jvm_memory_used_bytes{area="heap"})
+          /
+          clamp_min(sum(jvm_memory_max_bytes{area="heap"}), 1)
+
+      - alert: BackendJvmHeapUsageHigh
+        expr: backend_jvm_heap_used_ratio:ratio5m > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: backend-jvm
+        annotations:
+          summary: "Backend JVM heap usage is high"
+          description: "Heap usage is {{ $value | printf \"%.2f\" }} of max heap over the last window."
+
+      - record: backend_hikari_active_ratio:ratio5m
+        expr: |
+          sum(hikaricp_connections_active)
+          /
+          clamp_min(sum(hikaricp_connections_max), 1)
+
+      - alert: BackendHikariPoolSaturationHigh
+        expr: backend_hikari_active_ratio:ratio5m > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: backend-db-pool
+        annotations:
+          summary: "Backend database connection pool is near saturation"
+          description: "Hikari active/max ratio is {{ $value | printf \"%.2f\" }}."
+
+      - alert: BackendHikariThreadsAwaitingConnection
+        expr: sum(hikaricp_connections_pending) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: backend-db-pool
+        annotations:
+          summary: "Backend requests are waiting for database connections"
+          description: "Hikari pending connection count is {{ $value | printf \"%.0f\" }}."
+
+      - record: redis_memory_used_ratio:ratio5m
+        expr: |
+          redis_memory_used_bytes
+          /
+          clamp_min(redis_memory_max_bytes, 1)
+
+      - alert: RedisMemoryUsageHigh
+        expr: max by (redis_instance) (redis_memory_used_ratio:ratio5m) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis {{ $labels.redis_instance }} memory usage is {{ $value | printf \"%.2f\" }} of configured maxmemory."
+
+      - alert: RedisRejectedConnectionsDetected
+        expr: increase(redis_rejected_connections_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis rejected client connections"
+          description: "Redis rejected {{ $value | printf \"%.0f\" }} connections in the last 5m."

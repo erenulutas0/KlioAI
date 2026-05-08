@@ -64,3 +64,27 @@ Last production restore verification:
 - Never test restore directly against the production database.
 - A backup is not proven until it has been restored into an isolated database at least once.
 - If disk usage passes 80%, review Docker image/cache usage and old backup retention before deploying.
+
+## Monitoring Stack
+
+`docker-compose.monitoring.yml` adds:
+
+- Prometheus
+- Alertmanager
+- Grafana
+- Node exporter for VPS disk/filesystem metrics
+- Redis exporters for main Redis and security Redis
+- Backend Prometheus metrics exposure through the monitoring overlay only
+
+Scale-readiness alerts are defined in:
+
+`monitoring/prometheus/alerts/cache-alerts.yml`
+
+The alert set now covers:
+
+- VPS disk usage warning at 80%, critical at 90%
+- JVM heap usage above 85%
+- Hikari active connection saturation above 85%
+- Hikari pending connection waiters
+- Redis memory usage above 80%
+- Redis rejected connections

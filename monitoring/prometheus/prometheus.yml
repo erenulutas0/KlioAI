@@ -17,3 +17,22 @@ scrape_configs:
     static_configs:
       - targets:
           - backend:8082
+
+  - job_name: node
+    static_configs:
+      - targets:
+          - node-exporter:9100
+
+  - job_name: redis-main
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+        labels:
+          redis_instance: main
+
+  - job_name: redis-security
+    static_configs:
+      - targets:
+          - redis-security-exporter:9121
+        labels:
+          redis_instance: security

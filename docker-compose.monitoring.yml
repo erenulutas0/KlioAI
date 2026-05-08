@@ -1,4 +1,10 @@
 services:
+  backend:
+    environment:
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,prometheus
+      MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED: "true"
+      MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED: "true"
+
   prometheus:
     image: prom/prometheus:v2.53.1
     command:
@@ -16,6 +22,41 @@ services:
         condition: service_healthy
       alertmanager:
         condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${SPRING_DATA_REDIS_PASSWORD:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis-security-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      REDIS_ADDR: redis://redis-security:6379
+      REDIS_PASSWORD: ${SPRING_DATA_REDIS_SECURITY_PASSWORD:-}
+    depends_on:
+      redis-security:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped

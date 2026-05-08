@@ -212,9 +212,9 @@ Definition of done:
 Amac: Ilk buyume dalgasinda tamamen dusmemek.
 
 - [x] PostgreSQL backup + restore test scripti ekle.
-- [ ] VPS disk doluluk alarmi ekle.
+- [x] VPS disk doluluk alarmi ekle.
 - [x] Backend health check disinda sentetik prod smoke test ekle.
-- [ ] Hikari pool, Redis memory ve JVM memory metriklerini izle.
+- [x] Hikari pool, Redis memory ve JVM memory metriklerini izle.
 - [ ] Statik landing assetleri CDN/GitHub Pages tarafinda tut.
 - [ ] Gerektiginde DB'yi managed Postgres'e tasima planini dokumante et.
 - [x] Scale readiness calisma notlarini dokumante et: `docs/scale_readiness.md`.
