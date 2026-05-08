@@ -199,8 +199,12 @@ Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN 
   - `sourceLanguage`
   - `targetLanguage`
   - `feedbackLanguage`
-- [ ] Request/user ayarlarindan bu profili tum AI akislarina bagla.
-- [ ] Speaking, grammar, writing ve dictionary promptlarini request/user profiline gore uret.
+- [x] Request payload'indan bu profili core AI akislarina bagla:
+  - sentence generation
+  - translation check
+  - speaking evaluation
+- [ ] User settings tarafindan varsayilan profili backend'e tasima.
+- [ ] Grammar, writing ve dictionary promptlarini request/user profiline gore uret.
 - [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 
 Definition of done:

@@ -13,6 +13,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -52,6 +53,24 @@ class ChatbotServiceTest {
         assertEquals("user", messages.get(1).get("role"));
         assertNotNull(messages.get(0).get("content"));
         assertEquals("Target word: apple", messages.get(1).get("content"));
+    }
+
+    @Test
+    void generateSentences_ShouldUseProvidedLanguageProfile() {
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("{\"sentences\":[]}", 1, 2, 3));
+
+        chatbotService.generateSentences(
+                "Target word: apple",
+                LearningLanguageProfile.of("Spanish", "English", "Spanish"));
+
+        ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), any(), any(),
+                nullable(String.class));
+        String systemPrompt = messagesCaptor.getValue().get(0).get("content");
+        assertTrue(systemPrompt.contains("Source/native language: Spanish"));
+        assertTrue(systemPrompt.contains("Target/practice language: English"));
+        assertTrue(systemPrompt.contains("Feedback language: Spanish"));
     }
 
     @Test

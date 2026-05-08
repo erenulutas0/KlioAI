@@ -15,9 +15,15 @@ The most mature language path today is Turkish source/native language to English
 
 Backend prompts should read language assumptions from `LearningLanguageProfile` instead of scattering hardcoded language decisions across services. New prompt work should accept a profile where practical, and only fall back to the default profile for compatibility.
 
+Request-level language profiles are supported for core AI flows:
+
+- sentence generation
+- translation check
+- speaking evaluation
+
 ## Next Step
 
-Wire explicit request/user settings into all AI flows:
+Wire explicit user settings into all AI flows:
 
 - `sourceLanguage`
 - `targetLanguage`

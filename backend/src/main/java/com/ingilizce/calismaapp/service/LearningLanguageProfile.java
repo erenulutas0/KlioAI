@@ -2,7 +2,7 @@ package com.ingilizce.calismaapp.service;
 
 import java.util.Objects;
 
-record LearningLanguageProfile(
+public record LearningLanguageProfile(
         String sourceLanguage,
         String targetLanguage,
         String feedbackLanguage
@@ -11,23 +11,23 @@ record LearningLanguageProfile(
     private static final String DEFAULT_SOURCE_LANGUAGE = "Turkish";
     private static final String DEFAULT_TARGET_LANGUAGE = "English";
 
-    static final LearningLanguageProfile DEFAULT = new LearningLanguageProfile(
+    public static final LearningLanguageProfile DEFAULT = new LearningLanguageProfile(
             "Turkish",
             "English",
             "Turkish"
     );
 
-    LearningLanguageProfile {
+    public LearningLanguageProfile {
         sourceLanguage = normalize(sourceLanguage, DEFAULT_SOURCE_LANGUAGE);
         targetLanguage = normalize(targetLanguage, DEFAULT_TARGET_LANGUAGE);
         feedbackLanguage = normalize(feedbackLanguage, sourceLanguage);
     }
 
-    static LearningLanguageProfile defaultProfile() {
+    public static LearningLanguageProfile defaultProfile() {
         return DEFAULT;
     }
 
-    static LearningLanguageProfile of(
+    public static LearningLanguageProfile of(
             String sourceLanguage,
             String targetLanguage,
             String feedbackLanguage
@@ -39,19 +39,19 @@ record LearningLanguageProfile(
         );
     }
 
-    static String promptPolicyBlock() {
+    public static String promptPolicyBlock() {
         return DEFAULT.toPromptPolicyBlock();
     }
 
-    String sourceToTargetLabel() {
+    public String sourceToTargetLabel() {
         return sourceLanguage + " to " + targetLanguage;
     }
 
-    String targetToSourceLabel() {
+    public String targetToSourceLabel() {
         return targetLanguage + " to " + sourceLanguage;
     }
 
-    String toPromptPolicyBlock() {
+    public String toPromptPolicyBlock() {
         return """
             LANGUAGE POLICY:
             - Product focus: English learning.

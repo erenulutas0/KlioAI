@@ -31,7 +31,11 @@ public class ChatbotService {
    * Cümle üretme servisi - UNIVERSAL MODE
    */
   public AiCallResult generateSentences(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.generateSentences();
+    return generateSentences(message, LearningLanguageProfile.defaultProfile());
+  }
+
+  public AiCallResult generateSentences(String message, LearningLanguageProfile profile) {
+    PromptCatalog.PromptDef def = PromptCatalog.generateSentences(profile);
     return callGroq(def, message);
   }
 
@@ -39,7 +43,11 @@ public class ChatbotService {
    * Çeviri kontrolü servisi
    */
   public AiCallResult checkTranslation(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.checkTranslation();
+    return checkTranslation(message, LearningLanguageProfile.defaultProfile());
+  }
+
+  public AiCallResult checkTranslation(String message, LearningLanguageProfile profile) {
+    PromptCatalog.PromptDef def = PromptCatalog.checkTranslation(profile);
     return callGroq(def, message);
   }
 
@@ -47,7 +55,11 @@ public class ChatbotService {
    * İngilizce Çeviri kontrolü servisi (TR -> EN)
    */
   public AiCallResult checkEnglishTranslation(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.checkEnglishTranslation();
+    return checkEnglishTranslation(message, LearningLanguageProfile.defaultProfile());
+  }
+
+  public AiCallResult checkEnglishTranslation(String message, LearningLanguageProfile profile) {
+    PromptCatalog.PromptDef def = PromptCatalog.checkEnglishTranslation(profile);
     return callGroq(def, message);
   }
 
@@ -78,7 +90,11 @@ public class ChatbotService {
    * IELTS/TOEFL Speaking test puanlama servisi
    */
   public AiCallResult evaluateSpeakingTest(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.evaluateSpeakingTest();
+    return evaluateSpeakingTest(message, LearningLanguageProfile.defaultProfile());
+  }
+
+  public AiCallResult evaluateSpeakingTest(String message, LearningLanguageProfile profile) {
+    PromptCatalog.PromptDef def = PromptCatalog.evaluateSpeakingTest(profile);
     return callGroq(def, message + " Return ONLY JSON.");
   }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.dto.PracticeSentence;
 import com.ingilizce.calismaapp.service.ChatbotService;
+import com.ingilizce.calismaapp.service.LearningLanguageProfile;
 import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
@@ -86,6 +87,36 @@ public class ChatbotController {
                 false);
     }
 
+    private LearningLanguageProfile languageProfileFrom(Map<?, ?> request) {
+        if (request == null) {
+            return LearningLanguageProfile.defaultProfile();
+        }
+        return LearningLanguageProfile.of(
+                stringValue(request.get("sourceLanguage")),
+                stringValue(request.get("targetLanguage")),
+                stringValue(request.get("feedbackLanguage")));
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString().trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     // Securely retrieve UserID from the authenticated session (JWT)
     // private Long getUserId() { ... }
     // In a real Spring Security setup, we get Principal from context.
@@ -146,6 +177,7 @@ public class ChatbotController {
                 Boolean.parseBoolean(request.get("checkGrammar").toString());
         boolean fresh = request.get("fresh") != null &&
                 Boolean.parseBoolean(request.get("fresh").toString());
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
 
         if (word == null || word.trim().isEmpty()) {
             Map<String, Object> error = new HashMap<>();
@@ -175,7 +207,9 @@ public class ChatbotController {
         String normalizedWord = word.trim().toLowerCase();
         // Separate cache per user? Or global? Sentences are knowledge, so global is
         // fine.
-        String cacheKey = CACHE_KEY_PREFIX + normalizedWord + ":" + String.join(",", levels) + ":"
+        String languageCachePart = languageProfile.sourceLanguage() + ":" + languageProfile.targetLanguage() + ":"
+                + languageProfile.feedbackLanguage();
+        String cacheKey = CACHE_KEY_PREFIX + languageCachePart + ":" + normalizedWord + ":" + String.join(",", levels) + ":"
                 + String.join(",", lengths);
 
         try {
@@ -214,7 +248,7 @@ public class ChatbotController {
 
                 String message = levelLengthInfo.toString();
 
-                ChatbotService.AiCallResult llm = chatbotService.generateSentences(message);
+                ChatbotService.AiCallResult llm = chatbotService.generateSentences(message, languageProfile);
                 consumeAiTokens(userId, "generate-sentences", llm.totalTokens());
                 String jsonResponse = llm.content();
                 allSentences = sanitizePracticeSentences(
@@ -785,6 +819,7 @@ public class ChatbotController {
     private ResponseEntity<Map<String, Object>> originalCheckTranslation(Map<String, String> request, Long userId) {
         String direction = request.getOrDefault("direction", "EN_TO_TR");
         String userTranslation = request.get("userTranslation");
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
 
         if (userTranslation == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Please provide translation"));
@@ -792,26 +827,30 @@ public class ChatbotController {
 
         try {
             ChatbotService.AiCallResult response;
-            if ("TR_TO_EN".equals(direction)) {
-                String turkishSentence = request.get("turkishSentence");
-                String englishRef = request.get("englishSentence");
-                if (turkishSentence == null) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "Turkish sentence is required"));
+            if ("TR_TO_EN".equals(direction) || "SOURCE_TO_TARGET".equals(direction)) {
+                String sourceSentence = firstNonBlank(request.get("sourceSentence"), request.get("turkishSentence"));
+                String targetRef = firstNonBlank(request.get("targetSentence"), request.get("englishSentence"));
+                if (sourceSentence == null) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", languageProfile.sourceLanguage() + " sentence is required"));
                 }
-                String combinedMessage = "Turkish sentence: " + turkishSentence + ". User's English translation: "
+                String combinedMessage = languageProfile.sourceLanguage() + " sentence: " + sourceSentence
+                        + ". User's " + languageProfile.targetLanguage() + " translation: "
                         + userTranslation + ".";
-                if (englishRef != null)
-                    combinedMessage += " (Reference: " + englishRef + ")";
+                if (targetRef != null)
+                    combinedMessage += " (Reference: " + targetRef + ")";
                 combinedMessage += " Evaluate this translation generously. Return ONLY JSON.";
-                response = chatbotService.checkEnglishTranslation(combinedMessage);
+                response = chatbotService.checkEnglishTranslation(combinedMessage, languageProfile);
             } else {
-                String englishSentence = request.get("englishSentence");
-                if (englishSentence == null) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "English sentence is required"));
+                String targetSentence = firstNonBlank(request.get("targetSentence"), request.get("englishSentence"));
+                if (targetSentence == null) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", languageProfile.targetLanguage() + " sentence is required"));
                 }
-                String combinedMessage = "English sentence: " + englishSentence + ". User's Turkish translation: "
-                        + userTranslation + ". Evaluate this translation generously. Return ONLY JSON.";
-                response = chatbotService.checkTranslation(combinedMessage);
+                String combinedMessage = languageProfile.targetLanguage() + " sentence: " + targetSentence
+                        + ". User's " + languageProfile.sourceLanguage() + " translation: " + userTranslation
+                        + ". Evaluate this translation generously. Return ONLY JSON.";
+                response = chatbotService.checkTranslation(combinedMessage, languageProfile);
             }
             consumeAiTokens(userId, "check-translation", response != null ? response.totalTokens() : 0);
             return ResponseEntity.ok(parseJsonResponse(response != null ? response.content() : null));
@@ -1035,6 +1074,7 @@ public class ChatbotController {
         String testType = request.get("testType");
         String question = request.get("question");
         String response = request.get("response");
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
 
         if (testType == null || question == null || response == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Please provide testType, question, and response"));
@@ -1044,7 +1084,7 @@ public class ChatbotController {
             String message = String.format(
                     "Evaluate this %s Speaking test response. Question: %s. Candidate's response: %s. Return ONLY JSON.",
                     testType, question, response);
-            ChatbotService.AiCallResult llm = chatbotService.evaluateSpeakingTest(message);
+            ChatbotService.AiCallResult llm = chatbotService.evaluateSpeakingTest(message, languageProfile);
             String llmResponse = llm.content();
             consumeAiTokens(userId, "speaking-evaluate", llm.totalTokens());
 
