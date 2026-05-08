@@ -5,9 +5,9 @@ param(
     [string]$PostgresDatabase = "EnglishApp",
     [string]$PostgresUser = "postgres",
     [int]$ExpectedTrialDays = 7,
-    [long]$ExpectedTrialDailyTokenLimit = 25000,
-    [long]$ExpectedPremiumDailyTokenLimit = 50000,
-    [long]$ExpectedPremiumPlusDailyTokenLimit = 100000
+    [long]$ExpectedTrialDailyTokenLimit = 5000,
+    [long]$ExpectedPremiumDailyTokenLimit = 30000,
+    [long]$ExpectedPremiumPlusDailyTokenLimit = 60000
 )
 
 Set-StrictMode -Version Latest
