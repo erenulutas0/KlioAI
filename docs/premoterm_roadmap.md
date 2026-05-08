@@ -194,6 +194,7 @@ Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN 
 
 - [x] Urun konumunu netlestir: global English learning; TR/EN akislari en olgun desteklenen yol.
 - [x] UI'da/global copy'de mevcut dil olgunlugunu abartma.
+- [x] Simdilik desteklenen dil yuzeyini sinirla: UI ve AI language profile sadece Turkish/English.
 - [x] AI promptlarindaki Turkish varsayimini merkezi hale getir.
 - [x] Backend prompt profili icin kaynak/hedef/geri bildirim dili temelini ekle:
   - `sourceLanguage`
@@ -204,7 +205,7 @@ Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN 
   - translation check
   - speaking evaluation
 - [x] Dictionary, reading ve writing AI proxy promptlarini request profiline gore uret.
-- [ ] User settings tarafindan varsayilan profili backend'e tasima.
+- [ ] User settings tarafindan varsayilan profili backend'e tasima; secenekler Turkish/English ile sinirli kalacak.
 - [ ] Grammar icin non-English targetLanguage stratejisini belirle; mevcut hedef English oldugu icin LanguageTool `en-US` bilincli default.
 - [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 
@@ -212,7 +213,7 @@ Definition of done:
 
 - Uygulama global English learning iddiasiyla tutarli kalir.
 - TR kaynak dili ile EN ogrenme akisi kaliteli calisir.
-- Diger kaynak diller request/user profiliyle kontrollu sekilde devreye alinir.
+- Diger kaynak diller desteklenene kadar urun yuzeyinde gosterilmez.
 
 ## Phase 8 - Scale Readiness
 

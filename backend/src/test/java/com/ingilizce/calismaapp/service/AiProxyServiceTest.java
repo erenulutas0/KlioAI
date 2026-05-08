@@ -126,14 +126,14 @@ class AiProxyServiceTest {
                 "This is my essay.",
                 "B2",
                 Map.of("topic", "Technology", "description", "AI in daily life"),
-                LearningLanguageProfile.of("German", "English", "German"));
+                LearningLanguageProfile.of("Turkish", "English", "English"));
 
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
         verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), any(), any(),
                 nullable(String.class));
         String prompt = messagesCaptor.getValue().get(1).get("content");
-        assertTrue(prompt.contains("Source/native language: German"));
+        assertTrue(prompt.contains("Source/native language: Turkish"));
         assertTrue(prompt.contains("Target/practice language: English"));
-        assertTrue(prompt.contains("Return learner-facing feedback in German"));
+        assertTrue(prompt.contains("Return learner-facing feedback in English"));
     }
 }

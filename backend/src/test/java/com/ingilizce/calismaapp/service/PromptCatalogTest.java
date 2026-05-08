@@ -19,13 +19,13 @@ class PromptCatalogTest {
 
     @Test
     void generateSentences_ShouldAcceptCustomLanguageProfile() {
-        LearningLanguageProfile profile = LearningLanguageProfile.of("Spanish", "English", "Spanish");
+        LearningLanguageProfile profile = LearningLanguageProfile.of("tr", "en", "en");
 
         PromptCatalog.PromptDef promptDef = PromptCatalog.generateSentences(profile);
 
-        assertTrue(promptDef.systemPrompt().contains("Source/native language: Spanish"));
+        assertTrue(promptDef.systemPrompt().contains("Source/native language: Turkish"));
         assertTrue(promptDef.systemPrompt().contains("Target/practice language: English"));
-        assertTrue(promptDef.systemPrompt().contains("Feedback language: Spanish"));
+        assertTrue(promptDef.systemPrompt().contains("Feedback language: English"));
     }
 
     @Test
@@ -38,11 +38,20 @@ class PromptCatalogTest {
 
     @Test
     void speakingEvaluation_ShouldAcceptCustomFeedbackLanguage() {
-        LearningLanguageProfile profile = LearningLanguageProfile.of("German", "English", "German");
+        LearningLanguageProfile profile = LearningLanguageProfile.of("Turkish", "English", "English");
 
         PromptCatalog.PromptDef promptDef = PromptCatalog.evaluateSpeakingTest(profile);
 
-        assertTrue(promptDef.systemPrompt().contains("Feedback language: German"));
-        assertTrue(promptDef.systemPrompt().contains("detailed feedback in German"));
+        assertTrue(promptDef.systemPrompt().contains("Feedback language: English"));
+        assertTrue(promptDef.systemPrompt().contains("detailed feedback in English"));
+    }
+
+    @Test
+    void languageProfile_ShouldFallbackUnsupportedLanguagesToCurrentSupportedPair() {
+        LearningLanguageProfile profile = LearningLanguageProfile.of("Spanish", "French", "German");
+
+        assertTrue(profile.toPromptPolicyBlock().contains("Source/native language: Turkish"));
+        assertTrue(profile.toPromptPolicyBlock().contains("Target/practice language: English"));
+        assertTrue(profile.toPromptPolicyBlock().contains("Feedback language: Turkish"));
     }
 }

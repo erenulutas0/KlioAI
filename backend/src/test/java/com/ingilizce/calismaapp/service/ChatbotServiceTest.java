@@ -62,15 +62,15 @@ class ChatbotServiceTest {
 
         chatbotService.generateSentences(
                 "Target word: apple",
-                LearningLanguageProfile.of("Spanish", "English", "Spanish"));
+                LearningLanguageProfile.of("Turkish", "English", "English"));
 
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
         verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), any(), any(),
                 nullable(String.class));
         String systemPrompt = messagesCaptor.getValue().get(0).get("content");
-        assertTrue(systemPrompt.contains("Source/native language: Spanish"));
+        assertTrue(systemPrompt.contains("Source/native language: Turkish"));
         assertTrue(systemPrompt.contains("Target/practice language: English"));
-        assertTrue(systemPrompt.contains("Feedback language: Spanish"));
+        assertTrue(systemPrompt.contains("Feedback language: English"));
     }
 
     @Test

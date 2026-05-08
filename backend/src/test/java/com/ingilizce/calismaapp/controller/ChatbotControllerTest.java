@@ -351,19 +351,19 @@ public class ChatbotControllerTest {
                 .content("""
                         {
                           "word":"apple",
-                          "sourceLanguage":"Spanish",
+                          "sourceLanguage":"tr",
                           "targetLanguage":"English",
-                          "feedbackLanguage":"Spanish"
+                          "feedbackLanguage":"en"
                         }
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(1));
 
-        verify(valueOperations).get(contains("spanish:english:spanish:apple"));
+        verify(valueOperations).get(contains("turkish:english:english:apple"));
         verify(chatbotService).generateSentences(anyString(), argThat((LearningLanguageProfile profile) ->
-                "Spanish".equals(profile.sourceLanguage())
+                "Turkish".equals(profile.sourceLanguage())
                         && "English".equals(profile.targetLanguage())
-                        && "Spanish".equals(profile.feedbackLanguage())));
+                        && "English".equals(profile.feedbackLanguage())));
     }
 
     @Test
@@ -682,7 +682,7 @@ public class ChatbotControllerTest {
     }
 
     @Test
-    void checkTranslationAcceptsGeneralSourceTargetFields() throws Exception {
+    void checkTranslationFallsBackUnsupportedLanguageProfileToSupportedPair() throws Exception {
         when(chatbotService.checkEnglishTranslation(anyString(), any(LearningLanguageProfile.class)))
                 .thenReturn(ai("{\"isCorrect\":true,\"correctTranslation\":\"Hello\",\"feedback\":\"Good\"}"));
 
@@ -704,12 +704,12 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.isCorrect").value(true));
 
         verify(chatbotService).checkEnglishTranslation(argThat(msg ->
-                msg.contains("Spanish sentence: Hola")
+                msg.contains("Turkish sentence: Hola")
                         && msg.contains("User's English translation: Hello")),
                 argThat((LearningLanguageProfile profile) ->
-                        "Spanish".equals(profile.sourceLanguage())
+                        "Turkish".equals(profile.sourceLanguage())
                                 && "English".equals(profile.targetLanguage())
-                                && "Spanish".equals(profile.feedbackLanguage())));
+                                && "Turkish".equals(profile.feedbackLanguage())));
     }
 
     @Test
@@ -893,18 +893,18 @@ public class ChatbotControllerTest {
                           "testType":"IELTS",
                           "question":"Q",
                           "response":"A",
-                          "sourceLanguage":"German",
+                          "sourceLanguage":"Turkish",
                           "targetLanguage":"English",
-                          "feedbackLanguage":"German"
+                          "feedbackLanguage":"English"
                         }
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.score").value(80));
 
         verify(chatbotService).evaluateSpeakingTest(anyString(), argThat((LearningLanguageProfile profile) ->
-                "German".equals(profile.sourceLanguage())
+                "Turkish".equals(profile.sourceLanguage())
                         && "English".equals(profile.targetLanguage())
-                        && "German".equals(profile.feedbackLanguage())));
+                        && "English".equals(profile.feedbackLanguage())));
     }
 
     @Test
