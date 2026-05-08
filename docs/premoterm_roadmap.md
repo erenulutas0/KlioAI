@@ -192,14 +192,15 @@ Definition of done:
 
 Amac: "5 dil UI" yerine gercekten calisan pazar secmek.
 
-- [ ] Ilk hedef pazari net sec: Turkiye odakli English learning.
+- [x] Ilk hedef pazari net sec: Turkiye odakli English learning.
 - [ ] UI'da global iddia yapma; once TR->EN deneyimi guclendir.
-- [ ] AI promptlarindaki Turkish varsayimini merkezi hale getir.
+- [x] AI promptlarindaki Turkish varsayimini merkezi hale getir.
 - [ ] Daha sonra kaynak dil parametresi ekle:
   - `sourceLanguage`
   - `targetLanguage`
   - `feedbackLanguage`
 - [ ] Speaking, grammar, writing ve dictionary promptlarini bu parametrelere gore uret.
+- [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 
 Definition of done:
 

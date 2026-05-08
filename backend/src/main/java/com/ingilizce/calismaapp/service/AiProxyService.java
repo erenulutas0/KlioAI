@@ -40,27 +40,38 @@ public class AiProxyService {
 
     public AiJsonResult dictionaryLookup(String word) {
         String system = """
-You are a comprehensive English-Turkish dictionary. When given an English word, provide a refined list of its different meanings in Turkish (up to 5). For EACH meaning, strictly provide:
-1. The Turkish translation ('translation')
+%s
+
+You are a comprehensive %s dictionary. When given a %s word, provide a refined list of its different meanings in %s (up to 5). For EACH meaning, strictly provide:
+1. The %s translation ('translation')
 2. The context/nuance ('context') (e.g. literal, metaphorical, legal)
-3. An English example sentence using that specific meaning ('example')
+3. A %s example sentence using that specific meaning ('example')
 
 You must respond with valid JSON only. Do not include markdown formatting.
 Format: { "word": "input_word", "type": "noun/verb/adj", "meanings": [ { "translation": "...", "context": "...", "example": "..." }, ... ] }
-""";
+""".formatted(
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.targetToSourceLabel(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage()
+        );
         return callJson(system, word, 700, 0.3, "dictionary-lookup");
     }
 
     public AiJsonResult dictionaryLookupDetailed(String word) {
         String prompt = """
-Look up the English word/phrase "%s" and provide ALL its different meanings with word types.
+%s
+
+Look up the %s word/phrase "%s" and provide ALL its different meanings with word types.
 
 For EACH meaning, provide:
 1. "type" - Word type (n = noun, v = verb, adj = adjective, adv = adverb, phr = phrasal verb, idiom = idiom)
-2. "turkishMeaning" - Turkish translation for this specific meaning
-3. "englishDefinition" - Brief English definition
-4. "example" - An example sentence using the word in this specific meaning
-5. "exampleTranslation" - Turkish translation of the example sentence
+2. "turkishMeaning" - %s translation for this specific meaning
+3. "englishDefinition" - Brief %s definition
+4. "example" - A %s example sentence using the word in this specific meaning
+5. "exampleTranslation" - %s translation of the example sentence
 
 Return ONLY valid JSON in this exact format:
 {
@@ -78,22 +89,33 @@ Return ONLY valid JSON in this exact format:
 }
 
 Be comprehensive - include ALL common meanings and word types for "%s".
-""".formatted(word, word, word);
+""".formatted(
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.targetLanguage(),
+                word,
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                word,
+                word
+        );
 
-        String system = "You are a comprehensive English-Turkish dictionary. Always return valid JSON. Be thorough and include all word types and meanings.";
+        String system = "You are a comprehensive %s dictionary for %s. Always return valid JSON. Be thorough and include all word types and meanings."
+                .formatted(LearningLanguageProfile.targetToSourceLabel(), LearningLanguageProfile.marketFocus());
         return callJson(system, prompt, 900, 0.3, "dictionary-lookup-detailed");
     }
 
     public AiJsonResult dictionaryGenerateSpecificSentence(String word, String translation, String context) {
-        String prompt = "Generate a new, simple English sentence using the word '%s' specifically in the sense of '%s' (%s). Return valid JSON: { \"sentence\": \"...\" }"
-                .formatted(word, translation, context);
+        String prompt = "Generate a new, simple %s sentence using the word '%s' specifically in the sense of '%s' (%s). Return valid JSON: { \"sentence\": \"...\" }"
+                .formatted(LearningLanguageProfile.targetLanguage(), word, translation, context);
         String system = "You are a helper generating specific example sentences. Return valid JSON only.";
         return callJson(system, prompt, 200, 0.7, "dictionary-specific-sentence");
     }
 
     public AiJsonResult dictionaryExplainWordInSentence(String word, String sentence) {
-        String prompt = "Explain the meaning of the word '%s' inside this specific sentence: '%s'. Provide the definition in Turkish, keeping it very short/concise (max 15 words). Return ONLY valid JSON. Format: { \"definition\": \"...\" }"
-                .formatted(word, sentence);
+        String prompt = "Explain the meaning of the word '%s' inside this specific sentence: '%s'. Provide the definition in %s, keeping it very short/concise (max 15 words). Return ONLY valid JSON. Format: { \"definition\": \"...\" }"
+                .formatted(word, sentence, LearningLanguageProfile.sourceLanguage());
         String system = "You are a dictionary helper. Return valid JSON.";
         return callJson(system, prompt, 120, 0.3, "dictionary-explain");
     }

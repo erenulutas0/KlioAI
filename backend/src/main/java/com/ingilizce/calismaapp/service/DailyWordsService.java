@@ -86,7 +86,9 @@ public class DailyWordsService {
 
     private String generateDailyWordsPayload(LocalDate date) throws Exception {
         String prompt = """
-                Generate 5 "Word of the Day" vocabulary words for an intermediate English learner.
+                %s
+
+                Generate 5 "Word of the Day" vocabulary words for an intermediate %s learner.
 
                 Date seed: %s
 
@@ -95,16 +97,24 @@ public class DailyWordsService {
                 - id (number 1-5)
                 - word (String)
                 - pronunciation (String, e.g. /.../ )
-                - translation (String - Turkish)
+                - translation (String - %s)
                 - partOfSpeech (String - e.g. Noun, Verb)
-                - definition (String - English)
-                - exampleSentence (String - English)
-                - exampleTranslation (String - Turkish)
+                - definition (String - %s)
+                - exampleSentence (String - %s)
+                - exampleTranslation (String - %s)
                 - synonyms (Array of Strings - max 3)
                 - difficulty (String - Easy, Medium, or Hard)
 
                 Return only valid JSON. No markdown.
-                """.formatted(date);
+                """.formatted(
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.targetLanguage(),
+                date,
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage()
+        );
 
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of(

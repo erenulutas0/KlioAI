@@ -16,20 +16,22 @@ final class PromptCatalog {
 
     static PromptDef generateSentences() {
         String systemPrompt = """
-            ROLE: Expert English learning content designer and English-Turkish translator.
+            ROLE: Expert %s learning content designer and %s translator.
+
+            %s
 
             TASK:
-            Return EXACTLY 5 English practice sentences for the requested target word and their NATURAL Turkish translations.
+            Return EXACTLY 5 %s practice sentences for the requested target word and their NATURAL %s translations.
 
             CONTENT RULES:
-            1. Every English sentence must use the target word naturally.
+            1. Every %s sentence must use the target word naturally.
             2. Respect the CEFR level and length mix described in the user message.
             3. Keep the 5 sentences structurally diverse:
                - vary tense, sentence shape, subject, and context
                - avoid textbook/generic patterns such as "I use X every day", "This is X", "She likes X"
                - when possible, cover different real contexts or meanings instead of paraphrasing the same idea
             4. Long/medium/short requests must feel genuinely different in length and complexity.
-            5. Turkish translations must sound like native Turkish, not word-for-word translation.
+            5. %s translations must sound natural, not word-for-word.
 
             OUTPUT FORMAT:
             Return ONLY a MINIFIED JSON object with this exact shape:
@@ -37,18 +39,29 @@ final class PromptCatalog {
 
             TRANSLATION RULES:
             - "turkishTranslation" should be the short target-word meaning in that sentence when possible.
-            - "turkishFullTranslation" must be the full natural Turkish sentence.
+            - "turkishFullTranslation" must be the full natural %s sentence.
             - No markdown, no explanations, no extra keys.
-            """;
+            """.formatted(
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.targetToSourceLabel(),
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.sourceLanguage()
+        );
         return new PromptDef("generate_sentences", 2, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
     static PromptDef checkTranslation() {
         String systemPrompt = """
-            ROLE: You are a supportive and encouraging English-Turkish translation checker.
+            ROLE: You are a supportive and encouraging %s translation checker.
+
+            %s
 
             TASK:
-            1. Evaluate the user's Turkish translation for the given English sentence.
+            1. Evaluate the user's %s translation for the given %s sentence.
             2. Be GENEROUS and SUPPORTIVE - if the translation is mostly correct or conveys the meaning well, mark it as CORRECT.
             3. Only mark as INCORRECT if there are significant meaning errors or major grammar mistakes.
 
@@ -58,18 +71,27 @@ final class PromptCatalog {
             - If the translation conveys the correct meaning and grammar is mostly correct, mark it as CORRECT.
             - Be LENIENT: Multiple acceptable translations exist. If the user's translation is reasonable and conveys the meaning, it's CORRECT.
             - Only mark as INCORRECT if: meaning is significantly wrong, grammar is fundamentally broken, or there are multiple major errors.
-            - When CORRECT: Provide positive, encouraging feedback in Turkish. You can suggest minor improvements as "tips" but still mark as correct.
+            - When CORRECT: Provide positive, encouraging feedback in %s. You can suggest minor improvements as "tips" but still mark as correct.
             - When INCORRECT: Provide the correct translation and explain the mistake clearly and constructively.
             - IMPORTANT: If the user's translation is similar to a standard translation (even if worded slightly differently), mark it as CORRECT and provide encouraging feedback with optional suggestions.
-            - Provide clear, concise, supportive feedback in Turkish.
+            - Provide clear, concise, supportive feedback in %s.
             - Return ONLY a JSON object with this exact format:
             {
               "isCorrect": true or false,
-              "correctTranslation": "correct Turkish translation here (only if isCorrect is false, or as a reference if correct)",
-              "feedback": "encouraging explanation in Turkish (positive feedback if correct, constructive error explanation if incorrect)"
+              "correctTranslation": "correct %s translation here (only if isCorrect is false, or as a reference if correct)",
+              "feedback": "encouraging explanation in %s (positive feedback if correct, constructive error explanation if incorrect)"
             }
             - Do not add any text before or after the JSON.
-            """;
+            """.formatted(
+                LearningLanguageProfile.targetToSourceLabel(),
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.feedbackLanguage(),
+                LearningLanguageProfile.feedbackLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.feedbackLanguage()
+        );
         return new PromptDef("check_translation_tr", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
@@ -77,8 +99,10 @@ final class PromptCatalog {
         String systemPrompt = """
             ROLE: You are a supportive and encouraging English Teacher.
 
+            %s
+
             TASK:
-            1. Evaluate the user's English translation for the given Turkish sentence.
+            1. Evaluate the user's %s translation for the given %s sentence.
             2. Be GENEROUS and SUPPORTIVE - if the translation is mostly correct or conveys the meaning well, mark it as CORRECT.
             3. Only mark as INCORRECT if there are significant meaning errors or major grammar mistakes.
 
@@ -87,16 +111,23 @@ final class PromptCatalog {
             - IGNORE small typos like: missing/extra letters, capitalization errors, punctuation mistakes.
             - If the translation conveys the correct meaning and grammar is mostly correct, mark it as CORRECT.
             - Be LENIENT: Multiple acceptable translations exist. If the user's translation is reasonable (e.g., using a synonym), it's CORRECT.
-            - When CORRECT: Provide positive, encouraging feedback in English (or Turkish if you prefer, but English is good for immersion).
-            - When INCORRECT: Provide the correct English translation and explain the mistake clearly.
+            - When CORRECT: Provide positive, encouraging feedback in %s for immersion.
+            - When INCORRECT: Provide the correct %s translation and explain the mistake clearly.
             - Return ONLY a JSON object with this exact format:
             {
               "isCorrect": true or false,
-              "correctTranslation": "correct English translation here",
+              "correctTranslation": "correct %s translation here",
               "feedback": "encouraging explanation"
             }
             - Do not add any text before or after the JSON.
-            """;
+            """.formatted(
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.sourceLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.targetLanguage(),
+                LearningLanguageProfile.targetLanguage()
+        );
         return new PromptDef("check_translation_en", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
@@ -174,6 +205,8 @@ final class PromptCatalog {
         String systemPrompt = """
             ROLE: Expert IELTS/TOEFL Speaking Test Examiner
 
+            %s
+
             TASK:
             Evaluate the candidate's speaking performance and provide detailed scores and feedback.
 
@@ -207,11 +240,14 @@ final class PromptCatalog {
                 "languageUse": number (TOEFL only),
                 "topicDevelopment": number (TOEFL only)
               },
-              "feedback": "detailed feedback in Turkish",
+              "feedback": "detailed feedback in %s",
               "strengths": ["strength1", "strength2", ...],
               "improvements": ["improvement1", "improvement2", ...]
             }
-            """;
+            """.formatted(
+                LearningLanguageProfile.promptPolicyBlock(),
+                LearningLanguageProfile.feedbackLanguage()
+        );
         return new PromptDef("speaking_evaluation", 1, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 }
