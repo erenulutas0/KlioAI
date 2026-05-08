@@ -195,7 +195,14 @@ class AdminControllerTest {
                         0.0035,
                         43200,
                         69000,
-                        0.0069));
+                        0.0069,
+                        java.util.List.of(new AiTokenQuotaService.TokenUsageBreakdown("42", 22000)),
+                        java.util.List.of(new AiTokenQuotaService.TokenUsageBreakdown("chat", 18000)),
+                        java.util.List.of(new AiTokenQuotaService.QuotaBlockMetric(
+                                "2026-05-03",
+                                "daily-token-quota",
+                                "chat",
+                                3))));
         when(aiProviderMetricsService.snapshot())
                 .thenReturn(new AiProviderMetricsService.Snapshot(
                         "2026-05-03",
@@ -230,6 +237,10 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.cost.utcDayElapsedSeconds").value(43200))
                 .andExpect(jsonPath("$.cost.projectedTokensUsedToday").value(69000))
                 .andExpect(jsonPath("$.cost.projectedCostUsdToday").value(0.0069))
+                .andExpect(jsonPath("$.topUsers[0].subject").value("42"))
+                .andExpect(jsonPath("$.topUsers[0].tokensUsed").value(22000))
+                .andExpect(jsonPath("$.topScopes[0].subject").value("chat"))
+                .andExpect(jsonPath("$.quotaBlocks[0].count").value(3))
                 .andExpect(jsonPath("$.providerMetrics.totalTokens").value(150))
                 .andExpect(jsonPath("$.providerMetrics.providers[0].provider").value("groq"));
 

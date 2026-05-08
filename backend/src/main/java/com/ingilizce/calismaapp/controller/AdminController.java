@@ -201,6 +201,9 @@ public class AdminController {
         body.put("memory", memory);
         body.put("redis", redis);
         body.put("cost", cost);
+        body.put("topUsers", stats.topUsers());
+        body.put("topScopes", stats.topScopes());
+        body.put("quotaBlocks", stats.quotaBlocks());
         if (aiProviderMetricsService != null) {
             body.put("providerMetrics", aiProviderMetricsService.snapshot());
         }

@@ -61,6 +61,12 @@ class AiTokenQuotaServiceTest {
         assertEquals("daily-token-quota", blocked.reason());
         assertEquals(5, blocked.tokenLimit());
         assertEquals(5, blocked.tokensUsed());
+
+        AiTokenQuotaService.UsageStats stats = service.getUsageStats();
+        assertEquals(1, stats.quotaBlocks().size());
+        assertEquals("daily-token-quota", stats.quotaBlocks().get(0).reason());
+        assertEquals("chat", stats.quotaBlocks().get(0).scope());
+        assertEquals(1, stats.quotaBlocks().get(0).count());
     }
 
     @Test
@@ -126,6 +132,10 @@ class AiTokenQuotaServiceTest {
         assertEquals(1001, stats.utcDayElapsedSeconds());
         assertTrue(stats.projectedTokensUsedToday() > stats.totalTokensUsed());
         assertTrue(stats.projectedCostUsdToday() > stats.estimatedCostUsd());
+        assertEquals("7", stats.topUsers().get(0).subject());
+        assertEquals(12_500, stats.topUsers().get(0).tokensUsed());
+        assertEquals("chat", stats.topScopes().get(0).subject());
+        assertEquals(12_500, stats.topScopes().get(0).tokensUsed());
     }
 
     private static final class TestableAiTokenQuotaService extends AiTokenQuotaService {

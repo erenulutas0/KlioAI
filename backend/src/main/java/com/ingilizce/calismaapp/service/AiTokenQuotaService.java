@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -72,10 +76,19 @@ public class AiTokenQuotaService {
                              double estimatedCostUsd,
                              long utcDayElapsedSeconds,
                              long projectedTokensUsedToday,
-                             double projectedCostUsdToday) {
+                             double projectedCostUsdToday,
+                             List<TokenUsageBreakdown> topUsers,
+                             List<TokenUsageBreakdown> topScopes,
+                             List<QuotaBlockMetric> quotaBlocks) {
     }
 
     private record TokenSnapshot(long subjects, long tokensUsed) {
+    }
+
+    public record TokenUsageBreakdown(String subject, long tokensUsed) {
+    }
+
+    public record QuotaBlockMetric(String dateUtc, String reason, String scope, long count) {
     }
 
     private static final String DAILY_TOKEN_PREFIX = "ai:tokens:day:";
@@ -98,6 +111,7 @@ public class AiTokenQuotaService {
     private final AtomicLong lastMemoryCleanupEpochMs = new AtomicLong(0L);
 
     private final Map<String, DailyTokenCounter> dailyCounters = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> quotaBlockCounters = new ConcurrentHashMap<>();
 
     @Autowired
     public AiTokenQuotaService(AiTokenQuotaProperties properties,
@@ -242,6 +256,12 @@ public class AiTokenQuotaService {
         double rate = properties.getEstimatedCostUsdPerMillionTokens();
         long elapsedSeconds = utcDayElapsedSeconds();
         long projectedTokens = projectedTokensForDay(totalTokens, elapsedSeconds);
+        Map<String, Long> userUsage = new HashMap<>();
+        Map<String, Long> scopeUsage = new HashMap<>();
+        collectMemoryBreakdowns(userUsage, scopeUsage);
+        if (canUseRedis()) {
+            collectRedisBreakdowns(dateUtc, userUsage, scopeUsage);
+        }
 
         return new UsageStats(
                 properties.isEnabled(),
@@ -264,7 +284,10 @@ public class AiTokenQuotaService {
                 roundUsd((totalTokens / 1_000_000.0) * rate),
                 elapsedSeconds,
                 projectedTokens,
-                roundUsd((projectedTokens / 1_000_000.0) * rate));
+                roundUsd((projectedTokens / 1_000_000.0) * rate),
+                topBreakdowns(userUsage, 20),
+                topBreakdowns(scopeUsage, 20),
+                quotaBlockSnapshot(dateUtc));
     }
 
     private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
@@ -520,8 +543,14 @@ public class AiTokenQuotaService {
     }
 
     private void onBlock(String reason, String scope) {
+        String dateUtc = LocalDate.now(ZoneOffset.UTC).toString();
+        String normalizedReason = normalize(reason);
+        String normalizedScope = normalize(scope);
+        quotaBlockCounters
+                .computeIfAbsent(dateUtc + "|" + normalizedReason + "|" + normalizedScope, ignored -> new AtomicLong())
+                .incrementAndGet();
         if (meterRegistry != null) {
-            meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", reason, "scope", scope).increment();
+            meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", normalizedReason, "scope", normalizedScope).increment();
         }
     }
 
@@ -582,6 +611,112 @@ public class AiTokenQuotaService {
             return new TokenSnapshot(0L, 0L);
         }
         return new TokenSnapshot(subjects, tokens);
+    }
+
+    private void collectMemoryBreakdowns(Map<String, Long> userUsage, Map<String, Long> scopeUsage) {
+        long now = currentTimeMillis();
+        for (Map.Entry<String, DailyTokenCounter> entry : dailyCounters.entrySet()) {
+            DailyTokenCounter counter = entry.getValue();
+            long tokens;
+            synchronized (counter) {
+                if (counter.dayEndMs <= 0 || now >= counter.dayEndMs) {
+                    continue;
+                }
+                tokens = Math.max(0L, counter.tokensUsed);
+            }
+            if (tokens <= 0L) {
+                continue;
+            }
+
+            String key = entry.getKey();
+            if (key.startsWith("global:")) {
+                mergeTokenUsage(userUsage, key.substring("global:".length()), tokens);
+            } else if (key.startsWith("scope:")) {
+                String remainder = key.substring("scope:".length());
+                int separator = remainder.indexOf(':');
+                if (separator > 0 && separator < remainder.length() - 1) {
+                    mergeTokenUsage(scopeUsage, remainder.substring(separator + 1), tokens);
+                }
+            }
+        }
+    }
+
+    private void collectRedisBreakdowns(String dateUtc, Map<String, Long> userUsage, Map<String, Long> scopeUsage) {
+        collectRedisBreakdown(DAILY_TOKEN_PREFIX + dateUtc + ":*", DAILY_TOKEN_PREFIX + dateUtc + ":", userUsage, false);
+        collectRedisBreakdown(DAILY_SCOPE_TOKEN_PREFIX + dateUtc + ":*", DAILY_SCOPE_TOKEN_PREFIX + dateUtc + ":", scopeUsage, true);
+    }
+
+    private void collectRedisBreakdown(String pattern, String prefix, Map<String, Long> target, boolean scopeKey) {
+        try (Cursor<String> cursor = stringRedisTemplate.scan(
+                ScanOptions.scanOptions().match(pattern).count(1000).build())) {
+            while (cursor.hasNext()) {
+                String key = cursor.next();
+                String subject = extractUsageSubject(key, prefix, scopeKey);
+                if (subject.isBlank()) {
+                    continue;
+                }
+                long tokens = parseLongOrZero(stringRedisTemplate.opsForValue().get(key));
+                if (tokens > 0L) {
+                    mergeTokenUsage(target, subject, tokens);
+                }
+            }
+            onRedisSuccess();
+        } catch (Exception ex) {
+            onRedisFailure("stats-breakdown");
+        }
+    }
+
+    private String extractUsageSubject(String key, String prefix, boolean scopeKey) {
+        if (key == null || !key.startsWith(prefix)) {
+            return "";
+        }
+        String remainder = key.substring(prefix.length());
+        if (!scopeKey) {
+            return remainder.trim();
+        }
+        int separator = remainder.indexOf(':');
+        if (separator <= 0) {
+            return "";
+        }
+        return remainder.substring(0, separator).trim();
+    }
+
+    private void mergeTokenUsage(Map<String, Long> target, String subject, long tokens) {
+        String normalizedSubject = normalize(subject);
+        if (normalizedSubject.isBlank() || tokens <= 0L) {
+            return;
+        }
+        target.merge(normalizedSubject, tokens, this::safeAdd);
+    }
+
+    private List<TokenUsageBreakdown> topBreakdowns(Map<String, Long> usage, int limit) {
+        return usage.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder())
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .limit(Math.max(1, limit))
+                .map(entry -> new TokenUsageBreakdown(entry.getKey(), Math.max(0L, entry.getValue())))
+                .toList();
+    }
+
+    private List<QuotaBlockMetric> quotaBlockSnapshot(String dateUtc) {
+        List<QuotaBlockMetric> metrics = new ArrayList<>();
+        String prefix = dateUtc + "|";
+        for (Map.Entry<String, AtomicLong> entry : quotaBlockCounters.entrySet()) {
+            if (!entry.getKey().startsWith(prefix)) {
+                continue;
+            }
+            String[] parts = entry.getKey().split("\\|", 3);
+            if (parts.length != 3) {
+                continue;
+            }
+            metrics.add(new QuotaBlockMetric(parts[0], parts[1], parts[2], Math.max(0L, entry.getValue().get())));
+        }
+        metrics.sort(Comparator
+                .comparingLong(QuotaBlockMetric::count)
+                .reversed()
+                .thenComparing(QuotaBlockMetric::reason)
+                .thenComparing(QuotaBlockMetric::scope));
+        return metrics;
     }
 
     private long safeAdd(long left, long right) {

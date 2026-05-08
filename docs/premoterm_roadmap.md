@@ -173,7 +173,7 @@ Amac: Tek provider/model riskini azaltmak ve maliyet patlamasini onlemek.
 - [x] Mevcut Groq cagrilarini provider interface arkasina al.
 - [x] Provider bazli token usage ve hata oranini kaydet.
 - [x] Gunluk projected AI spend hesabi ekle.
-- [ ] Admin/log endpoint veya basit dashboard ile su metrikleri gor:
+- [x] Admin/log endpoint veya basit dashboard ile su metrikleri gor:
   - token usage by user
   - token usage by scope
   - token usage by model
