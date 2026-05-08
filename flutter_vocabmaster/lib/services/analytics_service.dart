@@ -135,6 +135,19 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logProgressiveUnlockBlocked({
+    required String mode,
+    required String source,
+  }) {
+    return logEvent(
+      'progressive_unlock_blocked',
+      parameters: {
+        'mode': mode,
+        'source': source,
+      },
+    );
+  }
+
   static Future<void> logSignupCompleted({
     String method = 'email',
     String? userId,

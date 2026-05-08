@@ -93,6 +93,12 @@ class _PracticePageState extends State<PracticePage>
     _modeSpeaking,
   ];
 
+  static const List<String> _starterPracticeModes = [
+    _modeTranslate,
+    _modeWriting,
+    _modeSpeaking,
+  ];
+
   List<String> _availableModesForLocale(Locale? locale) {
     final modes = <String>[..._basePracticeModes];
     if (AppMarketConfig.isExamModuleEnabled(locale)) {
@@ -101,6 +107,19 @@ class _PracticePageState extends State<PracticePage>
     modes.add(_modeWordGalaxy);
     modes.add(_modeNeural);
     return modes;
+  }
+
+  List<String> _selectableModesForLocale(Locale? locale) {
+    return _availableModesForLocale(locale).where(_isModeUnlocked).toList();
+  }
+
+  bool _isModeUnlocked(String mode) {
+    return _firstSessionPracticeCompleted ||
+        _starterPracticeModes.contains(mode);
+  }
+
+  String _unlockText(String tr, String en) {
+    return Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
   }
 
   String _modeLabel(String mode) {
@@ -171,8 +190,10 @@ class _PracticePageState extends State<PracticePage>
   void _ensureSelectedModeVisible() {
     final locale = Localizations.maybeLocaleOf(context);
     final availableModes = _availableModesForLocale(locale);
-    if (!availableModes.contains(_selectedMode)) {
-      _selectedMode = availableModes.first;
+    final selectableModes = _selectableModesForLocale(locale);
+    if (!availableModes.contains(_selectedMode) ||
+        !_isModeUnlocked(_selectedMode)) {
+      _selectedMode = selectableModes.first;
     }
   }
 
@@ -249,8 +270,30 @@ class _PracticePageState extends State<PracticePage>
     if (_selectedMode == mode) {
       return;
     }
+    if (!_isModeUnlocked(mode)) {
+      _showProgressiveUnlockMessage(mode);
+      return;
+    }
     setState(() => _selectedMode = mode);
     _logPracticeStarted(type: mode);
+  }
+
+  void _showProgressiveUnlockMessage(String mode) {
+    AnalyticsService.logProgressiveUnlockBlocked(
+      mode: mode,
+      source: 'practice_tab',
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _unlockText(
+            'Bu modu açmak için önce ilk pratiğini tamamla.',
+            'Complete your first practice to unlock this mode.',
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _logPracticeStarted({String? type}) {
@@ -1706,23 +1749,40 @@ class _PracticePageState extends State<PracticePage>
 
   Widget _buildTopTab(String text) {
     final isSelected = _selectedMode == text;
+    final isUnlocked = _isModeUnlocked(text);
     return GestureDetector(
       onTap: () => _selectPracticeMode(text),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        child: ModernCard(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          borderRadius: BorderRadius.circular(12),
-          variant: isSelected
-              ? BackgroundVariant.accent
-              : BackgroundVariant.secondary,
-          showGlow: isSelected,
-          child: Center(
-            child: Text(
-              _modeLabel(text),
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: FontWeight.bold,
+        child: Opacity(
+          opacity: isUnlocked ? 1 : 0.58,
+          child: ModernCard(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            borderRadius: BorderRadius.circular(12),
+            variant: isSelected
+                ? BackgroundVariant.accent
+                : BackgroundVariant.secondary,
+            showGlow: isSelected,
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isUnlocked) ...[
+                    const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white70,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    _modeLabel(text),
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

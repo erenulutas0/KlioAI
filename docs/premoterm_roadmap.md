@@ -91,7 +91,7 @@ Amac: Yeni kullaniciya her seyi gostermek yerine ilk kazanci yasatmak.
   - Kelime ekle/cumle uret
   - Klasik tekrar
   - AI chat veya Writing
-- [ ] Word Galaxy, Neural Game, Exams ve ileri modlari progressive unlock yap.
+- [x] Word Galaxy, Neural Game, Exams ve ileri modlari progressive unlock yap.
 - [x] Home ekraninda "bugunku tek hedef" karti ekle.
 - [x] Aktivasyon eventlerini analytics'e bagla.
 
