@@ -42,6 +42,13 @@ jobs:
         working-directory: flutter_vocabmaster
         run: flutter pub get
 
+      - name: Accept Android SDK Licenses And Install NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14033849"
+
       - name: Flutter Quality Gate
         if: ${{ inputs.run_quality_gate == 'true' }}
         shell: pwsh
