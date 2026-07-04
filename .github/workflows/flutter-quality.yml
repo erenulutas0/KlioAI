@@ -1,0 +1,39 @@
+name: Flutter Quality
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "flutter_vocabmaster/**"
+      - "scripts/flutter-quality-gate.ps1"
+      - ".github/workflows/flutter-quality.yml"
+  pull_request:
+    paths:
+      - "flutter_vocabmaster/**"
+      - "scripts/flutter-quality-gate.ps1"
+      - ".github/workflows/flutter-quality.yml"
+  workflow_dispatch:
+
+jobs:
+  flutter-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter Doctor
+        working-directory: flutter_vocabmaster
+        run: flutter doctor -v
+
+      - name: Run Flutter Quality Gate
+        shell: pwsh
+        run: pwsh -File ./scripts/flutter-quality-gate.ps1
