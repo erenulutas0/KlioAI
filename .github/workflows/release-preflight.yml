@@ -1,0 +1,62 @@
+name: Release Preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_flutter:
+        description: "Run Flutter analyze/tests"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      run_backend:
+        description: "Run backend Maven tests"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  release-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      APP_SECURITY_JWT_SECRET: smoke-test-jwt-secret-smoke-test-jwt-secret-32
+      GROQ_API_KEY: smoke-test-key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Java 17
+        if: ${{ inputs.run_backend == 'true' }}
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Setup Flutter
+        if: ${{ inputs.run_flutter == 'true' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Secret Scan
+        shell: pwsh
+        run: pwsh -File ./scripts/scan-repo-secrets.ps1
+
+      - name: Backend Tests
+        if: ${{ inputs.run_backend == 'true' }}
+        working-directory: backend
+        run: mvn -q test
+
+      - name: Flutter Quality Gate
+        if: ${{ inputs.run_flutter == 'true' }}
+        shell: pwsh
+        run: pwsh -File ./scripts/flutter-quality-gate.ps1

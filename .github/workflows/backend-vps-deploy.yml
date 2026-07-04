@@ -1,0 +1,93 @@
+name: Backend VPS Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Short deploy label used in remote backup/archive names"
+        required: true
+        default: "github-manual"
+      no_cache:
+        description: "Rebuild backend image with --no-cache"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      skip_public_smoke:
+        description: "Skip public https://api.klioai.app actuator smoke"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  backend-vps-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production-backend
+      url: https://api.klioai.app/actuator/health
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Validate Required Secrets
+        shell: bash
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for var_name in VPS_SSH_HOST VPS_SSH_USER VPS_SSH_PRIVATE_KEY; do
+            if [ -z "${!var_name:-}" ]; then
+              echo "::error::$var_name GitHub environment/repository secret is missing."
+              exit 1
+            fi
+          done
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/klioai_vps_deploy
+          chmod 600 ~/.ssh/klioai_vps_deploy
+          ssh-keyscan -p "${VPS_SSH_PORT:-22}" "$VPS_SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy Backend To VPS
+        shell: pwsh
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        run: |
+          $sshPort = if ([string]::IsNullOrWhiteSpace($env:VPS_SSH_PORT)) { "22" } else { $env:VPS_SSH_PORT }
+          $sshTarget = "$($env:VPS_SSH_USER)@$($env:VPS_SSH_HOST)"
+          $sshOptions = @("-i", "$HOME/.ssh/klioai_vps_deploy", "-p", $sshPort, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes")
+          $scpOptions = @("-i", "$HOME/.ssh/klioai_vps_deploy", "-P", $sshPort, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes")
+          $deployArgs = @(
+            "-SshTarget", $sshTarget,
+            "-Label", "${{ inputs.label }}",
+            "-SshOptions", $sshOptions,
+            "-ScpOptions", $scpOptions,
+            "-Execute"
+          )
+          if ("${{ inputs.no_cache }}" -eq "true") {
+            $deployArgs += "-NoCache"
+          }
+          if ("${{ inputs.skip_public_smoke }}" -eq "true") {
+            $deployArgs += "-SkipPublicSmoke"
+          }
+          pwsh -File ./scripts/deploy-backend-vps.ps1 @deployArgs
+
