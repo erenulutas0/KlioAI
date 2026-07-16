@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../widgets/animated_background.dart';
@@ -16,8 +18,10 @@ import '../services/api_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/ai_token_quota_card.dart';
+import '../widgets/notification_settings_dialog.dart';
 import '../services/subscription_service.dart';
 import 'subscription_page.dart';
+import 'login_page.dart';
 import 'settings_page.dart';
 import 'support_tickets_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -28,9 +32,23 @@ import '../l10n/app_localizations.dart';
 import '../services/locale_text_service.dart';
 import '../services/local_reminder_service.dart';
 import '../services/push_token_service.dart';
+import '../services/support_ticket_service.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({
+    super.key,
+    this.apiService,
+    this.localReminderService,
+    this.pushTokenService,
+    this.supportTicketService,
+    this.skipInitialRemoteLoads = false,
+  });
+
+  final ApiService? apiService;
+  final LocalReminderService? localReminderService;
+  final PushTokenService? pushTokenService;
+  final SupportTicketService? supportTicketService;
+  final bool skipInitialRemoteLoads;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -41,16 +59,23 @@ class _ProfilePageState extends State<ProfilePage> {
   String _text(String tr, String en) => _isTurkish ? tr : en;
 
   // State for notification settings
-  bool _pushNotifications = false;
-  bool _emailNotifications = true;
-  bool _achievementNotifications = true;
-  bool _friendRequestNotifications = true;
-  final LocalReminderService _localReminderService = LocalReminderService();
+  bool _dailyReminderNotifications = false;
+  bool _streakGuardNotifications = true;
+  bool _dailyWordsNotifications = false;
+  bool _subscriptionAlertNotifications = true;
+  bool _socialNotifications = true;
+  bool _notificationPrefsSaving = false;
+  late final LocalReminderService _localReminderService;
+  late final ApiService _apiService;
+  late final PushTokenService _pushTokenService;
+  late final SupportTicketService _supportTicketService;
+  bool _isRequestingAccountDeletion = false;
 
   // Profile picture state
   String? _profileImageType;
   String? _profileImagePath;
   String? _avatarSeed;
+  String? _appVersionLabel;
 
   final List<String> _predefinedAvatars = [
     'Eren',
@@ -70,18 +95,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Gerçek veriler - Provider'dan başlangıç değerlerini al
   final UserDataService _userDataService = UserDataService();
-  final ApiService _apiService = ApiService();
   int _totalWords = 0;
   int _streak = 0;
   int _totalXp = 0;
   int _level = 1;
   List<Map<String, dynamic>> _friends = [];
   bool _isAiQuotaLoading = false;
+  String? _aiQuotaError;
   int _aiTokenLimit = 0;
   int _aiTokensUsed = 0;
   int _aiTokensRemaining = 0;
   double _aiRemainingRatio = 1.0;
   String? _aiQuotaDateUtc;
+  Map<String, int>? _aiActivityEstimates;
 
   // BYOK (Bring Your Own Key) State
   final ApiKeyManager _apiKeyManager = ApiKeyManager();
@@ -91,40 +117,159 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _localReminderService =
+        widget.localReminderService ?? LocalReminderService();
+    _apiService = widget.apiService ?? ApiService();
+    _pushTokenService = widget.pushTokenService ?? PushTokenService();
+    _supportTicketService =
+        widget.supportTicketService ?? SupportTicketService();
 
-    // Provider'dan mevcut verileri hemen al (anlık gösterim için)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadFromProvider();
-    });
+    if (!widget.skipInitialRemoteLoads) {
+      // Provider'dan mevcut verileri hemen al (anlık gösterim için)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadFromProvider();
+      });
 
-    _loadApiKeyStatus();
-    _loadFriends(); // Arkadaşları ayrıca yükle
-    _loadSubscriptionInfo();
-    _loadAiTokenQuotaStatus();
+      _loadApiKeyStatus();
+      _loadFriends(); // Arkadaşları ayrıca yükle
+      _loadSubscriptionInfo();
+      _loadAiTokenQuotaStatus();
+      _loadAppVersion();
+    }
     _loadNotificationSettings();
   }
 
-  Future<void> _loadNotificationSettings() async {
-    final enabled = await _localReminderService.isDailyReminderEnabled();
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
     if (!mounted) return;
-    setState(() => _pushNotifications = enabled);
+    setState(() {
+      _appVersionLabel = '${packageInfo.version}+${packageInfo.buildNumber}';
+    });
   }
 
-  Future<void> _setDailyReminderEnabled(
-    bool enabled,
+  Future<void> _loadNotificationSettings() async {
+    final localDailyEnabled =
+        await _localReminderService.isDailyReminderEnabled();
+    Map<String, dynamic>? preferences;
+    try {
+      preferences = await _apiService.getNotificationPreferences();
+    } catch (e) {
+      debugPrint('Bildirim tercihleri yüklenemedi: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _dailyReminderNotifications =
+          _boolPref(preferences, 'dailyRemindersEnabled', localDailyEnabled);
+      _streakGuardNotifications =
+          _boolPref(preferences, 'streakGuardEnabled', true);
+      _dailyWordsNotifications =
+          _boolPref(preferences, 'productUpdatesEnabled', false);
+      _subscriptionAlertNotifications =
+          _boolPref(preferences, 'subscriptionAlertsEnabled', true);
+      _socialNotifications = _boolPref(preferences, 'socialEnabled', true);
+    });
+  }
+
+  bool _boolPref(
+    Map<String, dynamic>? preferences,
+    String key,
+    bool fallback,
+  ) {
+    final value = preferences?[key];
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == 'true';
+    return fallback;
+  }
+
+  Future<void> _saveNotificationPreferences(
     StateSetter setStateDialog,
   ) async {
-    setStateDialog(() => _pushNotifications = enabled);
-    setState(() => _pushNotifications = enabled);
+    setStateDialog(() => _notificationPrefsSaving = true);
+    setState(() => _notificationPrefsSaving = true);
 
-    final applied =
-        await _localReminderService.setDailyReminderEnabled(enabled);
+    final requestedDaily = _dailyReminderNotifications;
+    var appliedDaily = requestedDaily;
+
+    try {
+      try {
+        appliedDaily = await _localReminderService
+            .setDailyReminderEnabled(requestedDaily)
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('Local reminder preference update skipped: $e');
+        appliedDaily = false;
+      }
+
+      if (!mounted) return;
+      if (appliedDaily != requestedDaily) {
+        setStateDialog(() => _dailyReminderNotifications = appliedDaily);
+        setState(() => _dailyReminderNotifications = appliedDaily);
+      }
+
+      final saved = await _apiService.updateNotificationPreferences({
+        'dailyRemindersEnabled': appliedDaily,
+        'streakGuardEnabled': _streakGuardNotifications,
+        'productUpdatesEnabled': _dailyWordsNotifications,
+        'subscriptionAlertsEnabled': _subscriptionAlertNotifications,
+        'socialEnabled': _socialNotifications,
+        'timezone': DateTime.now().timeZoneName,
+      }).timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      setStateDialog(() {
+        _dailyReminderNotifications =
+            _boolPref(saved, 'dailyRemindersEnabled', appliedDaily);
+        _streakGuardNotifications =
+            _boolPref(saved, 'streakGuardEnabled', _streakGuardNotifications);
+        _dailyWordsNotifications =
+            _boolPref(saved, 'productUpdatesEnabled', _dailyWordsNotifications);
+        _subscriptionAlertNotifications = _boolPref(
+          saved,
+          'subscriptionAlertsEnabled',
+          _subscriptionAlertNotifications,
+        );
+        _socialNotifications =
+            _boolPref(saved, 'socialEnabled', _socialNotifications);
+      });
+      setState(() {
+        _dailyReminderNotifications =
+            _boolPref(saved, 'dailyRemindersEnabled', appliedDaily);
+        _streakGuardNotifications =
+            _boolPref(saved, 'streakGuardEnabled', _streakGuardNotifications);
+        _dailyWordsNotifications =
+            _boolPref(saved, 'productUpdatesEnabled', _dailyWordsNotifications);
+        _subscriptionAlertNotifications = _boolPref(
+          saved,
+          'subscriptionAlertsEnabled',
+          _subscriptionAlertNotifications,
+        );
+        _socialNotifications =
+            _boolPref(saved, 'socialEnabled', _socialNotifications);
+      });
+      unawaited(_pushTokenService.refreshTokenRegistration());
+    } catch (e) {
+      debugPrint('Bildirim tercihleri kaydedilemedi: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _text(
+                'Bildirim tercihleri kaydedilemedi.',
+                'Notification preferences could not be saved.',
+              ),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setStateDialog(() => _notificationPrefsSaving = false);
+        setState(() => _notificationPrefsSaving = false);
+      }
+    }
+
     if (!mounted) return;
-
-    setStateDialog(() => _pushNotifications = applied);
-    setState(() => _pushNotifications = applied);
-    await PushTokenService().refreshTokenRegistration();
-    if (enabled && !applied) {
+    if (requestedDaily && !appliedDaily) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -167,15 +312,16 @@ class _ProfilePageState extends State<ProfilePage> {
       _avatarSeed =
           appState.avatarSeed.isNotEmpty ? appState.avatarSeed : 'Eren';
 
-      // User info from provider (anlık gösterim)
-      _user = appState.userInfo;
+      // Keep fresh subscription status fetched by this page from being
+      // overwritten by older cached provider state.
+      _user = {
+        ...?appState.userInfo,
+        ...?_user,
+      };
     });
     _syncThemeXp();
 
-    // Eğer userInfo henüz yüklenmediyse, arka planda yükle
-    if (_user == null) {
-      _loadUserInfo();
-    }
+    _loadUserInfo();
   }
 
   Future<void> _loadUserInfo() async {
@@ -221,7 +367,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   bool _hasActiveSubscription() {
-    final raw = _user?['subscriptionEndDate'];
+    final explicitActive = _user?['isActive'] ?? _user?['isSubscriptionActive'];
+    if (explicitActive is bool && explicitActive == true) {
+      return true;
+    }
+    if (explicitActive is String && explicitActive.toLowerCase() == 'true') {
+      return true;
+    }
+
+    final raw = _user?['subscriptionEndDate'] ?? _user?['endDate'];
     if (raw == null) {
       return false;
     }
@@ -272,6 +426,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) {
       setState(() {
         _isAiQuotaLoading = true;
+        _aiQuotaError = null;
       });
     }
 
@@ -285,6 +440,15 @@ class _ProfilePageState extends State<ProfilePage> {
       final double ratio =
           limit > 0 ? (remaining / limit).clamp(0.0, 1.0).toDouble() : 1.0;
 
+      Map<String, int>? estimates;
+      final rawEstimates = data['activityEstimates'];
+      if (rawEstimates is Map) {
+        estimates = <String, int>{};
+        rawEstimates.forEach((key, value) {
+          estimates![key.toString()] = _toInt(value);
+        });
+      }
+
       if (mounted) {
         setState(() {
           _aiTokenLimit = limit;
@@ -292,6 +456,8 @@ class _ProfilePageState extends State<ProfilePage> {
           _aiTokensRemaining = remaining;
           _aiRemainingRatio = ratio;
           _aiQuotaDateUtc = data['dateUtc']?.toString();
+          _aiActivityEstimates = estimates;
+          _aiQuotaError = null;
           _isAiQuotaLoading = false;
         });
       }
@@ -299,6 +465,17 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint('AI token quota yuklenemedi: $e');
       if (mounted) {
         setState(() {
+          // A failed request must not render as "quota is not active" - a
+          // paying user would read that as a broken subscription. Show a
+          // retryable load error instead, with a session-specific hint when
+          // the failure is an auth problem rather than network/server.
+          _aiQuotaError = e is ApiUnauthorizedException
+              ? LocaleTextService.pick(
+                  'Oturum dogrulanamadi. Cikip yeniden giris yapmayi deneyin.',
+                  'Session could not be verified. Try signing in again.')
+              : LocaleTextService.pick(
+                  'Kota bilgisi yuklenemedi.',
+                  'Could not load quota info.');
           _isAiQuotaLoading = false;
         });
       }
@@ -354,14 +531,14 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(16.0),
         child: Container(
           decoration: BoxDecoration(
-            color: selectedTheme.colors.background.withOpacity(0.95),
+            color: selectedTheme.colors.background.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+              color: selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -482,14 +659,14 @@ class _ProfilePageState extends State<ProfilePage> {
                             border: Border.all(
                               color: isSelected
                                   ? selectedTheme.colors.accent
-                                  : Colors.white.withOpacity(0.1),
+                                  : Colors.white.withValues(alpha: 0.1),
                               width: isSelected ? 3 : 1,
                             ),
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
                                       color: selectedTheme.colors.accent
-                                          .withOpacity(0.4),
+                                          .withValues(alpha: 0.4),
                                       blurRadius: 8,
                                     )
                                   ]
@@ -524,9 +701,9 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
             child: Icon(icon, color: selectedTheme.colors.accent, size: 28),
           ),
@@ -643,13 +820,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
                 ],
-                border:
-                    Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1), width: 1),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -669,7 +846,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
+                            color: Colors.black.withValues(alpha: 0.5),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.close,
@@ -825,17 +1002,18 @@ class _ProfilePageState extends State<ProfilePage> {
                         : null,
                     border: !isPro
                         ? Border.all(
-                            color: Colors.white.withOpacity(0.1), width: 3)
+                            color: Colors.white.withValues(alpha: 0.1),
+                            width: 3)
                         : null,
                     boxShadow: [
                       if (isPro)
                         BoxShadow(
-                          color: const Color(0xFFFFD700).withOpacity(0.4),
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.4),
                           blurRadius: 15,
                           spreadRadius: 2,
                         ),
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -872,7 +1050,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFFD700).withOpacity(0.5),
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.5),
                           blurRadius: 8,
                         ),
                       ],
@@ -971,7 +1149,7 @@ class _ProfilePageState extends State<ProfilePage> {
                // Copy tag button
                GestureDetector(
                 onTap: _copyUserTag,
-                child: Icon(Icons.copy, color: Colors.white.withOpacity(0.5), size: 16),
+                child: Icon(Icons.copy, color: Colors.white.withValues(alpha: 0.5), size: 16),
                )
             ],
           ),
@@ -984,12 +1162,12 @@ class _ProfilePageState extends State<ProfilePage> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_user_outlined,
+                const Icon(Icons.verified_user_outlined,
                     color: Colors.white54, size: 16),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   _text('Ucretsiz Plan', 'Free Plan'),
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                  style: const TextStyle(color: Colors.white54, fontSize: 14),
                 ),
               ],
             ),
@@ -1018,19 +1196,19 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withOpacity(0.2),
+                color: const Color(0xFFFFD700).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: const Color(0xFFFFD700).withOpacity(0.5)),
+                border: Border.all(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.workspace_premium,
+                  const Icon(Icons.workspace_premium,
                       color: Color(0xFFFFD700), size: 16),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Text(_text('PRO Uye', 'PRO Member'),
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Color(0xFFFFD700),
                           fontWeight: FontWeight.bold)),
                 ],
@@ -1052,7 +1230,7 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: const Icon(Icons.settings_outlined, size: 18),
               label: Text(_text('Aboneligi Yonet', 'Manage Subscription')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.12),
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -1069,7 +1247,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -1080,7 +1258,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Text(
                       _text('XP Ilerlemesi', 'XP Progress'),
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                     Text(
@@ -1095,7 +1273,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
                     value: progressValue.clamp(0.0, 1.0),
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       selectedTheme.colors.accent,
                     ),
@@ -1109,7 +1287,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     '$xpRemaining XP to the next level',
                   ),
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.5), fontSize: 12),
+                      color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                 ),
               ],
             ),
@@ -1123,7 +1301,9 @@ class _ProfilePageState extends State<ProfilePage> {
             tokensRemaining: _aiTokensRemaining,
             remainingRatio: _aiRemainingRatio,
             quotaDateUtc: _aiQuotaDateUtc,
+            activityEstimates: _aiActivityEstimates,
             onRefresh: _loadAiTokenQuotaStatus,
+            errorText: _aiQuotaError,
           ),
 
           const SizedBox(height: 24),
@@ -1170,7 +1350,7 @@ class _ProfilePageState extends State<ProfilePage> {
         color: color,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.8)],
+          colors: [color, color.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1192,7 +1372,7 @@ class _ProfilePageState extends State<ProfilePage> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 12,
               height: 1.2,
             ),
@@ -1308,10 +1488,10 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: currentTheme.colors.glassBorder.withOpacity(0.85),
+                color: currentTheme.colors.glassBorder.withValues(alpha: 0.85),
               ),
             ),
             child: Row(
@@ -1362,7 +1542,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: selectedTheme.colors.background.withOpacity(0.8),
+          color: selectedTheme.colors.background.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? theme.colors.accent : Colors.transparent,
@@ -1371,7 +1551,7 @@ class _ProfilePageState extends State<ProfilePage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: theme.colors.accentGlow.withOpacity(0.6),
+                    color: theme.colors.accentGlow.withValues(alpha: 0.6),
                     blurRadius: 10,
                     spreadRadius: 1,
                   )
@@ -1425,7 +1605,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: LinearProgressIndicator(
                           value: progress.clamp(0.0, 1.0).toDouble(),
                           minHeight: 5,
-                          backgroundColor: Colors.white.withOpacity(0.12),
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
                           valueColor: AlwaysStoppedAnimation<Color>(
                               theme.colors.primary),
                         ),
@@ -1436,7 +1616,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               if (!isUnlocked)
                 Container(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   child: Center(
                     child: Text(
                       _text('Kilitli\n$remainingXP XP',
@@ -1519,7 +1699,8 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsTile(
               Icons.notifications_none,
               context.tr('profile.notificationPrefs'),
-              _showNotificationSettingsDialog),
+              _showNotificationSettingsDialog,
+              key: const ValueKey('profile-notification-preferences-tile')),
           const SizedBox(height: 12),
           _buildSettingsTile(
               Icons.lock_outline,
@@ -1539,32 +1720,101 @@ class _ProfilePageState extends State<ProfilePage> {
               MaterialPageRoute(builder: (_) => const SettingsPage()),
             );
           }),
+          const SizedBox(height: 12),
+          _buildInfoTile(
+            Icons.info_outline,
+            _text('Uygulama surumu', 'App version'),
+            _appVersionLabel ?? '-',
+          ),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.delete_forever_outlined,
+            _text('Hesabimi sil', 'Delete my account'),
+            _showAccountDeletionDialog,
+            key: const ValueKey('profile-delete-account-tile'),
+            color: Colors.redAccent,
+          ),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.logout,
+            _text('Bu cihazdan cikis yap', 'Sign out on this device'),
+            _showLogoutDialog,
+            color: Colors.redAccent,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsTile(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildInfoTile(
+    IconData icon,
+    String title,
+    String value,
+  ) {
     final selectedTheme = _currentTheme();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: selectedTheme.colors.accent, size: 20),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.70),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    Key? key,
+    Color? color,
+  }) {
+    final selectedTheme = _currentTheme();
+    final effectiveColor = color ?? selectedTheme.colors.accent;
     return InkWell(
+      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selectedTheme.colors.accent, size: 20),
+            Icon(icon, color: effectiveColor, size: 20),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: color ?? Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold),
               ),
@@ -1575,6 +1825,155 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  void _showLogoutDialog() {
+    final selectedTheme = _currentTheme(listen: false);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: selectedTheme.colors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          _text('Cikis yap', 'Sign out'),
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          _text(
+            'Bu cihazdan cikis yapilacak. Kelimelerin, aboneligin ve AI kotan Google hesabina bagli kalir.',
+            'You will be signed out on this device. Your words, subscription, and AI quota stay linked to your Google account.',
+          ),
+          style: const TextStyle(color: Colors.white70, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              _text('Vazgec', 'Cancel'),
+              style: TextStyle(color: selectedTheme.colors.accent),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _handleLogout();
+            },
+            child: Text(
+              _text('Cikis yap', 'Sign out'),
+              style: const TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleLogout() async {
+    context.read<AppStateProvider>().clearSessionState(clearDailyWords: true);
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+  }
+
+  void _showAccountDeletionDialog() {
+    final selectedTheme = _currentTheme(listen: false);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: selectedTheme.colors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          _text('Hesabimi sil', 'Delete my account'),
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          _text(
+            'Bu talep hesabinizi ve kelime, cumle, ilerleme ve XP dahil bagli verilerinizi silme surecini baslatir. Talepler genellikle 30 gun icinde islenir. Aktif bir Google Play aboneligin varsa, ayrica Google Play uzerinden iptal etmen gerekir.',
+            'This request starts the process of deleting your account and connected data, including words, sentences, progress, and XP. Requests are normally processed within 30 days. If you have an active Google Play subscription, you must also cancel it separately in Google Play.',
+          ),
+          style: const TextStyle(color: Colors.white70, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              _text('Vazgec', 'Cancel'),
+              style: TextStyle(color: selectedTheme.colors.accent),
+            ),
+          ),
+          TextButton(
+            onPressed: _isRequestingAccountDeletion
+                ? null
+                : () async {
+                    Navigator.pop(dialogContext);
+                    await _submitAccountDeletionRequest();
+                  },
+            child: Text(
+              _text('Silme talebi gonder', 'Request deletion'),
+              style: const TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitAccountDeletionRequest() async {
+    if (_isRequestingAccountDeletion) return;
+    setState(() => _isRequestingAccountDeletion = true);
+    try {
+      await _supportTicketService.createTicket(
+        type: 'ACCOUNT_DELETION',
+        title: _text('Hesap silme talebi', 'Account deletion request'),
+        message: _text(
+          'Kullanici uygulama icinden hesabinin ve bagli verilerinin silinmesini talep etti.',
+          'The user requested deletion of their account and connected data from within the app.',
+        ),
+        locale: _isTurkish ? 'tr' : 'en',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_text(
+            'Silme talebin alindi. En gec 30 gun icinde islenecek.',
+            'Your deletion request has been received. It will be processed within 30 days.',
+          )),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on SupportTicketException catch (e) {
+      if (!mounted) return;
+      final message = e.statusCode == 429
+          ? _text(
+              'Bugun icin destek talebi hakkini doldurdun. Lutfen yarin tekrar dene veya support@klioai.app adresine yaz.',
+              'You have reached today\'s support request limit. Please try again tomorrow or email support@klioai.app.',
+            )
+          : _text(
+              'Talep gonderilemedi: ${e.message}',
+              'The request could not be submitted: ${e.message}',
+            );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_text(
+            'Talep gonderilemedi: $e',
+            'The request could not be submitted: $e',
+          )),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingAccountDeletion = false);
+      }
+    }
   }
 
   // Dialog Implementation
@@ -1647,78 +2046,74 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showNotificationSettingsDialog() {
-    final selectedTheme = _currentTheme();
+    final selectedTheme = _currentTheme(listen: false);
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => Dialog(
-          backgroundColor: selectedTheme.colors.background,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            width: MediaQuery.of(context).size.width * 0.9,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(Icons.notifications_active_outlined,
-                                color: selectedTheme.colors.accent, size: 24),
-                            const SizedBox(width: 12),
-                            Flexible(
-                              child: Text(
-                                context.tr('profile.notificationPrefs'),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white54),
-                          onPressed: () => Navigator.pop(context)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSwitchTile(
-                      context.tr('profile.notif.pushTitle'),
-                      context.tr('profile.notif.pushDesc'),
-                      _pushNotifications,
-                      (v) => _setDailyReminderEnabled(v, setStateDialog)),
-                  const SizedBox(height: 12),
-                  _buildSwitchTile(
-                      context.tr('profile.notif.emailTitle'),
-                      context.tr('profile.notif.emailDesc'),
-                      _emailNotifications,
-                      (v) => setStateDialog(() => _emailNotifications = v)),
-                  const SizedBox(height: 12),
-                  _buildSwitchTile(
-                      context.tr('profile.notif.achievementTitle'),
-                      context.tr('profile.notif.achievementDesc'),
-                      _achievementNotifications,
-                      (v) =>
-                          setStateDialog(() => _achievementNotifications = v)),
-                  const SizedBox(height: 12),
-                  _buildSwitchTile(
-                      context.tr('profile.notif.friendTitle'),
-                      context.tr('profile.notif.friendDesc'),
-                      _friendRequestNotifications,
-                      (v) => setStateDialog(
-                          () => _friendRequestNotifications = v)),
-                ],
-              ),
-            ),
+        builder: (context, setStateDialog) => NotificationSettingsDialog(
+          theme: selectedTheme,
+          title: context.tr('profile.notificationPrefs'),
+          dailyReminderTitle:
+              _text('Günlük pratik hatırlatıcısı', 'Daily practice reminder'),
+          dailyReminderSubtitle: _text(
+            'Her gün sakin bir pratik hatırlatması.',
+            'A calm reminder for daily practice.',
           ),
+          dailyReminderEnabled: _dailyReminderNotifications,
+          onDailyReminderChanged: (v) {
+            setStateDialog(() => _dailyReminderNotifications = v);
+            setState(() => _dailyReminderNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          streakGuardTitle: _text('Seri koruma', 'Streak guard'),
+          streakGuardSubtitle: _text(
+            'Serini kaybetmeden önce tek uyarı.',
+            'One reminder before your streak is at risk.',
+          ),
+          streakGuardEnabled: _streakGuardNotifications,
+          onStreakGuardChanged: (v) {
+            setStateDialog(() => _streakGuardNotifications = v);
+            setState(() => _streakGuardNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          dailyWordsTitle: _text(
+              'Günün kelimeleri ve yenilikler', 'Daily words and updates'),
+          dailyWordsSubtitle: _text(
+            'Yeni günlük içerikler ve düşük frekanslı yenilikler.',
+            'New daily content and low-frequency updates.',
+          ),
+          dailyWordsEnabled: _dailyWordsNotifications,
+          onDailyWordsChanged: (v) {
+            setStateDialog(() => _dailyWordsNotifications = v);
+            setState(() => _dailyWordsNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          subscriptionTitle:
+              _text('Abonelik ve hesap', 'Subscription and account'),
+          subscriptionSubtitle: _text(
+            'Ödeme veya hesap erişimiyle ilgili önemli uyarılar.',
+            'Important payment or account access alerts.',
+          ),
+          subscriptionEnabled: _subscriptionAlertNotifications,
+          onSubscriptionChanged: (v) {
+            setStateDialog(() => _subscriptionAlertNotifications = v);
+            setState(() => _subscriptionAlertNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          socialTitle:
+              _text('Topluluk bildirimleri', 'Community notifications'),
+          socialSubtitle: _text(
+            'Sosyal özellikler aktif olduğunda gelen uyarılar.',
+            'Alerts from social features when enabled.',
+          ),
+          socialEnabled: _socialNotifications,
+          onSocialChanged: (v) {
+            setStateDialog(() => _socialNotifications = v);
+            setState(() => _socialNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          saving: _notificationPrefsSaving,
+          onClose: () => Navigator.pop(context),
         ),
       ),
     );
@@ -1816,55 +2211,13 @@ class _ProfilePageState extends State<ProfilePage> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withValues(alpha: 0.1),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile(
-      String title, String subtitle, bool value, Function(bool) onChanged) {
-    final selectedTheme = _currentTheme();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: selectedTheme.colors.accent.withOpacity(0.7),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.white,
-            activeTrackColor: selectedTheme.colors.accent,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: Colors.white.withOpacity(0.1),
-          ),
-        ],
       ),
     );
   }
@@ -1874,7 +2227,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -1891,7 +2244,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: selectedTheme.colors.accent.withOpacity(0.7),
+                    color: selectedTheme.colors.accent.withValues(alpha: 0.7),
                     fontSize: 11,
                   ),
                 ),
@@ -1939,7 +2292,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF059669).withOpacity(0.2),
+                    color: const Color(0xFF059669).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFF059669)),
                   ),
@@ -1954,18 +2307,18 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: [
                   Icon(Icons.person_add_outlined,
-                      color: Colors.white.withOpacity(0.3), size: 48),
+                      color: Colors.white.withValues(alpha: 0.3), size: 48),
                   const SizedBox(height: 12),
                   Text(
                     _text('Henuz arkadasiniz yok', 'No friends yet'),
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 16,
                         fontWeight: FontWeight.bold),
                   ),
@@ -1974,7 +2327,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     'Kullanıcı ID\'si ile arkadaş ekleyerek birlikte pratik yapabilirsiniz!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.5), fontSize: 13),
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 13),
                   ),
                 ],
               ),
@@ -1984,7 +2338,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Text(
                 'ÇEVRİMİÇİ',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 12,
                     fontWeight: FontWeight.bold),
               ),
@@ -2005,7 +2359,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Text(
                 'ÇEVRİMDIŞI',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 12,
                     fontWeight: FontWeight.bold),
               ),
@@ -2032,9 +2386,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -2151,9 +2505,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
+                  color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor.withOpacity(0.5)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2182,9 +2536,9 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -2213,7 +2567,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ? 'Kendi anahtarınızı ekleyerek sınırsız kullanın'
                                 : 'AI özelliklerini kullanmak için anahtar ekleyin',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6), fontSize: 12),
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12),
                       ),
                     ],
                   ),
@@ -2290,7 +2645,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: const Icon(Icons.delete_outline,
                       color: Color(0xFFef4444)),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFFef4444).withOpacity(0.1),
+                    backgroundColor:
+                        const Color(0xFFef4444).withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -2338,11 +2694,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10b981).withOpacity(0.1),
+                            color:
+                                const Color(0xFF10b981).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                                color:
-                                    const Color(0xFF10b981).withOpacity(0.3)),
+                                color: const Color(0xFF10b981)
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: const Row(
                             children: [
@@ -2376,19 +2733,20 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.help_outline,
-                      color: Colors.white.withOpacity(0.5), size: 16),
+                      color: Colors.white.withValues(alpha: 0.5), size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Ücretsiz API anahtarı nasıl alınır?',
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.5), fontSize: 13),
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 13),
                   ),
                 ],
               ),
@@ -2480,10 +2838,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   decoration: InputDecoration(
                     hintText: 'gsk_xxxxxxxxxxxxxxxx',
                     hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         fontFamily: 'monospace'),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.1),
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -2507,10 +2865,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFef4444).withOpacity(0.1),
+                      color: const Color(0xFFef4444).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: const Color(0xFFef4444).withOpacity(0.3)),
+                          color:
+                              const Color(0xFFef4444).withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -2533,10 +2892,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10b981).withOpacity(0.1),
+                      color: const Color(0xFF10b981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: const Color(0xFF10b981).withOpacity(0.3)),
+                          color:
+                              const Color(0xFF10b981).withValues(alpha: 0.3)),
                     ),
                     child: const Row(
                       children: [
@@ -2556,7 +2916,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8b5cf6).withOpacity(0.1),
+                    color: const Color(0xFF8b5cf6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -2568,7 +2928,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Text(
                           'Anahtarınız cihazınızda şifreli olarak saklanır.',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 11),
                         ),
                       ),
@@ -2582,7 +2942,7 @@ class _ProfilePageState extends State<ProfilePage> {
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(ctx),
               child: Text('İptal',
-                  style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
             ),
             ElevatedButton(
               onPressed: isLoading

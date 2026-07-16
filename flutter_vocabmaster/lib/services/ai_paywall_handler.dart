@@ -14,6 +14,9 @@ class AiPaywallHandler {
       return;
     }
     await AnalyticsService.logPaywallShown(source: 'ai_access_required');
+    if (!context.mounted) {
+      return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SubscriptionPage()),

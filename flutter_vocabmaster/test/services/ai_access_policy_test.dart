@@ -13,12 +13,24 @@ void main() {
       );
     });
 
-    test('denies access when aiAccessEnabled is explicitly false', () {
+    test('allows access when stale aiAccessEnabled false has positive quota signals', () {
       expect(
         hasPracticeAccess({
           'aiAccessEnabled': false,
           'trialActive': true,
           'tokenLimit': 25000,
+        }),
+        isTrue,
+      );
+    });
+
+    test('denies access when aiAccessEnabled is false and no positive signal exists', () {
+      expect(
+        hasPracticeAccess({
+          'aiAccessEnabled': false,
+          'trialActive': false,
+          'tokenLimit': 0,
+          'tokensRemaining': 0,
         }),
         isFalse,
       );

@@ -459,7 +459,7 @@ class _ExamChatPageState extends State<ExamChatPage>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -616,12 +616,12 @@ class _ExamChatPageState extends State<ExamChatPage>
                 bottomRight: Radius.circular(message.isBot ? 20 : 4),
               ),
               border: message.isBot
-                  ? Border.all(color: color.withOpacity(0.2))
+                  ? Border.all(color: color.withValues(alpha: 0.2))
                   : null,
               boxShadow: [
                 BoxShadow(
                   color: (message.isBot ? const Color(0xFF1e3a8a) : color)
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -642,7 +642,7 @@ class _ExamChatPageState extends State<ExamChatPage>
                 Text(
                   message.time,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
@@ -662,9 +662,9 @@ class _ExamChatPageState extends State<ExamChatPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1e3a8a).withOpacity(0.5),
+              color: const Color(0xFF1e3a8a).withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withOpacity(0.2)),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -692,7 +692,7 @@ class _ExamChatPageState extends State<ExamChatPage>
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.6 + (value * 0.4)),
+            color: color.withValues(alpha: 0.6 + (value * 0.4)),
             shape: BoxShape.circle,
           ),
         );
@@ -704,9 +704,9 @@ class _ExamChatPageState extends State<ExamChatPage>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0f172a).withOpacity(0.8),
+        color: const Color(0xFF0f172a).withValues(alpha: 0.8),
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.1)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
       ),
       child: Column(
@@ -729,12 +729,13 @@ class _ExamChatPageState extends State<ExamChatPage>
                   decoration: BoxDecoration(
                     color: _isListening
                         ? const Color(0xFFef4444)
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: _isListening
                         ? [
                             BoxShadow(
-                              color: const Color(0xFFef4444).withOpacity(0.5),
+                              color: const Color(0xFFef4444)
+                                  .withValues(alpha: 0.5),
                               blurRadius: 10,
                               spreadRadius: 2,
                             )
@@ -759,7 +760,7 @@ class _ExamChatPageState extends State<ExamChatPage>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -778,9 +779,10 @@ class _ExamChatPageState extends State<ExamChatPage>
                 child: Container(
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1e293b).withOpacity(0.8),
+                    color: const Color(0xFF1e293b).withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: TextField(
                     controller: _messageController,
@@ -811,7 +813,7 @@ class _ExamChatPageState extends State<ExamChatPage>
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.3),
+                        color: color.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -832,7 +834,7 @@ class _ExamChatPageState extends State<ExamChatPage>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -872,15 +874,18 @@ class ChatMessage {
 }
 
 // Custom audio source for just_audio
+// ignore: experimental_member_use
 class MyCustomSource extends StreamAudioSource {
   final Uint8List _buffer;
 
   MyCustomSource(this._buffer);
 
   @override
+  // ignore: experimental_member_use
   Future<StreamAudioResponse> request([int? start, int? end]) async {
     start ??= 0;
     end ??= _buffer.length;
+    // ignore: experimental_member_use
     return StreamAudioResponse(
       sourceLength: _buffer.length,
       contentLength: end - start,
@@ -900,7 +905,7 @@ class ParticlesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF0ea5e9).withOpacity(0.2)
+      ..color = const Color(0xFF0ea5e9).withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < 20; i++) {
@@ -919,4 +924,3 @@ class ParticlesPainter extends CustomPainter {
     return oldDelegate.animationValue != animationValue;
   }
 }
-

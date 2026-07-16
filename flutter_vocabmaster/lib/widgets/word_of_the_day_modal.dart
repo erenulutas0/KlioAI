@@ -13,6 +13,7 @@ import '../theme/theme_provider.dart';
 class WordOfTheDayModal extends StatefulWidget {
   final Map<String, dynamic> wordData;
   final VoidCallback onClose;
+  final VoidCallback? onPracticePronunciation;
   final bool enableAnimations;
   final bool enableTts;
   final int initialStep;
@@ -21,6 +22,7 @@ class WordOfTheDayModal extends StatefulWidget {
     super.key,
     required this.wordData,
     required this.onClose,
+    this.onPracticePronunciation,
     this.enableAnimations = true,
     this.enableTts = true,
     this.initialStep = 0,
@@ -83,7 +85,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
   }
 
   void _prepareQuiz() {
-    final correct = widget.wordData['translation'] as String;
+    final correct = (widget.wordData['translation'] ?? '').toString();
     final dummies = [
       "Mutlu, neşeli",
       "Hızlı, çabuk",
@@ -92,8 +94,51 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
     _quizOptions = [...dummies, correct]..shuffle();
   }
 
+  List<Map<String, dynamic>> _meanings() {
+    final raw = widget.wordData['meanings'];
+    if (raw is! List) {
+      return const [];
+    }
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where(
+            (item) => (item['translation'] ?? '').toString().trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   Future<void> _speak(String text) async {
     await _flutterTts.speak(text);
+  }
+
+  String _wordText() {
+    return (widget.wordData['word'] ?? widget.wordData['englishWord'] ?? '')
+        .toString()
+        .trim();
+  }
+
+  String _translationText() {
+    return (widget.wordData['translation'] ??
+            widget.wordData['turkishMeaning'] ??
+            '')
+        .toString()
+        .trim();
+  }
+
+  String _exampleSentenceText() {
+    return (widget.wordData['exampleSentence'] ??
+            widget.wordData['sentence'] ??
+            '')
+        .toString()
+        .trim();
+  }
+
+  String _exampleTranslationText() {
+    return (widget.wordData['exampleTranslation'] ??
+            widget.wordData['sentenceTranslation'] ??
+            '')
+        .toString()
+        .trim();
   }
 
   Future<void> _addToWords(
@@ -108,31 +153,55 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
     try {
       final appState = context.read<AppStateProvider>();
       final addedDate = DateTime.now();
-      final wordText = (widget.wordData['word'] ?? '').toString();
-      final sentenceText =
-          (widget.wordData['exampleSentence'] ?? '').toString();
-      final translationText =
-          (widget.wordData['exampleTranslation'] ?? '').toString();
+      final wordText = _wordText();
+      final translation = _translationText();
+      final sentenceText = _exampleSentenceText();
+      final sentenceTranslation = _exampleTranslationText();
+
+      if (wordText.isEmpty) {
+        throw StateError('daily word text is empty');
+      }
 
       Word? word = appState.findWordByEnglish(wordText);
 
       if (!wordAdded) {
         word = await appState.addWord(
           english: wordText,
-          turkish: "⭐ ${widget.wordData['translation']}",
+          turkish: translation.isEmpty ? "⭐ $wordText" : "⭐ $translation",
           addedDate: addedDate,
           difficulty: (widget.wordData['difficulty'] as String? ?? 'Medium')
               .toLowerCase(),
           source: 'daily_word',
         );
+        if (word == null) {
+          throw StateError('daily word add failed');
+        }
       }
 
-      if (withSentence && word != null && !sentenceAdded) {
-        await appState.addSentenceToWord(
+      if (withSentence &&
+          word != null &&
+          !sentenceAdded &&
+          sentenceText.isNotEmpty) {
+        final updatedWord = await appState.addSentenceToWord(
           wordId: word.id,
           sentence: sentenceText,
-          translation: translationText,
+          translation: sentenceTranslation,
           difficulty: 'medium',
+        );
+        if (updatedWord == null ||
+            !appState.hasSentenceForWord(updatedWord, sentenceText)) {
+          throw StateError('daily word sentence add failed');
+        }
+      }
+      await appState.refreshXpStatsFromLocal();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('home.snack.addFailed')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -182,11 +251,11 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           gradient: selectedTheme.colors.backgroundGradient,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
           ),
           boxShadow: [
             BoxShadow(
-              color: selectedTheme.colors.accentGlow.withOpacity(0.25),
+              color: selectedTheme.colors.accentGlow.withValues(alpha: 0.25),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -235,10 +304,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02), // subtle overlay
+        color: Colors.white.withValues(alpha: 0.02), // subtle overlay
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border:
-            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Column(
         children: [
@@ -264,7 +333,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.close, color: Colors.white, size: 18),
@@ -287,7 +356,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                         : null,
                     color: index <= _currentStep
                         ? null
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -298,7 +367,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           Text(
             _getStepTitle(_currentStep),
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 12,
             ),
           ),
@@ -355,10 +424,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: selectedTheme.colors.accent.withOpacity(0.2),
+              color: selectedTheme.colors.accent.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
               ),
             ),
             child: Text(
@@ -399,7 +468,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             widget.wordData['pronunciation'] ?? '',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -437,6 +506,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
   // --- Step 2 ---
   Widget _buildStep2Meaning(AppThemeConfig selectedTheme) {
     final synonyms = List<String>.from(widget.wordData['synonyms'] ?? []);
+    final meanings = _meanings();
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -449,8 +519,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           ),
           Text(
             widget.wordData['pronunciation'] ?? '',
-            style:
-                TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5)),
+            style: TextStyle(
+                fontSize: 14, color: Colors.white.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
           Container(
@@ -459,15 +529,15 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  selectedTheme.colors.accent.withOpacity(0.15),
-                  selectedTheme.colors.primary.withOpacity(0.15),
+                  selectedTheme.colors.accent.withValues(alpha: 0.15),
+                  selectedTheme.colors.primary.withValues(alpha: 0.15),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
               ),
             ),
             child: Column(
@@ -478,7 +548,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                 Text(
                   context.tr('wotd.meaningTitle'),
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
@@ -493,20 +563,76 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
               ],
             ),
           ),
+          if (meanings.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ...meanings.take(3).map((meaning) {
+              final translation = (meaning['translation'] ?? '').toString();
+              final sense = (meaning['sense'] ?? '').toString();
+              final example = (meaning['exampleSentence'] ?? '').toString();
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: selectedTheme.colors.cardBackground
+                      .withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color:
+                        selectedTheme.colors.glassBorder.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      translation,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (sense.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        sense,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.68),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (example.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        example,
+                        style: TextStyle(
+                          color: selectedTheme.colors.accent,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
             child: Text(
               widget.wordData['definition'] ?? '',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontStyle: FontStyle.italic),
             ),
           ),
@@ -523,7 +649,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                     child: Text(
                       '${context.tr('wotd.synonyms')}: ',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
@@ -537,7 +663,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                       children: synonyms
                           .map((s) => Chip(
                                 label: Text(s),
-                                backgroundColor: Colors.white.withOpacity(0.1),
+                                backgroundColor:
+                                    Colors.white.withValues(alpha: 0.1),
                                 labelStyle: const TextStyle(
                                     color: Colors.white, fontSize: 12),
                                 padding: EdgeInsets.zero,
@@ -571,15 +698,15 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  selectedTheme.colors.primary.withOpacity(0.15),
-                  selectedTheme.colors.accent.withOpacity(0.15),
+                  selectedTheme.colors.primary.withValues(alpha: 0.15),
+                  selectedTheme.colors.accent.withValues(alpha: 0.15),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
               ),
             ),
             child: Column(
@@ -600,7 +727,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                   widget.wordData['exampleTranslation'] ?? '',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontStyle: FontStyle.italic),
                 ),
               ],
@@ -684,14 +811,48 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             ),
           ),
         ),
+        if (widget.onPracticePronunciation != null) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: OutlinedButton.icon(
+                onPressed: widget.onPracticePronunciation,
+                icon: Icon(
+                  Icons.record_voice_over_rounded,
+                  color: selectedTheme.colors.accent,
+                ),
+                label: Text(
+                  context.tr('wotd.startReadAloud'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selectedTheme.colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: selectedTheme.colors.accent.withValues(alpha: 0.55),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 32),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 32),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             children: [
@@ -701,7 +862,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                 child: Text(
                   context.tr('wotd.pronunciationTip'),
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.7), fontSize: 13),
+                      color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
                 ),
               ),
             ],
@@ -741,18 +902,18 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             final isSelected = _quizSelectedAnswer == option;
             final isCorrect = option == correctAns;
 
-            Color borderColor = Colors.white.withOpacity(0.2);
-            Color bgColor = Colors.white.withOpacity(0.05);
+            Color borderColor = Colors.white.withValues(alpha: 0.2);
+            Color bgColor = Colors.white.withValues(alpha: 0.05);
             Widget? icon;
 
             if (_quizAnswered) {
               if (option == correctAns) {
                 borderColor = const Color(0xFF4ADE80); // Green
-                bgColor = const Color(0xFF4ADE80).withOpacity(0.2);
+                bgColor = const Color(0xFF4ADE80).withValues(alpha: 0.2);
                 icon = const Icon(Icons.check_circle, color: Color(0xFF4ADE80));
               } else if (isSelected) {
                 borderColor = const Color(0xFFF87171); // Red
-                bgColor = const Color(0xFFF87171).withOpacity(0.2);
+                bgColor = const Color(0xFFF87171).withValues(alpha: 0.2);
                 icon = const Icon(Icons.cancel, color: Color(0xFFF87171));
               } else {
                 borderColor = Colors.transparent;
@@ -760,7 +921,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
               }
             } else if (isSelected) {
               borderColor = selectedTheme.colors.accent;
-              bgColor = selectedTheme.colors.accent.withOpacity(0.2);
+              bgColor = selectedTheme.colors.accent.withValues(alpha: 0.2);
             }
 
             return Padding(
@@ -788,7 +949,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                           option,
                           style: TextStyle(
                             color: _quizAnswered && !isCorrect && !isSelected
-                                ? Colors.white.withOpacity(0.3)
+                                ? Colors.white.withValues(alpha: 0.3)
                                 : Colors.white,
                             fontWeight: FontWeight.w500,
                             fontSize: 16,
@@ -814,8 +975,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: _quizSelectedAnswer == correctAns
-                    ? const Color(0xFF4ADE80).withOpacity(0.1)
-                    : const Color(0xFFF87171).withOpacity(0.1),
+                    ? const Color(0xFF4ADE80).withValues(alpha: 0.1)
+                    : const Color(0xFFF87171).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -849,11 +1010,12 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
   // --- Step 6 ---
   Widget _buildStep6Summary(AppThemeConfig selectedTheme) {
     final appState = context.watch<AppStateProvider>();
-    final wordText = (widget.wordData['word'] ?? '').toString();
-    final sentenceText = (widget.wordData['exampleSentence'] ?? '').toString();
+    final wordText = _wordText();
+    final sentenceText = _exampleSentenceText();
     final existingWord = appState.findWordByEnglish(wordText);
     final wordAdded = existingWord != null;
     final sentenceAdded = existingWord != null &&
+        sentenceText.isNotEmpty &&
         appState.hasSentenceForWord(existingWord, sentenceText);
 
     return Padding(
@@ -873,8 +1035,8 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
           Text(
             '"${widget.wordData['word']}" ${context.tr('wotd.learnedSuffix')}',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
           ),
           const SizedBox(height: 48),
           if (!wordAdded) ...[
@@ -921,7 +1083,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                 label: Text(context.tr('wotd.addWordOnly'),
                     style: const TextStyle(color: Colors.white)),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
@@ -932,10 +1094,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: selectedTheme.colors.primary.withOpacity(0.1),
+                color: selectedTheme.colors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selectedTheme.colors.primary.withOpacity(0.3),
+                  color: selectedTheme.colors.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -985,10 +1147,10 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: selectedTheme.colors.primary.withOpacity(0.1),
+                color: selectedTheme.colors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selectedTheme.colors.primary.withOpacity(0.3),
+                  color: selectedTheme.colors.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -1030,7 +1192,7 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                   foregroundColor: Colors.white,

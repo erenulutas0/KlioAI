@@ -36,7 +36,7 @@ class GlassmorphismCard extends StatelessWidget {
             color: color ?? selectedTheme.colors.glassBackground,
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: selectedTheme.colors.glassBorder.withOpacity(0.92),
+              color: selectedTheme.colors.glassBorder.withValues(alpha: 0.92),
               width: 1,
             ),
           ),

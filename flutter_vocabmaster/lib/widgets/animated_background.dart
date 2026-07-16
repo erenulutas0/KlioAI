@@ -308,13 +308,14 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                     end: Alignment.bottomCenter,
                     colors: [
                       _theme.colors.particleColor,
-                      _theme.colors.particleColor.withOpacity(0.25),
+                      _theme.colors.particleColor.withValues(alpha: 0.25),
                       Colors.transparent,
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _theme.colors.particleGlow.withOpacity(0.5 * glow),
+                      color: _theme.colors.particleGlow
+                          .withValues(alpha: 0.5 * glow),
                       blurRadius: 8 * glow,
                     ),
                   ],
@@ -360,8 +361,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                     color: _theme.colors.particleColor,
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            _theme.colors.particleGlow.withOpacity(0.55 * glow),
+                        color: _theme.colors.particleGlow
+                            .withValues(alpha: 0.55 * glow),
                         blurRadius: 12 * glow,
                       ),
                     ],
@@ -410,8 +411,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                   color: _theme.colors.particleColor,
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          _theme.colors.particleGlow.withOpacity(0.45 * glow),
+                      color: _theme.colors.particleGlow
+                          .withValues(alpha: 0.45 * glow),
                       blurRadius: 10 * glow,
                     ),
                   ],
@@ -452,16 +453,16 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      _theme.colors.particleColor.withOpacity(0.55),
-                      _theme.colors.particleColor.withOpacity(0.15),
+                      _theme.colors.particleColor.withValues(alpha: 0.55),
+                      _theme.colors.particleColor.withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.55, 1.0],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          _theme.colors.particleGlow.withOpacity(0.35 * glow),
+                      color: _theme.colors.particleGlow
+                          .withValues(alpha: 0.35 * glow),
                       blurRadius: 8 * glow,
                     ),
                   ],
@@ -512,8 +513,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                     color: _theme.colors.particleColor,
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            _theme.colors.particleGlow.withOpacity(0.6 * glow),
+                        color: _theme.colors.particleGlow
+                            .withValues(alpha: 0.6 * glow),
                         blurRadius: 12 * glow,
                       ),
                     ],
@@ -574,7 +575,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                     gradient: RadialGradient(
                       colors: [
                         orbColor,
-                        orbColor.withOpacity(0.0),
+                        orbColor.withValues(alpha: 0.0),
                       ],
                     ),
                   ),
@@ -620,13 +621,13 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _theme.colors.accentGlow
-                            .withOpacity(0.35 * ringOpacity),
+                            .withValues(alpha: 0.35 * ringOpacity),
                         width: 2.0,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: _theme.colors.accentGlow
-                              .withOpacity(0.22 * ringOpacity),
+                              .withValues(alpha: 0.22 * ringOpacity),
                           blurRadius: 24,
                         ),
                       ],
@@ -645,8 +646,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            _theme.colors.primary.withOpacity(0.65),
-                            _theme.colors.accent.withOpacity(0.20),
+                            _theme.colors.primary.withValues(alpha: 0.65),
+                            _theme.colors.accent.withValues(alpha: 0.20),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.58, 1.0],
@@ -663,4 +664,3 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
     ];
   }
 }
-

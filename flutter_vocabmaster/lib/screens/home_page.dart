@@ -9,8 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 // Add Word model
 import '../widgets/animated_background.dart';
+import '../services/api_service.dart';
 import '../services/user_data_service.dart';
 import '../services/social_service.dart';
+import '../widgets/due_review_card.dart';
 import '../widgets/info_dialog.dart';
 import 'profile_page.dart';
 import '../providers/app_state_provider.dart';
@@ -21,9 +23,8 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import 'pronunciation_practice_page.dart';
 import 'support_tickets_page.dart';
-import '../services/first_session_activation_service.dart';
-import '../services/analytics_service.dart';
 
 class HomePage extends StatefulWidget {
   final Function(String) onNavigate;
@@ -60,11 +61,10 @@ class _HomePageState extends State<HomePage>
   // Heartbeat timer for online status
   Timer? _heartbeatTimer;
   final SocialService _socialService = SocialService();
-  final FirstSessionActivationService _activationService =
-      FirstSessionActivationService();
-  String? _activationSelectedLevel;
-  bool _activationPracticeCompleted = false;
-  bool _activationDismissed = false;
+
+  // SRS due-review count for the daily-return card
+  final ApiService _srsApiService = ApiService();
+  int _dueReviewCount = 0;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -86,8 +86,8 @@ class _HomePageState extends State<HomePage>
       _handleLostData();
       _loadOnlineUsers();
       _startHeartbeat();
+      _loadDueReviews();
     }
-    _loadActivationState();
 
     // Glow animations
     _glowAnimation1 = AnimationController(
@@ -137,45 +137,6 @@ class _HomePageState extends State<HomePage>
     )..repeat(reverse: true);
   }
 
-  Future<void> _loadActivationState() async {
-    final results = await Future.wait<Object?>([
-      _activationService.getSelectedLevel(),
-      _activationService.isPracticeCompleted(),
-      _activationService.isDismissed(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _activationSelectedLevel = results[0] as String?;
-      _activationPracticeCompleted = results[1] as bool? ?? false;
-      _activationDismissed = results[2] as bool? ?? false;
-    });
-  }
-
-  Future<void> _selectActivationLevel(String level) async {
-    await _activationService.setSelectedLevel(level);
-    await AnalyticsService.logActivationLevelSelected(level: level);
-    if (!mounted) return;
-    setState(() => _activationSelectedLevel = level);
-  }
-
-  Future<void> _dismissActivationCard() async {
-    final appState = context.read<AppStateProvider>();
-    final completedSteps = _activationCompletedSteps(appState);
-    await _activationService.dismiss();
-    await AnalyticsService.logActivationDismissed(
-      completedSteps: completedSteps,
-    );
-    if (!mounted) return;
-    setState(() => _activationDismissed = true);
-  }
-
-  Future<void> _refreshActivationPracticeCompletion() async {
-    if (_activationPracticeCompleted) return;
-    final completed = await _activationService.isPracticeCompleted();
-    if (!mounted || !completed) return;
-    setState(() => _activationPracticeCompleted = true);
-  }
-
   void _startHeartbeat() {
     // İlk heartbeat'i hemen gönder
     _socialService.sendHeartbeat();
@@ -184,6 +145,208 @@ class _HomePageState extends State<HomePage>
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
       _socialService.sendHeartbeat();
     });
+  }
+
+  Widget _buildFirstStepsCard() {
+    final theme = _currentTheme();
+    return Container(
+      key: const ValueKey('home-first-steps-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colors.accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colors.accent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_rounded, color: theme.colors.accent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                context.tr('home.firstSteps.title'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.tr('home.firstSteps.body'),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: const ValueKey('home-first-steps-cta'),
+              onPressed: () => widget.onNavigate('speaking'),
+              icon: Icon(Icons.mic_rounded, color: theme.colors.accent, size: 18),
+              label: Text(
+                context.tr('home.firstSteps.cta'),
+                style: TextStyle(
+                  color: theme.colors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadDueReviews() async {
+    try {
+      final stats = await _srsApiService.getSrsStats();
+      final due = (stats['dueToday'] as num?)?.toInt() ?? 0;
+      if (mounted) {
+        setState(() => _dueReviewCount = due);
+      }
+    } catch (e) {
+      // Sessiz düş: kart görünmez kalır, Home akışını bozmaz.
+      debugPrint('Due review count load failed: $e');
+    }
+  }
+
+  /// Streak rozetine dokununca: dondurucu stoğu + 500 XP'ye satın alma.
+  Future<void> _showStreakFreezeDialog() async {
+    final appState = context.read<AppStateProvider>();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        title: Row(
+          children: [
+            const Text('❄️', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                dialogContext.tr('streak.freeze.title'),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              dialogContext.tr('streak.freeze.desc'),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${dialogContext.tr('streak.freeze.owned')}: '
+              '${appState.streakFreezeTokens} / ${AppStateProvider.streakFreezeMaxTokens}',
+              style: const TextStyle(
+                color: Color(0xFF60A5FA),
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              dialogContext.tr('common.close'),
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            key: const ValueKey('buy-streak-freeze'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF60A5FA),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () async {
+              final bought = await appState.purchaseStreakFreeze();
+              if (!dialogContext.mounted) return;
+              Navigator.of(dialogContext).pop();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(bought
+                      ? context.tr('streak.freeze.bought')
+                      : context.tr('streak.freeze.cannotBuy')),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Text(dialogContext.tr('streak.freeze.buy')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Günlük hedef seçici: hedef kutusuna dokununca 5/10/20 arasından seçim.
+  Future<void> _showDailyGoalPicker() async {
+    final appState = context.read<AppStateProvider>();
+    final currentGoal = appState.userStats['dailyGoal'] ?? 5;
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        title: Text(
+          dialogContext.tr('goal.pick.title'),
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        children: AppStateProvider.dailyGoalOptions.map((option) {
+          final isSelected = option == currentGoal;
+          return SimpleDialogOption(
+            onPressed: () => Navigator.of(dialogContext).pop(option),
+            child: Row(
+              children: [
+                Icon(
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: isSelected ? const Color(0xFF22d3ee) : Colors.white54,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '$option ${dialogContext.tr('goal.pick.words')}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    if (selected != null && selected != currentGoal) {
+      await appState.setDailyGoal(selected);
+    }
   }
 
   @override
@@ -262,15 +425,6 @@ class _HomePageState extends State<HomePage>
 
     return Consumer<AppStateProvider>(
       builder: (context, appState, child) {
-        if (!_activationPracticeCompleted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _refreshActivationPracticeCompletion();
-          });
-        }
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          unawaited(_trackActivationProgress(appState));
-        });
         final selectedTheme = _currentTheme(listen: true);
         final user = appState.userStats;
         final userName = appState.userName;
@@ -314,12 +468,25 @@ class _HomePageState extends State<HomePage>
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             children: [
-                              _buildFirstSessionActivation(appState),
-                              if (!_shouldHideActivationCard())
-                                const SizedBox(height: 24),
                               // Stats Cards
                               _buildStatsCards(user),
+                              if (_dueReviewCount > 0) ...[
+                                const SizedBox(height: 16),
+                                DueReviewCard(
+                                  dueCount: _dueReviewCount,
+                                  onTap: () => widget.onNavigate('repeat'),
+                                ),
+                              ],
                               const SizedBox(height: 24),
+                              // First-run guidance: a brand-new user lands on
+                              // an all-zeros dashboard with no path to any AI
+                              // moment; point them at the two starter actions.
+                              if (((user['totalWords'] as num?)?.toInt() ??
+                                      0) ==
+                                  0) ...[
+                                _buildFirstStepsCard(),
+                                const SizedBox(height: 16),
+                              ],
                               // Daily Words Section
                               _buildDailyWordsSection(
                                   dailyWords, isLoadingDailyWords, appState),
@@ -372,7 +539,7 @@ class _HomePageState extends State<HomePage>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.18),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.18),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -391,16 +558,16 @@ class _HomePageState extends State<HomePage>
                 colors: [
                   _mix(selectedTheme.colors.background,
                           selectedTheme.colors.accent, 0.18)
-                      .withOpacity(0.78),
+                      .withValues(alpha: 0.78),
                   _mix(selectedTheme.colors.background,
                           selectedTheme.colors.primary, 0.16)
-                      .withOpacity(0.74),
-                  selectedTheme.colors.background.withOpacity(0.62),
+                      .withValues(alpha: 0.74),
+                  selectedTheme.colors.background.withValues(alpha: 0.62),
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.72),
                 width: 1.5,
               ),
               borderRadius: BorderRadius.circular(20),
@@ -433,7 +600,7 @@ class _HomePageState extends State<HomePage>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -450,7 +617,7 @@ class _HomePageState extends State<HomePage>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -459,7 +626,7 @@ class _HomePageState extends State<HomePage>
                           Text(
                             '${context.tr('common.level')} ${user['level']}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 10,
                             ),
                           ),
@@ -531,7 +698,7 @@ class _HomePageState extends State<HomePage>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -542,7 +709,7 @@ class _HomePageState extends State<HomePage>
                                 Text(
                                   context.tr('home.xpProgress'),
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -598,7 +765,7 @@ class _HomePageState extends State<HomePage>
                                   return LinearProgressIndicator(
                                     value: progress,
                                     backgroundColor:
-                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withValues(alpha: 0.2),
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       selectedTheme.colors.accent,
                                     ),
@@ -611,7 +778,7 @@ class _HomePageState extends State<HomePage>
                             Text(
                               '${context.tr('home.nextLevelIn')} ${user['xpToNextLevel'] ?? 0} XP',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 9,
                               ),
                             ),
@@ -644,11 +811,12 @@ class _HomePageState extends State<HomePage>
               gradient: selectedTheme.colors.buttonGradient,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.76),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.76),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: selectedTheme.colors.accentGlow.withOpacity(0.30),
+                  color:
+                      selectedTheme.colors.accentGlow.withValues(alpha: 0.30),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -727,364 +895,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  bool _shouldHideActivationCard() {
-    return _activationDismissed;
-  }
-
-  int _activationCompletedSteps(AppStateProvider appState) {
-    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
-    final hasWords = appState.allWords.length >= 3;
-    final hasSentence = appState.allSentences.isNotEmpty;
-    final hasPractice = _activationPracticeCompleted;
-    return [
-      hasLevel,
-      hasWords,
-      hasSentence,
-      hasPractice,
-    ].where((item) => item).length;
-  }
-
-  Future<void> _trackActivationProgress(AppStateProvider appState) async {
-    if (_shouldHideActivationCard()) return;
-
-    final wordCount = appState.allWords.length;
-    final sentenceCount = appState.allSentences.length;
-    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
-    final hasWords = wordCount >= 3;
-    final hasSentence = sentenceCount > 0;
-    final hasPractice = _activationPracticeCompleted;
-    final completedSteps = _activationCompletedSteps(appState);
-
-    await AnalyticsService.logActivationCardShown(
-      completedSteps: completedSteps,
-      wordCount: wordCount,
-      sentenceCount: sentenceCount,
-    );
-
-    if (hasLevel) {
-      await AnalyticsService.logActivationStepCompleted(
-        step: 'level_selected',
-        completedSteps: completedSteps,
-      );
-    }
-    if (hasWords) {
-      await AnalyticsService.logActivationStepCompleted(
-        step: 'three_words_added',
-        completedSteps: completedSteps,
-      );
-    }
-    if (hasSentence) {
-      await AnalyticsService.logActivationStepCompleted(
-        step: 'first_sentence_added',
-        completedSteps: completedSteps,
-      );
-    }
-    if (hasPractice) {
-      await AnalyticsService.logActivationStepCompleted(
-        step: 'first_review_completed',
-        completedSteps: completedSteps,
-      );
-    }
-    if (completedSteps == 4) {
-      await AnalyticsService.logActivationCompleted(
-        wordCount: wordCount,
-        sentenceCount: sentenceCount,
-      );
-    }
-  }
-
-  String _activationText(String tr, String en) {
-    return Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
-  }
-
-  Widget _buildFirstSessionActivation(AppStateProvider appState) {
-    if (_shouldHideActivationCard()) {
-      return const SizedBox.shrink();
-    }
-
-    final selectedTheme = _currentTheme();
-    final wordCount = appState.allWords.length;
-    final sentenceCount = appState.allSentences.length;
-    final hasLevel = (_activationSelectedLevel ?? '').isNotEmpty;
-    final hasWords = wordCount >= 3;
-    final hasSentence = sentenceCount > 0;
-    final hasPractice = _activationPracticeCompleted;
-    final completedCount = [
-      hasLevel,
-      hasWords,
-      hasSentence,
-      hasPractice,
-    ].where((item) => item).length;
-    final isComplete = completedCount == 4;
-
-    String buttonLabel;
-    VoidCallback buttonAction;
-    if (!hasWords) {
-      buttonLabel = _activationText('3 kelime ekle', 'Add 3 words');
-      buttonAction = () => widget.onNavigate('words');
-    } else if (!hasSentence) {
-      buttonLabel = _activationText('İlk cümleyi ekle', 'Add first sentence');
-      buttonAction = () => widget.onNavigate('sentences');
-    } else if (!hasPractice) {
-      buttonLabel = _activationText('İlk tekrarı yap', 'Do first review');
-      buttonAction = () => widget.onNavigate('repeat');
-    } else {
-      buttonLabel = _activationText('Pratiğe devam et', 'Continue practice');
-      buttonAction = () => widget.onNavigate('practice_speaking');
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
-                    0.16)
-                .withOpacity(0.82),
-            _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
-                    0.12)
-                .withOpacity(0.76),
-          ],
-        ),
-        border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.14),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: selectedTheme.colors.buttonGradient,
-                ),
-                child: const Icon(Icons.route_rounded, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _activationText(
-                        'Bugünkü tek hedef',
-                        'Today\'s one target',
-                      ),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _activationText(
-                        'İlk öğrenme döngünü tamamla: seviye, kelime, cümle, tekrar.',
-                        'Complete your first learning loop: level, words, sentence, review.',
-                      ),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.72),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isComplete)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  onPressed: _dismissActivationCard,
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: completedCount / 4,
-              minHeight: 8,
-              backgroundColor: Colors.white.withOpacity(0.10),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(selectedTheme.colors.accent),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _activationText(
-              '$completedCount / 4 adım tamamlandı',
-              '$completedCount / 4 steps complete',
-            ),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            runSpacing: 10,
-            spacing: 10,
-            children: [
-              _buildActivationStep(
-                done: hasLevel,
-                title: _activationSelectedLevel ??
-                    _activationText('Seviye seç', 'Pick level'),
-                subtitle: _activationText('A1-B2 arası', 'A1-B2'),
-              ),
-              _buildActivationStep(
-                done: hasWords,
-                title: _activationText('3 kelime', '3 words'),
-                subtitle: '$wordCount / 3',
-              ),
-              _buildActivationStep(
-                done: hasSentence,
-                title: _activationText('1 cümle', '1 sentence'),
-                subtitle: '$sentenceCount',
-              ),
-              _buildActivationStep(
-                done: hasPractice,
-                title: _activationText('1 tekrar', '1 review'),
-                subtitle: hasPractice
-                    ? _activationText('Tamam', 'Done')
-                    : _activationText('Bekliyor', 'Pending'),
-              ),
-            ],
-          ),
-          if (!hasLevel) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: ['A1', 'A2', 'B1', 'B2']
-                  .map(
-                    (level) => _buildActivationLevelChip(level, selectedTheme),
-                  )
-                  .toList(),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: buttonAction,
-              icon: Icon(isComplete
-                  ? Icons.check_circle_rounded
-                  : Icons.arrow_forward_rounded),
-              label: Text(buttonLabel),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedTheme.colors.accent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivationStep({
-    required bool done,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      width: 154,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(done ? 0.14 : 0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withOpacity(done ? 0.24 : 0.10),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-            color: done ? Colors.white : Colors.white.withOpacity(0.48),
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.62),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivationLevelChip(String level, AppThemeConfig selectedTheme) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => _selectActivationLevel(level),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: selectedTheme.colors.accent.withOpacity(0.16),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selectedTheme.colors.accent.withOpacity(0.42),
-          ),
-        ),
-        child: Text(
-          level,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatsCards(Map<String, dynamic> user) {
     final selectedTheme = _currentTheme();
     return Row(
@@ -1096,8 +906,8 @@ class _HomePageState extends State<HomePage>
             label: '${context.tr('home.total')}\n${context.tr('nav.words')}',
             gradient: LinearGradient(
               colors: [
-                selectedTheme.colors.accent.withOpacity(0.95),
-                selectedTheme.colors.primary.withOpacity(0.95),
+                selectedTheme.colors.accent.withValues(alpha: 0.95),
+                selectedTheme.colors.primary.withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1112,8 +922,8 @@ class _HomePageState extends State<HomePage>
             label: '${context.tr('home.days')}\n${context.tr('home.streak')}',
             gradient: LinearGradient(
               colors: [
-                selectedTheme.colors.primaryLight.withOpacity(0.95),
-                selectedTheme.colors.primaryDark.withOpacity(0.95),
+                selectedTheme.colors.primaryLight.withValues(alpha: 0.95),
+                selectedTheme.colors.primaryDark.withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1128,8 +938,8 @@ class _HomePageState extends State<HomePage>
             label: '${context.tr('home.thisWeek')}\nXP',
             gradient: LinearGradient(
               colors: [
-                selectedTheme.colors.primaryDark.withOpacity(0.95),
-                selectedTheme.colors.accent.withOpacity(0.95),
+                selectedTheme.colors.primaryDark.withValues(alpha: 0.95),
+                selectedTheme.colors.accent.withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1154,7 +964,7 @@ class _HomePageState extends State<HomePage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1204,19 +1014,19 @@ class _HomePageState extends State<HomePage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            selectedTheme.colors.accent.withOpacity(0.16),
-            selectedTheme.colors.primary.withOpacity(0.14),
-            selectedTheme.colors.primaryDark.withOpacity(0.14),
+            selectedTheme.colors.accent.withValues(alpha: 0.16),
+            selectedTheme.colors.primary.withValues(alpha: 0.14),
+            selectedTheme.colors.primaryDark.withValues(alpha: 0.14),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.72),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.34),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.34),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -1242,7 +1052,7 @@ class _HomePageState extends State<HomePage>
                         height: 128,
                         decoration: BoxDecoration(
                           color: selectedTheme.colors.accent
-                              .withOpacity(_glowAnimation1.value * 0.4),
+                              .withValues(alpha: _glowAnimation1.value * 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1264,7 +1074,7 @@ class _HomePageState extends State<HomePage>
                         height: 96,
                         decoration: BoxDecoration(
                           color: selectedTheme.colors.primary
-                              .withOpacity(_glowAnimation2.value * 0.4),
+                              .withValues(alpha: _glowAnimation2.value * 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1291,7 +1101,7 @@ class _HomePageState extends State<HomePage>
                             boxShadow: [
                               BoxShadow(
                                 color: selectedTheme.colors.accentGlow
-                                    .withOpacity(0.48),
+                                    .withValues(alpha: 0.48),
                                 blurRadius: 16,
                               ),
                             ],
@@ -1342,7 +1152,7 @@ class _HomePageState extends State<HomePage>
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: selectedTheme.colors.glassBorder
-                                    .withOpacity(0.55),
+                                    .withValues(alpha: 0.55),
                                 width: 1,
                               ),
                             ),
@@ -1361,7 +1171,7 @@ class _HomePageState extends State<HomePage>
                                           BoxShadow(
                                             color: selectedTheme
                                                 .colors.accentGlow
-                                                .withOpacity(0.52),
+                                                .withValues(alpha: 0.52),
                                             blurRadius: 8,
                                             spreadRadius: 2,
                                           ),
@@ -1399,7 +1209,7 @@ class _HomePageState extends State<HomePage>
                                 Text(
                                   context.tr('nav.words').toLowerCase(),
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -1409,14 +1219,17 @@ class _HomePageState extends State<HomePage>
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Container(
+                          child: GestureDetector(
+                            key: const ValueKey('daily-goal-target-box'),
+                            onTap: _showDailyGoalPicker,
+                            child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: const Color(0x0DFFFFFF),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: selectedTheme.colors.glassBorder
-                                    .withOpacity(0.46),
+                                    .withValues(alpha: 0.46),
                                 width: 1,
                               ),
                             ),
@@ -1440,6 +1253,13 @@ class _HomePageState extends State<HomePage>
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
+                                    const Spacer(),
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      color: selectedTheme.colors.textSecondary
+                                          .withValues(alpha: 0.7),
+                                      size: 13,
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
@@ -1455,12 +1275,13 @@ class _HomePageState extends State<HomePage>
                                 Text(
                                   context.tr('nav.words').toLowerCase(),
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                     fontSize: 12,
                                   ),
                                 ),
                               ],
                             ),
+                          ),
                           ),
                         ),
                       ],
@@ -1568,8 +1389,9 @@ class _HomePageState extends State<HomePage>
                                           animation: _pulseAnimation,
                                           builder: (context, child) {
                                             return Container(
-                                              color: Colors.white.withOpacity(
-                                                _pulseAnimation.value * 0.2,
+                                              color: Colors.white.withValues(
+                                                alpha:
+                                                    _pulseAnimation.value * 0.2,
                                               ),
                                             );
                                           },
@@ -1616,7 +1438,7 @@ class _HomePageState extends State<HomePage>
                             Text(
                               context.tr('home.keepGoing'),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
+                                color: Colors.white.withValues(alpha: 0.5),
                                 fontSize: 12,
                               ),
                             ),
@@ -1661,19 +1483,19 @@ class _HomePageState extends State<HomePage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            selectedTheme.colors.primary.withOpacity(0.14),
-            selectedTheme.colors.accent.withOpacity(0.14),
-            selectedTheme.colors.primaryDark.withOpacity(0.14),
+            selectedTheme.colors.primary.withValues(alpha: 0.14),
+            selectedTheme.colors.accent.withValues(alpha: 0.14),
+            selectedTheme.colors.primaryDark.withValues(alpha: 0.14),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.72),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.34),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.34),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -1712,7 +1534,7 @@ class _HomePageState extends State<HomePage>
                             boxShadow: [
                               BoxShadow(
                                 color: selectedTheme.colors.accentGlow
-                                    .withOpacity(0.50),
+                                    .withValues(alpha: 0.50),
                                 blurRadius: 16,
                               ),
                             ],
@@ -1749,7 +1571,10 @@ class _HomePageState extends State<HomePage>
                             ],
                           ),
                         ),
-                        Container(
+                        GestureDetector(
+                          key: const ValueKey('streak-badge'),
+                          onTap: _showStreakFreezeDialog,
+                          child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
@@ -1785,6 +1610,7 @@ class _HomePageState extends State<HomePage>
                                 ),
                               ),
                             ],
+                          ),
                           ),
                         ),
                       ],
@@ -1823,8 +1649,8 @@ class _HomePageState extends State<HomePage>
                         color: const Color(0x0DFFFFFF),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color:
-                              selectedTheme.colors.glassBorder.withOpacity(0.6),
+                          color: selectedTheme.colors.glassBorder
+                              .withValues(alpha: 0.6),
                           width: 1,
                         ),
                       ),
@@ -2031,15 +1857,22 @@ class _HomePageState extends State<HomePage>
     if (withSentence && sentenceText.isNotEmpty) {
       final hasSentence = appState.hasSentenceForWord(targetWord, sentenceText);
       if (!hasSentence) {
-        await appState.addSentenceToWord(
+        final updatedWord = await appState.addSentenceToWord(
           wordId: targetWord.id,
           sentence: sentenceText,
           translation: sentenceTranslation,
           difficulty: 'medium',
         );
+        if (updatedWord == null ||
+            !appState.hasSentenceForWord(updatedWord, sentenceText)) {
+          _showHomeMessage(addFailedMessage, success: false);
+          return;
+        }
+        targetWord = updatedWord;
       }
     }
 
+    await appState.refreshXpStatsFromLocal();
     _showHomeMessage(successMessage);
   }
 
@@ -2066,7 +1899,7 @@ class _HomePageState extends State<HomePage>
             color: const Color(0xFF1A1F2E),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             border: Border.all(
-              color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+              color: selectedTheme.colors.glassBorder.withValues(alpha: 0.7),
             ),
           ),
           child: SafeArea(
@@ -2109,7 +1942,8 @@ class _HomePageState extends State<HomePage>
                       wordAdded
                           ? context.tr('home.sheet.wordAlreadyAdded')
                           : context.tr('home.sheet.addWordSubtitle'),
-                      style: TextStyle(color: Colors.white.withOpacity(0.65)),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65)),
                     ),
                   ),
                   ListTile(
@@ -2134,7 +1968,8 @@ class _HomePageState extends State<HomePage>
                                   .tr('home.sheet.wordAndSentenceAlreadyAdded')
                               : context
                                   .tr('home.sheet.addWordWithSentenceSubtitle'),
-                      style: TextStyle(color: Colors.white.withOpacity(0.65)),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65)),
                     ),
                   ),
                 ],
@@ -2154,16 +1989,103 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openDailyWordModal(Map<String, dynamic> normalizedWord) async {
+    final appState = context.read<AppStateProvider>();
     await showDialog(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        return WordOfTheDayModal(
-          wordData: normalizedWord,
-          onClose: () => Navigator.of(dialogContext).pop(),
+        return ChangeNotifierProvider<AppStateProvider>.value(
+          value: appState,
+          child: WordOfTheDayModal(
+            wordData: normalizedWord,
+            onClose: () => Navigator.of(dialogContext).pop(),
+            onPracticePronunciation: () {
+              Navigator.of(dialogContext).pop();
+              final word = (normalizedWord['word'] ??
+                      normalizedWord['englishWord'] ??
+                      '')
+                  .toString()
+                  .trim();
+              final readAloudTexts =
+                  _dailyWordPronunciationTexts(normalizedWord);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PronunciationPracticePage(
+                    level:
+                        _normalizeDifficultyValue(normalizedWord['difficulty'])
+                                    .toLowerCase() ==
+                                'hard'
+                            ? 'B2'
+                            : 'B1',
+                    focusWords: word.isEmpty ? const [] : [word],
+                    initialText:
+                        readAloudTexts.isEmpty ? null : readAloudTexts.first,
+                    initialTextOptions: readAloudTexts.length <= 1
+                        ? const []
+                        : readAloudTexts.skip(1).toList(growable: false),
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
+  }
+
+  List<String> _dailyWordPronunciationTexts(Map<String, dynamic> wordData) {
+    final word =
+        (wordData['word'] ?? wordData['englishWord'] ?? '').toString().trim();
+    final example = (wordData['exampleSentence'] ?? '').toString().trim();
+    final definition = (wordData['definition'] ?? '').toString().trim();
+    final partOfSpeech = (wordData['partOfSpeech'] ?? '').toString().trim();
+    final options = <String>[];
+    final seen = <String>{};
+
+    void addOption(String rawText) {
+      final text = _cleanReadAloudText(rawText);
+      if (text.isEmpty) return;
+      final key = text.toLowerCase();
+      if (seen.add(key)) {
+        options.add(text);
+      }
+    }
+
+    if (example.isNotEmpty) {
+      addOption(example);
+    }
+    if (word.isNotEmpty && definition.isNotEmpty) {
+      addOption(
+        'A clear way to remember $word is this: ${_sentenceCase(definition)}',
+      );
+    }
+    if (word.isNotEmpty && example.isNotEmpty) {
+      addOption(
+          'First say $word clearly, then read the full example: $example');
+    }
+    if (word.isNotEmpty && partOfSpeech.isNotEmpty) {
+      addOption(
+        '$word is a useful $partOfSpeech for English practice. Say it slowly, then naturally.',
+      );
+    }
+    if (options.isEmpty && word.isNotEmpty) {
+      addOption('Say $word slowly first, then repeat it in a natural voice.');
+    }
+
+    return options.take(4).toList(growable: false);
+  }
+
+  String _cleanReadAloudText(String value) {
+    final text = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (text.isEmpty) return '';
+    return _sentenceCase(text);
+  }
+
+  String _sentenceCase(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return '';
+    final hasEnding = RegExp(r'[.!?]$').hasMatch(text);
+    return hasEnding ? text : '$text.';
   }
 
   List<Map<String, dynamic>> _fallbackDailyWords() {
@@ -2261,10 +2183,10 @@ class _HomePageState extends State<HomePage>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.7),
         ),
       ),
       padding: const EdgeInsets.all(16),
@@ -2425,12 +2347,12 @@ class _HomePageState extends State<HomePage>
           borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
             colors: [
-              selectedTheme.colors.primary.withOpacity(0.22),
-              selectedTheme.colors.accent.withOpacity(0.20),
+              selectedTheme.colors.primary.withValues(alpha: 0.22),
+              selectedTheme.colors.accent.withValues(alpha: 0.20),
             ],
           ),
           border: Border.all(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.7),
           ),
         ),
         child: Column(
@@ -2468,10 +2390,10 @@ class _HomePageState extends State<HomePage>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.7),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.7),
         ),
       ),
       padding: const EdgeInsets.all(16),
@@ -2609,7 +2531,7 @@ class CircularProgressPainter extends CustomPainter {
 
     // Background circle
     final backgroundPaint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white.withValues(alpha: 0.1)
       ..strokeWidth = 8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -2847,14 +2769,15 @@ class _DayCardState extends State<_DayCard>
               border: (widget.day['learned'] == true)
                   ? null
                   : Border.all(
-                      color: selectedTheme.colors.glassBorder.withOpacity(0.42),
+                      color: selectedTheme.colors.glassBorder
+                          .withValues(alpha: 0.42),
                       width: 1,
                     ),
               boxShadow: (widget.day['learned'] == true)
                   ? [
                       BoxShadow(
-                        color:
-                            selectedTheme.colors.accentGlow.withOpacity(0.52),
+                        color: selectedTheme.colors.accentGlow
+                            .withValues(alpha: 0.52),
                         blurRadius: 16,
                       ),
                     ]
@@ -2890,7 +2813,7 @@ class _DayCardState extends State<_DayCard>
                         const SizedBox(height: 2),
                         Icon(
                           Icons.star,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           size: 12,
                         ),
                       ],

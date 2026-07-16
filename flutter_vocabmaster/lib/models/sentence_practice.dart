@@ -2,6 +2,8 @@ class SentencePractice {
   final String id;
   final String englishSentence;
   final String turkishTranslation;
+  final String sourceTranslation;
+  final String sourceFullTranslation;
   final String difficulty;
   final DateTime? createdDate;
   final String source;
@@ -12,12 +14,16 @@ class SentencePractice {
     required this.id,
     required this.englishSentence,
     required this.turkishTranslation,
+    String? sourceTranslation,
+    String? sourceFullTranslation,
     required this.difficulty,
     this.createdDate,
     required this.source,
     this.word,
     this.wordTranslation,
-  });
+  })  : sourceTranslation = sourceTranslation ?? turkishTranslation,
+        sourceFullTranslation =
+            sourceFullTranslation ?? sourceTranslation ?? turkishTranslation;
 
   factory SentencePractice.fromJson(Map<String, dynamic> json) {
     String id;
@@ -29,8 +35,18 @@ class SentencePractice {
 
     final englishSentence =
         (json['englishSentence'] ?? json['sentence'])?.toString() ?? '';
-    final turkishTranslation =
-        (json['turkishTranslation'] ?? json['translation'])?.toString() ?? '';
+    final turkishTranslation = (json['sourceTranslation'] ??
+                json['turkishTranslation'] ??
+                json['translation'])
+            ?.toString() ??
+        '';
+    final sourceFullTranslation = (json['sourceFullTranslation'] ??
+                json['turkishFullTranslation'] ??
+                json['sourceTranslation'] ??
+                json['turkishTranslation'] ??
+                json['translation'])
+            ?.toString() ??
+        turkishTranslation;
     final difficulty = json['difficulty']?.toString() ?? 'easy';
     final source = json['source']?.toString() ?? 'practice';
     DateTime? createdDate;
@@ -47,6 +63,8 @@ class SentencePractice {
       id: id,
       englishSentence: englishSentence,
       turkishTranslation: turkishTranslation,
+      sourceTranslation: turkishTranslation,
+      sourceFullTranslation: sourceFullTranslation,
       difficulty: difficulty,
       createdDate: createdDate,
       source: source,
@@ -60,6 +78,8 @@ class SentencePractice {
       'id': id,
       'englishSentence': englishSentence,
       'turkishTranslation': turkishTranslation,
+      'sourceTranslation': sourceTranslation,
+      'sourceFullTranslation': sourceFullTranslation,
       'difficulty': difficulty,
       'createdDate': createdDate?.toIso8601String().split('T')[0],
       'source': source,

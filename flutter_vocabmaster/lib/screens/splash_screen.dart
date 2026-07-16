@@ -74,12 +74,13 @@ class _SplashScreenState extends State<SplashScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.cyan.withOpacity(0.3)),
+                    border:
+                        Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.cyan.withOpacity(0.2),
+                        color: Colors.cyan.withValues(alpha: 0.2),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -106,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 Text(
                   context.tr('splash.loading'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.72),
+                    color: Colors.white.withValues(alpha: 0.72),
                     fontSize: 13,
                   ),
                 ),

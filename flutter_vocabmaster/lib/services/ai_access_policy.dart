@@ -61,8 +61,8 @@ bool hasPracticeAccess(Map<String, dynamic>? userInfo) {
   }
 
   final aiAccessEnabled = _toNullableBool(userInfo['aiAccessEnabled']);
-  if (aiAccessEnabled != null) {
-    return aiAccessEnabled;
+  if (aiAccessEnabled == true) {
+    return true;
   }
 
   if (_toNullableBool(userInfo['trialActive']) == true) {
@@ -103,6 +103,10 @@ bool hasPracticeAccess(Map<String, dynamic>? userInfo) {
     }
   }
 
-  return hasActiveSubscription(userInfo);
+  if (hasActiveSubscription(userInfo)) {
+    return true;
+  }
+
+  return aiAccessEnabled ?? false;
 }
 

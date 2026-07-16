@@ -24,6 +24,7 @@ public class FirebaseMessagingProvider {
     private final PushNotificationProperties properties;
     private FirebaseMessaging messaging;
     private boolean initializationAttempted;
+    private String unavailableReason = "not-initialized";
 
     public FirebaseMessagingProvider(PushNotificationProperties properties) {
         this.properties = properties;
@@ -40,12 +41,14 @@ public class FirebaseMessagingProvider {
 
         PushNotificationProperties.Firebase firebase = properties.getFirebase();
         if (!firebase.isEnabled()) {
+            unavailableReason = "firebase-disabled";
             logger.info("Firebase push notifications are disabled");
             return Optional.empty();
         }
 
         try (InputStream credentials = openCredentials(firebase)) {
             if (credentials == null) {
+                unavailableReason = "credentials-missing";
                 logger.warn("Firebase push notifications enabled but no service account was configured");
                 return Optional.empty();
             }
@@ -53,12 +56,30 @@ public class FirebaseMessagingProvider {
             FirebaseApp app = findExistingApp()
                     .orElseGet(() -> initializeApp(credentials));
             messaging = FirebaseMessaging.getInstance(app);
+            unavailableReason = "initialized";
             logger.info("Firebase push notifications initialized");
             return Optional.of(messaging);
         } catch (Exception ex) {
+            unavailableReason = "initialization-failed";
             logger.error("Firebase push notification initialization failed", ex);
             return Optional.empty();
         }
+    }
+
+    public synchronized String getUnavailableReason() {
+        return messaging == null ? unavailableReason : "initialized";
+    }
+
+    public synchronized java.util.Map<String, Object> getStatus() {
+        PushNotificationProperties.Firebase firebase = properties.getFirebase();
+        java.util.Map<String, Object> status = new java.util.LinkedHashMap<>();
+        status.put("enabled", firebase.isEnabled());
+        status.put("serviceAccountFileConfigured", !safe(firebase.getServiceAccountFile()).isEmpty());
+        status.put("serviceAccountJsonConfigured", !safe(firebase.getServiceAccountJson()).isEmpty());
+        status.put("initializationAttempted", initializationAttempted);
+        status.put("initialized", messaging != null);
+        status.put("reason", getUnavailableReason());
+        return status;
     }
 
     private Optional<FirebaseApp> findExistingApp() {

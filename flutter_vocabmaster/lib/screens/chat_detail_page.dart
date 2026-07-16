@@ -38,7 +38,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     _loadCurrentUser();
     _loadMessages();
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) => _loadMessages());
+    _timer =
+        Timer.periodic(const Duration(seconds: 5), (timer) => _loadMessages());
   }
 
   @override
@@ -66,7 +67,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           messages = msgs;
         });
         // Scroll to bottom only if strictly needed or on first load
-        // _scrollToBottom(); 
+        // _scrollToBottom();
       }
     } catch (e) {
       debugPrint('Error loading messages: $e');
@@ -119,13 +120,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     return ModernCard(
                       margin: EdgeInsets.zero,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(24)),
                       variant: BackgroundVariant.primary,
                       showBorder: false,
                       child: Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -135,10 +138,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundColor: isOnline 
-                                    ? const Color(0xFF22d3ee) 
+                                backgroundColor: isOnline
+                                    ? const Color(0xFF22d3ee)
                                     : Colors.grey.shade600,
-                                child: Text(widget.avatar, style: const TextStyle(fontSize: 20)),
+                                child: Text(widget.avatar,
+                                    style: const TextStyle(fontSize: 20)),
                               ),
                               Positioned(
                                 right: 0,
@@ -147,9 +151,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                   width: 10,
                                   height: 10,
                                   decoration: BoxDecoration(
-                                    color: isOnline ? Colors.green : Colors.grey.shade500,
+                                    color: isOnline
+                                        ? Colors.green
+                                        : Colors.grey.shade500,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: const Color(0xFF1e1b4b), width: 1.5),
+                                    border: Border.all(
+                                        color: const Color(0xFF1e1b4b),
+                                        width: 1.5),
                                   ),
                                 ),
                               ),
@@ -163,19 +171,26 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                               children: [
                                 Text(
                                   widget.name,
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
                                 ),
                                 Row(
                                   children: [
                                     CircleAvatar(
-                                      radius: 3, 
-                                      backgroundColor: isOnline ? Colors.green : Colors.grey.shade500,
+                                      radius: 3,
+                                      backgroundColor: isOnline
+                                          ? Colors.green
+                                          : Colors.grey.shade500,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      widget.status, 
+                                      widget.status,
                                       style: TextStyle(
-                                        color: isOnline ? Colors.green.shade300 : Colors.white54, 
+                                        color: isOnline
+                                            ? Colors.green.shade300
+                                            : Colors.white54,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -194,7 +209,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               // Messages
               Expanded(
                 child: messages.isEmpty
-                    ? const Center(child: Text('Henüz mesaj yok', style: TextStyle(color: Colors.white54)))
+                    ? const Center(
+                        child: Text('Henüz mesaj yok',
+                            style: TextStyle(color: Colors.white54)))
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(20),
@@ -212,7 +229,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 child: ModernCard(
                   margin: EdgeInsets.zero,
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
                   variant: BackgroundVariant.primary,
                   showBorder: false,
                   child: Row(
@@ -221,9 +239,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: TextField(
                             controller: _messageController,
@@ -248,7 +267,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                           variant: BackgroundVariant.accent,
                           showGlow: true,
                           child: const Center(
-                            child: Icon(Icons.send, color: Colors.white, size: 20),
+                            child:
+                                Icon(Icons.send, color: Colors.white, size: 20),
                           ),
                         ),
                       ),
@@ -284,16 +304,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75),
             decoration: BoxDecoration(
               gradient: isMe
-                  ? const LinearGradient(colors: [Color(0xFF06b6d4), Color(0xFF3182ce)])
+                  ? const LinearGradient(
+                      colors: [Color(0xFF06b6d4), Color(0xFF3182ce)])
                   : null,
-              color: isMe ? null : const Color(0xFF334155).withOpacity(0.5),
+              color:
+                  isMe ? null : const Color(0xFF334155).withValues(alpha: 0.5),
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(20),
                 topRight: const Radius.circular(20),
@@ -302,7 +326,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -310,7 +334,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             ),
             child: Text(
               msg['content'] ?? '',
-              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 14, height: 1.4),
             ),
           ),
           if (timeStr.isNotEmpty) ...[
@@ -325,4 +350,3 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 }
-

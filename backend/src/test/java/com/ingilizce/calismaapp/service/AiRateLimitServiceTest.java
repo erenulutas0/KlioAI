@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
 import com.ingilizce.calismaapp.config.AiRateLimitProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AiRateLimitServiceTest {
@@ -124,6 +126,196 @@ class AiRateLimitServiceTest {
         assertTrue(decision.blocked());
         assertEquals("user-burst", decision.reason());
         assertEquals(15, decision.retryAfterSeconds());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void checkAndConsume_ShouldUseRedisDailyQuotaAndReturnRetryAfter() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+        properties.setAbusePenaltyEnabled(false);
+        properties.setUserWindowMaxRequests(50);
+        properties.setIpWindowMaxRequests(50);
+        properties.setDailyQuotaPerUser(1);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.increment(anyString())).thenReturn(1L, 1L, 2L);
+        when(redisTemplate.getExpire(anyString(), eq(TimeUnit.SECONDS))).thenReturn(45L);
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, null);
+        AiRateLimitService.Decision decision = service.checkAndConsume(16L, "10.0.0.16", "chat");
+
+        assertTrue(decision.blocked());
+        assertEquals("daily-quota", decision.reason());
+        assertEquals(45, decision.retryAfterSeconds());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void checkAndConsume_ShouldUseRedisScopeDailyQuota() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+        properties.setAbusePenaltyEnabled(false);
+        properties.setUserWindowMaxRequests(50);
+        properties.setIpWindowMaxRequests(50);
+        properties.setDailyQuotaPerUser(100);
+        AiRateLimitProperties.ScopeLimits chatScope = new AiRateLimitProperties.ScopeLimits();
+        chatScope.setDailyQuotaPerUser(1);
+        properties.getScopes().put("chat", chatScope);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.increment(anyString())).thenReturn(1L, 1L, 1L, 2L);
+        when(redisTemplate.getExpire(anyString(), eq(TimeUnit.SECONDS))).thenReturn(90L);
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, null);
+        AiRateLimitService.Decision decision = service.checkAndConsume(17L, "10.0.0.17", "chat");
+
+        assertTrue(decision.blocked());
+        assertEquals("daily-quota", decision.reason());
+        assertEquals(90, decision.retryAfterSeconds());
+    }
+
+    @Test
+    void checkAndConsume_ShouldApplyScopeWindowOverridesInMemoryMode() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(false);
+        properties.setUserWindowMaxRequests(50);
+        properties.setIpWindowMaxRequests(50);
+        properties.setWindowSeconds(60);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(false);
+        AiRateLimitProperties.ScopeLimits chatScope = new AiRateLimitProperties.ScopeLimits();
+        chatScope.setUserWindowMaxRequests(1);
+        chatScope.setIpWindowMaxRequests(5);
+        chatScope.setWindowSeconds(2L);
+        chatScope.setDailyQuotaPerUser(50);
+        properties.getScopes().put("chat", chatScope);
+
+        TestableAiRateLimitService service = new TestableAiRateLimitService(properties);
+
+        assertFalse(service.checkAndConsume(21L, "10.0.0.21", " chat ").blocked());
+        AiRateLimitService.Decision second = service.checkAndConsume(21L, "10.0.0.21", " CHAT ");
+
+        assertTrue(second.blocked());
+        assertEquals("user-burst", second.reason());
+        assertEquals(2, second.retryAfterSeconds());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void checkAndConsume_ShouldApplyRedisPenaltyAndRecordMetrics() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+        properties.setUserWindowMaxRequests(1);
+        properties.setIpWindowMaxRequests(50);
+        properties.setDailyQuotaPerUser(100);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+        properties.setAbuseStrikeResetSeconds(900);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisTemplate.getExpire(anyString(), eq(TimeUnit.SECONDS))).thenReturn(0L, 0L, 12L);
+        when(valueOperations.increment(anyString())).thenReturn(2L, 2L);
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, meterRegistry);
+        AiRateLimitService.Decision decision = service.checkAndConsume(22L, "10.0.0.22", "chat");
+
+        assertTrue(decision.blocked());
+        assertEquals("user-burst", decision.reason());
+        assertEquals(60, decision.retryAfterSeconds());
+        assertEquals(2, decision.penaltyLevel());
+        assertEquals(150, decision.nextPenaltySeconds());
+        assertEquals(1.0, meterRegistry.counter(
+                "ai.rate.limit.abuse.penalty.apply.total",
+                "backend", "redis",
+                "reason", "user-burst",
+                "scope", "chat",
+                "level", "2").count());
+        assertEquals(1.0, meterRegistry.counter(
+                "ai.rate.limit.block.total",
+                "reason", "user-burst",
+                "scope", "chat").count());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void checkAndConsume_ShouldReturnActiveRedisPenaltyBeforeIncrementingWindows() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+        properties.setAbusePenaltyEnabled(true);
+        properties.setAbusePenaltySeconds(List.of(30L, 60L, 150L));
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisTemplate.getExpire(anyString(), eq(TimeUnit.SECONDS))).thenReturn(22L);
+        when(valueOperations.get(anyString())).thenReturn("2");
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, null);
+        AiRateLimitService.Decision decision = service.checkAndConsume(18L, "10.0.0.18", "chat");
+
+        assertTrue(decision.blocked());
+        assertEquals("abuse-ban", decision.reason());
+        assertEquals(22, decision.retryAfterSeconds());
+        assertEquals(2, decision.penaltyLevel());
+        assertEquals(150, decision.nextPenaltySeconds());
+    }
+
+    @Test
+    void clearAbusePenalty_ShouldDeleteRedisPenaltyKeys() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        when(redisTemplate.delete("ai:rl:penalty:ban:u:19")).thenReturn(true);
+        when(redisTemplate.delete("ai:rl:penalty:strike:u:19")).thenReturn(false);
+        when(redisTemplate.delete("ai:rl:penalty:ban:ip:10.0.0.19")).thenReturn(false);
+        when(redisTemplate.delete("ai:rl:penalty:strike:ip:10.0.0.19")).thenReturn(true);
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, null);
+        AiRateLimitService.UnbanResult result = service.clearAbusePenalty(19L, "10.0.0.19");
+
+        assertTrue(result.userSubjectRequested());
+        assertTrue(result.ipSubjectRequested());
+        assertTrue(result.userPenaltyCleared());
+        assertTrue(result.ipPenaltyCleared());
+        assertEquals("u:19", result.userSubject());
+        assertEquals("ip:10.0.0.19", result.ipSubject());
+        verify(redisTemplate).delete("ai:rl:penalty:ban:u:19");
+        verify(redisTemplate).delete("ai:rl:penalty:strike:ip:10.0.0.19");
+    }
+
+    @Test
+    void getAbusePenaltyStatus_ShouldReadRedisPenaltyTtl() {
+        AiRateLimitProperties properties = new AiRateLimitProperties();
+        properties.setEnabled(true);
+        properties.setRedisEnabled(true);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        when(redisTemplate.getExpire("ai:rl:penalty:ban:u:20", TimeUnit.SECONDS)).thenReturn(75L);
+        when(redisTemplate.getExpire("ai:rl:penalty:ban:ip:10.0.0.20", TimeUnit.SECONDS)).thenReturn(0L);
+
+        AiRateLimitService service = new AiRateLimitService(properties, redisTemplate, null);
+        AiRateLimitService.AbusePenaltyStatus status = service.getAbusePenaltyStatus(20L, "10.0.0.20");
+
+        assertTrue(status.userSubjectRequested());
+        assertTrue(status.ipSubjectRequested());
+        assertTrue(status.userPenaltyActive());
+        assertFalse(status.ipPenaltyActive());
+        assertEquals(75L, status.userRetryAfterSeconds());
     }
 
     @Test

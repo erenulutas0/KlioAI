@@ -169,6 +169,10 @@ public class GoogleIdentityService {
         if (value == null) {
             return "";
         }
-        return value.trim().toLowerCase();
+        // Locale.ROOT is required here: on a JVM whose default locale is Turkish,
+        // toLowerCase() maps 'I' -> 'ı' (dotless), which would mangle a
+        // Google-verified email containing a capital I before it becomes the
+        // canonical account identity, silently corrupting that user's identity.
+        return value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 }

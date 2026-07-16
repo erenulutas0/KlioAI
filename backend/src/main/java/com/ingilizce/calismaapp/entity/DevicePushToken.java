@@ -36,6 +36,9 @@ public class DevicePushToken {
     @Column(length = 32)
     private String locale;
 
+    @Column(length = 64)
+    private String timezone;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -114,6 +117,14 @@ public class DevicePushToken {
 
     public void setLocale(String locale) {
         this.locale = locale;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 
     public boolean isEnabled() {

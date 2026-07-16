@@ -226,7 +226,7 @@ class _WordsPageState extends State<WordsPage> {
                     children: [
                       Text(
                         _text('Kelime Takviminiz', 'Your Word Calendar'),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -262,7 +262,7 @@ class _WordsPageState extends State<WordsPage> {
                           );
                         },
                         icon: Icon(Icons.info_outline,
-                            color: Colors.white.withOpacity(0.7)),
+                            color: Colors.white.withValues(alpha: 0.7)),
                       ),
                     ],
                   ),
@@ -286,7 +286,7 @@ class _WordsPageState extends State<WordsPage> {
                             children: [
                               IconButton(
                                 icon: Icon(Icons.chevron_left,
-                                    color: Colors.white.withOpacity(0.7)),
+                                    color: Colors.white.withValues(alpha: 0.7)),
                                 onPressed: () => _changeMonth(-1),
                               ),
                               Text(
@@ -299,7 +299,7 @@ class _WordsPageState extends State<WordsPage> {
                               ),
                               IconButton(
                                 icon: Icon(Icons.chevron_right,
-                                    color: Colors.white.withOpacity(0.7)),
+                                    color: Colors.white.withValues(alpha: 0.7)),
                                 onPressed: () => _changeMonth(1),
                               ),
                             ],
@@ -314,7 +314,8 @@ class _WordsPageState extends State<WordsPage> {
                               .map((day) => Text(
                                     day,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.6),
                                       fontSize: 14,
                                     ),
                                   ))
@@ -335,7 +336,7 @@ class _WordsPageState extends State<WordsPage> {
                   // Add New Word Form Header
                   Text(
                     _text('Yeni Kelime Ekle', 'Add New Word'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -370,11 +371,11 @@ class _WordsPageState extends State<WordsPage> {
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
                         color: selectedTheme.colors.cardBackground
-                            .withOpacity(0.62),
+                            .withValues(alpha: 0.62),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                           color: selectedTheme.colors.glassBorder
-                              .withOpacity(0.72),
+                              .withValues(alpha: 0.72),
                         ),
                       ),
                       child: Column(
@@ -382,8 +383,8 @@ class _WordsPageState extends State<WordsPage> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color:
-                                  selectedTheme.colors.accent.withOpacity(0.20),
+                              color: selectedTheme.colors.accent
+                                  .withValues(alpha: 0.20),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Icon(
@@ -408,7 +409,7 @@ class _WordsPageState extends State<WordsPage> {
                                 'Use the form above to add a new word to this day.'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 14,
                             ),
                           ),
@@ -444,19 +445,19 @@ class _WordsPageState extends State<WordsPage> {
           colors: [
             _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
                     0.16)
-                .withOpacity(0.78),
+                .withValues(alpha: 0.78),
             _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
                     0.14)
-                .withOpacity(0.72),
+                .withValues(alpha: 0.72),
           ],
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.68),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.68),
         ),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.16),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.16),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -470,10 +471,10 @@ class _WordsPageState extends State<WordsPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: selectedTheme.colors.accent.withOpacity(0.16),
+                  color: selectedTheme.colors.accent.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: selectedTheme.colors.accent.withOpacity(0.34),
+                    color: selectedTheme.colors.accent.withValues(alpha: 0.34),
                   ),
                 ),
                 child: Icon(
@@ -489,7 +490,7 @@ class _WordsPageState extends State<WordsPage> {
                   children: [
                     Text(
                       _text('Tekrar', 'Review'),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -505,7 +506,7 @@ class _WordsPageState extends State<WordsPage> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary
-                            .withOpacity(0.92),
+                            .withValues(alpha: 0.92),
                         fontSize: 12,
                       ),
                     ),
@@ -565,12 +566,12 @@ class _WordsPageState extends State<WordsPage> {
         height: 48,
         decoration: BoxDecoration(
           gradient: filled ? selectedTheme.colors.buttonGradient : null,
-          color: filled ? null : Colors.white.withOpacity(0.06),
+          color: filled ? null : Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: filled
-                ? Colors.white.withOpacity(0.18)
-                : selectedTheme.colors.accent.withOpacity(0.36),
+                ? Colors.white.withValues(alpha: 0.18)
+                : selectedTheme.colors.accent.withValues(alpha: 0.36),
           ),
         ),
         child: Row(
@@ -631,8 +632,8 @@ class _WordsPageState extends State<WordsPage> {
               color: isSelected
                   ? selectedTheme.colors.accent
                   : (hasWords
-                      ? selectedTheme.colors.primary.withOpacity(0.55)
-                      : Colors.white.withOpacity(0.1)),
+                      ? selectedTheme.colors.primary.withValues(alpha: 0.55)
+                      : Colors.white.withValues(alpha: 0.1)),
               shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
@@ -644,7 +645,7 @@ class _WordsPageState extends State<WordsPage> {
                 '$i',
                 style: TextStyle(
                   color: Colors.white
-                      .withOpacity(isSelected || hasWords ? 1.0 : 0.6),
+                      .withValues(alpha: isSelected || hasWords ? 1.0 : 0.6),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -689,16 +690,17 @@ class _WordsPageState extends State<WordsPage> {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: selectedTheme.colors.background.withOpacity(0.90),
+                      color: selectedTheme.colors.background
+                          .withValues(alpha: 0.90),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color:
-                            selectedTheme.colors.glassBorder.withOpacity(0.70),
+                        color: selectedTheme.colors.glassBorder
+                            .withValues(alpha: 0.70),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              selectedTheme.colors.accentGlow.withOpacity(0.30),
+                          color: selectedTheme.colors.accentGlow
+                              .withValues(alpha: 0.30),
                           blurRadius: 20,
                         ),
                       ],
@@ -709,7 +711,7 @@ class _WordsPageState extends State<WordsPage> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.15),
+                            color: Colors.red.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.delete_forever,
@@ -718,7 +720,7 @@ class _WordsPageState extends State<WordsPage> {
                         const SizedBox(height: 16),
                         Text(
                           _text('Kelimeyi Sil', 'Delete Word'),
-                          style: TextStyle(
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.bold),
@@ -730,7 +732,7 @@ class _WordsPageState extends State<WordsPage> {
                               'Are you sure you want to delete this word? All related sentences will also be deleted permanently.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 14),
                         ),
                         const SizedBox(height: 24),
@@ -740,7 +742,8 @@ class _WordsPageState extends State<WordsPage> {
                               child: TextButton(
                                 onPressed: () => Navigator.pop(context),
                                 child: Text(_text('İptal', 'Cancel'),
-                                    style: TextStyle(color: Colors.white60)),
+                                    style:
+                                        const TextStyle(color: Colors.white60)),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -902,7 +905,7 @@ class _WordsPageState extends State<WordsPage> {
                   Text(
                     word.turkishMeaning.replaceAll('?', '').trim(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 15,
                     ),
                   ),
@@ -945,10 +948,10 @@ class _WordsPageState extends State<WordsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: selectedTheme.colors.accent.withOpacity(0.16),
+          color: selectedTheme.colors.accent.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selectedTheme.colors.accent.withOpacity(0.36),
+            color: selectedTheme.colors.accent.withValues(alpha: 0.36),
           ),
         ),
         child: Row(
@@ -1103,16 +1106,16 @@ class _WordsPageState extends State<WordsPage> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white38),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -1127,9 +1130,9 @@ class _WordsPageState extends State<WordsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(

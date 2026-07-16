@@ -11,11 +11,13 @@ import java.util.Set;
 public class AiModelRoutingProperties {
     private boolean enabled = true;
     private String defaultModel = "openai/gpt-oss-20b";
-    private String speechModel = "llama-3.3-70b-versatile";
+    private String speechModel = "openai/gpt-oss-120b";
     private String utilityModel = "openai/gpt-oss-20b";
     private Set<String> speechScopes = new LinkedHashSet<>(Set.of(
+            "speaking-chat",
             "speaking-generate",
-            "speaking-evaluate"));
+            "speaking-evaluate",
+            "generate-sentences"));
 
     public boolean isEnabled() {
         return enabled;

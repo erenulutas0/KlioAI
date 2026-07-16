@@ -1,6 +1,6 @@
 # Google Play Live Verification Dry-Run
 
-Last update: 2026-02-18
+Last update: 2026-05-24
 
 ## Purpose
 
@@ -26,6 +26,23 @@ Script:
 3. Service account has Android Publisher access for the same package.
 4. You have a real test purchase token from Play Billing test flow.
 5. You have a valid app user id (`X-User-Id`) and optional JWT.
+
+For production entitlement diagnosis without a purchase token, use:
+
+```powershell
+pwsh -NoProfile -File scripts/diagnose-prod-entitlement.ps1 `
+  -BaseUrl "https://api.klioai.app" `
+  -UserId 123 `
+  -AccessToken "<FRESH_APP_ACCESS_TOKEN>"
+```
+
+Expected FREE result with current repo defaults:
+
+- `planCode=FREE`
+- `aiAccessEnabled=true`
+- `tokenLimit=1500`
+
+If FREE returns `aiAccessEnabled=false` or `tokenLimit=0`, check deployed runtime env overrides and stale backend image before changing Flutter.
 
 ## Non-Token Checks (run first)
 

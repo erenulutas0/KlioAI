@@ -10,7 +10,10 @@ import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import com.ingilizce.calismaapp.service.AiProxyService;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
+import com.ingilizce.calismaapp.service.GroqSpeechToTextService;
 import com.ingilizce.calismaapp.service.LearningLanguageProfile;
+import com.ingilizce.calismaapp.service.ProgressService;
+import com.ingilizce.calismaapp.service.SentenceStarterTrackingService;
 import com.ingilizce.calismaapp.service.WordService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
@@ -23,6 +26,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -37,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -81,7 +86,16 @@ public class ChatbotControllerTest {
     private AiProxyService aiProxyService;
 
     @MockBean
+    private GroqSpeechToTextService speechToTextService;
+
+    @MockBean
     private ClientIpResolver clientIpResolver;
+
+    @MockBean
+    private ProgressService progressService;
+
+    @MockBean
+    private SentenceStarterTrackingService sentenceStarterTrackingService;
 
     @Autowired
     private MeterRegistry meterRegistry;
@@ -97,9 +111,9 @@ public class ChatbotControllerTest {
         when(clientIpResolver.resolve(any())).thenReturn("127.0.0.1");
         when(aiRateLimitService.checkAndConsume(anyLong(), anyString(), anyString()))
                 .thenReturn(AiRateLimitService.Decision.allowed());
-        when(aiTokenQuotaService.check(anyLong(), anyString()))
+        when(aiTokenQuotaService.check(anyLong(), anyString(), nullable(String.class), anyString()))
                 .thenReturn(AiTokenQuotaService.Decision.allowed());
-        when(aiTokenQuotaService.consume(anyLong(), anyString(), anyLong()))
+        when(aiTokenQuotaService.consume(anyLong(), anyString(), anyLong(), nullable(String.class), anyString()))
                 .thenReturn(new AiTokenQuotaService.Usage(0L, 0L, 0L));
         when(aiTokenQuotaService.getGlobalUsage(anyLong()))
                 .thenReturn(new AiTokenQuotaService.Usage(0L, 50_000L, 50_000L));
@@ -138,7 +152,8 @@ public class ChatbotControllerTest {
 
     @Test
     void chatReturnsOkWhenValid() throws Exception {
-        when(chatbotService.chat("Hello")).thenReturn(ai("Hi there!"));
+        when(chatbotService.chat("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile()))
+                .thenReturn(ai("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
@@ -147,6 +162,38 @@ public class ChatbotControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Hi there!"))
                 .andExpect(jsonPath("$.timestamp").exists());
+
+        // Regression guard for the premortem finding: previously only SRS
+        // review and adding a new word touched the daily streak, so a user
+        // who only chatted/read/wrote that day still lost their streak.
+        verify(progressService).updateStreak(1L);
+    }
+
+    @Test
+    void chatPassesLanguageProfileFromRequestBody() throws Exception {
+        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("Hi there!"));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "message":"Hello",
+                          "sourceLanguage":"Spanish",
+                          "targetLanguage":"English",
+                          "feedbackLanguage":"Spanish",
+                          "englishLevel":"A2",
+                          "learningGoal":"Travel"
+                        }
+                        """))
+                .andExpect(status().isOk());
+
+        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(1L),
+                argThat((LearningLanguageProfile profile) ->
+                        "Spanish".equals(profile.sourceLanguage())
+                                && "A2".equals(profile.englishLevel())
+                                && "Travel".equals(profile.learningGoal())));
     }
 
     @Test
@@ -156,7 +203,9 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(chatbotService, never()).chat(anyString());
+        verify(chatbotService, never())
+                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class));
     }
 
     @Test
@@ -167,18 +216,65 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(chatbotService, never()).chat(anyString());
+        verify(chatbotService, never())
+                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class));
     }
 
     @Test
     void chatReturnsInternalServerErrorWhenServiceThrows() throws Exception {
-        when(chatbotService.chat(anyString())).thenThrow(new RuntimeException("downstream"));
+        when(chatbotService.chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                any(LearningLanguageProfile.class)))
+                .thenThrow(new RuntimeException("downstream"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void speechTranscribeReturnsTextAndConsumesEstimatedAudioTokens() throws Exception {
+        when(speechToTextService.transcribe(any(byte[].class), eq("speech.m4a"), eq("audio/mp4"), eq("en_US")))
+                .thenReturn(new GroqSpeechToTextService.TranscriptionResult("I want to practice speaking.", "whisper-large-v3-turbo"));
+
+        MockMultipartFile audio = new MockMultipartFile(
+                "audio",
+                "speech.m4a",
+                "audio/mp4",
+                new byte[]{1, 2, 3, 4});
+
+        mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
+                .file(audio)
+                .param("durationMs", "2100")
+                .param("locale", "en_US")
+                .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.text").value("I want to practice speaking."))
+                .andExpect(jsonPath("$.model").value("whisper-large-v3-turbo"))
+                .andExpect(jsonPath("$.estimatedTokens").value(100));
+
+        verify(aiTokenQuotaService).consume(eq(1L), eq("speech-transcribe"), eq(100L), nullable(String.class), eq("127.0.0.1"));
+    }
+
+    @Test
+    void speechTranscribeRejectsTooLongAudioBeforeCallingGroq() throws Exception {
+        MockMultipartFile audio = new MockMultipartFile(
+                "audio",
+                "speech.m4a",
+                "audio/mp4",
+                new byte[]{1, 2, 3, 4});
+
+        mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
+                .file(audio)
+                .param("durationMs", "61000")
+                .header("X-User-Id", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.reason").value("audio-too-long"));
+
+        verify(speechToTextService, never()).transcribe(any(), any(), any(), any());
     }
 
     @Test
@@ -194,7 +290,11 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.reason").value("daily-quota"))
                 .andExpect(jsonPath("$.retryAfterSeconds").value(120));
 
-        verify(chatbotService, never()).chat(anyString());
+        verify(chatbotService, never())
+                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong());
+        // A blocked request never reaches consumeAiTokens, so it must not
+        // credit the streak either.
+        verify(progressService, never()).updateStreak(anyLong());
     }
 
     @Test
@@ -212,7 +312,8 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.nextBanSeconds").value(60))
                 .andExpect(jsonPath("$.abuseWarning").exists());
 
-        verify(chatbotService, never()).chat(anyString());
+        verify(chatbotService, never())
+                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong());
     }
 
     @Test
@@ -230,16 +331,16 @@ public class ChatbotControllerTest {
         long beforeLookupTimerHit = timerCount("chatbot.sentences.cache.lookup.latency", "hit");
 
         when(valueOperations.get(anyString()))
-                .thenReturn("[{\"englishSentence\":\"Cached sentence\",\"turkishFullTranslation\":\"Onbellekten\"}]");
+                .thenReturn("[{\"englishSentence\":\"I ate an apple after lunch.\",\"turkishFullTranslation\":\"Ogleden sonra bir elma yedim.\"}]");
 
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"apple\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.cached").value(true))
-                .andExpect(jsonPath("$.sentences[0]").value("Cached sentence"));
+                .andExpect(jsonPath("$.sentences[0]").value("I ate an apple after lunch."));
 
         verify(chatbotService, never()).generateSentences(anyString(), any(LearningLanguageProfile.class));
         assertEquals(beforeLookupHit + 1.0, counterValue("chatbot.sentences.cache.lookup.total", "hit"), 0.0001);
@@ -259,12 +360,45 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"apple\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.cached").value(false));
 
         verify(valueOperations).set(anyString(), anyString(), any(Duration.class));
         assertEquals(beforeLookupMiss + 1.0, counterValue("chatbot.sentences.cache.lookup.total", "miss"), 0.0001);
         assertEquals(beforeWriteStored + 1.0, counterValue("chatbot.sentences.cache.write.total", "stored"), 0.0001);
+    }
+
+    @Test
+    void generateSentencesReturnsDeterministicFallbackWhenAiProviderFails() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenThrow(new RuntimeException("Groq API Error: model unavailable"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"focus\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.cached").value(false))
+                .andExpect(jsonPath("$.sentences[0]").value("Please focus on the main problem first."));
+
+        verify(aiTokenQuotaService, never()).consume(eq(1L), eq("generate-sentences"), anyLong(),
+                nullable(String.class), anyString());
+    }
+
+    @Test
+    void generateSentencesReturnsDeterministicFallbackWhenAiProviderFails_ForNonTurkishSource() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenThrow(new RuntimeException("Groq API Error: model unavailable"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"focus\",\"sourceLanguage\":\"Spanish\",\"targetLanguage\":\"English\",\"feedbackLanguage\":\"Spanish\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("Please focus on the main problem first."))
+                .andExpect(jsonPath("$.translations[0]").value(""));
     }
 
     @Test
@@ -302,7 +436,7 @@ public class ChatbotControllerTest {
     void generateSentencesReturnsUpgradeRequiredWhenAiAccessDisabledEvenIfCacheHit() throws Exception {
         when(aiTokenQuotaService.getEntitlement(1L))
                 .thenReturn(new AiTokenQuotaService.Entitlement("FREE", false, 0L, false, 0));
-        when(aiTokenQuotaService.check(1L, "generate-sentences"))
+        when(aiTokenQuotaService.check(eq(1L), eq("generate-sentences"), nullable(String.class), anyString()))
                 .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
         when(valueOperations.get(anyString()))
                 .thenReturn("[{\"englishSentence\":\"Cached sentence\",\"turkishFullTranslation\":\"Onbellekten\"}]");
@@ -333,7 +467,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1));
+                .andExpect(jsonPath("$.count").value(5));
 
         verify(chatbotService).generateSentences(argThat(msg ->
                 msg.contains("Level: B1") && msg.contains("Length: medium")),
@@ -353,17 +487,54 @@ public class ChatbotControllerTest {
                           "word":"apple",
                           "sourceLanguage":"tr",
                           "targetLanguage":"English",
-                          "feedbackLanguage":"en"
+                          "feedbackLanguage":"en",
+                          "englishLevel":"B2",
+                          "learningGoal":"Work"
                         }
                         """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1));
+                .andExpect(jsonPath("$.count").value(5));
 
-        verify(valueOperations).get(contains("turkish:english:english:apple"));
+        verify(valueOperations).get(contains("turkish:english:english:b2:work:apple"));
         verify(chatbotService).generateSentences(anyString(), argThat((LearningLanguageProfile profile) ->
                 "Turkish".equals(profile.sourceLanguage())
                         && "English".equals(profile.targetLanguage())
-                        && "English".equals(profile.feedbackLanguage())));
+                        && "English".equals(profile.feedbackLanguage())
+                        && "B2".equals(profile.englishLevel())
+                        && "Work".equals(profile.learningGoal())));
+    }
+
+    @Test
+    void generateSentencesInjectsRecentStarterAvoidList_WhenTrackingServiceHasHistory() throws Exception {
+        when(sentenceStarterTrackingService.recentStarters(1L)).thenReturn(List.of("The", "I"));
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("[{\"englishSentence\":\"Please eat the apple\",\"turkishFullTranslation\":\"t\"}]"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isOk());
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("recently seen sentences starting with: The, I")),
+                any(LearningLanguageProfile.class));
+    }
+
+    @Test
+    void generateSentencesRecordsNewStarters_AfterSuccessfulGeneration() throws Exception {
+        when(sentenceStarterTrackingService.recentStarters(1L)).thenReturn(List.of());
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("[{\"englishSentence\":\"Please eat the apple\",\"turkishFullTranslation\":\"t\"}]"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"apple\"}"))
+                .andExpect(status().isOk());
+
+        verify(sentenceStarterTrackingService).recordStarters(eq(1L), argThat(starters ->
+                starters.contains("Please")));
     }
 
     @Test
@@ -385,6 +556,8 @@ public class ChatbotControllerTest {
                 .content("{\"word\":\"apple\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(5));
+
+        verify(progressService).updateStreak(1L);
     }
 
     @Test
@@ -395,9 +568,9 @@ public class ChatbotControllerTest {
         mockMvc.perform(post("/api/chatbot/generate-sentences")
                 .header("X-User-Id", "1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"word\":\"book\"}"))
+                .content("{\"word\":\"read\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.sentences[0]").value("I read"));
     }
 
@@ -411,7 +584,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"run\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.translations[0]").value("Koşarım"));
     }
 
@@ -425,7 +598,7 @@ public class ChatbotControllerTest {
                 .content("{\"word\":\"apple\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(5))
-                .andExpect(jsonPath("$.sentences[0]").value("I am practicing the word apple in a sentence."));
+                .andExpect(jsonPath("$.sentences[0]").value("She packed an apple for the bus ride."));
     }
 
     @Test
@@ -438,7 +611,63 @@ public class ChatbotControllerTest {
                 .content("{\"word\":\"book\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(5))
-                .andExpect(jsonPath("$.sentences[0]").value("I am practicing the word book in a sentence."));
+                .andExpect(jsonPath("$.sentences[0]").value("I borrowed this book from the library."));
+    }
+
+    @Test
+    void generateSentencesUsesNaturalElaborateFallbackWhenModelReturnsEmptyContent() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class))).thenReturn(ai(""));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"elaborate\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("Could you elaborate on your answer?"))
+                .andExpect(jsonPath("$.sentences[1]").value("Maya gave an elaborate explanation after the meeting."));
+    }
+
+    @Test
+    void generateSentencesFiltersMetaWordFramesFromValidJson() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class))).thenReturn(ai("""
+                {
+                  "sentences": [
+                    {"englishSentence":"A short news article used \\"delay\\" to describe the problem.","turkishFullTranslation":"Kotu"},
+                    {"englishSentence":"The flight was delayed by heavy rain.","turkishTranslation":"gecikmek","turkishFullTranslation":"Ucus yogun yagmur nedeniyle gecikti."}
+                  ]
+                }
+                """));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"delay\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("The flight was delayed by heavy rain."))
+                .andExpect(jsonPath("$.sentences[1]").value("The delay forced us to change our plans."));
+    }
+
+    @Test
+    void generateSentencesFiltersItemsThatDoNotUseTargetWord() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class))).thenReturn(ai("""
+                {
+                  "sentences": [
+                    {"englishSentence":"The route changed quickly.","turkishFullTranslation":"Rota hızlıca değişti."},
+                    {"englishSentence":"The flight was delayed by heavy rain.","turkishTranslation":"gecikmek","turkishFullTranslation":"Ucus yogun yagmur nedeniyle gecikti."}
+                  ]
+                }
+                """));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"delay\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.sentences[0]").value("The flight was delayed by heavy rain."))
+                .andExpect(jsonPath("$.sentences[1]").value("The delay forced us to change our plans."));
     }
 
     @Test
@@ -454,7 +683,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"book\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.sentences[0]").value("I read books"))
                 .andExpect(jsonPath("$.translations[0]").value("Kitap okurum"));
     }
@@ -469,7 +698,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"book\",\"checkGrammar\":\"true\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1));
+                .andExpect(jsonPath("$.count").value(5));
     }
 
     @Test
@@ -489,7 +718,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"book\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.sentences[0]").value("I read books every evening."))
                 .andExpect(jsonPath("$.sentences[1]").value("Reading books every evening helps me relax."));
     }
@@ -504,12 +733,110 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"apple\",\"fresh\":true}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1));
+                .andExpect(jsonPath("$.count").value(5));
 
         verify(chatbotService).generateSentences(argThat(msg ->
                 msg.contains("variationSeed=")
                         && msg.contains("Avoid reusing common previous examples")
                         && msg.contains("Lengths must be meaningfully different")),
+                any(LearningLanguageProfile.class));
+    }
+
+    @Test
+    void generateSentencesHandlesMultipleTargetWordsAndDirection() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("{\"sentences\":[{\"englishSentence\":\"The route changed quickly.\",\"turkishFullTranslation\":\"Rota hızlıca değişti.\"}]}"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"route, delay, commute\",\"direction\":\"TR_TO_EN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5))
+                .andExpect(jsonPath("$.direction").value("TR_TO_EN"))
+                .andExpect(jsonPath("$.targetWords[0]").value("route"))
+                .andExpect(jsonPath("$.targetWords[1]").value("delay"));
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("Multi-word mode")
+                        && msg.contains("Target words: route, delay, commute")
+                        && msg.contains("Practice direction: TR_TO_EN")
+                        && msg.contains("For source-to-English practice")),
+                any(LearningLanguageProfile.class));
+    }
+
+    @Test
+    void generateSentencesIncludesLearnerMeaningHintsWhenWordExists() throws Exception {
+        Word word = new Word();
+        word.setUserId(1L);
+        word.setEnglishWord("elaborate");
+        word.setTurkishMeaning("detaylandırmak");
+        when(wordService.getAllWords(1L)).thenReturn(List.of(word));
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("{\"sentences\":[{\"englishSentence\":\"Could you elaborate on your answer?\",\"turkishFullTranslation\":\"Cevabını biraz daha detaylandırabilir misin?\"}]}"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"word\":\"elaborate\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(5));
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("Target word: elaborate")
+                        && msg.contains("Known learner meaning: detaylandırmak")),
+                any(LearningLanguageProfile.class));
+    }
+
+    @Test
+    void generateSentencesDoesNotLeakLegacyTurkishHintsForSpanishSource() throws Exception {
+        Word word = new Word();
+        word.setUserId(1L);
+        word.setEnglishWord("elaborate");
+        word.setTurkishMeaning("detaylandırmak");
+        when(wordService.getAllWords(1L)).thenReturn(List.of(word));
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("""
+                        {"sentences":[{"englishSentence":"Could you elaborate on your answer?","sourceFullTranslation":"¿Podrías explicar mejor tu respuesta?","sourceTranslation":"explicar"}]}
+                        """));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"word":"elaborate","sourceLanguage":"Spanish","targetLanguage":"English","feedbackLanguage":"Spanish"}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.translations[0]").value("¿Podrías explicar mejor tu respuesta?"));
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("Target word: elaborate")
+                        && msg.contains("All source-language translations must be in Spanish")
+                        && msg.contains("Do not output Turkish translations")
+                        && msg.contains("Prefer natural, idiomatic Spanish phrasing")
+                        && !msg.contains("Known learner meaning: detaylandırmak")),
+                argThat(profile -> "Spanish".equals(profile.sourceLanguage())
+                        && "Spanish".equals(profile.feedbackLanguage())));
+    }
+
+    @Test
+    void generateSentencesUsesThinkInTurkishFirstGuidance_ForTurkishSource() throws Exception {
+        when(chatbotService.generateSentences(anyString(), any(LearningLanguageProfile.class)))
+                .thenReturn(ai("{\"sentences\":[{\"englishSentence\":\"Could you elaborate?\",\"turkishFullTranslation\":\"Biraz açar mısın?\"}]}"));
+
+        mockMvc.perform(post("/api/chatbot/generate-sentences")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"word":"elaborate","sourceLanguage":"Turkish","targetLanguage":"English","feedbackLanguage":"Turkish"}
+                        """))
+                .andExpect(status().isOk());
+
+        verify(chatbotService).generateSentences(argThat(msg ->
+                msg.contains("Prefer natural, idiomatic Turkish phrasing")
+                        && msg.contains("Think in Turkish first for the full-sentence translation")
+                        && !msg.contains("All source-language translations must be in Turkish")),
                 any(LearningLanguageProfile.class));
     }
 
@@ -523,7 +850,7 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"word\":\"fallback\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.count").value(5))
                 .andExpect(jsonPath("$.translations[0]").value(""));
     }
 
@@ -575,7 +902,7 @@ public class ChatbotControllerTest {
     void checkGrammarReturnsUpgradeRequiredWhenAiAccessDisabled() throws Exception {
         when(aiTokenQuotaService.getEntitlement(1L))
                 .thenReturn(new AiTokenQuotaService.Entitlement("FREE", false, 0L, false, 0));
-        when(aiTokenQuotaService.check(1L, "check-grammar"))
+        when(aiTokenQuotaService.check(eq(1L), eq("check-grammar"), nullable(String.class), anyString()))
                 .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
 
         mockMvc.perform(post("/api/chatbot/check-grammar")
@@ -645,6 +972,25 @@ public class ChatbotControllerTest {
     }
 
     @Test
+    void checkTranslationFallbackParser_ShouldDetectCapitalIncorrect_OnTurkishLocaleJvm() throws Exception {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
+            when(chatbotService.checkTranslation(anyString(), any(LearningLanguageProfile.class)))
+                    .thenReturn(ai("That translation is Incorrect, please try again."));
+
+            mockMvc.perform(post("/api/chatbot/check-translation")
+                    .header("X-User-Id", "1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"direction\":\"EN_TO_TR\",\"englishSentence\":\"I love coding\",\"userTranslation\":\"Yanlis\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.isCorrect").value(false));
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     void checkTranslationHandlesNullServiceResponseWithSafeFallback() throws Exception {
         when(chatbotService.checkTranslation(anyString(), any(LearningLanguageProfile.class))).thenReturn(null);
 
@@ -682,7 +1028,7 @@ public class ChatbotControllerTest {
     }
 
     @Test
-    void checkTranslationFallsBackUnsupportedLanguageProfileToSupportedPair() throws Exception {
+    void checkTranslationUsesGlobalLanguageProfile() throws Exception {
         when(chatbotService.checkEnglishTranslation(anyString(), any(LearningLanguageProfile.class)))
                 .thenReturn(ai("{\"isCorrect\":true,\"correctTranslation\":\"Hello\",\"feedback\":\"Good\"}"));
 
@@ -697,19 +1043,23 @@ public class ChatbotControllerTest {
                           "userTranslation":"Hello",
                           "sourceLanguage":"Spanish",
                           "targetLanguage":"English",
-                          "feedbackLanguage":"Spanish"
+                          "feedbackLanguage":"Spanish",
+                          "englishLevel":"A2",
+                          "learningGoal":"Travel"
                         }
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isCorrect").value(true));
 
         verify(chatbotService).checkEnglishTranslation(argThat(msg ->
-                msg.contains("Turkish sentence: Hola")
+                msg.contains("Spanish sentence: Hola")
                         && msg.contains("User's English translation: Hello")),
                 argThat((LearningLanguageProfile profile) ->
-                        "Turkish".equals(profile.sourceLanguage())
+                        "Spanish".equals(profile.sourceLanguage())
                                 && "English".equals(profile.targetLanguage())
-                                && "Turkish".equals(profile.feedbackLanguage())));
+                                && "Spanish".equals(profile.feedbackLanguage())
+                                && "A2".equals(profile.englishLevel())
+                                && "Travel".equals(profile.learningGoal())));
     }
 
     @Test
@@ -895,7 +1245,9 @@ public class ChatbotControllerTest {
                           "response":"A",
                           "sourceLanguage":"Turkish",
                           "targetLanguage":"English",
-                          "feedbackLanguage":"English"
+                          "feedbackLanguage":"English",
+                          "englishLevel":"C1",
+                          "learningGoal":"Exam"
                         }
                         """))
                 .andExpect(status().isOk())
@@ -904,7 +1256,9 @@ public class ChatbotControllerTest {
         verify(chatbotService).evaluateSpeakingTest(anyString(), argThat((LearningLanguageProfile profile) ->
                 "Turkish".equals(profile.sourceLanguage())
                         && "English".equals(profile.targetLanguage())
-                        && "English".equals(profile.feedbackLanguage())));
+                        && "English".equals(profile.feedbackLanguage())
+                        && "C1".equals(profile.englishLevel())
+                        && "Exam".equals(profile.learningGoal())));
     }
 
     @Test
@@ -931,7 +1285,7 @@ public class ChatbotControllerTest {
 
     @Test
     void proxiedAiEndpointsReturnTooManyRequestsWhenDailyTokenQuotaExceeded() throws Exception {
-        when(aiTokenQuotaService.check(anyLong(), anyString()))
+        when(aiTokenQuotaService.check(anyLong(), anyString(), nullable(String.class), anyString()))
                 .thenReturn(AiTokenQuotaService.Decision.blocked("daily-token-quota", 180, 50000, 50000));
 
         mockMvc.perform(post("/api/chatbot/dictionary/lookup")
@@ -1008,7 +1362,7 @@ public class ChatbotControllerTest {
 
     @Test
     void proxiedAiEndpointsReturnForbiddenWhenAiAccessDisabled() throws Exception {
-        when(aiTokenQuotaService.check(anyLong(), anyString()))
+        when(aiTokenQuotaService.check(anyLong(), anyString(), nullable(String.class), anyString()))
                 .thenReturn(AiTokenQuotaService.Decision.blocked("ai-access-disabled", 0, 0, 0));
 
         mockMvc.perform(post("/api/chatbot/dictionary/lookup")
@@ -1025,7 +1379,7 @@ public class ChatbotControllerTest {
     @Test
     void proxiedAiEndpointsShareSameUserDailyTokenQuota() throws Exception {
         AtomicInteger checkCount = new AtomicInteger(0);
-        when(aiTokenQuotaService.check(eq(1L), anyString()))
+        when(aiTokenQuotaService.check(eq(1L), anyString(), nullable(String.class), anyString()))
                 .thenAnswer(invocation -> {
                     if (checkCount.incrementAndGet() == 1) {
                         return AiTokenQuotaService.Decision.allowed();
@@ -1053,12 +1407,59 @@ public class ChatbotControllerTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.reason").value("daily-token-quota"));
 
-        verify(aiTokenQuotaService).check(1L, "dictionary-lookup");
-        verify(aiTokenQuotaService).check(1L, "reading-generate");
-        verify(aiTokenQuotaService).consume(1L, "dictionary-lookup", 120L);
-        verify(aiTokenQuotaService, never()).consume(eq(1L), eq("reading-generate"), anyLong());
+        verify(aiTokenQuotaService).check(eq(1L), eq("dictionary-lookup"), nullable(String.class), anyString());
+        verify(aiTokenQuotaService).check(eq(1L), eq("reading-generate"), nullable(String.class), anyString());
+        verify(aiTokenQuotaService).consume(eq(1L), eq("dictionary-lookup"), eq(120L), nullable(String.class), anyString());
+        verify(aiTokenQuotaService, never()).consume(
+                eq(1L),
+                eq("reading-generate"),
+                anyLong(),
+                nullable(String.class),
+                anyString());
         verify(aiProxyService, times(1)).dictionaryLookup(eq("apple"), any(LearningLanguageProfile.class));
         verify(aiProxyService, never()).generateReadingPassage(anyString(), any(LearningLanguageProfile.class));
+    }
+
+    @Test
+    void generatePronunciationTextsReturnsAiTextOptionsAndConsumesTokens() throws Exception {
+        when(aiProxyService.generatePronunciationTexts(
+                eq("B1"),
+                argThat(words -> words.size() == 2 && words.contains("delay") && words.contains("focus")),
+                any(LearningLanguageProfile.class)))
+                .thenReturn(new AiProxyService.AiJsonResult(
+                        Map.of(
+                                "texts", List.of(
+                                        "The delayed train finally arrived after lunch.",
+                                        "Please focus on the final sound of each word.",
+                                        "A calm voice can make a difficult sentence easier."),
+                                "level", "B1",
+                                "focusWords", List.of("delay", "focus")),
+                        180,
+                        120,
+                        60));
+
+        mockMvc.perform(post("/api/chatbot/pronunciation/generate-texts")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "level":"B1",
+                          "focusWords":["delay","focus"],
+                          "sourceLanguage":"Turkish",
+                          "targetLanguage":"English",
+                          "feedbackLanguage":"Turkish"
+                        }
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.texts[0]").value("The delayed train finally arrived after lunch."))
+                .andExpect(jsonPath("$.level").value("B1"));
+
+        verify(aiTokenQuotaService).consume(
+                eq(1L),
+                eq("pronunciation-text-generate"),
+                eq(180L),
+                nullable(String.class),
+                eq("127.0.0.1"));
     }
 
     @Test
@@ -1074,7 +1475,12 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.tokensUsed").value(12500))
                 .andExpect(jsonPath("$.tokensRemaining").value(37500))
                 .andExpect(jsonPath("$.usagePercent").value(25.0))
-                .andExpect(jsonPath("$.remainingPercent").value(75.0));
+                .andExpect(jsonPath("$.remainingPercent").value(75.0))
+                // 37500 / {700, 450, 1000, 400} representative per-action token costs
+                .andExpect(jsonPath("$.activityEstimates.conversations").value(53))
+                .andExpect(jsonPath("$.activityEstimates.translationChecks").value(83))
+                .andExpect(jsonPath("$.activityEstimates.sentenceSets").value(37))
+                .andExpect(jsonPath("$.activityEstimates.grammarChecks").value(93));
     }
 
     private static User activeUser() {

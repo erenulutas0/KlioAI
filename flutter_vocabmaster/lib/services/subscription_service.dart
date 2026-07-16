@@ -69,7 +69,7 @@ class SubscriptionPlan {
 
 class SubscriptionService {
   final AuthService _authService = AuthService();
-  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  InAppPurchase get _inAppPurchase => InAppPurchase.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   Function(String message)? onPurchaseSuccess;
@@ -137,6 +137,9 @@ class SubscriptionService {
     if (response.notFoundIDs.isNotEmpty) {
       debugPrint('Products not found: ${response.notFoundIDs}');
     }
+    debugPrint(
+      'Store products found: ${response.productDetails.map((p) => p.id).toList()}',
+    );
 
     return response.productDetails;
   }
@@ -151,6 +154,8 @@ class SubscriptionService {
         ));
         return false;
       }
+
+      await _refreshPurchaseSessionIfPossible();
 
       final String productId =
           Platform.isIOS ? plan.appleProductId : plan.googlePlayProductId;
@@ -168,8 +173,8 @@ class SubscriptionService {
 
       if (product == null) {
         onPurchaseError?.call(_text(
-          'Urun magazada bulunamadi.',
-          'The product could not be found in the store.',
+          'Magaza urunu bulunamadi: $productId. Play Console urunu/base plani aktif mi ve bu test hesabina acik mi kontrol edin.',
+          'Store product not found: $productId. Check that the Play Console product/base plan is active and available to this tester.',
         ));
         return false;
       }
@@ -275,6 +280,8 @@ class SubscriptionService {
   Future<bool> _verifyPurchaseWithBackend(
       PurchaseDetails purchaseDetails) async {
     try {
+      await _refreshPurchaseSessionIfPossible();
+
       final apiUrl = await AppConfig.apiBaseUrl;
       var userId = await _resolveUserIdForPurchase();
       var token = await _authService.getToken();
@@ -447,6 +454,16 @@ class SubscriptionService {
     return null;
   }
 
+  @visibleForTesting
+  String? debugMapPlayStoreError(IAPError? error) {
+    return _mapPlayStoreError(error);
+  }
+
+  @visibleForTesting
+  String? debugMapRawPlayError(String rawError) {
+    return _mapRawPlayError(rawError);
+  }
+
   Future<int?> _resolveUserIdForPurchase() async {
     var userId = await _authService.getUserId();
     if (userId != null && userId > 0) {
@@ -461,6 +478,14 @@ class SubscriptionService {
 
     userId = await _authService.getUserId();
     return (userId != null && userId > 0) ? userId : null;
+  }
+
+  Future<void> _refreshPurchaseSessionIfPossible() async {
+    try {
+      await _authService.refreshSession();
+    } catch (e) {
+      debugPrint('Purchase session pre-refresh failed: $e');
+    }
   }
 
   String _buildVerificationErrorMessage(int statusCode, String body) {
@@ -527,6 +552,11 @@ class SubscriptionService {
       'Satin alma dogrulanamadi (HTTP $statusCode).',
       'The purchase could not be verified (HTTP $statusCode).',
     );
+  }
+
+  @visibleForTesting
+  String debugBuildVerificationErrorMessage(int statusCode, String body) {
+    return _buildVerificationErrorMessage(statusCode, body);
   }
 
   /// Get plans from backend

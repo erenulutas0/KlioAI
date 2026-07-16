@@ -35,7 +35,8 @@ class Comment {
       id: json['id'],
       userId: user['id'],
       userName: user['displayName'] ?? 'User',
-      userAvatar: user['photoUrl'] ?? ((user['displayName'] ?? 'U')[0]), // Fallback to initial
+      userAvatar: user['photoUrl'] ??
+          ((user['displayName'] ?? 'U')[0]), // Fallback to initial
       content: json['content'],
       timestamp: json['createdAt'] ?? '',
     );
@@ -53,7 +54,8 @@ class Post {
   final String? imageUrl;
   int likes;
   int commentCount;
-  List<Comment> comments; // Loaded on demand usually, but keeping list structure
+  List<Comment>
+      comments; // Loaded on demand usually, but keeping list structure
   bool liked;
 
   Post({
@@ -74,7 +76,7 @@ class Post {
   factory Post.fromJson(Map<String, dynamic> json) {
     final user = json['user'];
     String displayName = user['displayName'] ?? 'User';
-    
+
     // Parse timestamp
     String timeStr = 'Şimdi';
     if (json['createdAt'] != null) {
@@ -95,7 +97,7 @@ class Post {
       id: json['id'],
       userId: user['id'],
       userName: displayName,
-      userAvatar: displayName.isNotEmpty ? displayName[0] : 'U', 
+      userAvatar: displayName.isNotEmpty ? displayName[0] : 'U',
       userHandle: '@${displayName.toLowerCase().replaceAll(' ', '')}',
       timestamp: timeStr,
       content: json['content'],
@@ -118,7 +120,7 @@ class SocialFeedPage extends StatefulWidget {
   State<SocialFeedPage> createState() => _SocialFeedPageState();
 }
 
-class _SocialFeedPageState extends State<SocialFeedPage> 
+class _SocialFeedPageState extends State<SocialFeedPage>
     with TickerProviderStateMixin {
   List<Post> posts = [];
   bool showCreatePost = false;
@@ -170,16 +172,16 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     _rainControllers = List.generate(40, (i) {
       final duration = 3.0 + Random().nextDouble() * 3;
       final delay = Random().nextDouble() * 5;
-      
+
       final controller = AnimationController(
         vsync: this,
         duration: Duration(milliseconds: (duration * 1000).toInt()),
       );
-      
+
       Future.delayed(Duration(milliseconds: (delay * 1000).toInt()), () {
         if (mounted) controller.repeat();
       });
-      
+
       return controller;
     });
   }
@@ -190,12 +192,12 @@ class _SocialFeedPageState extends State<SocialFeedPage>
 
   // Awards removed
 
-
   Future<void> _createPost() async {
     if (newPostController.text.trim().isEmpty) return;
-    
+
     try {
-      final newPostJson = await _socialService.createPost(newPostController.text);
+      final newPostJson =
+          await _socialService.createPost(newPostController.text);
       if (mounted) {
         setState(() {
           posts.insert(0, Post.fromJson(newPostJson));
@@ -205,13 +207,16 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       }
     } catch (e) {
       debugPrint('Create post error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Paylaşım yapılamadı')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Paylaşım yapılamadı')));
+      }
     }
   }
-  
+
   Future<void> _addComment(Post post, String text) async {
     if (text.trim().isEmpty) return;
-    
+
     try {
       final newCommentJson = await _socialService.commentPost(post.id, text);
       if (mounted) {
@@ -223,7 +228,10 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       }
     } catch (e) {
       debugPrint('Comment error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Yorum yapılamadı')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Yorum yapılamadı')));
+      }
     }
   }
 
@@ -235,22 +243,22 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     final size = 2.0 + Random().nextDouble() * 4;
     // Ensure we have enough controllers or default to 0
     if (index >= _rainControllers.length) return const SizedBox();
-    
+
     final initialX = Random().nextDouble() * MediaQuery.of(context).size.width;
-    
+
     return AnimatedBuilder(
       animation: _rainControllers[index],
       builder: (context, child) {
         final value = _rainControllers[index].value;
         final yPos = -20 + (MediaQuery.of(context).size.height + 100) * value;
-        
+
         double opacity = 1.0;
         if (value < 0.2) {
           opacity = value / 0.2;
         } else if (value > 0.8) {
           opacity = (1 - value) / 0.2;
         }
-        
+
         return Positioned(
           left: initialX,
           top: yPos,
@@ -264,8 +272,8 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0x9906B6D4),  // cyan-500 60%
-                    Color(0x4D06B6D4),  // cyan-500 30%
+                    Color(0x9906B6D4), // cyan-500 60%
+                    Color(0x4D06B6D4), // cyan-500 30%
                     Colors.transparent,
                   ],
                   stops: [0.0, 0.5, 1.0],
@@ -300,13 +308,13 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0x1A06B6D4),  // cyan-500 10%
-            Color(0x1A3B82F6),  // blue-500 10%
+            Color(0x1A06B6D4), // cyan-500 10%
+            Color(0x1A3B82F6), // blue-500 10%
           ],
         ),
         border: Border(
           bottom: BorderSide(
-            color: Color(0x3322D3EE),  // cyan-400 20%
+            color: Color(0x3322D3EE), // cyan-400 20%
             width: 1,
           ),
         ),
@@ -324,7 +332,8 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                   // Menu Button -> Changed to Back Button
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF22D3EE), size: 24),
+                    icon: const Icon(Icons.arrow_back,
+                        color: Color(0xFF22D3EE), size: 24),
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(0x1AFFFFFF),
                       shape: RoundedRectangleBorder(
@@ -332,17 +341,18 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                       ),
                     ),
                   ),
-                  
+
                   // Title
                   Row(
                     children: [
-                      const Icon(Icons.trending_up, color: Color(0xFF22D3EE), size: 24),
+                      const Icon(Icons.trending_up,
+                          color: Color(0xFF22D3EE), size: 24),
                       const SizedBox(width: 8),
                       ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
                           colors: [
-                            Color(0xFF22D3EE),  // cyan-400
-                            Color(0xFF3B82F6),  // blue-500
+                            Color(0xFF22D3EE), // cyan-400
+                            Color(0xFF3B82F6), // blue-500
                           ],
                         ).createShader(bounds),
                         child: const Text(
@@ -356,7 +366,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                       ),
                     ],
                   ),
-                  
+
                   // Action Buttons
                   Row(
                     children: [
@@ -365,10 +375,13 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationsPage()),
                           );
                         },
-                        icon: const Icon(Icons.notifications_outlined, color: Color(0xFF22D3EE), size: 24),
+                        icon: const Icon(Icons.notifications_outlined,
+                            color: Color(0xFF22D3EE), size: 24),
                         style: IconButton.styleFrom(
                           backgroundColor: const Color(0x1AFFFFFF),
                           shape: RoundedRectangleBorder(
@@ -382,10 +395,12 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const FriendListPage()),
+                            MaterialPageRoute(
+                                builder: (context) => const FriendListPage()),
                           );
                         },
-                        icon: const Icon(Icons.people_outline, color: Color(0xFF22D3EE), size: 24),
+                        icon: const Icon(Icons.people_outline,
+                            color: Color(0xFF22D3EE), size: 24),
                         style: IconButton.styleFrom(
                           backgroundColor: const Color(0x1AFFFFFF),
                           shape: RoundedRectangleBorder(
@@ -414,7 +429,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
         initials += nameParts[1][0].toUpperCase();
       }
     }
-    
+
     return Container(
       width: size,
       height: size,
@@ -432,7 +447,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -455,9 +470,9 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       children: [
         // Avatar
         _buildAvatar(post.userName),
-        
+
         const SizedBox(width: 12),
-        
+
         // User Info
         Expanded(
           child: Column(
@@ -505,9 +520,9 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             ],
           ),
         ),
-        
+
         const SizedBox(width: 8),
-        
+
         // Follow Button (Not fully implemented yet)
         ElevatedButton(
           onPressed: () {
@@ -517,7 +532,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             backgroundColor: const Color(0xFF06B6D4), // Cyan if not following
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            minimumSize: Size.zero, 
+            minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -529,9 +544,9 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
-        
+
         const SizedBox(width: 4),
-        
+
         // More Button
         IconButton(
           onPressed: () {},
@@ -550,7 +565,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
     return Text(
       post.content,
       style: const TextStyle(
-        color: Color(0xE6FFFFFF),  // white 90%
+        color: Color(0xE6FFFFFF), // white 90%
         fontSize: 15,
         height: 1.5,
       ),
@@ -574,7 +589,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
           width: double.infinity,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-             return const SizedBox.shrink();
+            return const SizedBox.shrink();
           },
         ),
       ),
@@ -592,24 +607,25 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // Reduced padding
+        padding: const EdgeInsets.symmetric(
+            horizontal: 8, vertical: 8), // Reduced padding
         decoration: BoxDecoration(
           gradient: isActive && activeGradient != null
-            ? LinearGradient(colors: activeGradient)
-            : null,
-          color: isActive && activeGradient == null 
-            ? const Color(0x1AFFFFFF) 
-            : null,
+              ? LinearGradient(colors: activeGradient)
+              : null,
+          color: isActive && activeGradient == null
+              ? const Color(0x1AFFFFFF)
+              : null,
           borderRadius: BorderRadius.circular(12),
           boxShadow: isActive && activeGradient != null
-            ? [
-                BoxShadow(
-                  color: activeGradient[0].withOpacity(0.3),
-                  blurRadius: 12,
-                  spreadRadius: 0,
-                ),
-              ]
-            : null,
+              ? [
+                  BoxShadow(
+                    color: activeGradient[0].withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -620,15 +636,15 @@ class _SocialFeedPageState extends State<SocialFeedPage>
               color: Colors.white,
             ),
             if (label.isNotEmpty) ...[
-               const SizedBox(width: 4),
-               Text(
+              const SizedBox(width: 4),
+              Text(
                 label,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13, // Slightly smaller font
                   fontWeight: FontWeight.w500,
                 ),
-               ),
+              ),
             ],
           ],
         ),
@@ -643,9 +659,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildAvatar(comment.userName, size: 32),
-          
           const SizedBox(width: 12),
-          
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -703,17 +717,15 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       children: [
         // Existing Comments
         ...post.comments.map((comment) => _buildCommentItem(comment)),
-        
+
         if (post.comments.isNotEmpty) const SizedBox(height: 16),
-        
+
         // Add Comment
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildAvatar('Ben', size: 32),
-            
             const SizedBox(width: 12),
-            
             Expanded(
               child: TextField(
                 controller: commentControllers[post.id],
@@ -743,9 +755,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                 onSubmitted: (text) => _addComment(post, text),
               ),
             ),
-            
             const SizedBox(width: 8),
-            
             Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
@@ -775,19 +785,23 @@ class _SocialFeedPageState extends State<SocialFeedPage>
 
   Widget _buildActionButtons(Post post) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute space evenly
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween, // Distribute space evenly
       children: [
         // Like Button
         _buildActionButton(
           icon: post.liked ? Icons.favorite : Icons.favorite_border,
           label: '${post.likes}',
           isActive: post.liked,
-          activeGradient: [const Color(0xFFEC4899), const Color(0xFFF43F5E)],  // pink to rose
+          activeGradient: [
+            const Color(0xFFEC4899),
+            const Color(0xFFF43F5E)
+          ], // pink to rose
           onTap: () async {
             // Toggle like - Optimistic UI update
             final wasLiked = post.liked;
             final oldLikes = post.likes;
-            
+
             setState(() {
               post.liked = !wasLiked;
               post.likes = wasLiked ? post.likes - 1 : post.likes + 1;
@@ -814,7 +828,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             }
           },
         ),
-        
+
         // Comment Button
         _buildActionButton(
           icon: Icons.chat_bubble_outline,
@@ -830,10 +844,10 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             });
           },
         ),
-        
+
         // Create Space
         const SizedBox(width: 48),
-        
+
         // Share Button
         IconButton(
           onPressed: () {},
@@ -841,7 +855,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           style: IconButton.styleFrom(
-             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
       ],
@@ -870,13 +884,13 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0x661E293B),  // slate-800 40%
-              Color(0x661E3A8A),  // blue-900 40%
+              Color(0x661E293B), // slate-800 40%
+              Color(0x661E3A8A), // blue-900 40%
             ],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0x3322D3EE),  // cyan-400 20%
+            color: const Color(0x3322D3EE), // cyan-400 20%
             width: 1,
           ),
           boxShadow: const [
@@ -901,7 +915,6 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                   const SizedBox(height: 16),
                   _buildPostImage(post.imageUrl!),
                 ],
-
                 const SizedBox(height: 16),
                 const Divider(color: Color(0x1AFFFFFF), height: 1),
                 const SizedBox(height: 12),
@@ -923,7 +936,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
   Widget _buildFloatingActionButton() {
     return Positioned(
       right: 24,
-      bottom: 96,  // Above bottom nav
+      bottom: 96, // Above bottom nav
       child: GestureDetector(
         onTap: () {
           setState(() {
@@ -968,7 +981,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
               });
             },
             child: Container(
-              color: const Color(0x99000000),  // black 60%
+              color: const Color(0x99000000), // black 60%
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
                 child: Container(color: Colors.transparent),
@@ -976,7 +989,7 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             ),
           ),
         ),
-        
+
         // Modal
         Center(
           child: Container(
@@ -987,8 +1000,8 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF1E293B),  // slate-800
-                  Color(0xFF1E3A8A),  // blue-900
+                  Color(0xFF1E293B), // slate-800
+                  Color(0xFF1E3A8A), // blue-900
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
@@ -1031,21 +1044,20 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                               showCreatePost = false;
                             });
                           },
-                          icon: const Icon(Icons.close, color: Color(0xB3FFFFFF)),
+                          icon:
+                              const Icon(Icons.close, color: Color(0xB3FFFFFF)),
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // User + Input
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildAvatar('Ahmet Yılmaz'),
-                        
                         const SizedBox(width: 12),
-                        
                         Expanded(
                           child: TextField(
                             controller: newPostController,
@@ -1053,41 +1065,46 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                             maxLines: 5,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              hintText: 'İngilizce öğrenme deneyiminizi paylaşın...',
-                              hintStyle: const TextStyle(color: Color(0x66FFFFFF)),
+                              hintText:
+                                  'İngilizce öğrenme deneyiminizi paylaşın...',
+                              hintStyle:
+                                  const TextStyle(color: Color(0x66FFFFFF)),
                               filled: true,
                               fillColor: const Color(0x0DFFFFFF),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0x3322D3EE)),
+                                borderSide:
+                                    const BorderSide(color: Color(0x3322D3EE)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0x3322D3EE)),
+                                borderSide:
+                                    const BorderSide(color: Color(0x3322D3EE)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0x8022D3EE)),
+                                borderSide:
+                                    const BorderSide(color: Color(0x8022D3EE)),
                               ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 16),
                     const Divider(color: Color(0x1AFFFFFF)),
                     const SizedBox(height: 16),
-                    
+
                     // Actions
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.image, color: Color(0xFF22D3EE)),
+                          icon:
+                              const Icon(Icons.image, color: Color(0xFF22D3EE)),
                         ),
-                        
                         Container(
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
@@ -1102,9 +1119,9 @@ class _SocialFeedPageState extends State<SocialFeedPage>
                             ],
                           ),
                           child: ElevatedButton(
-                            onPressed: newPostController.text.trim().isEmpty 
-                              ? null 
-                              : _createPost,
+                            onPressed: newPostController.text.trim().isEmpty
+                                ? null
+                                : _createPost,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -1149,15 +1166,19 @@ class _SocialFeedPageState extends State<SocialFeedPage>
             children: [
               _buildHeader(),
               Expanded(
-                child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
-                  : posts.isEmpty 
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 16, bottom: 100),
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) => _buildPostCard(posts[index], index),
-                      ),
+                child: _isLoading
+                    ? const Center(
+                        child:
+                            CircularProgressIndicator(color: Color(0xFF22D3EE)))
+                    : posts.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding:
+                                const EdgeInsets.only(top: 16, bottom: 100),
+                            itemCount: posts.length,
+                            itemBuilder: (context, index) =>
+                                _buildPostCard(posts[index], index),
+                          ),
               ),
             ],
           ),
@@ -1172,9 +1193,10 @@ class _SocialFeedPageState extends State<SocialFeedPage>
           BottomNav(
             currentIndex: -1,
             onTap: (index) {
-               Navigator.pushAndRemoveUntil(
+              Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => MainScreen(initialIndex: index)),
+                MaterialPageRoute(
+                    builder: (context) => MainScreen(initialIndex: index)),
                 (route) => false,
               );
             },
@@ -1189,20 +1211,22 @@ class _SocialFeedPageState extends State<SocialFeedPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.feed_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+          Icon(Icons.feed_outlined,
+              size: 64, color: Colors.white.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           Text(
             'Henüz paylaşım yok',
-            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 18),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5), fontSize: 18),
           ),
           const SizedBox(height: 8),
           Text(
             'İlk paylaşımı sen yaparak topluluğu başlat!',
-            style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 14),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
           ),
         ],
       ),
     );
   }
 }
-

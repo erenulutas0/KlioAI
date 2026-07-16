@@ -35,7 +35,7 @@ class _ThemeSideTabState extends State<ThemeSideTab> {
       context: navigatorContext,
       barrierDismissible: true,
       barrierLabel: isTurkish ? 'Tema Sec' : 'Choose Theme',
-      barrierColor: Colors.black.withOpacity(0.18),
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return const _ThemePickerOverlay();
@@ -117,14 +117,14 @@ class _ThemeHandle extends StatelessWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            selectedTheme.colors.accentGlow.withOpacity(0.34),
+                        color: selectedTheme.colors.accentGlow
+                            .withValues(alpha: 0.34),
                         blurRadius: 8,
                         offset: const Offset(2, 0),
                       ),
                     ],
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.14),
+                      color: Colors.white.withValues(alpha: 0.14),
                       width: 0.4,
                     ),
                   ),
@@ -173,14 +173,15 @@ class _ThemePickerOverlay extends StatelessWidget {
                         Colors.black,
                         0.12,
                       )!
-                          .withOpacity(0.90),
+                          .withValues(alpha: 0.90),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: current.colors.accent.withOpacity(0.34),
+                        color: current.colors.accent.withValues(alpha: 0.34),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: current.colors.accentGlow.withOpacity(0.18),
+                          color:
+                              current.colors.accentGlow.withValues(alpha: 0.18),
                           blurRadius: 22,
                           offset: const Offset(0, 10),
                         ),
@@ -196,7 +197,8 @@ class _ThemePickerOverlay extends StatelessWidget {
                               width: 30,
                               height: 4,
                               decoration: BoxDecoration(
-                                color: current.colors.accent.withOpacity(0.70),
+                                color: current.colors.accent
+                                    .withValues(alpha: 0.70),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
@@ -277,13 +279,13 @@ class _ThemeOptionTile extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? theme.colors.accent.withOpacity(0.14)
-              : Colors.white.withOpacity(0.045),
+              ? theme.colors.accent.withValues(alpha: 0.14)
+              : Colors.white.withValues(alpha: 0.045),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected
-                ? theme.colors.accent.withOpacity(0.62)
-                : Colors.white.withOpacity(0.10),
+                ? theme.colors.accent.withValues(alpha: 0.62)
+                : Colors.white.withValues(alpha: 0.10),
           ),
         ),
         child: Row(

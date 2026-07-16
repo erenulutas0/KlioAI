@@ -1,6 +1,6 @@
 param(
     [switch]$SkipPubGet,
-    [double]$CoverageThreshold = 30.0
+    [double]$CoverageThreshold = 32.5
 )
 
 Set-StrictMode -Version Latest

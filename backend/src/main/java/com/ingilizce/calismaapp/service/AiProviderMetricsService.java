@@ -105,7 +105,7 @@ public class AiProviderMetricsService {
         if (value == null || value.isBlank()) {
             return fallback;
         }
-        return value.trim().toLowerCase();
+        return value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private void incrementCounter(String name, String provider, String model, String outcome, double amount) {

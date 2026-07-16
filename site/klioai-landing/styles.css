@@ -575,6 +575,22 @@ a {
   line-height: 1.75;
 }
 
+.legal-card ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.legal-card a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.legal-card a:hover {
+  color: var(--text);
+}
+
 @media (max-width: 980px) {
   .hero-grid,
   .metrics,

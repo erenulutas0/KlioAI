@@ -45,12 +45,13 @@ class NeuralCenterNode extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: selectedTheme.colors.buttonGradient,
               border: Border.all(
-                color: selectedTheme.colors.accent.withOpacity(0.8),
+                color: selectedTheme.colors.accent.withValues(alpha: 0.8),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                  color:
+                      selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                   blurRadius: 24,
                   spreadRadius: 1,
                 ),
@@ -59,7 +60,7 @@ class NeuralCenterNode extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.28),
+                color: Colors.black.withValues(alpha: 0.28),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -88,7 +89,7 @@ class NeuralCenterNode extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontWeight: FontWeight.w500,
                         fontSize: 10,
                       ),
@@ -98,7 +99,7 @@ class NeuralCenterNode extends StatelessWidget {
                   Text(
                     '${timeLeft}s',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.90),
+                      color: Colors.white.withValues(alpha: 0.90),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -139,7 +140,7 @@ class _CircularTimerPainter extends CustomPainter {
     final radius = size.width / 2 - 6;
 
     final bgPaint = Paint()
-      ..color = Colors.white.withOpacity(0.10)
+      ..color = Colors.white.withValues(alpha: 0.10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4;
     canvas.drawCircle(center, radius, bgPaint);

@@ -79,42 +79,49 @@ class _ModernBackgroundState extends State<ModernBackground>
     switch (widget.variant) {
       case BackgroundVariant.primary:
         return [
-          selectedTheme.colors.background.withOpacity(0.94),
-          _mix(selectedTheme.colors.background, selectedTheme.colors.primaryDark, 0.50)
-              .withOpacity(0.86),
-          selectedTheme.colors.background.withOpacity(0.94),
+          selectedTheme.colors.background.withValues(alpha: 0.94),
+          _mix(selectedTheme.colors.background,
+                  selectedTheme.colors.primaryDark, 0.50)
+              .withValues(alpha: 0.86),
+          selectedTheme.colors.background.withValues(alpha: 0.94),
         ];
       case BackgroundVariant.secondary:
         return [
-          _mix(selectedTheme.colors.background, selectedTheme.colors.accent, 0.16)
-              .withOpacity(0.92),
-          _mix(selectedTheme.colors.background, selectedTheme.colors.primary, 0.28)
-              .withOpacity(0.84),
-          _mix(selectedTheme.colors.background, selectedTheme.colors.accent, 0.16)
-              .withOpacity(0.92),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                  0.16)
+              .withValues(alpha: 0.92),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
+                  0.28)
+              .withValues(alpha: 0.84),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                  0.16)
+              .withValues(alpha: 0.92),
         ];
       case BackgroundVariant.accent:
         return [
-          _mix(selectedTheme.colors.background, selectedTheme.colors.accent, 0.34)
-              .withOpacity(0.92),
-          _mix(selectedTheme.colors.background, selectedTheme.colors.primary, 0.42)
-              .withOpacity(0.86),
-          _mix(selectedTheme.colors.background, selectedTheme.colors.accent, 0.34)
-              .withOpacity(0.92),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                  0.34)
+              .withValues(alpha: 0.92),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.primary,
+                  0.42)
+              .withValues(alpha: 0.86),
+          _mix(selectedTheme.colors.background, selectedTheme.colors.accent,
+                  0.34)
+              .withValues(alpha: 0.92),
         ];
     }
   }
 
   Color _dotColor(AppThemeConfig selectedTheme) {
-    return selectedTheme.colors.accent.withOpacity(0.10);
+    return selectedTheme.colors.accent.withValues(alpha: 0.10);
   }
 
   Color _lineColor(AppThemeConfig selectedTheme) {
-    return selectedTheme.colors.accent.withOpacity(0.04);
+    return selectedTheme.colors.accent.withValues(alpha: 0.04);
   }
 
   Color _gridColor(AppThemeConfig selectedTheme) {
-    return selectedTheme.colors.primary.withOpacity(0.08);
+    return selectedTheme.colors.primary.withValues(alpha: 0.08);
   }
 
   Color _orb1Color(AppThemeConfig selectedTheme) {
@@ -131,8 +138,8 @@ class _ModernBackgroundState extends State<ModernBackground>
 
   @override
   Widget build(BuildContext context) {
-    final selectedTheme =
-        _getThemeProvider(listen: true)?.currentTheme ?? VocabThemes.defaultTheme;
+    final selectedTheme = _getThemeProvider(listen: true)?.currentTheme ??
+        VocabThemes.defaultTheme;
     final transitionDurationMs = _transitionDurationMs(selectedTheme);
 
     return ClipRRect(
@@ -241,4 +248,3 @@ class _ModernBackgroundState extends State<ModernBackground>
     );
   }
 }
-

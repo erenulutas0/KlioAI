@@ -151,12 +151,16 @@ class LevelAndLengthSection extends StatelessWidget {
               ),
               const SizedBox(width: 10),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 15,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontSize: 15,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                ),
               ),
             ),
           ],

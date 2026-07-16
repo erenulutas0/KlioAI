@@ -287,11 +287,12 @@ class _StatsPageState extends State<StatsPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.calendar_today, color: Color(0xFF06b6d4), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.calendar_today,
+                    color: Color(0xFF06b6d4), size: 20),
+                const SizedBox(width: 8),
                 Text(
                   _text('Haftalık İlerleme', 'Weekly Progress'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -303,7 +304,7 @@ class _StatsPageState extends State<StatsPage> {
             Center(
               child: Text(
                 _text('Henüz veri yok', 'No data yet'),
-                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               ),
             ),
           ],
@@ -325,11 +326,12 @@ class _StatsPageState extends State<StatsPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.calendar_today, color: Color(0xFF06b6d4), size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.calendar_today,
+                  color: Color(0xFF06b6d4), size: 20),
+              const SizedBox(width: 8),
               Text(
                 _text('Haftalık İlerleme', 'Weekly Progress'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -389,7 +391,7 @@ class _StatsPageState extends State<StatsPage> {
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       strokeWidth: 1,
                     );
                   },
@@ -437,11 +439,11 @@ class _StatsPageState extends State<StatsPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
+                const SizedBox(width: 8),
                 Text(
                   _text('XP Gelişimi', 'XP Progress'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -453,7 +455,7 @@ class _StatsPageState extends State<StatsPage> {
             Center(
               child: Text(
                 _text('Henüz XP kazanılmadı', 'No XP earned yet'),
-                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               ),
             ),
           ],
@@ -473,11 +475,11 @@ class _StatsPageState extends State<StatsPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.stars, color: Color(0xFF06b6d4), size: 20),
+              const SizedBox(width: 8),
               Text(
                 _text('XP Gelişimi', 'XP Progress'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -495,7 +497,7 @@ class _StatsPageState extends State<StatsPage> {
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       strokeWidth: 1,
                     );
                   },
@@ -562,7 +564,7 @@ class _StatsPageState extends State<StatsPage> {
                     ),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: const Color(0xFF06b6d4).withOpacity(0.2),
+                      color: const Color(0xFF06b6d4).withValues(alpha: 0.2),
                     ),
                   ),
                 ],
@@ -584,11 +586,12 @@ class _StatsPageState extends State<StatsPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.emoji_events, color: Color(0xFF06b6d4), size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.emoji_events,
+                  color: Color(0xFF06b6d4), size: 20),
+              const SizedBox(width: 8),
               Text(
                 _text('Başarılar', 'Achievements'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -615,13 +618,13 @@ class _StatsPageState extends State<StatsPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: unlocked
-                      ? const Color(0xFF3b82f6).withOpacity(0.3)
-                      : Colors.white.withOpacity(0.05),
+                      ? const Color(0xFF3b82f6).withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: unlocked
                         ? const Color(0xFF3b82f6)
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
                 child: Column(
@@ -631,7 +634,9 @@ class _StatsPageState extends State<StatsPage> {
                       achievement['icon'] as String? ?? '🎯',
                       style: TextStyle(
                         fontSize: 40,
-                        color: unlocked ? null : Colors.white.withOpacity(0.3),
+                        color: unlocked
+                            ? null
+                            : Colors.white.withValues(alpha: 0.3),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -640,7 +645,7 @@ class _StatsPageState extends State<StatsPage> {
                       style: TextStyle(
                         color: unlocked
                             ? Colors.white
-                            : Colors.white.withOpacity(0.5),
+                            : Colors.white.withValues(alpha: 0.5),
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -652,7 +657,7 @@ class _StatsPageState extends State<StatsPage> {
                       style: TextStyle(
                         color: unlocked
                             ? Colors.white70
-                            : Colors.white.withOpacity(0.3),
+                            : Colors.white.withValues(alpha: 0.3),
                         fontSize: 11,
                       ),
                       textAlign: TextAlign.center,

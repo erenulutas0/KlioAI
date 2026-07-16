@@ -20,14 +20,14 @@ class NeuralScoreCard extends StatelessWidget {
     return GlassmorphismCard(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       borderRadius: 16,
-      color: selectedTheme.colors.primary.withOpacity(0.12),
+      color: selectedTheme.colors.primary.withValues(alpha: 0.12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'SCORE',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.72),
+              color: Colors.white.withValues(alpha: 0.72),
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1,

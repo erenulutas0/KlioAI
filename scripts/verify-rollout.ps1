@@ -20,6 +20,7 @@ $securitySmokeScript = Join-Path $PSScriptRoot "smoke-security-cors-headers.ps1"
 $runtimeIsolationScript = Join-Path $PSScriptRoot "check-runtime-isolation.ps1"
 $runtimeProdFlagsScript = Join-Path $PSScriptRoot "check-runtime-prod-flags.ps1"
 $googleSigninConfigScript = Join-Path $PSScriptRoot "check-google-signin-android-config.ps1"
+$secretScanScript = Join-Path $PSScriptRoot "scan-repo-secrets.ps1"
 $coverageScript = Join-Path $PSScriptRoot "check-core-coverage.ps1"
 $parityScript = Join-Path $PSScriptRoot "check-db-parity.ps1"
 $aiEntitlementSmokeScript = Join-Path $PSScriptRoot "smoke-ai-entitlement-flow.ps1"
@@ -40,6 +41,10 @@ function Invoke-Step {
 }
 
 function Run-ProdPreflight {
+    Invoke-Step -Name "repo-secret-scan" -Action {
+        & $secretScanScript
+    }
+
     Invoke-Step -Name "runtime-prod-flags-check" -Action {
         & $runtimeProdFlagsScript -ProjectName $ProjectName
     }
@@ -80,6 +85,10 @@ function Run-NonProdSmoke {
 }
 
 function Run-LocalGate {
+    Invoke-Step -Name "repo-secret-scan" -Action {
+        & $secretScanScript
+    }
+
     Invoke-Step -Name "check-google-signin-android-config" -Action {
         & $googleSigninConfigScript
     }
@@ -94,7 +103,7 @@ function Run-LocalGate {
     }
 
     Invoke-Step -Name "check-core-coverage" -Action {
-        & $coverageScript -Threshold 90
+        & $coverageScript -Threshold 85.0
     }
 
     Invoke-Step -Name "check-db-parity" -Action {

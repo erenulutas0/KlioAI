@@ -71,6 +71,9 @@ Amac: Kullanici ne yapiyor, nerede dusuyor ve neden odemiyor sorularini cevaplay
   - `trial_started`
   - `trial_expired`
   - `support_ticket_created`
+  - `neural_game_started`
+  - `neural_game_finished`
+  - `neural_game_exited`
 
 Definition of done:
 
@@ -82,7 +85,7 @@ Definition of done:
 
 Amac: Yeni kullaniciya her seyi gostermek yerine ilk kazanci yasatmak.
 
-- [x] Ilk oturum akisina sade hedef koy:
+- [x] Ilk oturum akisina sade hedef koy. *(2026-05-24 karar degisikligi: gorev tamamlama karti kaldirildi; ilk ekran kullaniciyi direkt app degerine ve normal aksiyonlara goturecek.)*
   - Seviye sec.
   - 3 kelime ekle.
   - 1 AI cumle olustur.
@@ -91,9 +94,9 @@ Amac: Yeni kullaniciya her seyi gostermek yerine ilk kazanci yasatmak.
   - Kelime ekle/cumle uret
   - Klasik tekrar
   - AI chat veya Writing
-- [x] Word Galaxy, Neural Game, Exams ve ileri modlari progressive unlock yap.
-- [x] Home ekraninda "bugunku tek hedef" karti ekle.
-- [x] Aktivasyon eventlerini analytics'e bagla.
+- [x] Word Galaxy, Neural Game, Exams ve ileri modlari progressive unlock yap. *(2026-05-24 karar degisikligi: Practice mode kilitleri kaldirildi; kullanici kesfi engellenmeyecek, AI/paywall kontrolu backend entitlement/quota katmaninda kalacak.)*
+- [x] Home ekraninda "bugunku tek hedef" karti ekle. *(2026-05-24'te kaldirildi.)*
+- [x] Aktivasyon eventlerini analytics'e bagla. *(2026-05-24'te activation/progressive-unlock eventleri kaldirildi.)*
 
 Definition of done:
 
@@ -206,8 +209,15 @@ Amac: KlioAI'i global English learning urunu olarak tutarken, en olgun TR -> EN 
   - speaking evaluation
 - [x] Dictionary, reading ve writing AI proxy promptlarini request profiline gore uret.
 - [x] Mevcut app language setting tarafindan varsayilan AI feedback dilini backend'e tasima; secenekler Turkish/English ile sinirli.
-- [ ] Ayrica native/source language icin explicit learning settings yuzeyi tasarla; secenekler Turkish/English ile sinirli kalacak.
-- [ ] Grammar icin non-English targetLanguage stratejisini belirle; mevcut hedef English oldugu icin LanguageTool `en-US` bilincli default.
+- [x] Ayrica native/source language icin explicit learning settings yuzeyi eklendi; secenekler Turkish/English ile sinirli:
+  - Settings icinde `Learning Profile` karti var.
+  - Native/source language secimi `LearningLanguageProvider` ile persist ediliyor.
+  - AI request payload profili artik `LearningLanguageService.currentProfile()` uzerinden `sourceLanguage`, `targetLanguage=English`, `feedbackLanguage` gonderiyor.
+  - Target/practice language su an urun odagina uygun olarak English sabit kaliyor.
+- [x] Grammar icin non-English targetLanguage stratejisi netlestirildi:
+  - KlioAI mevcut urun odağında English learning oldugu icin grammar check hedef dili English-only kalacak.
+  - Native/source language ve feedback language grammar hedefini degistirmeyecek; bu alan sadece kullanicinin girdigi English cumleyi kontrol eder.
+  - `/api/grammar/status` artik gercekteki implementation'i `AI Grammar Checker`, `targetLanguage=English`, `strategy=english-learning-only` olarak raporlar.
 - [x] Mevcut uretim odagi dokumante edildi: `docs/localization_reality.md`.
 
 Definition of done:
@@ -224,6 +234,7 @@ Amac: Ilk buyume dalgasinda tamamen dusmemek.
 - [x] VPS disk doluluk alarmi ekle.
 - [x] Backend health check disinda sentetik prod smoke test ekle.
 - [x] Hikari pool, Redis memory ve JVM memory metriklerini izle.
+- [x] Trial-abuse ve non-paid AI aggregate quota block alert/dashboard ekle.
 - [x] Statik landing assetleri CDN/GitHub Pages tarafinda tut.
 - [x] Gerektiginde DB'yi managed Postgres'e tasima planini dokumante et.
 - [x] Scale readiness calisma notlarini dokumante et: `docs/scale_readiness.md`.
@@ -251,7 +262,7 @@ Definition of done:
 
 - D1 retention: hedef `%25+`
 - D7 retention: hedef `%8-12+`
-- First session activation: hedef `%40+`
+- First session core action rate: hedef `%40+`
 - Trial -> paid conversion: hedef `%3-7`
 - Purchase failure rate: hedef `%5 altinda`
 - Crash-free users: hedef `%99+`

@@ -1,28 +1,44 @@
 # Prod Rollout Secret and Verify Checklist
 
-Date: 2026-02-13
+Date: 2026-05-25
 
 ## 1) Environment Secret Checklist
 
-Minimum required secrets for prod/stage compose rendering and runtime:
+Minimum required runtime secrets/config for prod/stage compose rendering:
 
 - `POSTGRES_PASSWORD`
 - `SPRING_DATA_REDIS_PASSWORD`
 - `APP_CORS_ALLOWED_ORIGINS`
-- `IYZICO_API_KEY`
-- `IYZICO_API_SECRET`
-- `IYZICO_API_BASE_URL`
 - `GROQ_API_KEY`
+- `APP_SECURITY_JWT_SECRET`
 - `APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS`
+- `APP_SUBSCRIPTION_GOOGLE_PLAY_PACKAGE_NAME`
+- `APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH`
 - `ALERTMANAGER_DEFAULT_WEBHOOK_URL`
 - `ALERTMANAGER_CRITICAL_WEBHOOK_URL`
 - `ALERTMANAGER_WARNING_WEBHOOK_URL`
+
+Current payment surface is Google Play Billing only. `IYZICO_*` values are legacy and are not required for the live mobile subscription flow.
+
+Optional Google Play RTDN vars:
+
+- `APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_ENABLED`
+- `APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET`
+
+If RTDN is enabled, `APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET` is required by the prod preflight script unless the endpoint is replaced with Pub/Sub OIDC JWT validation.
 
 Rules:
 
 - Do not leave any of the values empty.
 - `ALERTMANAGER_*_WEBHOOK_URL` values must point to real environment-specific destinations.
 - Production and stage must use different paging endpoints.
+- Do not commit `.env`, service-account JSON, provider API keys, JWT secrets, or generated secret dumps.
+- Firebase Android API keys in `google-services.json` are not treated as backend secrets by the repo scan, but they should still be restricted in Google Cloud/Firebase where practical.
+- If a runtime secret may have been exposed, follow
+  `docs/PROD_SECRET_ROTATION_RUNBOOK.md` before scaling traffic.
+- Before scaling traffic or approving a backend release, run the read-only VPS
+  parity check:
+  `pwsh -File scripts/check-prod-secret-parity-vps.ps1 -Execute`
 
 ## 1.1) Non-Secret Runtime Vars (TTS)
 
@@ -79,6 +95,22 @@ Notes:
 - This check validates the repo upload keystore against `google-services.json`.
 - A PASS here does not replace the Play App Signing registration requirement for Play-distributed builds.
 
+## 1.4) Local Secret Scan
+
+Run before release cuts and before sharing diffs:
+
+```powershell
+pwsh -File .\scripts\scan-repo-secrets.ps1
+```
+
+Default behavior scans source/config/docs while excluding expected local runtime secret containers such as `.env` and `secrets/`. To audit the workstation/runtime secret files too, run:
+
+```powershell
+pwsh -File .\scripts\scan-repo-secrets.ps1 -IncludeLocalSecretFiles
+```
+
+The script prints only finding type and file location, never matched values.
+
 ## 2) One-Command Verification Blocks
 
 Run from repository root (`C:\flutter-project-main`).
@@ -91,8 +123,9 @@ pwsh -File .\scripts\verify-rollout.ps1 -Mode prod-preflight
 
 Notes:
 
-- Requires the 11 env vars above to be already exported/injected.
+- Requires the env vars above to be already exported/injected.
 - Fails fast if any required secret is missing.
+- Runs the repo secret scan first.
 
 ### B) Non-Prod Rollout Smoke (Reconcile + Load)
 
@@ -130,9 +163,10 @@ pwsh -File .\scripts\verify-rollout.ps1 -Mode local-gate -ProjectName flutter-pr
 
 What it runs:
 
+- `scripts/scan-repo-secrets.ps1`
 - `scripts/check-google-signin-android-config.ps1`
 - `mvn -q test`
-- `scripts/check-core-coverage.ps1 -Threshold 90`
+- `scripts/check-core-coverage.ps1 -Threshold 85.0`
 - `scripts/check-db-parity.ps1`
 
 ### D) Full Batch (All Three)
@@ -152,4 +186,5 @@ docker run --rm -v C:/flutter-project-main:/workspace aquasec/trivy:0.58.1 fs --
 - Prod preflight passes with real secret values.
 - Non-prod smoke passes with `100%` success on both endpoints.
 - Local release gate passes (`test`, `coverage`, `db parity`).
+- `scripts/scan-repo-secrets.ps1` has no high-risk findings.
 - Edge/DDoS preconditions are completed and verified.

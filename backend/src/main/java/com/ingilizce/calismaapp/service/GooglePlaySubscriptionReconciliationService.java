@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -85,6 +86,10 @@ public class GooglePlaySubscriptionReconciliationService {
         }
     }
 
+    // Hard backstop against a runaway loop, far above any realistic subscriber
+    // count for now (50 pages x default 200 = 10k users per run).
+    private static final int MAX_PAGES_PER_RUN = 50;
+
     @Transactional
     public void reconcileNow() {
         if (!reconciliationProperties.isEnabled()) {
@@ -94,57 +99,108 @@ public class GooglePlaySubscriptionReconciliationService {
             return;
         }
 
-        int maxUsers = Math.max(1, reconciliationProperties.getMaxUsersPerRun());
-        var candidates = transactionRepository.findLatestByProviderPerUser(
-                GOOGLE_PROVIDER,
-                PageRequest.of(0, maxUsers));
-
-        if (candidates.isEmpty()) {
-            return;
-        }
-
+        // Page through EVERY user's latest Google transaction. A single fixed
+        // page ordered by id DESC silently skipped everyone beyond the newest
+        // maxUsersPerRun rows - those users' renewals never extended and their
+        // refunds never revoked once the subscriber count passed the cap.
+        int pageSize = Math.max(1, reconciliationProperties.getMaxUsersPerRun());
         Instant now = clock.instant();
+        int checkedCount = 0;
         int successCount = 0;
         int failCount = 0;
 
-        for (PaymentTransaction tx : candidates) {
-            String purchaseToken = extractPurchaseToken(tx.getTransactionId());
-            if (purchaseToken.isBlank()) {
-                log.warn("Skipping Google tx id={} due to missing purchase token format", tx.getId());
-                failCount++;
-                continue;
+        for (int page = 0; page < MAX_PAGES_PER_RUN; page++) {
+            var candidates = transactionRepository.findLatestByProviderPerUser(
+                    GOOGLE_PROVIDER,
+                    PageRequest.of(page, pageSize));
+            if (candidates.isEmpty()) {
+                break;
             }
 
-            try {
-                GooglePlaySubscriptionVerificationService.VerificationResult snapshot =
-                        verificationService.fetchSubscriptionState(purchaseToken, null);
-                applySnapshot(tx, snapshot, now);
-                successCount++;
-            } catch (GooglePlaySubscriptionVerificationService.GooglePlayVerificationException ex) {
-                if (ex.getCode() == GooglePlaySubscriptionVerificationService.GooglePlayVerificationException.Code.INVALID_PURCHASE) {
-                    handleInvalidPurchase(tx, now);
+            for (PaymentTransaction tx : candidates) {
+                checkedCount++;
+                if (reconcileTransaction(tx, now)) {
+                    successCount++;
+                } else {
                     failCount++;
-                    continue;
                 }
-                log.warn("Google reconcile provider error txId={}, userId={}, code={}, message={}",
-                        tx.getId(),
-                        tx.getUser() != null ? tx.getUser().getId() : null,
-                        ex.getCode(),
-                        ex.getMessage());
-                failCount++;
-            } catch (Exception ex) {
-                log.warn("Google reconcile unexpected error txId={}, userId={}",
-                        tx.getId(),
-                        tx.getUser() != null ? tx.getUser().getId() : null,
-                        ex);
-                failCount++;
+            }
+
+            if (candidates.size() < pageSize) {
+                break;
+            }
+            if (page == MAX_PAGES_PER_RUN - 1) {
+                log.warn("Google reconciliation hit MAX_PAGES_PER_RUN={} (pageSize={}); "
+                                + "remaining users NOT reconciled this run - raise the cap or page size.",
+                        MAX_PAGES_PER_RUN, pageSize);
             }
         }
 
+        if (checkedCount == 0) {
+            return;
+        }
+
         log.info("Google reconciliation finished: checked={}, success={}, failed={}",
-                candidates.size(),
+                checkedCount,
                 successCount,
                 failCount);
+    }
+
+    @Transactional
+    public boolean reconcilePurchaseToken(String purchaseToken) {
+        if (!googleProperties.isEnabled()) {
+            return false;
+        }
+
+        String normalizedToken = normalizePurchaseToken(purchaseToken);
+        if (normalizedToken.isBlank()) {
+            return false;
+        }
+
+        List<PaymentTransaction> transactions =
+                transactionRepository.findLatestByProviderAndTransactionIdsWithUserAndPlan(
+                        GOOGLE_PROVIDER,
+                        List.of(GOOGLE_TX_PREFIX + normalizedToken, normalizedToken),
+                        PageRequest.of(0, 1));
+
+        if (transactions.isEmpty()) {
+            log.warn("Google RTDN received unknown purchase token hash={}", Integer.toHexString(normalizedToken.hashCode()));
+            return false;
+        }
+
+        return reconcileTransaction(transactions.get(0), clock.instant());
+    }
+
+    private boolean reconcileTransaction(PaymentTransaction tx, Instant now) {
+        String purchaseToken = extractPurchaseToken(tx.getTransactionId());
+        if (purchaseToken.isBlank()) {
+            log.warn("Skipping Google tx id={} due to missing purchase token format", tx.getId());
+            return false;
+        }
+
+        try {
+            GooglePlaySubscriptionVerificationService.VerificationResult snapshot =
+                    verificationService.fetchSubscriptionState(purchaseToken, null);
+            applySnapshot(tx, snapshot, now);
+            return true;
+        } catch (GooglePlaySubscriptionVerificationService.GooglePlayVerificationException ex) {
+            if (ex.getCode() == GooglePlaySubscriptionVerificationService.GooglePlayVerificationException.Code.INVALID_PURCHASE) {
+                handleInvalidPurchase(tx, now);
+                return false;
+            }
+            log.warn("Google reconcile provider error txId={}, userId={}, code={}, message={}",
+                    tx.getId(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    ex.getCode(),
+                    ex.getMessage());
+            return false;
+        } catch (Exception ex) {
+            log.warn("Google reconcile unexpected error txId={}, userId={}",
+                    tx.getId(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    ex);
+            return false;
+        }
     }
 
     private void applySnapshot(PaymentTransaction tx,
@@ -247,9 +303,19 @@ public class GooglePlaySubscriptionReconciliationService {
             SubscriptionPlan plan,
             Instant verifiedExpiry,
             Instant now) {
+        LocalDateTime currentEnd = user.getSubscriptionEndDate();
+        if (googleProperties.isTrustVerifiedExpiry() && verifiedExpiry != null) {
+            // Google is the billing source of truth: the paid-until date is
+            // exactly what the user is entitled to. The legacy now+duration
+            // floor below pushed EVERY access-eligible subscription (including
+            // canceled-but-not-yet-expired ones) to at least 30 days out on
+            // every reconcile run, gifting up to a month past the real expiry.
+            // Never shrink an end date the user was already shown.
+            LocalDateTime verifiedEnd = LocalDateTime.ofInstant(verifiedExpiry, ZoneOffset.UTC);
+            return currentEnd != null && currentEnd.isAfter(verifiedEnd) ? currentEnd : verifiedEnd;
+        }
         LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
         LocalDateTime resolved = nowUtc.plusDays(resolveEffectiveDurationDays(plan));
-        LocalDateTime currentEnd = user.getSubscriptionEndDate();
         if (currentEnd != null && currentEnd.isAfter(resolved)) {
             resolved = currentEnd;
         }
@@ -273,18 +339,30 @@ public class GooglePlaySubscriptionReconciliationService {
         if (plan == null) {
             return AiPlanTier.FREE.name();
         }
-        return AiPlanTier.fromSubscriptionPlanName(plan.getName()).name();
+        AiPlanTier tier = AiPlanTier.fromSubscriptionPlanName(plan.getName());
+        if (tier == AiPlanTier.FREE) {
+            // Same guard as SubscriptionController.resolveAiPlanCode: the name
+            // mapping is substring-based, so a paid plan named without
+            // PRO/PREMIUM/PLUS would silently downgrade a paying user to FREE.
+            log.warn("AI_PLAN_MAPPING_FALLBACK: subscription plan '{}' resolved to FREE ai tier - "
+                    + "check AiPlanTier.fromSubscriptionPlanName mapping", plan.getName());
+        }
+        return tier.name();
     }
 
     private String extractPurchaseToken(String transactionId) {
-        if (transactionId == null || transactionId.isBlank()) {
-            return "";
-        }
-        String value = transactionId.trim();
+        String value = normalizePurchaseToken(transactionId);
         if (value.regionMatches(true, 0, GOOGLE_TX_PREFIX, 0, GOOGLE_TX_PREFIX.length())) {
             return value.substring(GOOGLE_TX_PREFIX.length()).trim();
         }
         return value;
+    }
+
+    private String normalizePurchaseToken(String transactionId) {
+        if (transactionId == null || transactionId.isBlank()) {
+            return "";
+        }
+        return transactionId.trim();
     }
 
     private String normalizeState(String state) {

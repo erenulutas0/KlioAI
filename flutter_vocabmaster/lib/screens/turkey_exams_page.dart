@@ -16,7 +16,8 @@ class TurkeyExamsPage extends StatelessWidget {
               children: [
                 // AppBar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   child: Row(
                     children: [
                       IconButton(
@@ -24,7 +25,7 @@ class TurkeyExamsPage extends StatelessWidget {
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
                       const SizedBox(width: 8),
-                       const Column(
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -47,7 +48,7 @@ class TurkeyExamsPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.all(24),
@@ -57,13 +58,14 @@ class TurkeyExamsPage extends StatelessWidget {
                         context,
                         title: 'YDS / YÖKDİL',
                         subtitle: 'Akademik Yabancı Dil Sınavları',
-                        description: 'YDS ve YÖKDİL sınavlarına yönelik konu bazlı, özgün ve akademik soru çözümleri. Gramer, Kelime, Okuma ve Çeviri becerilerinizi geliştirin.',
-                        color: const Color(0xFF6366f1), // Indigo Primary Brand Color
+                        description:
+                            'YDS ve YÖKDİL sınavlarına yönelik konu bazlı, özgün ve akademik soru çözümleri. Gramer, Kelime, Okuma ve Çeviri becerilerinizi geliştirin.',
+                        color: const Color(
+                            0xFF6366f1), // Indigo Primary Brand Color
                         onTap: () {
                           _showConfigDialog(context, 'YDS/YÖKDİL');
                         },
                       ),
-
                     ],
                   ),
                 ),
@@ -95,12 +97,12 @@ class TurkeyExamsPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF1e3a8a).withOpacity(0.3),
+          color: const Color(0xFF1e3a8a).withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -124,7 +126,7 @@ class TurkeyExamsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.arrow_forward_ios, color: color, size: 16),
@@ -144,7 +146,7 @@ class TurkeyExamsPage extends StatelessWidget {
             Text(
               description,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 15,
                 height: 1.5,
               ),
@@ -155,4 +157,3 @@ class TurkeyExamsPage extends StatelessWidget {
     );
   }
 }
-

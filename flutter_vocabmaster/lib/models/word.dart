@@ -2,6 +2,7 @@ class Word {
   final int id;
   final String englishWord;
   final String turkishMeaning;
+  String get sourceMeaning => turkishMeaning;
   final DateTime learnedDate;
   final String? notes;
   final String difficulty;
@@ -54,7 +55,8 @@ class Word {
     return Word(
       id: wordId,
       englishWord: json['englishWord'] as String? ?? '',
-      turkishMeaning: json['turkishMeaning'] as String? ?? '',
+      turkishMeaning:
+          (json['sourceMeaning'] ?? json['turkishMeaning'])?.toString() ?? '',
       learnedDate: json['learnedDate'] != null
           ? DateTime.parse(json['learnedDate'].toString())
           : DateTime.now(),
@@ -83,6 +85,7 @@ class Word {
       'id': id,
       'englishWord': englishWord,
       'turkishMeaning': turkishMeaning,
+      'sourceMeaning': sourceMeaning,
       'learnedDate': learnedDate.toIso8601String().split('T')[0],
       'notes': notes,
       'difficulty': difficulty,
@@ -142,7 +145,8 @@ class Sentence {
     return Sentence(
       id: (json['id'] is int) ? json['id'] as int : (json['id'] as num).toInt(),
       sentence: json['sentence'] as String? ?? '',
-      translation: json['translation'] as String? ?? '',
+      translation:
+          (json['sourceTranslation'] ?? json['translation'])?.toString() ?? '',
       wordId: wordId,
       difficulty: json['difficulty'] as String?,
       createdAt: createdAt,
@@ -154,6 +158,7 @@ class Sentence {
       'id': id,
       'sentence': sentence,
       'translation': translation,
+      'sourceTranslation': translation,
       'wordId': wordId,
       'difficulty': difficulty,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),

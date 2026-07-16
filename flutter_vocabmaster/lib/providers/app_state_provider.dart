@@ -24,15 +24,90 @@ class AppStateProvider extends ChangeNotifier {
   AppStateProvider() {
     // XP değişikliklerini dinle ve UI'ı güncelle
     _xpManager.setOnXPChanged((totalXP, addedXP, action) {
+      final previousLevel = _toInt(_userStats['level']);
+      final newLevel = _xpManager.calculateLevel(totalXP);
       _userStats['xp'] = totalXP;
-      _userStats['level'] = _xpManager.calculateLevel(totalXP);
+      _userStats['level'] = newLevel;
       _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(totalXP);
-      final currentWeeklyXP = (_userStats['weeklyXP'] as int?) ?? 0;
+      final currentWeeklyXP = _toInt(_userStats['weeklyXP']);
       final nextWeeklyXP = currentWeeklyXP + addedXP;
       _userStats['weeklyXP'] = nextWeeklyXP < 0 ? 0 : nextWeeklyXP;
       _userStats = Map<String, dynamic>.from(_userStats);
+      if (addedXP > 0) {
+        // Global XP toast'u için olay: kazanç miktarı + seviye atlama bilgisi.
+        // Harcamalar (negatif) ve senkronizasyon düzeltmeleri (0) toast üretmez.
+        _lastXpGainAmount = addedXP;
+        _lastXpGainLeveledUp = newLevel > previousLevel;
+        _xpGainSeq++;
+      }
       notifyListeners();
     });
+  }
+
+  // XP kazanç olayı akışı (XpToastHost dinler). Seq her pozitif kazançta artar.
+  int _xpGainSeq = 0;
+  int _lastXpGainAmount = 0;
+  bool _lastXpGainLeveledUp = false;
+  int get xpGainSeq => _xpGainSeq;
+  int get lastXpGainAmount => _lastXpGainAmount;
+  bool get lastXpGainLeveledUp => _lastXpGainLeveledUp;
+
+  // Günlük hedef tamamlama kutlaması (XpToastHost dinler).
+  int _dailyGoalCelebrationSeq = 0;
+  int get dailyGoalCelebrationSeq => _dailyGoalCelebrationSeq;
+
+  // ── Streak dondurucu ─────────────────────────────────────────────────
+  // XP'ye ikinci bir harcama alanı (temalardan sonra) + bir günlük kaçırmayı
+  // affeden Duolingo-tarzı koruma. En fazla 2 adet stoklanabilir; tam bir
+  // gün kaçırıldığında (diffDays == 2) otomatik tüketilir.
+  static const String _streakFreezePrefsKey = 'streak_freeze_tokens';
+  static const int streakFreezeCostXp = 500;
+  static const int streakFreezeMaxTokens = 2;
+  int _streakFreezeTokens = 0;
+  int get streakFreezeTokens => _streakFreezeTokens;
+  int _streakFreezeUsedSeq = 0;
+  int get streakFreezeUsedSeq => _streakFreezeUsedSeq;
+
+  Future<void> _loadStreakFreezeTokens(SharedPreferences prefs) async {
+    _streakFreezeTokens =
+        (prefs.getInt(_streakFreezePrefsKey) ?? 0).clamp(0, streakFreezeMaxTokens);
+  }
+
+  /// 500 XP karşılığında bir dondurucu satın alır.
+  /// false: yetersiz XP veya stok dolu.
+  Future<bool> purchaseStreakFreeze() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _loadStreakFreezeTokens(prefs);
+    if (_streakFreezeTokens >= streakFreezeMaxTokens) {
+      return false;
+    }
+    final totalXp = _toInt(_userStats['xp']);
+    if (totalXp < streakFreezeCostXp) {
+      return false;
+    }
+    await _xpManager.deductXP(streakFreezeCostXp, 'streak_freeze');
+    _streakFreezeTokens++;
+    await prefs.setInt(_streakFreezePrefsKey, _streakFreezeTokens);
+    notifyListeners();
+    return true;
+  }
+
+  static const List<int> dailyGoalOptions = [5, 10, 20];
+  static const String _dailyGoalPrefsKey = 'daily_goal_target';
+
+  /// Günlük kelime hedefini kalıcı olarak günceller (5/10/20).
+  Future<void> setDailyGoal(int goal) async {
+    final normalized = dailyGoalOptions.contains(goal) ? goal : 5;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_dailyGoalPrefsKey, normalized);
+    _userStats['dailyGoal'] = normalized;
+    _userStats = Map<String, dynamic>.from(_userStats);
+    notifyListeners();
+  }
+
+  Future<int> _loadDailyGoal(SharedPreferences prefs) async {
+    final stored = prefs.getInt(_dailyGoalPrefsKey);
+    return stored != null && dailyGoalOptions.contains(stored) ? stored : 5;
   }
 
   Map<String, dynamic> _buildDefaultUserStats() {
@@ -321,15 +396,16 @@ class AppStateProvider extends ChangeNotifier {
           : _calculateWeeklyActivityFromWords(_allWords);
 
       // Haftalık XP preflerde yoksa mevcut haftadaki kelime/cümlelerden fallback üret.
-      if (weeklyXPFromManager <= 0 &&
-          weeklyActivity.any((d) => d['learned'] == true)) {
-        weeklyXPFromManager = _estimateWeeklyXpFromWords(_allWords);
+      final estimatedWeeklyXp = _estimateWeeklyXpFromWords(_allWords);
+      if (estimatedWeeklyXp > weeklyXPFromManager) {
+        weeklyXPFromManager = estimatedWeeklyXp;
       }
 
       // ═══════════════════════════════════════════════════════════════
       // STATS OLUŞTURMA
       // ═══════════════════════════════════════════════════════════════
       final level = _xpManager.calculateLevel(xpFromManager);
+      await _loadStreakFreezeTokens(prefs);
 
       _userStats = {
         'name': displayName,
@@ -339,7 +415,7 @@ class AppStateProvider extends ChangeNotifier {
         'weeklyXP': weeklyXPFromManager,
         'level': level,
         'xpToNextLevel': _xpManager.xpForNextLevel(xpFromManager),
-        'dailyGoal': 5,
+        'dailyGoal': await _loadDailyGoal(prefs),
         'learnedToday': persistedLearnedToday,
         'isOnline': _offlineSyncService.isOnline,
       };
@@ -414,6 +490,10 @@ class AppStateProvider extends ChangeNotifier {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString());
+  }
+
+  int _toInt(dynamic value, {int fallback = 0}) {
+    return _toNullableInt(value) ?? fallback;
   }
 
   Future<void> _seedBaseXpIfMissing(int estimatedBaseXp) async {
@@ -531,6 +611,59 @@ class AppStateProvider extends ChangeNotifier {
   /// Kullanıcı verisini yenile (XP kazanınca vs.)
   Future<void> refreshUserData() async {
     await _loadUserData();
+    notifyListeners();
+  }
+
+  /// XP-only refresh for offline-first flows.
+  ///
+  /// Word/sentence/practice actions update XP locally first. Home/Profile should
+  /// reflect that local source of truth immediately, without waiting for a full
+  /// data reload or online sync.
+  Future<void> refreshXpStatsFromLocal({bool notify = true}) async {
+    try {
+      final minimumContentXp = _estimateMinimumContentXp();
+      if (minimumContentXp > 0) {
+        await _xpManager.ensureMinimumTotalXP(minimumContentXp);
+      }
+
+      final totalXp = await _xpManager.getTotalXP(forceRefresh: true);
+      final weeklyXpFromManager =
+          await _xpManager.getWeeklyXP(forceRefresh: true);
+      final estimatedWeeklyXp = _estimateWeeklyXpFromWords(_allWords);
+      final weeklyXp = estimatedWeeklyXp > weeklyXpFromManager
+          ? estimatedWeeklyXp
+          : weeklyXpFromManager;
+
+      _userStats['xp'] = totalXp;
+      _userStats['weeklyXP'] = weeklyXp;
+      _userStats['level'] = _xpManager.calculateLevel(totalXp);
+      _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(totalXp);
+      _userStats = Map<String, dynamic>.from(_userStats);
+
+      if (notify) {
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing local XP stats: $e');
+    }
+  }
+
+  int _estimateMinimumContentXp() {
+    final wordXp = _allWords.length * XPActionTypes.addWord.xpAmount;
+    final wordSentenceXp = _allWords.fold<int>(
+      0,
+      (sum, word) =>
+          sum + (word.sentences.length * XPActionTypes.addSentence.xpAmount),
+    );
+    final practiceSentenceIds = <String>{};
+    var practiceSentenceXp = 0;
+    for (final sentence in _allSentences) {
+      if (!sentence.isPractice) continue;
+      if (practiceSentenceIds.add(sentence.id.toString())) {
+        practiceSentenceXp += XPActionTypes.addPracticeSentence.xpAmount;
+      }
+    }
+    return wordXp + wordSentenceXp + practiceSentenceXp;
   }
 
   void _resetSessionScopedState({
@@ -710,8 +843,11 @@ class AppStateProvider extends ChangeNotifier {
         // 🎯 Anlık istatistik güncellemesi (streak, weeklyActivity dahil)
         await incrementLearnedToday(); // totalWords ve learnedToday artırır + streak günceller
 
-        // 🆔 Transaction ID: kelime ID'si (deterministik ve çakışmasız)
-        final txId = 'word_id_${newWord.id}';
+        // 🆔 Transaction ID: local ID + normalized content. Server IDs can be
+        // remapped after sync; the local optimistic insert remains the stable
+        // user action identity for offline-first XP.
+        final txId =
+            'word_add_${newWord.id}_${_xpTransactionTextKey(newWord.englishWord)}';
 
         // XP ekle - kaynağa göre farklı XP türü (transactionId ile)
         if (source == 'daily_word') {
@@ -725,6 +861,10 @@ class AppStateProvider extends ChangeNotifier {
               source: source, transactionId: txId);
         }
 
+        await AnalyticsService.logWordAdded(
+          source: source ?? 'manual',
+          difficulty: difficulty,
+        );
         await AnalyticsService.logFirstWordAdded(
           source: source ?? 'manual',
           difficulty: difficulty,
@@ -1290,8 +1430,13 @@ class AppStateProvider extends ChangeNotifier {
       final lastDate = prefs.getString('daily_words_date');
       final todayDate = DateTime.now().toIso8601String().split('T')[0];
       final cachedJson = prefs.getString('daily_words_cache');
+      const cacheSchema = 'daily_words_v3';
+      final cachedSchema = prefs.getString('daily_words_cache_schema');
 
-      if (!forceRefresh && lastDate == todayDate && cachedJson != null) {
+      if (!forceRefresh &&
+          lastDate == todayDate &&
+          cachedSchema == cacheSchema &&
+          cachedJson != null) {
         // Cache'den yükle; boş cache eski oturum/reinstall senaryosunda ekranı kilitlemesin.
         final List<dynamic> decoded = jsonDecode(cachedJson);
         final cachedWords = _sanitizeDailyWords(decoded);
@@ -1317,6 +1462,7 @@ class AppStateProvider extends ChangeNotifier {
       _dailyWords = words;
       // Cache'e kaydet
       await prefs.setString('daily_words_date', todayDate);
+      await prefs.setString('daily_words_cache_schema', cacheSchema);
       await prefs.setString('daily_words_cache', jsonEncode(words));
 
       _isLoadingDailyWords = false;
@@ -1328,6 +1474,8 @@ class AppStateProvider extends ChangeNotifier {
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('daily_words_date', todayDate);
+        await prefs.setString(
+            'daily_words_cache_schema', 'offline_fallback_v1');
         await prefs.setString('daily_words_cache', jsonEncode(_dailyWords));
       } catch (_) {}
       _isLoadingDailyWords = false;
@@ -1449,11 +1597,28 @@ class AppStateProvider extends ChangeNotifier {
 
     newStats.forEach((key, value) {
       if (value != null) {
-        _userStats[key] = value;
+        _userStats[key] = _normalizeUserStatValue(key, value);
       }
     });
 
     notifyListeners();
+  }
+
+  dynamic _normalizeUserStatValue(String key, dynamic value) {
+    const intFields = {
+      'level',
+      'xp',
+      'xpToNextLevel',
+      'totalWords',
+      'streak',
+      'weeklyXP',
+      'dailyGoal',
+      'learnedToday',
+    };
+    if (intFields.contains(key)) {
+      return _toInt(value);
+    }
+    return value;
   }
 
   /// Haftalık aktivite verisini güncelle
@@ -1468,17 +1633,9 @@ class AppStateProvider extends ChangeNotifier {
     try {
       final added = await _xpManager.addCustomXP(amount, reason ?? 'custom');
 
-      // WeeklyXP'yi de güncelle
-      final currentWeeklyXP = (_userStats['weeklyXP'] as int?) ?? 0;
-      final nextWeeklyXP = currentWeeklyXP + added;
-      _userStats['weeklyXP'] = nextWeeklyXP < 0 ? 0 : nextWeeklyXP;
-
-      // Level kontrolü
-      final totalXP = _userStats['xp'] ?? 0;
-      _userStats['level'] = _xpManager.calculateLevel(totalXP);
-      _userStats['xpToNextLevel'] = _xpManager.xpForNextLevel(totalXP);
-
-      notifyListeners();
+      if (added != 0) {
+        await refreshXpStatsFromLocal();
+      }
       return added;
     } catch (e) {
       debugPrint('Error adding XP: $e');
@@ -1493,11 +1650,31 @@ class AppStateProvider extends ChangeNotifier {
     try {
       final added = await _xpManager.addXP(action,
           source: source, transactionId: transactionId);
+      if (added != 0) {
+        await refreshXpStatsFromLocal();
+      }
+      // Her XP kazandıran eylem bir öğrenme aktivitesidir: streak yalnızca
+      // kelime eklemeyle değil tekrar/pratikle de yaşamalı. XP günlük limite
+      // takılsa bile (added == 0) aktivite sayılır, o yüzden added'a bağlı
+      // değil. Kelime sayaçlarına (learnedToday) dokunmaz.
+      await creditLearningActivity();
       return added;
     } catch (e) {
       debugPrint('Error adding XP for action: $e');
       return 0;
     }
+  }
+
+  /// Streak'i ve haftalık aktiviteyi işler; günlük kelime hedefine dokunmaz.
+  /// Kelime ekleme akışı incrementLearnedToday() üzerinden zaten buradan geçer.
+  Future<void> creditLearningActivity() async {
+    await _updateStreak();
+    _updateWeeklyActivityForToday();
+    notifyListeners();
+  }
+
+  String _xpTransactionTextKey(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
   }
 
   /// Bugün öğrenilen kelime sayısını artır ve kalıcı olarak kaydet
@@ -1538,6 +1715,14 @@ class AppStateProvider extends ChangeNotifier {
 
     int currentStreak = prefs.getInt('current_streak') ?? 0;
 
+    if (lastActivityDate == todayStr) {
+      // Bugün zaten işlendi: creditLearningActivity artık her tekrar/pratik
+      // tamamlamada çağrıldığı için, aynı gün içindeki sonraki çağrılarda
+      // pref yazmayı ve hatırlatıcıyı yeniden planlamayı atla.
+      _userStats['streak'] = currentStreak;
+      return;
+    }
+
     if (lastActivityDate == null) {
       // İlk aktivite
       currentStreak = 1;
@@ -1549,6 +1734,11 @@ class AppStateProvider extends ChangeNotifier {
       if (diffDays == 1) {
         // Ardışık gün, streak artır
         currentStreak += 1;
+      } else if (diffDays == 2 && await _consumeStreakFreezeToken(prefs)) {
+        // Tam bir gün kaçırıldı ama dondurucu vardı: kaçan gün affedilir,
+        // bugünkü aktivite seriyi normal şekilde uzatır.
+        currentStreak += 1;
+        _streakFreezeUsedSeq++;
       } else if (diffDays > 1) {
         // Seri kırıldı, yeniden başla
         currentStreak = 1;
@@ -1559,7 +1749,11 @@ class AppStateProvider extends ChangeNotifier {
     // Kaydet
     await prefs.setString('last_activity_date', todayStr);
     await prefs.setInt('current_streak', currentStreak);
-    await LocalReminderService().scheduleStreakGuardReminder();
+    try {
+      await LocalReminderService().scheduleStreakGuardReminder();
+    } catch (e) {
+      debugPrint('Streak reminder scheduling skipped: $e');
+    }
 
     _userStats['streak'] = currentStreak;
 
@@ -1567,13 +1761,30 @@ class AppStateProvider extends ChangeNotifier {
     await _xpManager.checkAndAwardStreakBonus(currentStreak);
   }
 
+  /// Dondurucu stoğundan bir adet düşer; yoksa false.
+  Future<bool> _consumeStreakFreezeToken(SharedPreferences prefs) async {
+    await _loadStreakFreezeTokens(prefs);
+    if (_streakFreezeTokens <= 0) {
+      return false;
+    }
+    _streakFreezeTokens--;
+    await prefs.setInt(_streakFreezePrefsKey, _streakFreezeTokens);
+    return true;
+  }
+
   /// Günlük hedef kontrolü
   Future<void> _checkDailyGoal() async {
-    final learnedToday = _userStats['learnedToday'] ?? 0;
-    final dailyGoal = _userStats['dailyGoal'] ?? 5;
+    final learnedToday = _toInt(_userStats['learnedToday']);
+    final dailyGoal = _toInt(_userStats['dailyGoal'] ?? 5);
 
     if (learnedToday >= dailyGoal) {
       await _xpManager.checkDailyGoal(learnedToday, dailyGoal);
+      // Hedefin AŞILDIĞI anda (tam eşitlik) kutlama olayı yayınla - daha
+      // önce hedef tamamlanması tamamen sessizdi (25 XP arka planda).
+      if (learnedToday == dailyGoal) {
+        _dailyGoalCelebrationSeq++;
+        notifyListeners();
+      }
     }
   }
 
@@ -1617,12 +1828,23 @@ class AppStateProvider extends ChangeNotifier {
   // DAILY WORD HELPERS
   // ═══════════════════════════════════════════════════════════════
 
+  String _normalizeLearningText(String value) {
+    final compact = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (compact.isEmpty) return '';
+    return compact
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .toLowerCase();
+  }
+
   Word? findWordByEnglish(String english) {
-    final target = english.trim().toLowerCase();
+    final target = _normalizeLearningText(english);
     if (target.isEmpty) return null;
     try {
       return _allWords.firstWhere(
-        (w) => (w.englishWord).trim().toLowerCase() == target,
+        (w) => _normalizeLearningText(w.englishWord) == target,
       );
     } catch (_) {
       return null;
@@ -1630,8 +1852,9 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   bool hasSentenceForWord(Word word, String sentence) {
-    final target = sentence.trim().toLowerCase();
+    final target = _normalizeLearningText(sentence);
     if (target.isEmpty) return false;
-    return word.sentences.any((s) => s.sentence.trim().toLowerCase() == target);
+    return word.sentences
+        .any((s) => _normalizeLearningText(s.sentence) == target);
   }
 }

@@ -22,16 +22,21 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.subscription.mock-verification-enabled=false")
+@SpringBootTest(properties = {
+        "app.subscription.mock-verification-enabled=false",
+        "app.security.jwt.enforce-auth=true"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @DisplayName("Subscription Controller Google Live Mode Tests")
@@ -60,6 +65,7 @@ class SubscriptionControllerGoogleLiveModeTest {
 
     private User testUser;
     private SubscriptionPlan premiumPlan;
+    private SubscriptionPlan annualPlan;
 
     @BeforeEach
     void setUp() {
@@ -68,6 +74,8 @@ class SubscriptionControllerGoogleLiveModeTest {
 
         premiumPlan = new SubscriptionPlan("PREMIUM", new BigDecimal("5.00"), 30);
         premiumPlan.setId(10L);
+        annualPlan = new SubscriptionPlan("PRO_ANNUAL", new BigDecimal("999.99"), 365);
+        annualPlan.setId(11L);
     }
 
     @Test
@@ -87,7 +95,8 @@ class SubscriptionControllerGoogleLiveModeTest {
         Mockito.when(googlePlaySubscriptionVerificationService.resolvePlanName(eq(verification), eq("premium_monthly")))
                 .thenReturn("PREMIUM");
         Mockito.when(planRepository.findByName("PREMIUM")).thenReturn(Optional.of(premiumPlan));
-        Mockito.when(transactionRepository.findByTransactionId("google:token-123")).thenReturn(Optional.empty());
+        Mockito.when(transactionRepository.findByTransactionIdWithUserAndPlan("google:token-123"))
+                .thenReturn(Optional.empty());
 
         Map<String, String> request = Map.of(
                 "purchaseToken", "token-123",
@@ -101,6 +110,86 @@ class SubscriptionControllerGoogleLiveModeTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Google IAP verified"))
                 .andExpect(jsonPath("$.planName").value("PREMIUM"));
+    }
+
+    @Test
+    void verifyGooglePurchase_ShouldGrantOneYearForAnnualPlan_WhenTestExpiryIsShort() throws Exception {
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        GooglePlaySubscriptionVerificationService.VerificationResult verification = new GooglePlaySubscriptionVerificationService.VerificationResult(
+                "com.example.app",
+                "token-annual",
+                "SUBSCRIPTION_STATE_ACTIVE",
+                "GPA.annual",
+                Instant.now().plusSeconds(300),
+                List.of("pro_annual_subscription"));
+
+        Mockito.when(googlePlaySubscriptionVerificationService.verifySubscription("token-annual", "com.example.app"))
+                .thenReturn(verification);
+        Mockito.when(googlePlaySubscriptionVerificationService.resolvePlanName(eq(verification), eq("pro_annual_subscription")))
+                .thenReturn("PRO_ANNUAL");
+        Mockito.when(planRepository.findByName("PRO_ANNUAL")).thenReturn(Optional.of(annualPlan));
+        Mockito.when(transactionRepository.findByTransactionIdWithUserAndPlan("google:token-annual"))
+                .thenReturn(Optional.empty());
+
+        Map<String, String> request = Map.of(
+                "purchaseToken", "token-annual",
+                "packageName", "com.example.app",
+                "productId", "pro_annual_subscription");
+
+        mockMvc.perform(post("/api/subscription/verify/google")
+                        .header("X-User-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planName").value("PRO_ANNUAL"));
+
+        Mockito.verify(userRepository).save(argThat(user ->
+                user.getSubscriptionEndDate() != null
+                        && user.getSubscriptionEndDate().isAfter(LocalDateTime.now().plusDays(360))));
+    }
+
+    @Test
+    void verifyGooglePurchase_ShouldNotStackDuration_WhenReVerifiedWithoutUsableExpiry() throws Exception {
+        // Grace-period edge: verification succeeds but the reported expiry is in
+        // the past. The user already has 40 days of active entitlement. The old
+        // logic did currentEnd + 30d on EVERY such verify (repeated restore taps
+        // = unbounded free extension); the fix keeps the later of currentEnd and
+        // now + planDuration, so the end date must stay ~40 days, never ~70.
+        testUser.setSubscriptionEndDate(LocalDateTime.now().plusDays(40));
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        GooglePlaySubscriptionVerificationService.VerificationResult verification = new GooglePlaySubscriptionVerificationService.VerificationResult(
+                "com.example.app",
+                "token-grace",
+                "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+                "GPA.grace",
+                Instant.now().minusSeconds(3600),
+                List.of("premium_monthly"));
+
+        Mockito.when(googlePlaySubscriptionVerificationService.verifySubscription("token-grace", "com.example.app"))
+                .thenReturn(verification);
+        Mockito.when(googlePlaySubscriptionVerificationService.resolvePlanName(eq(verification), eq("premium_monthly")))
+                .thenReturn("PREMIUM");
+        Mockito.when(planRepository.findByName("PREMIUM")).thenReturn(Optional.of(premiumPlan));
+        Mockito.when(transactionRepository.findByTransactionIdWithUserAndPlan("google:token-grace"))
+                .thenReturn(Optional.empty());
+
+        Map<String, String> request = Map.of(
+                "purchaseToken", "token-grace",
+                "packageName", "com.example.app",
+                "productId", "premium_monthly");
+
+        mockMvc.perform(post("/api/subscription/verify/google")
+                        .header("X-User-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        Mockito.verify(userRepository).save(argThat(user ->
+                user.getSubscriptionEndDate() != null
+                        && user.getSubscriptionEndDate().isAfter(LocalDateTime.now().plusDays(39))
+                        && user.getSubscriptionEndDate().isBefore(LocalDateTime.now().plusDays(41))));
     }
 
     @Test

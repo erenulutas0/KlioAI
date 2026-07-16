@@ -6,11 +6,19 @@ KlioAI landing, privacy, terms, and static assets live under:
 
 ## Hosting Target
 
-Use GitHub Pages for the public static landing site. Static pages should not be served by the production VPS unless there is a temporary incident or migration.
+Current production hosting is the VPS Caddy service:
+
+- host path: `/opt/vocabmaster/frontend/klioai-site`
+- Caddy container path: `/srv/klioai-site`
+- bind mount in `/opt/vocabmaster/deploy/docker-compose.proxy.yml`
+
+The repository source of truth remains `site/klioai-landing`. Keep the VPS
+copy in sync when privacy, terms, or account-deletion pages change for Google
+Play review.
 
 ## Deploy Flow
 
-Workflow:
+Historical GitHub Pages workflow:
 
 `.github/workflows/landing-pages.yml`
 
@@ -27,16 +35,14 @@ If the workflow fails with `Get Pages site failed` / `HttpError: Not Found`, Git
 
 ## Domain
 
-Point the landing domain to GitHub Pages:
+The landing domain currently points to the production VPS:
 
 - `klioai.app`
 - Optional `www.klioai.app`
 
-Keep the API on the VPS:
+The API stays on the same VPS behind a separate Caddy host rule:
 
 - `api.klioai.app`
-
-This keeps marketing/static traffic away from the backend host and reduces the chance that a landing spike affects API availability.
 
 ## Asset Rules
 
@@ -53,6 +59,8 @@ After deployment:
 Invoke-WebRequest https://klioai.app -UseBasicParsing
 Invoke-WebRequest https://klioai.app/privacy.html -UseBasicParsing
 Invoke-WebRequest https://klioai.app/terms.html -UseBasicParsing
+Invoke-WebRequest https://klioai.app/account-deletion -UseBasicParsing
+Invoke-WebRequest https://klioai.app/account-deletion.html -UseBasicParsing
 ```
 
 The landing page must include:
@@ -61,4 +69,5 @@ The landing page must include:
 - App name: KlioAI
 - Privacy link
 - Terms link
+- Account deletion link
 - App/entity reference matching Google Play listing

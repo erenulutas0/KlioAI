@@ -2,6 +2,8 @@ package com.ingilizce.calismaapp.entity;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
 @Entity
 @Table(name = "sentences", indexes = {
@@ -62,6 +64,18 @@ public class Sentence {
 
     public void setTranslation(String translation) {
         this.translation = translation;
+    }
+
+    @JsonGetter("sourceTranslation")
+    public String getSourceTranslation() {
+        return translation;
+    }
+
+    @JsonSetter("sourceTranslation")
+    public void setSourceTranslation(String sourceTranslation) {
+        if ((this.translation == null || this.translation.isBlank()) && sourceTranslation != null) {
+            this.translation = sourceTranslation;
+        }
     }
 
     public Word getWord() {

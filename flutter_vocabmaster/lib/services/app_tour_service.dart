@@ -10,10 +10,10 @@ class AppTourService {
     return prefs.getBool(_completedKey) ?? false;
   }
 
-  Future<void> markCompleted() async {
+  Future<void> markCompleted({String source = 'first_run'}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_completedKey, true);
-    await AnalyticsService.logOnboardingCompleted();
+    await AnalyticsService.logOnboardingCompleted(source: source);
   }
 
   Future<void> reset() async {

@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:ui';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/voice_selection_modal.dart';
 import '../services/chatbot_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
 import '../services/ai_paywall_handler.dart';
+import '../services/analytics_service.dart';
 import '../services/piper_tts_service.dart';
+import '../services/xp_manager.dart';
 import '../models/voice_model.dart';
 
 class AIBotChatPage extends StatefulWidget {
@@ -62,11 +67,18 @@ class _AIBotChatPageState extends State<AIBotChatPage>
   bool _ttsAvailable = false;
 
   // STT
-  late stt.SpeechToText _speech;
+  final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isListening = false;
+  bool _isTranscribingSpeech = false;
   bool _continuousListening = false; // Persistent session state
   bool _autoSendMode = true; // true = auto send on silence, false = manual send
   bool _blurBotMessages = false; // Blur bot messages for listening practice
+  DateTime? _recordingStartedAt;
+  String? _recordingPath;
+  Timer? _recordingMaxTimer;
+  String _speakingSessionXpId =
+      'speaking_chat_${DateTime.now().millisecondsSinceEpoch}';
+  bool _speakingSessionXpAwarded = false;
 
   // Seçili konuşmacı
   VoiceModel? _selectedVoice;
@@ -84,10 +96,19 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
   String _text(String tr, String en) => _isTurkish ? tr : en;
 
+  String get _speechLocaleId {
+    final selectedLocale = _selectedVoice?.locale.trim();
+    if (selectedLocale != null &&
+        selectedLocale.isNotEmpty &&
+        selectedLocale.toLowerCase().startsWith('en')) {
+      return selectedLocale;
+    }
+    return 'en_US';
+  }
+
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
     _particleController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
@@ -230,6 +251,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         setState(() {
           _selectedVoice = voice;
           _messages.clear(); // Sohbeti temizle
+          _resetSpeakingSessionXp();
         });
 
         // Yeni karakterin hoşgeldin mesajı
@@ -260,6 +282,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
   void dispose() {
     // Disable wakelock when leaving
     WakelockPlus.disable();
+    _recordingMaxTimer?.cancel();
+    _audioRecorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     _particleController.dispose();
@@ -292,9 +316,22 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
     // TTS başlamadan önce mikrofonu kesin olarak kapat
     if (_isListening) {
-      await _speech.stop();
+      final pathToDelete = _recordingPath;
+      _recordingMaxTimer?.cancel();
+      await _audioRecorder.stop();
       if (mounted) {
-        setState(() => _isListening = false);
+        setState(() {
+          _isListening = false;
+          _recordingPath = null;
+          _recordingStartedAt = null;
+        });
+      }
+      if (pathToDelete != null) {
+        try {
+          await File(pathToDelete).delete();
+        } catch (_) {
+          // Temporary audio cleanup is best-effort.
+        }
       }
     }
 
@@ -361,10 +398,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
   Future<void> _sendMessage() async {
     if (_isListening) {
-      await _speech.stop();
-      if (mounted) {
-        setState(() => _isListening = false);
-      }
+      await _stopAndSend(manual: false);
+      return;
     }
 
     if (_messageController.text.trim().isEmpty) return;
@@ -392,6 +427,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       if (mounted) {
         setState(() => _isTyping = false);
         _addBotMessage(response, speak: true);
+        await _maybeAwardSpeakingSessionXp();
       }
     } catch (e) {
       if (mounted) {
@@ -404,6 +440,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         }
         if (e is ApiQuotaExceededException) {
           _addBotMessage(AiErrorMessageFormatter.forQuota(e));
+          return;
+        }
+        if (e is ApiAiServiceException) {
+          debugPrint(
+              'AI chat backend failure: status=${e.statusCode} feature=${e.feature} reason=${e.reason}');
+          _addBotMessage(AiErrorMessageFormatter.forError(e));
           return;
         }
 
@@ -424,6 +466,25 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         _addBotMessage(errorMsg);
       }
     }
+  }
+
+  Future<void> _maybeAwardSpeakingSessionXp() async {
+    if (!mounted || _speakingSessionXpAwarded) return;
+    final userMessageCount =
+        _messages.where((message) => !message.isBot).length;
+    if (userMessageCount < 5) return;
+    _speakingSessionXpAwarded = true;
+    await context.read<AppStateProvider>().addXPForAction(
+          XPActionTypes.speakingComplete,
+          source: 'Konuşma Pratiği',
+          transactionId: '$_speakingSessionXpId:complete',
+        );
+  }
+
+  void _resetSpeakingSessionXp() {
+    _speakingSessionXpId =
+        'speaking_chat_${DateTime.now().millisecondsSinceEpoch}';
+    _speakingSessionXpAwarded = false;
   }
 
   String _getCurrentTime() {
@@ -491,6 +552,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 _activeScenario = null;
                 _activeScenarioName = null;
                 _activeScenarioContext = null;
+                _resetSpeakingSessionXp();
               });
               _addBotMessage(_text(
                   'Yeni bir sohbete basladik. Seninle konusmak guzel.',
@@ -579,7 +641,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0ea5e9).withOpacity(0.2),
+                    color: const Color(0xFF0ea5e9).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.theater_comedy,
@@ -593,7 +655,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       Text(
                         _text('Konusma Senaryosu Sec',
                             'Choose a Speaking Scenario'),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -602,7 +664,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       Text(
                         _text('Profesyonel durumlari pratik edin',
                             'Practice realistic professional situations'),
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12),
                       ),
                     ],
                   ),
@@ -619,10 +682,10 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22c55e).withOpacity(0.2),
+                  color: const Color(0xFF22c55e).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                      color: const Color(0xFF22c55e).withOpacity(0.4)),
+                      color: const Color(0xFF22c55e).withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -655,12 +718,14 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: (scenario['color'] as Color).withOpacity(0.1),
+                          color: (scenario['color'] as Color)
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: _activeScenario == scenario['id']
                                 ? (scenario['color'] as Color)
-                                : (scenario['color'] as Color).withOpacity(0.3),
+                                : (scenario['color'] as Color)
+                                    .withValues(alpha: 0.3),
                             width: _activeScenario == scenario['id'] ? 2 : 1,
                           ),
                         ),
@@ -670,7 +735,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: (scenario['color'] as Color)
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -702,8 +767,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             ),
                             Icon(
                               Icons.chevron_right,
-                              color:
-                                  (scenario['color'] as Color).withOpacity(0.6),
+                              color: (scenario['color'] as Color)
+                                  .withValues(alpha: 0.6),
                             ),
                           ],
                         ),
@@ -726,12 +791,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _activeScenario == null
-                          ? Colors.white.withOpacity(0.3)
-                          : Colors.white.withOpacity(0.1),
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.1),
                       width: _activeScenario == null ? 2 : 1,
                     ),
                   ),
@@ -740,7 +805,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.chat_bubble_outline,
@@ -753,7 +818,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                           children: [
                             Text(
                               _text('Serbest Sohbet', 'Free Chat'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
@@ -762,7 +827,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             Text(
                               _text('Normal konusma pratigi',
                                   'Standard speaking practice'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white54, fontSize: 11),
                             ),
                           ],
@@ -797,6 +862,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       _activeScenario = scenarioId;
       _activeScenarioName = scenarioName;
       _activeScenarioContext = contextText;
+      _resetSpeakingSessionXp();
     });
 
     // Senaryo başlangıç mesajı (Context'e göre dinamik olabilir)
@@ -831,6 +897,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       _activeScenario = null;
       _activeScenarioName = null;
       _activeScenarioContext = null;
+      _resetSpeakingSessionXp();
     });
 
     _addBotMessage(
@@ -880,8 +947,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_text('Sohbet kaydedildi.', 'Conversation saved.')),
-            backgroundColor: Color(0xFF22c55e),
-            duration: Duration(seconds: 2),
+            backgroundColor: const Color(0xFF22c55e),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -938,7 +1005,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   const SizedBox(width: 12),
                   Text(
                     _text('Sohbet Gecmisi', 'Conversation History'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -963,7 +1030,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                             'Henuz kayitli sohbet yok.\nBir sohbeti kaydetmek icin kaydet butonuna bas.',
                             'No saved conversations yet.\nTap the save button to keep a chat.'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white38),
+                        style: const TextStyle(color: Colors.white38),
                       ),
                     )
                   : ListView.builder(
@@ -1050,6 +1117,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           time: m['time'] ?? '',
         ));
       }
+      _resetSpeakingSessionXp();
+      _speakingSessionXpAwarded =
+          _messages.where((message) => !message.isBot).length >= 5;
     });
 
     _scrollToBottom();
@@ -1078,7 +1148,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         SnackBar(
           content: Text(_text('Sohbet silindi', 'Conversation deleted.')),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -1136,7 +1206,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     );
   }
 
-  void _startListening() async {
+  Future<void> _startListening() async {
     // Request permission first
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
@@ -1148,70 +1218,144 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       return;
     }
 
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) {
-          if (val == 'done' || val == 'notListening') {
-            // If stopped automatically (silence or timeout)
-            if (mounted && _isListening) {
-              // Only auto-send if autoSendMode is on
-              if (_autoSendMode) {
-                _stopAndSend(manual: false);
-              } else {
-                // Manual mode: just stop listening, don't send
-                setState(() => _isListening = false);
-              }
-            }
-          }
-        },
-        onError: (val) => debugPrint('STT Error: $val'),
+    if (_isListening || _isTranscribingSpeech) {
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/klioai_speech_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    try {
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 64000,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
       );
-      if (available) {
-        if (mounted) {
-          setState(() {
-            _isListening = true;
-            // Only set true, don't reset to false here unless manual stop?
-            // Actually, if we start, we assume continuous unless told otherwise?
-            // Let's set it true here to ensure loop starts/continues.
-            _continuousListening = true;
-          });
+      if (!mounted) return;
+      setState(() {
+        _isListening = true;
+        _recordingPath = path;
+        _recordingStartedAt = DateTime.now();
+        _continuousListening = true;
+      });
+      unawaited(AnalyticsService.logFirstSpeakingStarted(
+        source: 'speaking_chat',
+        scenario: _activeScenario,
+      ));
+      _recordingMaxTimer?.cancel();
+      _recordingMaxTimer = Timer(const Duration(seconds: 60), () {
+        if (mounted && _isListening) {
+          _stopAndSend(manual: false);
         }
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _messageController.text = val.recognizedWords;
-            });
-          },
-          listenFor: const Duration(seconds: 60),
-          pauseFor: const Duration(seconds: 5), // Wait 5 seconds of silence
-          localeId: 'en_US',
+      });
+    } catch (e) {
+      debugPrint('Audio recording start error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_text('Ses kaydi baslatilamadi.',
+                'Voice recording could not be started.')),
+          ),
         );
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(_text('Ses algilama baslatilamadi.',
-                    'Voice recognition could not be started.'))),
-          );
-        }
       }
     }
   }
 
-  void _stopAndSend({bool manual = false}) {
-    if (_isListening) {
-      _speech.stop();
+  Future<void> _stopAndSend({bool manual = false}) async {
+    if (!_isListening) {
+      return;
+    }
+
+    final startedAt = _recordingStartedAt;
+    String? path = _recordingPath;
+    _recordingMaxTimer?.cancel();
+    try {
+      path = await _audioRecorder.stop() ?? path;
+    } catch (e) {
+      debugPrint('Audio recording stop error: $e');
+    }
+
+    final durationMs = startedAt == null
+        ? 0
+        : DateTime.now().difference(startedAt).inMilliseconds;
+
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+      _isTranscribingSpeech = true;
+      _recordingPath = null;
+      _recordingStartedAt = null;
+      if (manual) _continuousListening = false;
+    });
+
+    if (path == null || path.trim().isEmpty) {
       if (mounted) {
-        setState(() {
-          _isListening = false;
-          if (manual) _continuousListening = false;
-        });
-        // Delay slightly to ensure final result is captured
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (_messageController.text.trim().isNotEmpty) {
-            _sendMessage();
-          }
-        });
+        setState(() => _isTranscribingSpeech = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_text('Ses kaydi alinamadi.',
+                'Voice recording could not be captured.')),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final transcript = await _chatbotService.transcribeSpeech(
+        audioPath: path,
+        durationMs: durationMs,
+        locale: _speechLocaleId,
+      );
+
+      if (!mounted) return;
+      if (transcript.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_text('Konusma algilanamadi, tekrar dene.',
+                'No speech was detected. Try again.')),
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _messageController.text = transcript;
+        _messageController.selection =
+            TextSelection.collapsed(offset: transcript.length);
+      });
+
+      if (_autoSendMode) {
+        await _sendMessage();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+        return;
+      }
+      if (!mounted) return;
+      final message = e is ApiAiServiceException
+          ? AiErrorMessageFormatter.forError(e)
+          : _text(
+              'Ses yazıya cevrilemedi. Lutfen tekrar dene.',
+              'Could not transcribe speech. Please try again.',
+            );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      try {
+        await File(path).delete();
+      } catch (_) {
+        // Temporary audio cleanup is best-effort.
+      }
+      if (mounted) {
+        setState(() => _isTranscribingSpeech = false);
       }
     }
   }
@@ -1291,7 +1435,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0ea5e9).withOpacity(0.3),
+                    color: const Color(0xFF0ea5e9).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1388,9 +1532,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 value: 'new',
                 child: Row(
                   children: [
-                    Icon(Icons.add_circle_outline,
+                    const Icon(Icons.add_circle_outline,
                         color: Colors.white54, size: 20),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(_text('Yeni Sohbet', 'New Chat'),
                         style: const TextStyle(color: Colors.white)),
                   ],
@@ -1419,10 +1563,10 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 value: 'history',
                 child: Row(
                   children: [
-                    Icon(Icons.history, color: Colors.white54, size: 20),
-                    SizedBox(width: 12),
+                    const Icon(Icons.history, color: Colors.white54, size: 20),
+                    const SizedBox(width: 12),
                     Text(_text('Sohbet Gecmisi', 'Conversation History'),
-                        style: TextStyle(color: Colors.white)),
+                        style: const TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -1430,11 +1574,11 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 value: 'voice',
                 child: Row(
                   children: [
-                    Icon(Icons.record_voice_over,
+                    const Icon(Icons.record_voice_over,
                         color: Colors.white54, size: 20),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(_text('Konusmaci Degistir', 'Change Speaker'),
-                        style: TextStyle(color: Colors.white)),
+                        style: const TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -1600,14 +1744,15 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 bottomRight: Radius.circular(message.isBot ? 20 : 4),
               ),
               border: message.isBot
-                  ? Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.2))
+                  ? Border.all(
+                      color: const Color(0xFF0ea5e9).withValues(alpha: 0.2))
                   : null,
               boxShadow: [
                 BoxShadow(
                   color: (message.isBot
                           ? const Color(0xFF1e3a8a)
                           : const Color(0xFF0ea5e9))
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1656,12 +1801,12 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.touch_app,
+                                  const Icon(Icons.touch_app,
                                       color: Colors.white70, size: 14),
-                                  SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                   Text(
                                     _text('Gormek icin dokun', 'Tap to reveal'),
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         color: Colors.white70, fontSize: 11),
                                   ),
                                 ],
@@ -1685,7 +1830,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 Text(
                   message.time,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
@@ -1705,10 +1850,10 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1e3a8a).withOpacity(0.5),
+              color: const Color(0xFF1e3a8a).withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.2)),
+              border: Border.all(
+                  color: const Color(0xFF0ea5e9).withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1736,7 +1881,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: const Color(0xFF0ea5e9).withOpacity(0.6 + (value * 0.4)),
+            color:
+                const Color(0xFF0ea5e9).withValues(alpha: 0.6 + (value * 0.4)),
             shape: BoxShape.circle,
           ),
         );
@@ -1748,9 +1894,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0f172a).withOpacity(0.8),
+        color: const Color(0xFF0f172a).withValues(alpha: 0.8),
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.1)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
       ),
       child: Column(
@@ -1760,33 +1906,41 @@ class _AIBotChatPageState extends State<AIBotChatPage>
             children: [
               // Mic Button (Voice Input)
               GestureDetector(
-                onTap: () {
-                  if (_isListening) {
-                    _stopAndSend(manual: true);
-                  } else {
-                    _startListening();
-                  }
-                },
+                onTap: _isTranscribingSpeech
+                    ? null
+                    : () {
+                        if (_isListening) {
+                          _stopAndSend(manual: true);
+                        } else {
+                          _startListening();
+                        }
+                      },
                 child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
                     color: _isListening
                         ? const Color(0xFFef4444)
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: _isListening
                         ? [
                             BoxShadow(
-                              color: const Color(0xFFef4444).withOpacity(0.5),
+                              color: const Color(0xFFef4444)
+                                  .withValues(alpha: 0.5),
                               blurRadius: 10,
                               spreadRadius: 2,
                             )
                           ]
                         : [],
                   ),
-                  child: Icon(_isListening ? Icons.stop : Icons.mic,
-                      color: Colors.white, size: 22),
+                  child: Icon(
+                    _isTranscribingSpeech
+                        ? Icons.hourglass_top
+                        : (_isListening ? Icons.stop : Icons.mic),
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1801,7 +1955,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                     width: 40,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -1820,22 +1974,30 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 child: Container(
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1e293b).withOpacity(0.8),
+                    color: const Color(0xFF1e293b).withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: TextField(
                     controller: _messageController,
+                    enabled: !_isTranscribingSpeech,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Type your message in English...',
-                      hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: _isTranscribingSpeech
+                          ? _text('Konusma yazıya cevriliyor...',
+                              'Transcribing speech...')
+                          : 'Type your message in English...',
+                      hintStyle:
+                          const TextStyle(color: Colors.white38, fontSize: 14),
                       border: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
-                    onChanged: (_) => setState(
-                        () {}), // Rebuild for playback button visibility
+                    onChanged: (_) =>
+                        setState(() {}), // Rebuild playback/send visibility.
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
@@ -1855,19 +2017,58 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0ea5e9).withOpacity(0.3),
+                      color: const Color(0xFF0ea5e9).withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: IconButton(
-                  onPressed: _isTyping ? null : _sendMessage,
+                  onPressed: (_isTyping || _isTranscribingSpeech)
+                      ? null
+                      : _sendMessage,
                   icon: const Icon(Icons.send, color: Colors.white, size: 22),
                 ),
               ),
             ],
           ),
+          if (_isTranscribingSpeech) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF92400e).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFFf59e0b).withValues(alpha: 0.45),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.edit_note,
+                    color: Color(0xFFfbbf24),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _text(
+                        'Groq Whisper metni hazirliyor.',
+                        'Groq Whisper is preparing the transcript.',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
 
           // Voice Mode Toggle & Bottom Hint
@@ -1881,7 +2082,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: _autoSendMode
@@ -1920,8 +2121,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
               const SizedBox(width: 12),
               Text(
                 _autoSendMode
-                    ? _text('Sessizlikte otomatik gonderir',
-                        'Sends automatically after silence')
+                    ? _text('Whisper metni alinca otomatik gonderir',
+                        'Auto-sends after Whisper transcript')
                     : _text('Sen gonder butonuna bas', 'Tap send manually'),
                 style: const TextStyle(
                   color: Colors.white38,
@@ -1949,15 +2150,18 @@ class ChatMessage {
 }
 
 // Custom audio source for just_audio
+// ignore: experimental_member_use
 class MyCustomSource extends StreamAudioSource {
   final Uint8List _buffer;
 
   MyCustomSource(this._buffer);
 
   @override
+  // ignore: experimental_member_use
   Future<StreamAudioResponse> request([int? start, int? end]) async {
     start ??= 0;
     end ??= _buffer.length;
+    // ignore: experimental_member_use
     return StreamAudioResponse(
       sourceLength: _buffer.length,
       contentLength: end - start,
@@ -1977,7 +2181,7 @@ class ParticlesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF0ea5e9).withOpacity(0.3)
+      ..color = const Color(0xFF0ea5e9).withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     // Draw floating particles

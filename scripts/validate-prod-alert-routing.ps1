@@ -58,6 +58,8 @@ $requiredVars = New-Object System.Collections.Generic.List[string]
     "SPRING_DATA_REDIS_PASSWORD",
     "APP_CORS_ALLOWED_ORIGINS",
     "GROQ_API_KEY",
+    "APP_SECURITY_JWT_SECRET",
+    "APP_SECURITY_AUTH_GOOGLE_CLIENT_IDS",
     "APP_SUBSCRIPTION_GOOGLE_PLAY_PACKAGE_NAME",
     "APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH"
 ) | ForEach-Object { [void]$requiredVars.Add($_) }
@@ -86,6 +88,14 @@ $googleServiceAccountHostPath = Resolve-EnvValue -Name "APP_SUBSCRIPTION_GOOGLE_
 if (-not [string]::IsNullOrWhiteSpace($googleServiceAccountHostPath)) {
     if (-not (Test-Path -Path $googleServiceAccountHostPath -PathType Leaf)) {
         $missing.Add("APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH(file-not-found)")
+    }
+}
+
+$rtdnEnabled = Resolve-EnvValue -Name "APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_ENABLED" -DotEnv $dotenv
+if ($rtdnEnabled.Trim().ToLowerInvariant() -in @("true", "1", "yes")) {
+    $rtdnSharedSecret = Resolve-EnvValue -Name "APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET" -DotEnv $dotenv
+    if ([string]::IsNullOrWhiteSpace($rtdnSharedSecret)) {
+        $missing.Add("APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET(required-when-rtdn-enabled)")
     }
 }
 

@@ -6,12 +6,11 @@ class LoginPageHelper extends StatelessWidget {
   final bool rememberMe;
   final ValueChanged<bool?> onRememberMeChanged;
 
-  const LoginPageHelper({
-    super.key,
-    required this.isSignUp, 
-    required this.rememberMe, 
-    required this.onRememberMeChanged
-  });
+  const LoginPageHelper(
+      {super.key,
+      required this.isSignUp,
+      required this.rememberMe,
+      required this.onRememberMeChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +19,7 @@ class LoginPageHelper extends StatelessWidget {
 
   Widget buildRememberMe(BuildContext context) {
     if (isSignUp) return const SizedBox.shrink();
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -49,14 +48,12 @@ class LoginPageHelper extends StatelessWidget {
             ),
           ],
         ),
-        Text(
-          "Şifremi unuttum",
-          style: TextStyle(
-            color: AppColors.cyan400.withOpacity(0.9),
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          )
-        ),
+        Text("Şifremi unuttum",
+            style: TextStyle(
+              color: AppColors.cyan400.withValues(alpha: 0.9),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            )),
       ],
     );
   }

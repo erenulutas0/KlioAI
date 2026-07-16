@@ -19,7 +19,11 @@ class SpeakingPage extends StatelessWidget {
       child: InkWell(
         onTap: () {
           // Senaryoya göre işlem yap
-          if (['job_interview_followup', 'academic_presentation_qa', 'explaining_to_manager'].contains(scenario)) {
+          if ([
+            'job_interview_followup',
+            'academic_presentation_qa',
+            'explaining_to_manager'
+          ].contains(scenario)) {
             // Bu senaryolar için kullanıcıdan konu/bağlam iste
             _showContextInputModal(context, scenario, title, color);
           } else {
@@ -33,14 +37,14 @@ class SpeakingPage extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                color.withOpacity(0.3),
-                color.withOpacity(0.1),
+                color.withValues(alpha: 0.3),
+                color.withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.4)),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -48,7 +52,7 @@ class SpeakingPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -69,7 +73,7 @@ class SpeakingPage extends StatelessWidget {
                 subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 10,
                 ),
               ),
@@ -112,7 +116,7 @@ class SpeakingPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Content
                 Expanded(
                   child: SingleChildScrollView(
@@ -123,9 +127,11 @@ class SpeakingPage extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1e3a8a).withOpacity(0.5),
+                            color:
+                                const Color(0xFF1e3a8a).withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: Column(
                             children: [
@@ -134,14 +140,17 @@ class SpeakingPage extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.1),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Icon(Icons.mic_none, color: Colors.white, size: 24),
+                                    child: const Icon(Icons.mic_none,
+                                        color: Colors.white, size: 24),
                                   ),
                                   const SizedBox(width: 16),
                                   const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Konuşma Testi',
@@ -171,11 +180,14 @@ class SpeakingPage extends StatelessWidget {
                                       icon: const Icon(Icons.refresh, size: 18),
                                       label: const Text('IELTS Konuşma'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF9333ea),
+                                        backgroundColor:
+                                            const Color(0xFF9333ea),
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
                                       ),
                                     ),
@@ -187,11 +199,14 @@ class SpeakingPage extends StatelessWidget {
                                       icon: const Icon(Icons.refresh, size: 18),
                                       label: const Text('TOEFL Konuşma'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF16a34a),
+                                        backgroundColor:
+                                            const Color(0xFF16a34a),
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
                                       ),
                                     ),
@@ -201,16 +216,18 @@ class SpeakingPage extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Owen Chat Card
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1e3a8a).withOpacity(0.5),
+                            color:
+                                const Color(0xFF1e3a8a).withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +241,8 @@ class SpeakingPage extends StatelessWidget {
                                       color: Color(0xFF0ea5e9),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.mic, color: Colors.white, size: 20),
+                                    child: const Icon(Icons.mic,
+                                        color: Colors.white, size: 20),
                                   ),
                                   const SizedBox(width: 16),
                                   const Expanded(
@@ -242,21 +260,24 @@ class SpeakingPage extends StatelessWidget {
                               const SizedBox(height: 16),
                               const Padding(
                                 padding: EdgeInsets.only(left: 60),
-                                child: Icon(Icons.volume_up, color: Colors.white54, size: 20),
+                                child: Icon(Icons.volume_up,
+                                    color: Colors.white54, size: 20),
                               ),
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Professional Scenarios Section
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1e3a8a).withOpacity(0.5),
+                            color:
+                                const Color(0xFF1e3a8a).withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,14 +287,17 @@ class SpeakingPage extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.1),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Icon(Icons.work_outline, color: Colors.white, size: 22),
+                                    child: const Icon(Icons.work_outline,
+                                        color: Colors.white, size: 22),
                                   ),
                                   const SizedBox(width: 12),
                                   const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Profesyonel Senaryolar',
@@ -295,7 +319,7 @@ class SpeakingPage extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              
+
                               // Scenario Cards Grid
                               GridView.count(
                                 shrinkWrap: true,
@@ -314,7 +338,7 @@ class SpeakingPage extends StatelessWidget {
                                     color: const Color(0xFF8b5cf6),
                                     scenario: 'job_interview_followup',
                                   ),
-                                  
+
                                   // Academic Presentation Q&A
                                   _buildScenarioCard(
                                     context,
@@ -324,7 +348,7 @@ class SpeakingPage extends StatelessWidget {
                                     color: const Color(0xFF0ea5e9),
                                     scenario: 'academic_presentation_qa',
                                   ),
-                                  
+
                                   // Disagreement with a colleague
                                   _buildScenarioCard(
                                     context,
@@ -334,7 +358,7 @@ class SpeakingPage extends StatelessWidget {
                                     color: const Color(0xFFf59e0b),
                                     scenario: 'disagreement_colleague',
                                   ),
-                                  
+
                                   // Explaining a decision to a manager
                                   _buildScenarioCard(
                                     context,
@@ -368,7 +392,9 @@ class SpeakingPage extends StatelessWidget {
       ),
     );
   }
-  void _navigateToChat(BuildContext context, String scenario, String title, String? contextText) {
+
+  void _navigateToChat(BuildContext context, String scenario, String title,
+      String? contextText) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -381,7 +407,8 @@ class SpeakingPage extends StatelessWidget {
     );
   }
 
-  void _showContextInputModal(BuildContext context, String scenario, String title, Color color) {
+  void _showContextInputModal(
+      BuildContext context, String scenario, String title, Color color) {
     final TextEditingController textController = TextEditingController();
     String hintText = '';
     String labelText = '';
@@ -391,7 +418,8 @@ class SpeakingPage extends StatelessWidget {
       case 'job_interview_followup':
         labelText = 'Başvurduğun Pozisyon/Şirket';
         hintText = 'Örn: Senior React Developer @ Google';
-        instructionText = 'Hangi pozisyon veya şirket için görüştüğünü belirtirsen, HR ona göre sorular soracak.';
+        instructionText =
+            'Hangi pozisyon veya şirket için görüştüğünü belirtirsen, HR ona göre sorular soracak.';
         break;
       case 'academic_presentation_qa':
         labelText = 'Sunum Konusu';
@@ -401,7 +429,8 @@ class SpeakingPage extends StatelessWidget {
       case 'explaining_to_manager':
         labelText = 'Açıklanacak Durum';
         hintText = 'Örn: Server çöktüğü için proje gecikti';
-        instructionText = 'Yöneticiye neyi açıklaman veya savunman gerektiğini yaz.';
+        instructionText =
+            'Yöneticiye neyi açıklaman veya savunman gerektiğini yaz.';
         break;
     }
 
@@ -409,12 +438,14 @@ class SpeakingPage extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1e293b),
-        title: Text(title.replaceAll('\n', ' '), style: const TextStyle(color: Colors.white)),
+        title: Text(title.replaceAll('\n', ' '),
+            style: const TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(instructionText, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            Text(instructionText,
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
             const SizedBox(height: 16),
             TextField(
               controller: textController,
@@ -425,7 +456,8 @@ class SpeakingPage extends StatelessWidget {
                 labelStyle: const TextStyle(color: Colors.white60),
                 hintStyle: const TextStyle(color: Colors.white30),
                 enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                  borderSide:
+                      BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -448,7 +480,8 @@ class SpeakingPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _navigateToChat(context, scenario, title, textController.text.trim());
+              _navigateToChat(
+                  context, scenario, title, textController.text.trim());
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: color,
@@ -461,4 +494,3 @@ class SpeakingPage extends StatelessWidget {
     );
   }
 }
-

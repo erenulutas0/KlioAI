@@ -5,6 +5,8 @@ import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
+import com.ingilizce.calismaapp.service.AiTokenQuotaService;
+import com.ingilizce.calismaapp.service.ProgressService;
 import com.ingilizce.calismaapp.security.CurrentUserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,7 @@ import java.util.Map;
 
 /**
  * REST Controller for grammar checking functionality
- * Uses JLanguageTool for English grammar validation
+ * Uses the configured AI provider for English grammar validation.
  */
 @RestController
 @RequestMapping("/api/grammar")
@@ -38,6 +40,18 @@ public class GrammarController {
 
     @Autowired
     private ClientIpResolver clientIpResolver;
+
+    @Autowired(required = false)
+    private ProgressService progressService;
+
+    @Autowired(required = false)
+    private AiTokenQuotaService aiTokenQuotaService;
+
+    // GrammarCheckService calls the discard-usage AiCompletionProvider.chatCompletion()
+    // overload (no real token count available), so quota consumption uses a fixed
+    // conservative estimate per call - a fair-use throttle, not a billing meter,
+    // consistent with how speech tokens are estimated from audio duration elsewhere.
+    private static final long ESTIMATED_TOKENS_PER_GRAMMAR_CHECK = 400;
 
     /**
      * Check grammar for a single sentence
@@ -86,6 +100,9 @@ public class GrammarController {
             }
 
             Map<String, Object> result = grammarCheckService.checkGrammar(sentence);
+            Long userId = currentUserContext.getCurrentUserId().orElse(null);
+            consumeAiTokens(userId, httpRequest, "grammar-check", ESTIMATED_TOKENS_PER_GRAMMAR_CHECK);
+            creditDailyStreak(userId);
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
@@ -143,6 +160,10 @@ public class GrammarController {
 
             Map<String, List<Map<String, Object>>> results = grammarCheckService.checkMultipleSentences(sentences);
 
+            Long userId = currentUserContext.getCurrentUserId().orElse(null);
+            consumeAiTokens(userId, httpRequest, "grammar-check-multiple",
+                    (long) sentences.size() * ESTIMATED_TOKENS_PER_GRAMMAR_CHECK);
+            creditDailyStreak(userId);
             return ResponseEntity.ok(results);
 
         } catch (Exception e) {
@@ -152,6 +173,11 @@ public class GrammarController {
 
     private ResponseEntity<Map<String, Object>> enforceAiAccess(HttpServletRequest request, String scope) {
         Long userId = currentUserContext.getCurrentUserId().orElse(null);
+
+        ResponseEntity<Map<String, Object>> quotaLimit = enforceAiTokenQuota(userId, request, scope);
+        if (quotaLimit != null) {
+            return quotaLimit;
+        }
 
         if (currentUserContext.shouldEnforceAuthz()) {
             if (userId == null) {
@@ -221,9 +247,10 @@ public class GrammarController {
     public ResponseEntity<Map<String, Object>> getStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", grammarCheckService.isEnabled());
-        status.put("service", "JLanguageTool");
-        status.put("language", "en-US");
-        status.put("version", "6.4");
+        status.put("service", "AI Grammar Checker");
+        status.put("language", "English");
+        status.put("targetLanguage", "English");
+        status.put("strategy", "english-learning-only");
         return ResponseEntity.ok(status);
     }
 
@@ -250,6 +277,78 @@ public class GrammarController {
         status.put("enabled", currentEnabled);
         status.put("message", currentEnabled ? "Grammar checking enabled" : "Grammar checking disabled");
         return ResponseEntity.ok(status);
+    }
+
+    private void creditDailyStreak(Long userId) {
+        if (progressService == null || userId == null) {
+            return;
+        }
+        try {
+            progressService.updateStreak(userId);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> enforceAiTokenQuota(Long userId,
+                                                                     HttpServletRequest request,
+                                                                     String scope) {
+        if (aiTokenQuotaService == null) {
+            return null;
+        }
+
+        AiTokenQuotaService.Decision decision = aiTokenQuotaService.check(
+                userId,
+                scope,
+                resolveDeviceId(request),
+                clientIpResolver.resolve(request));
+        if (!decision.blocked()) {
+            return null;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("success", false);
+        payload.put("reason", decision.reason());
+        payload.put("tokenLimit", decision.tokenLimit());
+        payload.put("tokensUsed", decision.tokensUsed());
+        payload.put("tokensRemaining", decision.tokensRemaining());
+
+        if ("ai-access-disabled".equalsIgnoreCase(decision.reason())) {
+            payload.put("error", "AI features are currently disabled. Upgrade to premium to continue.");
+            payload.put("upgradeRequired", true);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
+        }
+
+        payload.put("error", "Daily AI quota exceeded. Please try again later.");
+        payload.put("retryAfterSeconds", decision.retryAfterSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
+                .body(payload);
+    }
+
+    private void consumeAiTokens(Long userId, HttpServletRequest request, String scope, long tokens) {
+        if (aiTokenQuotaService == null) {
+            return;
+        }
+        try {
+            aiTokenQuotaService.consume(
+                    userId,
+                    scope,
+                    Math.max(0, tokens),
+                    resolveDeviceId(request),
+                    clientIpResolver.resolve(request));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String resolveDeviceId(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        String deviceId = request.getHeader("X-Device-Id");
+        if (deviceId == null || deviceId.isBlank()) {
+            return null;
+        }
+        return deviceId.trim();
     }
 
     private static final String ABUSE_BAN_REASON = "abuse-ban";

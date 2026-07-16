@@ -27,7 +27,7 @@ class ModernCardBackground extends StatelessWidget {
 
     // If using blur, we need a transparent container with ClipRRect -> BackdropFilter -> Decoration
     // But standard Glassmorphism usually places decoration with opacity + BackdropFilter.
-    
+
     // Structure matching ModernCard more closely:
     return Container(
       margin: margin,
@@ -35,9 +35,9 @@ class ModernCardBackground extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-             color: Colors.black.withOpacity(0.3),
-             blurRadius: 20,
-             offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -46,26 +46,28 @@ class ModernCardBackground extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(
-                  color: const Color(0xFF06B6D4).withOpacity(0.2), // cyan-400/20
-                  width: 1,
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF1E293B).withOpacity(0.6), // slate-800/60
-                    const Color(0xFF0F1F3D).withOpacity(0.8), // slate-900/80
-                  ],
-                ),
-             ),
-             child: contentWithPadding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(
+                color: const Color(0xFF06B6D4)
+                    .withValues(alpha: 0.2), // cyan-400/20
+                width: 1,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1E293B)
+                      .withValues(alpha: 0.6), // slate-800/60
+                  const Color(0xFF0F1F3D)
+                      .withValues(alpha: 0.8), // slate-900/80
+                ],
+              ),
+            ),
+            child: contentWithPadding,
           ),
         ),
       ),
     );
   }
 }
-

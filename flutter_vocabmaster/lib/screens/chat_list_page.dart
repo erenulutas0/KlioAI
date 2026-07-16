@@ -15,14 +15,15 @@ class ChatListPage extends StatefulWidget {
   State<ChatListPage> createState() => _ChatListPageState();
 }
 
-class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderStateMixin {
+class _ChatListPageState extends State<ChatListPage>
+    with SingleTickerProviderStateMixin {
   final ChatService _chatService = ChatService();
   final SocialService _socialService = SocialService();
-  
+
   List<dynamic> conversations = [];
   List<dynamic> allUsers = [];
   bool isLoading = true;
-  
+
   late TabController _tabController;
 
   @override
@@ -40,7 +41,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
 
   Future<void> _loadData() async {
     try {
-      final List<dynamic> loadedConversations = await _chatService.getConversations();
+      final List<dynamic> loadedConversations =
+          await _chatService.getConversations();
       final List<dynamic> loadedUsers = await _socialService.getFriends();
       if (mounted) {
         setState(() {
@@ -105,7 +107,7 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TabBar(
@@ -134,9 +136,14 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                           children: [
                             // Sohbetler Tab
                             conversations.isEmpty
-                                ? const Center(child: Text('Henüz kimseyle sohbet etmediniz.', style: TextStyle(color: Colors.white54)))
+                                ? const Center(
+                                    child: Text(
+                                        'Henüz kimseyle sohbet etmediniz.',
+                                        style:
+                                            TextStyle(color: Colors.white54)))
                                 : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
                                     itemCount: conversations.length,
                                     itemBuilder: (context, index) {
                                       final user = conversations[index];
@@ -145,9 +152,13 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                                   ),
                             // Arkadaşlar Tab
                             allUsers.isEmpty
-                                ? const Center(child: Text('Henüz arkadaş yok.', style: TextStyle(color: Colors.white54)))
+                                ? const Center(
+                                    child: Text('Henüz arkadaş yok.',
+                                        style:
+                                            TextStyle(color: Colors.white54)))
                                 : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
                                     itemCount: allUsers.length,
                                     itemBuilder: (context, index) {
                                       final user = allUsers[index];
@@ -169,9 +180,10 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
   Widget _buildChatCard(Map<String, dynamic> user) {
     // Default avatar extraction logic (first letter of name or generic icon)
     String displayName = user['displayName'] ?? 'Kullanıcı';
-    String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    String initial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
     bool isOnline = user['online'] == true;
-    
+
     return Opacity(
       opacity: isOnline ? 1.0 : 0.7,
       child: ModernCard(
@@ -192,12 +204,17 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: isOnline
-                              ? [const Color(0xFF22d3ee), const Color(0xFF3b82f6)]
+                              ? [
+                                  const Color(0xFF22d3ee),
+                                  const Color(0xFF3b82f6)
+                                ]
                               : [Colors.grey.shade600, Colors.grey.shade800],
                         ),
                       ),
                       child: Center(
-                        child: Text(initial, style: const TextStyle(fontSize: 30, color: Colors.white)),
+                        child: Text(initial,
+                            style: const TextStyle(
+                                fontSize: 30, color: Colors.white)),
                       ),
                     ),
                     Positioned(
@@ -209,7 +226,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                         decoration: BoxDecoration(
                           color: isOnline ? Colors.green : Colors.grey.shade500,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF1e1b4b), width: 2),
+                          border: Border.all(
+                              color: const Color(0xFF1e1b4b), width: 2),
                         ),
                       ),
                     ),
@@ -241,19 +259,23 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                           SizedBox(width: 4),
                           Text(
                             'Seviye ?', // User entity doesn't have level exposed in list yet
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       // Mock "Last Message" placeholder
                       Text(
-                        isOnline ? "Şu an çevrimiçi" : "Son görülme yakın zamanda",
+                        isOnline
+                            ? "Şu an çevrimiçi"
+                            : "Son görülme yakın zamanda",
                         style: TextStyle(
-                            color: isOnline ? Colors.green.shade300 : Colors.white54, 
+                            color: isOnline
+                                ? Colors.green.shade300
+                                : Colors.white54,
                             fontSize: 13,
-                            fontStyle: FontStyle.italic
-                        ),
+                            fontStyle: FontStyle.italic),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -287,7 +309,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                         ).then((_) => _loadData());
                       },
                       child: const Center(
-                        child: Text('Profili Gör', style: TextStyle(color: Colors.white70)),
+                        child: Text('Profili Gör',
+                            style: TextStyle(color: Colors.white70)),
                       ),
                     ),
                   ),
@@ -319,7 +342,10 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                         padding: EdgeInsets.zero,
                       ),
                       child: const Center(
-                        child: Text('Mesaj Gönder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text('Mesaj Gönder',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
@@ -335,7 +361,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
   Widget _buildFriendCard(Map<String, dynamic> user) {
     String displayName = user['displayName'] ?? user['name'] ?? 'Kullanıcı';
     String userTag = user['userTag'] ?? '';
-    String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    String initial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
     bool isOnline = user['online'] == true;
     String statusText = isOnline ? 'Çevrimiçi' : 'Çevrimdışı';
 
@@ -357,13 +384,15 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: isOnline 
+                      colors: isOnline
                           ? [const Color(0xFF22d3ee), const Color(0xFF3b82f6)]
                           : [Colors.grey.shade600, Colors.grey.shade800],
                     ),
                   ),
                   child: Center(
-                    child: Text(initial, style: const TextStyle(fontSize: 24, color: Colors.white)),
+                    child: Text(initial,
+                        style:
+                            const TextStyle(fontSize: 24, color: Colors.white)),
                   ),
                 ),
                 // Online indicator dot
@@ -376,7 +405,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                     decoration: BoxDecoration(
                       color: isOnline ? Colors.green : Colors.grey.shade500,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF1e1b4b), width: 2),
+                      border:
+                          Border.all(color: const Color(0xFF1e1b4b), width: 2),
                     ),
                   ),
                 ),
@@ -398,7 +428,8 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                   if (userTag.isNotEmpty)
                     Text(
                       userTag,
-                      style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 12),
                     ),
                   const SizedBox(height: 2),
                   Row(
@@ -409,14 +440,17 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
                         decoration: BoxDecoration(
                           color: isOnline ? Colors.green : Colors.grey.shade500,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF1e1b4b), width: 2),
+                          border: Border.all(
+                              color: const Color(0xFF1e1b4b), width: 2),
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         statusText,
                         style: TextStyle(
-                          color: isOnline ? Colors.green.shade300 : Colors.grey.shade400,
+                          color: isOnline
+                              ? Colors.green.shade300
+                              : Colors.grey.shade400,
                           fontSize: 11,
                         ),
                       ),
@@ -428,19 +462,22 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
             IconButton(
               icon: Icon(
                 Icons.message,
-                color: isOnline ? const Color(0xFF22d3ee) : Colors.grey.shade500,
+                color:
+                    isOnline ? const Color(0xFF22d3ee) : Colors.grey.shade500,
               ),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatDetailPage(
-                      userId: user['id'],
-                      name: displayName,
-                      avatar: initial,
-                      status: statusText,
-                    ),
-                  ),
-                ).then((_) => _loadData()); // Sohbet sonrası listeyi yenile
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatDetailPage(
+                          userId: user['id'],
+                          name: displayName,
+                          avatar: initial,
+                          status: statusText,
+                        ),
+                      ),
+                    )
+                    .then((_) => _loadData()); // Sohbet sonrası listeyi yenile
               },
             ),
           ],
@@ -449,4 +486,3 @@ class _ChatListPageState extends State<ChatListPage> with SingleTickerProviderSt
     );
   }
 }
-

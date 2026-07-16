@@ -2,15 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
-import 'package:flutter/gestures.dart';
 import '../utils/app_colors.dart';
 import '../utils/login_spacing.dart';
 import '../widgets/raindrop.dart';
 import '../widgets/floating_orb.dart';
-import 'login_page_helper.dart'; // Helper import
-import '../main.dart'; // For MainScreen navigation
-import '../services/auth_service.dart'; // Explicit import
+import '../main.dart';
+import '../services/auth_service.dart';
 import '../services/analytics_service.dart';
+import '../services/locale_text_service.dart';
 import '../l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
@@ -24,108 +23,38 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin {
-  // Controllers
-  late AnimationController _glowController;
-  late TextEditingController _emailController;
-  late TextEditingController _passwordController;
-  late TextEditingController _nameController;
-  final _formKey = GlobalKey<FormState>();
+  late final AnimationController _glowController;
+  late final Animation<double> _glowAnimation;
+  bool _isSigningIn = false;
 
-  // State
-  bool isSignUp = false;
-  bool _showPassword = false;
-  bool _isButtonPressed = false;
-  bool _rememberMe = false;
-
-  // Animation for Glow
-  late Animation<double> _glowAnimation;
+  String _text(String tr, String en) => LocaleTextService.pick(tr, en);
 
   @override
   void initState() {
     super.initState();
-
-    _emailController = TextEditingController();
-    _passwordController = TextEditingController();
-    _nameController = TextEditingController();
-
     _glowController =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
-
     _glowAnimation = Tween<double>(begin: 0.3, end: 0.6).animate(
-        CurvedAnimation(parent: _glowController, curve: Curves.easeInOut));
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _glowController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // final authService = getIt<AuthService?>();
-    // AuthService singleton olduğu için:
-    final auth = AuthService();
-
-    Map<String, dynamic> result;
-
-    if (isSignUp) {
-      result = await auth.register(_nameController.text.trim(),
-          _emailController.text.trim(), _passwordController.text.trim());
-    } else {
-      result = await auth.login(
-          _emailController.text.trim(), _passwordController.text.trim(),
-          rememberMe:
-              _rememberMe // AuthService'e rememberMe parametresi ekledik
-          );
-    }
-
-    if (result['success'] == true) {
-      final userId = _extractUserId(result);
-      if (isSignUp) {
-        await AnalyticsService.logSignupCompleted(
-          method: 'email',
-          userId: userId,
-        );
-      } else {
-        await AnalyticsService.logLoginCompleted(
-          method: 'email',
-          userId: userId,
-        );
-      }
-
-      if (mounted) {
-        // Provider'a kullanıcı verisini hemen set et (Anında güncel veri görünsün)
-        if (result['user'] != null) {
-          Provider.of<AppStateProvider>(context, listen: false)
-              .setUser(result['user']);
-        }
-
-        if (widget.onLoginSuccess != null) {
-          widget.onLoginSuccess!();
-        } else {
-          Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const MainScreen()));
-        }
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(result['message'] ?? context.tr('login.error.generic')),
-          backgroundColor: Colors.red,
-        ));
-      }
-    }
-  }
-
   Future<void> _handleGoogleLogin() async {
+    if (_isSigningIn) return;
+    setState(() => _isSigningIn = true);
+
     final auth = AuthService();
     final result = await auth.googleLogin();
+
+    if (!mounted) return;
+    setState(() => _isSigningIn = false);
 
     if (result['success'] == true) {
       await AnalyticsService.logLoginCompleted(
@@ -133,33 +62,39 @@ class _LoginPageState extends State<LoginPage>
         userId: _extractUserId(result),
       );
 
-      if (mounted) {
-        if (result['user'] != null) {
-          Provider.of<AppStateProvider>(
-            context,
-            listen: false,
-          ).setUser(result['user']);
-        }
+      if (!mounted) return;
+      final user = result['user'];
+      if (user is Map<String, dynamic>) {
+        context.read<AppStateProvider>().setUser(user);
+      } else if (user is Map) {
+        context
+            .read<AppStateProvider>()
+            .setUser(Map<String, dynamic>.from(user));
+      }
+
+      if (widget.onLoginSuccess != null) {
+        widget.onLoginSuccess!();
+      } else {
         Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainScreen()));
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(result['message'] ?? context.tr('login.error.google')),
-          backgroundColor: Colors.red,
-        ));
-      }
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? context.tr('login.error.google')),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   String? _extractUserId(Map<String, dynamic> result) {
     final user = result['user'];
     if (user is Map) {
       final id = user['id'] ?? user['userId'];
-      if (id != null) {
-        return id.toString();
-      }
+      if (id != null) return id.toString();
     }
     final id = result['userId'] ?? result['id'];
     return id?.toString();
@@ -170,43 +105,40 @@ class _LoginPageState extends State<LoginPage>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Background handled by stack
-      resizeToAvoidBottomInset: true,
+      backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // 1. Background Gradient
           Container(
             decoration: const BoxDecoration(
               gradient: AppColors.backgroundGradient,
             ),
           ),
-
-          // 2. Orbs (Background layer)
-          ...List.generate(6, (index) => const FloatingOrb()),
-
-          // 3. Raindrops
+          ...List.generate(4, (_) => const FloatingOrb()),
           ...List.generate(
-              40,
-              (index) => RaindropWidget(
-                  screenWidth: size.width, screenHeight: size.height)),
-
-          // 4. Content
+            28,
+            (_) => RaindropWidget(
+              screenWidth: size.width,
+              screenHeight: size.height,
+            ),
+          ),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: LoginSpacing.mainPaddingH,
-                    vertical: LoginSpacing.mainPaddingV),
+                  horizontal: LoginSpacing.mainPaddingH,
+                  vertical: LoginSpacing.mainPaddingV,
+                ),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 448),
+                  constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildLogoSection(),
-                      const SizedBox(height: LoginSpacing.sectionSpacing),
-                      _buildFormContainer(),
-                      const SizedBox(height: LoginSpacing.infoMarginTop),
-                      _buildAdditionalInfo(),
+                      const SizedBox(height: 28),
+                      _buildGoogleCard(),
+                      const SizedBox(height: 18),
+                      _buildTrustLine(),
                     ],
                   ),
                 ),
@@ -223,55 +155,49 @@ class _LoginPageState extends State<LoginPage>
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedBuilder(
-            animation: _glowAnimation,
-            builder: (context, child) {
-              return Container(
-                width:
-                    80, // Keeping outer container slightly larger for glow effect
-                height: 80,
-                alignment: Alignment.center,
-                child: Container(
-                  width: LoginSpacing.logoSize,
-                  height: LoginSpacing.logoSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.cyan400.withOpacity(0.3),
-                        AppColors.blue500.withOpacity(0.3),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: AppColors.cyan500.withOpacity(0.3),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            AppColors.cyan500.withOpacity(_glowAnimation.value),
-                        blurRadius: 30 * _glowAnimation.value + 10,
-                        spreadRadius: 0,
-                      ),
+          animation: _glowAnimation,
+          builder: (context, child) {
+            return Container(
+              width: 80,
+              height: 80,
+              alignment: Alignment.center,
+              child: Container(
+                width: LoginSpacing.logoSize,
+                height: LoginSpacing.logoSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.cyan400.withValues(alpha: 0.3),
+                      AppColors.blue500.withValues(alpha: 0.3),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.auto_awesome,
-                    size: LoginSpacing.logoIconSize,
-                    color: AppColors.cyan400,
+                  border: Border.all(
+                    color: AppColors.cyan500.withValues(alpha: 0.3),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.cyan500
+                          .withValues(alpha: _glowAnimation.value),
+                      blurRadius: 30 * _glowAnimation.value + 10,
+                    ),
+                  ],
                 ),
-              );
-            }),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  size: LoginSpacing.logoIconSize,
+                  color: AppColors.cyan400,
+                ),
+              ),
+            );
+          },
+        ),
         const SizedBox(height: LoginSpacing.logoMarginBottom),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
-            colors: [
-              AppColors.cyan400,
-              AppColors.blue400,
-              AppColors.cyan400,
-            ],
+            colors: [AppColors.cyan400, AppColors.blue400, AppColors.cyan400],
           ).createShader(bounds),
           child: const Text(
             'KlioAI',
@@ -279,360 +205,107 @@ class _LoginPageState extends State<LoginPage>
               fontSize: LoginSpacing.titleFontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              letterSpacing: 0.5,
             ),
           ),
         ),
         const SizedBox(height: LoginSpacing.titleMarginBottom),
         Text(
           context.tr('login.subtitle'),
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12, // Keeping subtitle small
-            color: const Color(0xFF67E8F9).withOpacity(0.7),
+            fontSize: 12,
+            color: const Color(0xFF67E8F9).withValues(alpha: 0.75),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildFormContainer() {
+  Widget _buildGoogleCard() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          padding: const EdgeInsets.all(LoginSpacing.formPadding),
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: AppColors.slate900.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.cyan500.withOpacity(0.2),
-              width: 1,
-            ),
+            color: AppColors.slate900.withValues(alpha: 0.62),
+            borderRadius: BorderRadius.circular(18),
+            border:
+                Border.all(color: AppColors.cyan500.withValues(alpha: 0.22)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.28),
                 blurRadius: 32,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: Form(
-            key: _formKey,
-            child: AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: Column(
-                children: [
-                  _buildTabToggle(),
-                  const SizedBox(height: LoginSpacing.tabMarginBottom),
-                  if (isSignUp) ...[
-                    _buildInputField(
-                      label: context.tr('login.name'),
-                      placeholder: context.tr('login.name.placeholder'),
-                      icon: Icons.person_outline,
-                      controller: _nameController,
-                    ),
-                    const SizedBox(height: LoginSpacing.fieldSpacing),
-                  ],
-                  _buildInputField(
-                    label: context.tr('login.email'),
-                    placeholder: context.tr('login.email.placeholder'),
-                    icon: Icons.mail_outline,
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: LoginSpacing.fieldSpacing),
-                  _buildInputField(
-                    label: context.tr('login.password'),
-                    placeholder: '••••••••',
-                    icon: Icons.lock_outline,
-                    controller: _passwordController,
-                    obscureText: !_showPassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off : Icons.visibility,
-                        size: 18,
-                        color: AppColors.cyan400.withOpacity(0.5),
-                      ),
-                      onPressed: () =>
-                          setState(() => _showPassword = !_showPassword),
-                    ),
-                  ),
-                  if (!isSignUp) ...[
-                    const SizedBox(height: 10),
-                    LoginPageHelper(
-                      isSignUp: isSignUp,
-                      rememberMe: _rememberMe,
-                      onRememberMeChanged: (val) =>
-                          setState(() => _rememberMe = val ?? false),
-                    ).buildRememberMe(context),
-                  ],
-                  SizedBox(
-                      height: isSignUp
-                          ? LoginSpacing.fieldSpacing + 4
-                          : LoginSpacing.fieldSpacing + 10),
-                  _buildSubmitButton(),
-                  const SizedBox(height: LoginSpacing.buttonMarginBottom),
-                  _buildDivider(),
-                  const SizedBox(height: LoginSpacing.dividerMarginV),
-                  _buildSocialButtons(),
-                  if (isSignUp) ...[
-                    const SizedBox(height: LoginSpacing.termsMarginTop),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: LoginSpacing.termsFontSize,
-                            color: Color(0xFF64748B)),
-                        children: [
-                          TextSpan(text: context.tr('login.terms.prefix')),
-                          TextSpan(
-                            text: context.tr('login.terms.terms'),
-                            style: TextStyle(
-                                color:
-                                    const Color(0xFF22D3EE).withOpacity(0.7)),
-                          ),
-                          TextSpan(text: context.tr('login.terms.and')),
-                          TextSpan(
-                            text: context.tr('login.terms.privacy'),
-                            style: TextStyle(
-                                color:
-                                    const Color(0xFF22D3EE).withOpacity(0.7)),
-                          ),
-                          TextSpan(text: context.tr('login.terms.suffix')),
-                        ],
-                      ),
-                    ),
-                  ]
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabToggle() {
-    return Container(
-      padding: const EdgeInsets.all(LoginSpacing.tabPadding),
-      decoration: BoxDecoration(
-        color: AppColors.slate900.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cyan500.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-              child: _buildToggleItem(context.tr('login.tab.signIn'), !isSignUp,
-                  () => setState(() => isSignUp = false))),
-          Expanded(
-              child: _buildToggleItem(context.tr('login.tab.signUp'), isSignUp,
-                  () => setState(() => isSignUp = true))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleItem(String title, bool isActive, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(
-            vertical: LoginSpacing.tabButtonVertical),
-        decoration: isActive
-            ? BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.cyan500.withOpacity(0.2),
-                    AppColors.blue500.withOpacity(0.2),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.cyan400.withOpacity(0.3),
-                  width: 1,
-                ),
-              )
-            : null,
-        child: Center(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: isActive ? Colors.white : AppColors.slate400,
-              fontWeight: FontWeight.w600,
-              fontSize: LoginSpacing.tabFontSize,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required String label,
-    required String placeholder,
-    required IconData icon,
-    required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscureText = false,
-    Widget? suffixIcon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-              fontSize: LoginSpacing.labelFontSize,
-              color: const Color(0xFF67E8F9).withOpacity(0.9)),
-        ),
-        const SizedBox(height: LoginSpacing.labelMarginBottom),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.slate900.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cyan500.withOpacity(0.2)),
-          ),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            obscureText: obscureText,
-            style: const TextStyle(
-                color: Colors.white, fontSize: LoginSpacing.inputFontSize),
-            cursorColor: AppColors.cyan400,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return context.tr('common.required');
-              }
-              return null;
-            },
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: placeholder,
-              hintStyle: const TextStyle(
-                  color: AppColors.slate500,
-                  fontSize: LoginSpacing.inputFontSize),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: LoginSpacing.iconPadding),
-                child: Icon(icon,
-                    color: AppColors.cyan400.withOpacity(0.5),
-                    size: LoginSpacing.iconSize),
-              ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 40),
-              suffixIcon: suffixIcon,
-              suffixIconConstraints:
-                  const BoxConstraints(minWidth: 40, maxHeight: 40),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: LoginSpacing.inputPaddingH,
-                  vertical: LoginSpacing.inputPaddingV),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isButtonPressed = true),
-      onTapUp: (_) {
-        setState(() => _isButtonPressed = false);
-        _handleSubmit();
-      },
-      onTapCancel: () => setState(() => _isButtonPressed = false),
-      child: AnimatedScale(
-        scale: _isButtonPressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(vertical: LoginSpacing.buttonPaddingV),
-          decoration: BoxDecoration(
-            gradient: AppColors.buttonGradient,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    AppColors.cyan500.withOpacity(_isButtonPressed ? 0.6 : 0.4),
-                blurRadius: _isButtonPressed ? 30 : 20,
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              isSignUp
-                  ? context.tr('login.submit.signUp')
-                  : context.tr('login.submit.signIn'),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: LoginSpacing.buttonFontSize),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(
-            child: Container(
-                height: 1, color: AppColors.slate500.withOpacity(0.3))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(context.tr('common.or'),
-              style: const TextStyle(
-                  color: AppColors.slate500,
-                  fontSize: LoginSpacing.dividerFontSize)),
-        ),
-        Expanded(
-            child: Container(
-                height: 1, color: AppColors.slate500.withOpacity(0.3))),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return _buildSocialBtn(
-      context.tr('login.social.google'),
-      Icons.g_mobiledata,
-      _handleGoogleLogin,
-    );
-  }
-
-  Widget _buildSocialBtn(String text, IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(vertical: LoginSpacing.socialPaddingV),
-          decoration: BoxDecoration(
-            color: AppColors.slate900.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cyan500.withOpacity(0.2)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
-              Icon(icon,
-                  color: Colors.white, size: LoginSpacing.socialIconSize),
-              const SizedBox(width: LoginSpacing.socialIconSpacing),
-              Text(text,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: LoginSpacing.socialFontSize)),
+              Text(
+                context.tr('login.social.google'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _text(
+                  'Tek hesapla kelimelerin, aboneligin ve gunluk AI kotan senkron kalir.',
+                  'Keep your words, subscription, and daily AI quota synced with one account.',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.slate400,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _isSigningIn ? null : _handleGoogleLogin,
+                  icon: _isSigningIn
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 30),
+                  label: Text(
+                    _isSigningIn
+                        ? _text(
+                            'Google hesabi kontrol ediliyor',
+                            'Checking Google account',
+                          )
+                        : context.tr('login.social.google'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    disabledBackgroundColor: Colors.white70,
+                    disabledForegroundColor: Colors.black87,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -640,32 +313,17 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildAdditionalInfo() {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: LoginSpacing.infoMarginTop,
-        bottom: LoginSpacing.infoMarginBottom,
+  Widget _buildTrustLine() {
+    return Text(
+      _text(
+        'KlioAI sadece Google Sign-In kullanir. Sifre saklamaz.',
+        'KlioAI uses Google Sign-In only and never stores passwords.',
       ),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
-              color: AppColors.slate400, fontSize: LoginSpacing.infoFontSize),
-          children: [
-            TextSpan(
-                text: isSignUp
-                    ? context.tr('login.haveAccount')
-                    : context.tr('login.noAccount')),
-            TextSpan(
-              text: isSignUp
-                  ? context.tr('login.switch.signIn')
-                  : context.tr('login.switch.signUp'),
-              style: const TextStyle(
-                  color: AppColors.cyan400, fontWeight: FontWeight.bold),
-              recognizer: TapGestureRecognizer()
-                ..onTap = () => setState(() => isSignUp = !isSignUp),
-            ),
-          ],
-        ),
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: AppColors.slate400,
+        fontSize: LoginSpacing.infoFontSize,
+        height: 1.35,
       ),
     );
   }

@@ -264,7 +264,8 @@ class OfflineSyncService {
         final resolvedWordId = await _resolveServerWordId(wordId);
         if (resolvedWordId != null && resolvedWordId > 0) {
           try {
-            return uniqueCountFor(words.firstWhere((w) => w.id == resolvedWordId));
+            return uniqueCountFor(
+                words.firstWhere((w) => w.id == resolvedWordId));
           } catch (_) {
             return 0;
           }
@@ -560,8 +561,7 @@ class OfflineSyncService {
 
     final candidates = serverWord.sentences
         .where((s) =>
-            s.id > 0 &&
-            _normalizeComparableText(s.sentence) == targetSentence)
+            s.id > 0 && _normalizeComparableText(s.sentence) == targetSentence)
         .toList();
     if (candidates.isEmpty) {
       return null;
@@ -814,7 +814,8 @@ class OfflineSyncService {
   /// Kelime sil - OPTIMISTIC UPDATE
   /// Önce local'den sil (anında görünsün), sonra arka planda API'ye gönder
   Future<bool> deleteWord(int wordId) async {
-    final resolvedWordId = wordId > 0 ? wordId : await _resolveServerWordId(wordId);
+    final resolvedWordId =
+        wordId > 0 ? wordId : await _resolveServerWordId(wordId);
 
     // 🚀 OPTIMISTIC UPDATE: Önce local'den sil ve hemen dön
     int deletedWords = await _localDb.deleteWord(wordId);
@@ -875,24 +876,28 @@ class OfflineSyncService {
     required String translation,
     String difficulty = 'easy',
   }) async {
+    final resolvedWordId =
+        wordId < 0 ? await _resolveServerWordId(wordId) : null;
+    final targetWordId = resolvedWordId ?? wordId;
+
     // 🚀 OPTIMISTIC UPDATE: Önce local'e kaydet ve hemen döndür
     final sentenceId = await _localDb.addSentenceToWordOffline(
-      wordId: wordId,
+      wordId: targetWordId,
       sentence: sentence,
       translation: translation,
       difficulty: difficulty,
     );
     debugPrint(
-      '🧭 addSentenceToWord local insert: wordId=$wordId sentenceId=$sentenceId',
+      '🧭 addSentenceToWord local insert: wordId=$targetWordId sentenceId=$sentenceId',
     );
 
     // Güncel kelimeyi hemen döndür
     final updatedWord = await _getWordWithNewSentence(
-        wordId, sentenceId, sentence, translation, difficulty);
+        targetWordId, sentenceId, sentence, translation, difficulty);
 
     // Arka planda API'ye gönder
     _syncSentenceToAPIInBackground(
-      wordId,
+      targetWordId,
       sentenceId,
       sentence,
       translation,
@@ -1112,9 +1117,11 @@ class OfflineSyncService {
     required int? resolvedWordId,
     required int sentenceId,
   }) async {
-    int deleted = await _localDb.deleteSentenceFromWord(requestedWordId, sentenceId);
+    int deleted =
+        await _localDb.deleteSentenceFromWord(requestedWordId, sentenceId);
     if (resolvedWordId != null && resolvedWordId != requestedWordId) {
-      deleted += await _localDb.deleteSentenceFromWord(resolvedWordId, sentenceId);
+      deleted +=
+          await _localDb.deleteSentenceFromWord(resolvedWordId, sentenceId);
     }
     return deleted;
   }
@@ -1224,7 +1231,9 @@ class OfflineSyncService {
           final decoded = jsonDecode(rawData);
           if (decoded is Map) {
             queuedWordId = _parseIntFlexible(
-                  decoded['wordId'] ?? decoded['localWordId'] ?? decoded['parentWordId'],
+                  decoded['wordId'] ??
+                      decoded['localWordId'] ??
+                      decoded['parentWordId'],
                 ) ??
                 queuedWordId;
           }
@@ -1242,7 +1251,8 @@ class OfflineSyncService {
   // ==================== PRACTICE SENTENCES ====================
 
   /// Tüm practice sentences getir - LOCAL FIRST yaklaşımı
-  Future<List<SentencePractice>> getAllSentences({bool forceRefresh = false}) async {
+  Future<List<SentencePractice>> getAllSentences(
+      {bool forceRefresh = false}) async {
     // Always read local first for quick UI.
     final localSentences = await _localDb.getAllPracticeSentences();
 
@@ -1263,7 +1273,8 @@ class OfflineSyncService {
       }
       try {
         final sentences = await _apiService.getAllSentences();
-        final practiceOnly = sentences.where((s) => s.source == 'practice').toList();
+        final practiceOnly =
+            sentences.where((s) => s.source == 'practice').toList();
 
         // Important: always reconcile local cache against server truth, even if empty.
         await _localDb.saveAllPracticeSentences(practiceOnly);
@@ -1571,4 +1582,3 @@ class _TestConnectivity implements Connectivity {
 
   Future<String?> getWifiName() async => null;
 }
-

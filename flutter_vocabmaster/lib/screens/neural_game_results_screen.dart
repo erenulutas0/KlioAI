@@ -108,7 +108,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                                 boxShadow: [
                                   BoxShadow(
                                     color: selectedTheme.colors.accentGlow
-                                        .withOpacity(0.35),
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 20,
                                     spreadRadius: 1,
                                   ),
@@ -124,7 +124,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           const SizedBox(height: 16),
                           Text(
                             _text('Oturum Tamamlandi', 'Run Complete'),
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               fontSize: 30,
@@ -137,7 +137,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                               'Center word: ${widget.result.centerWord}',
                             ),
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.72),
+                              color: Colors.white.withValues(alpha: 0.72),
                               fontSize: 14,
                             ),
                           ),
@@ -153,7 +153,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                                     'Mode: Related Word',
                                   ),
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.62),
+                              color: Colors.white.withValues(alpha: 0.62),
                               fontSize: 12,
                             ),
                           ),
@@ -165,9 +165,9 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
-                              color: Colors.white.withOpacity(0.03),
+                              color: Colors.white.withValues(alpha: 0.03),
                               border: Border.all(
-                                  color: Colors.white.withOpacity(0.08)),
+                                  color: Colors.white.withValues(alpha: 0.08)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +175,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                                 Text(
                                   _text('Kesfedilen Kelimeler',
                                       'Discovered Words'),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -193,10 +193,10 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                                             borderRadius:
                                                 BorderRadius.circular(20),
                                             color: selectedTheme.colors.primary
-                                                .withOpacity(0.15),
+                                                .withValues(alpha: 0.15),
                                             border: Border.all(
                                               color: selectedTheme.colors.accent
-                                                  .withOpacity(0.32),
+                                                  .withValues(alpha: 0.32),
                                             ),
                                           ),
                                           child: Text(
@@ -305,15 +305,15 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: color.withOpacity(0.14),
-        border: Border.all(color: color.withOpacity(0.38)),
+        color: color.withValues(alpha: 0.14),
+        border: Border.all(color: color.withValues(alpha: 0.38)),
       ),
       child: Column(
         children: [
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.78),
+              color: Colors.white.withValues(alpha: 0.78),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -338,7 +338,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
               style: TextStyle(
                 color: _isNewBest
                     ? selectedTheme.colors.accent
-                    : Colors.white.withOpacity(0.62),
+                    : Colors.white.withValues(alpha: 0.62),
                 fontSize: 10,
               ),
             ),

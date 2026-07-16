@@ -209,7 +209,8 @@ class _ReviewPageState extends State<ReviewPage> {
                             borderRadius: BorderRadius.circular(10),
                             child: LinearProgressIndicator(
                               value: (_currentIndex + 1) / _words.length,
-                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.2),
                               valueColor: const AlwaysStoppedAnimation<Color>(
                                   Color(0xFF06b6d4)),
                               minHeight: 8,
@@ -257,8 +258,9 @@ class _ReviewPageState extends State<ReviewPage> {
                                               // But logic here handles logic after dismiss.
                                               // If last item, maybe cycle? For now, handled by index check.
                                               if (_currentIndex <
-                                                  _words.length - 1)
+                                                  _words.length - 1) {
                                                 _currentIndex++;
+                                              }
                                             });
                                           }
                                         } else {
@@ -285,12 +287,12 @@ class _ReviewPageState extends State<ReviewPage> {
                                         width: double.infinity,
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF1e3a8a)
-                                              .withOpacity(0.5),
+                                              .withValues(alpha: 0.5),
                                           borderRadius:
                                               BorderRadius.circular(24),
                                           border: Border.all(
-                                              color:
-                                                  Colors.white.withOpacity(0.2),
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.2),
                                               width: 2),
                                         ),
                                         child: ClipRRect(
@@ -396,8 +398,9 @@ class _ReviewPageState extends State<ReviewPage> {
                                                             style: TextStyle(
                                                               color: Colors
                                                                   .white
-                                                                  .withOpacity(
-                                                                      0.7),
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.7),
                                                               fontSize:
                                                                   meaningFontSize,
                                                             ),
@@ -431,8 +434,9 @@ class _ReviewPageState extends State<ReviewPage> {
                                                                     BoxDecoration(
                                                                   color: const Color(
                                                                           0xFF0ea5e9)
-                                                                      .withOpacity(
-                                                                          0.2),
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.2),
                                                                   borderRadius:
                                                                       BorderRadius
                                                                           .circular(
@@ -441,8 +445,9 @@ class _ReviewPageState extends State<ReviewPage> {
                                                                       .all(
                                                                     color: const Color(
                                                                             0xFF0ea5e9)
-                                                                        .withOpacity(
-                                                                            0.3),
+                                                                        .withValues(
+                                                                            alpha:
+                                                                                0.3),
                                                                   ),
                                                                 ),
                                                                 child: Column(
@@ -502,8 +507,9 @@ class _ReviewPageState extends State<ReviewPage> {
                                                               style: TextStyle(
                                                                   color: Colors
                                                                       .white
-                                                                      .withOpacity(
-                                                                          0.5),
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.5),
                                                                   fontStyle:
                                                                       FontStyle
                                                                           .italic),
@@ -563,11 +569,11 @@ class _ReviewPageState extends State<ReviewPage> {
                                                                           child:
                                                                               Row(
                                                                             children: [
-                                                                              Icon(Icons.check_circle, color: Colors.white, size: 28),
-                                                                              SizedBox(width: 12),
+                                                                              const Icon(Icons.check_circle, color: Colors.white, size: 28),
+                                                                              const SizedBox(width: 12),
                                                                               Text(
                                                                                 _text('Ogrenildi!', 'Marked as learned!'),
-                                                                                style: TextStyle(
+                                                                                style: const TextStyle(
                                                                                   color: Colors.white,
                                                                                   fontSize: 16,
                                                                                   fontWeight: FontWeight.bold,
@@ -585,7 +591,7 @@ class _ReviewPageState extends State<ReviewPage> {
                                                                           borderRadius:
                                                                               BorderRadius.circular(16),
                                                                           side: BorderSide(
-                                                                              color: Colors.white.withOpacity(0.2),
+                                                                              color: Colors.white.withValues(alpha: 0.2),
                                                                               width: 1),
                                                                         ),
                                                                         margin: const EdgeInsets
@@ -638,11 +644,12 @@ class _ReviewPageState extends State<ReviewPage> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   side: BorderSide(
-                                      color: Colors.white.withOpacity(0.3)),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.3)),
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 16),
-                                  backgroundColor:
-                                      const Color(0xFF1e3a8a).withOpacity(0.3),
+                                  backgroundColor: const Color(0xFF1e3a8a)
+                                      .withValues(alpha: 0.3),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -667,8 +674,8 @@ class _ReviewPageState extends State<ReviewPage> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   elevation: 4,
-                                  shadowColor:
-                                      const Color(0xFF06b6d4).withOpacity(0.5),
+                                  shadowColor: const Color(0xFF06b6d4)
+                                      .withValues(alpha: 0.5),
                                 ),
                               ),
                             ),
@@ -736,7 +743,7 @@ class _ReviewPageState extends State<ReviewPage> {
           Container(
             padding: EdgeInsets.all(isCompact ? 8 : 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: isCompact ? 20 : 24),

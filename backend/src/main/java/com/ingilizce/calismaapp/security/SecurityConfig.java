@@ -91,6 +91,8 @@ public class SecurityConfig {
                             "/api/auth/email-verification/request",
                             "/api/auth/email-verification/confirm",
                             "/api/subscription/callback/iyzico",
+                            "/api/subscription/verify/google",
+                            "/api/subscription/google-play/rtdn",
                             "/api/subscription/plans",
                             "/actuator/health",
                             "/actuator/health/**")

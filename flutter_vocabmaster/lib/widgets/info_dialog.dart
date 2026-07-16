@@ -3,7 +3,8 @@ import 'modern_card.dart';
 import 'modern_background.dart';
 
 class InfoDialog {
-  static void show(BuildContext context, {
+  static void show(
+    BuildContext context, {
     required String title,
     required List<String> steps,
   }) {
@@ -11,7 +12,7 @@ class InfoDialog {
       context: context,
       barrierDismissible: true,
       barrierLabel: '',
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       pageBuilder: (context, anim1, anim2) => Container(),
       transitionDuration: const Duration(milliseconds: 300),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -31,7 +32,8 @@ class InfoDialog {
                       width: MediaQuery.of(context).size.width * 0.85,
                       variant: BackgroundVariant.primary,
                       borderRadius: BorderRadius.circular(24),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 20),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,11 +44,13 @@ class InfoDialog {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0ea5e9).withOpacity(0.2),
+                                  color: const Color(0xFF0ea5e9)
+                                      .withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF0ea5e9).withOpacity(0.3),
+                                      color: const Color(0xFF0ea5e9)
+                                          .withValues(alpha: 0.3),
                                       blurRadius: 8,
                                       spreadRadius: 1,
                                     ),

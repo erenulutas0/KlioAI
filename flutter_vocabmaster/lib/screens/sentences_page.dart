@@ -225,7 +225,7 @@ class _SentencesPageState extends State<SentencesPage> {
             borderRadius: BorderRadius.circular(35),
             boxShadow: [
               BoxShadow(
-                color: selectedTheme.colors.accentGlow.withOpacity(0.42),
+                color: selectedTheme.colors.accentGlow.withValues(alpha: 0.42),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -280,10 +280,10 @@ class _SentencesPageState extends State<SentencesPage> {
                     decoration: BoxDecoration(
                       color: _mix(selectedTheme.colors.background, Colors.black,
                               0.12)
-                          .withOpacity(0.72),
+                          .withValues(alpha: 0.72),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         width: 1,
                       ),
                     ),
@@ -369,12 +369,13 @@ class _SentencesPageState extends State<SentencesPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notes, size: 64, color: Colors.white.withOpacity(0.2)),
+          Icon(Icons.notes,
+              size: 64, color: Colors.white.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           Text(
             message,
-            style:
-                TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
           ),
         ],
       ),
@@ -440,10 +441,10 @@ class _SentencesPageState extends State<SentencesPage> {
       width: 80,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: selectedTheme.colors.cardBackground.withOpacity(0.66),
+        color: selectedTheme.colors.cardBackground.withValues(alpha: 0.66),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.52),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.52),
         ),
       ),
       child: Column(
@@ -552,14 +553,15 @@ class _SentenceCardState extends State<SentenceCard> {
             margin: const EdgeInsets.symmetric(horizontal: 4),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: selectedTheme.colors.accent.withOpacity(0.30),
+              color: selectedTheme.colors.accent.withValues(alpha: 0.30),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: selectedTheme.colors.accent.withOpacity(0.5),
+                color: selectedTheme.colors.accent.withValues(alpha: 0.5),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: selectedTheme.colors.accentGlow.withOpacity(0.26),
+                  color:
+                      selectedTheme.colors.accentGlow.withValues(alpha: 0.26),
                   blurRadius: 8,
                 ),
               ],
@@ -604,15 +606,15 @@ class _SentenceCardState extends State<SentenceCard> {
     switch (widget.vm.difficulty) {
       case 'easy':
         badgeColor = Colors.greenAccent;
-        badgeBackground = Colors.green.withOpacity(0.2);
+        badgeBackground = Colors.green.withValues(alpha: 0.2);
         break;
       case 'hard':
         badgeColor = Colors.redAccent;
-        badgeBackground = Colors.red.withOpacity(0.2);
+        badgeBackground = Colors.red.withValues(alpha: 0.2);
         break;
       default:
         badgeColor = Colors.amberAccent;
-        badgeBackground = Colors.amber.withOpacity(0.2);
+        badgeBackground = Colors.amber.withValues(alpha: 0.2);
     }
 
     return Container(
@@ -620,7 +622,7 @@ class _SentenceCardState extends State<SentenceCard> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.12),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.12),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -634,10 +636,10 @@ class _SentenceCardState extends State<SentenceCard> {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: _mix(selectedTheme.colors.background, Colors.black, 0.08)
-                  .withOpacity(0.68),
+                  .withValues(alpha: 0.68),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+                color: selectedTheme.colors.glassBorder.withValues(alpha: 0.72),
                 width: 1.5,
               ),
             ),
@@ -655,7 +657,8 @@ class _SentenceCardState extends State<SentenceCard> {
                       decoration: BoxDecoration(
                         color: badgeBackground,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: badgeColor.withOpacity(0.3)),
+                        border: Border.all(
+                            color: badgeColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         widget.difficultyLabel.toUpperCase(),
@@ -697,7 +700,7 @@ class _SentenceCardState extends State<SentenceCard> {
                       children: [
                         Container(
                           height: 1,
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -780,7 +783,7 @@ class _SentenceCardState extends State<SentenceCard> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.2),
+                color: Colors.red.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child:

@@ -1,6 +1,9 @@
 package com.ingilizce.calismaapp.service;
 
-final class PromptCatalog {
+import java.util.List;
+import java.util.Locale;
+
+public final class PromptCatalog {
 
     enum PromptOutput {
         TEXT,
@@ -14,48 +17,91 @@ final class PromptCatalog {
     private PromptCatalog() {
     }
 
+    static final List<String> TOPIC_TAXONOMY = List.of(
+            "Daily Life & Routines",
+            "Food & Cooking",
+            "Travel & Transportation",
+            "Health & Fitness",
+            "Technology & Internet",
+            "Environment & Nature",
+            "Education & Learning",
+            "Work & Careers",
+            "Entertainment & Media",
+            "Science & Discovery",
+            "Culture & Society",
+            "Psychology & Emotions",
+            "Money & Practical Finance",
+            "Sports & Competition",
+            "Art & Creativity",
+            "Space & Astronomy",
+            "Relationships & Communication",
+            "Innovation & Future",
+            "Home & City Life",
+            "Problem Solving");
+
+    private static final List<List<String>> GRAMMAR_PATTERN_SETS = List.of(
+            List.of("present simple active", "past continuous", "first conditional", "passive voice", "wh-question"),
+            List.of("present perfect", "second conditional", "relative clause with who/which/that", "imperative", "reported speech"),
+            List.of("past simple narrative", "present continuous", "gerund as subject", "modal verb for advice or possibility", "tag question"),
+            List.of("future with will or going to", "comparative or superlative", "infinitive of purpose", "embedded question", "negative question"),
+            List.of("used to + infinitive", "because/although contrast clause", "collocation-focused sentence", "formal/professional sentence", "exclamatory sentence"));
+
+    static String topicForDay(int dayOfYear) {
+        int index = Math.floorMod(dayOfYear, TOPIC_TAXONOMY.size());
+        return TOPIC_TAXONOMY.get(index);
+    }
+
+    public static List<String> grammarPatternSetFor(String targetWord, Long userId, boolean fresh) {
+        String seed = "%s:%s:%s".formatted(
+                targetWord == null ? "" : targetWord.trim().toLowerCase(Locale.ROOT),
+                userId == null ? 0L : userId,
+                fresh ? System.currentTimeMillis() / 60000L : 0L);
+        int index = Math.floorMod(seed.hashCode(), GRAMMAR_PATTERN_SETS.size());
+        return GRAMMAR_PATTERN_SETS.get(index);
+    }
+
     static PromptDef generateSentences() {
         return generateSentences(LearningLanguageProfile.defaultProfile());
     }
 
     static PromptDef generateSentences(LearningLanguageProfile profile) {
         String systemPrompt = """
-            ROLE: Expert %s learning content designer and %s translator.
+            ROLE: Expert English translation-practice item writer and %s translator.
 
             %s
 
             TASK:
-            Return EXACTLY 5 %s practice sentences for the requested target word and their NATURAL %s translations.
+            Create exactly 5 natural translation-practice items.
 
-            CONTENT RULES:
-            1. Every %s sentence must use the target word naturally.
-            2. Respect the CEFR level and length mix described in the user message.
-            3. Keep the 5 sentences structurally diverse:
-               - vary tense, sentence shape, subject, and context
-               - avoid textbook/generic patterns such as "I use X every day", "This is X", "She likes X"
-               - when possible, cover different real contexts or meanings instead of paraphrasing the same idea
-            4. Long/medium/short requests must feel genuinely different in length and complexity.
-            5. %s translations must sound natural, not word-for-word.
+            HARD RULES:
+            - The target word must appear as a normal part of the English sentence.
+            - Never put the target word in quotation marks.
+            - Never write about the word itself. Avoid phrases like "the word", "used X", "explained X", "heard X", or "practice X".
+            - Each item must be a real-life sentence someone might say, read, or write.
+            - Use different situations across the 5 items: travel, work, family/social life, news/public life, and personal plans.
+            - At least one item must be a question.
+            - No more than one item may start with I/he/she/they.
+            - Keep the level and length requested by the user.
+            - %s translations must be natural, not word-for-word.
+            - sourceTranslation and sourceFullTranslation MUST be written in %s only.
+            - Do NOT write Turkish translations unless the source/native language is Turkish.
 
             OUTPUT FORMAT:
-            Return ONLY a MINIFIED JSON object with this exact shape:
-            {"sentences":[{"englishSentence":"...","turkishTranslation":"...","turkishFullTranslation":"..."}]}
+            Return only this minified JSON shape:
+            {"sentences":[{"englishSentence":"...","sourceTranslation":"...","sourceFullTranslation":"...","turkishTranslation":"...","turkishFullTranslation":"..."}]}
 
-            TRANSLATION RULES:
-            - "turkishTranslation" should be the short target-word meaning in that sentence when possible.
-            - "turkishFullTranslation" must be the full natural %s sentence.
-            - No markdown, no explanations, no extra keys.
+            "sourceTranslation" = short meaning of the target word in context.
+            "sourceFullTranslation" = full natural %s sentence.
+            Also include the legacy "turkishTranslation" and "turkishFullTranslation" keys with the same values for app compatibility.
+            No markdown. No extra keys.
             """.formatted(
-                profile.targetLanguage(),
                 profile.targetToSourceLabel(),
                 profile.toPromptPolicyBlock(),
-                profile.targetLanguage(),
                 profile.sourceLanguage(),
-                profile.targetLanguage(),
                 profile.sourceLanguage(),
                 profile.sourceLanguage()
         );
-        return new PromptDef("generate_sentences", 2, systemPrompt, PromptOutput.JSON_OBJECT);
+        return new PromptDef("generate_sentences", 5, systemPrompt, PromptOutput.TEXT);
     }
 
     static PromptDef checkTranslation() {
@@ -113,6 +159,8 @@ final class PromptCatalog {
 
             %s
 
+            %s
+
             TASK:
             1. Evaluate the user's %s translation for the given %s sentence.
             2. Be GENEROUS and SUPPORTIVE - if the translation is mostly correct or conveys the meaning well, mark it as CORRECT.
@@ -124,7 +172,7 @@ final class PromptCatalog {
             - If the translation conveys the correct meaning and grammar is mostly correct, mark it as CORRECT.
             - Be LENIENT: Multiple acceptable translations exist. If the user's translation is reasonable (e.g., using a synonym), it's CORRECT.
             - When CORRECT: Provide positive, encouraging feedback in %s for immersion.
-            - When INCORRECT: Provide the correct %s translation and explain the mistake clearly.
+            - When INCORRECT: Provide the correct %s translation and explain the mistake clearly. If the mistake matches one of the transfer-error patterns above, name the pattern briefly so the learner recognizes it next time.
             - Return ONLY a JSON object with this exact format:
             {
               "isCorrect": true or false,
@@ -134,13 +182,64 @@ final class PromptCatalog {
             - Do not add any text before or after the JSON.
             """.formatted(
                 profile.toPromptPolicyBlock(),
+                interferenceNotesFor(profile.sourceLanguage()),
                 profile.targetLanguage(),
                 profile.sourceLanguage(),
                 profile.targetLanguage(),
                 profile.targetLanguage(),
                 profile.targetLanguage()
         );
-        return new PromptDef("check_translation_en", 1, systemPrompt, PromptOutput.JSON_OBJECT);
+        return new PromptDef("check_translation_en", 2, systemPrompt, PromptOutput.JSON_OBJECT);
+    }
+
+    // Static, hand-curated transfer-error notes per source language - not AI-generated,
+    // so they cost zero tokens and stay consistent across every request. Scoped to
+    // checkEnglishTranslation only: this is the flow where a learner writes English
+    // starting from their native language, which is where L1-to-English transfer
+    // errors actually surface (the reverse direction, checkTranslation, does not
+    // need these notes).
+    static String interferenceNotesFor(String sourceLanguage) {
+        String key = sourceLanguage == null ? "" : sourceLanguage.trim();
+        String notes = switch (key) {
+            case "Turkish" -> "Turkish has no articles, so learners often omit \"a/an/the\" or place them "
+                    + "incorrectly. Turkish is SOV (verb-final), which can produce unnatural English word "
+                    + "order. Turkish has no separate progressive/simple distinction marked the same way, "
+                    + "so learners confuse present simple and present continuous. Turkish lacks a direct "
+                    + "equivalent for \"do/does\" in questions, so auxiliary verbs are often dropped.";
+            case "Spanish" -> "Spanish is pro-drop (subject pronouns are usually omitted), so learners often "
+                    + "drop English subjects (\"Is raining\" instead of \"It is raining\"). Spanish adjectives "
+                    + "usually follow the noun, causing reversed English word order. Spanish uses one verb "
+                    + "(\"saber\"/\"conocer\", \"ser\"/\"estar\") for concepts English splits differently, "
+                    + "causing confusion between \"know\"/\"meet\" and \"be\". Double negatives are grammatical "
+                    + "in Spanish but not in English.";
+            case "Portuguese" -> "Portuguese is pro-drop, so learners often omit English subject pronouns. "
+                    + "Portuguese uses gerunds more freely (\"estou gostando\"), leading to overuse of "
+                    + "\"-ing\" forms like \"I am liking\" instead of \"I like\". Portuguese preposition use "
+                    + "differs from English (\"in the Monday\" instead of \"on Monday\"). Portuguese \"ser\"/"
+                    + "\"estar\" split can cause \"be\"-verb confusion similar to Spanish.";
+            case "Indonesian" -> "Indonesian verbs are not conjugated for tense; time is shown by context "
+                    + "words instead, so learners often drop English tense marking (\"-ed\", \"-s\", auxiliary "
+                    + "verbs). Indonesian marks plurals by reduplication or context, not a suffix, so learners "
+                    + "often drop the English plural \"-s\". Indonesian has no articles, so \"a/an/the\" are "
+                    + "frequently omitted, similar to Turkish.";
+            case "German" -> "German word order moves the verb to second position in main clauses and to the "
+                    + "end in subordinate clauses, which can leak into unnatural English word order. German "
+                    + "capitalizes all nouns, which sometimes carries over as over-capitalization in English. "
+                    + "False friends are common (e.g. \"become\" vs. German \"bekommen\" which means \"get/"
+                    + "receive\"). German does not distinguish \"since\" vs. \"for\" the way English does.";
+            case "French" -> "French has many false friends with English (e.g. \"actuellement\" means "
+                    + "\"currently\" not \"actually\"; \"assister\" means \"attend\" not \"assist\"). French "
+                    + "adjectives usually follow the noun, causing reversed English word order. French uses "
+                    + "\"faire\" for many senses English splits between \"do\" and \"make\", causing confusion "
+                    + "between the two. French present tense often covers what English expresses with present "
+                    + "continuous, so learners under-use \"-ing\" forms.";
+            default -> "";
+        };
+        if (notes.isEmpty()) {
+            return "";
+        }
+        return "COMMON " + key.toUpperCase(Locale.ROOT) + "-SPEAKER TRANSFER ERRORS (recognize these patterns, "
+                + "correct gently, do not penalize twice for the same underlying pattern):\n" + notes;
     }
 
     static PromptDef chat() {

@@ -25,6 +25,7 @@
         </a>
         <div class="topbar-links">
           <a href="/">Home</a>
+          <a href="/account-deletion">Account deletion</a>
           <a href="/terms.html">Terms</a>
         </div>
       </nav>
@@ -41,7 +42,7 @@
             KlioAI is operated by Eren Ulutas for the Android app listed on
             Google Play under package name com.VocabMaster.
           </p>
-          <p class="legal-meta">Last updated: April 1, 2026</p>
+          <p class="legal-meta">Last updated: July 9, 2026</p>
         </section>
 
         <section class="legal-card">
@@ -55,6 +56,11 @@
             If you use AI-assisted features, your prompts and related output may
             be processed to deliver the requested experience and to maintain
             product quality and abuse protection.
+          </p>
+          <p>
+            Speaking and pronunciation practice audio is processed transiently
+            to generate a transcript and is not stored after your report is
+            produced.
           </p>
         </section>
 
@@ -71,9 +77,39 @@
           <h2>3. Infrastructure and processors</h2>
           <p>
             KlioAI runs on production infrastructure that includes application
-            servers, PostgreSQL, Redis, reverse proxying, and third-party
-            providers used for DNS, hosting, or AI processing where applicable.
+            servers, PostgreSQL, Redis, and reverse proxying, plus these
+            named third-party processors:
           </p>
+          <ul>
+            <li>
+              <strong>Google Sign-In</strong> &mdash; the only supported sign-in
+              method; used to authenticate your account.
+            </li>
+            <li>
+              <strong>Google Play Billing</strong> &mdash; processes
+              subscription purchases; KlioAI does not collect or store your
+              payment card details.
+            </li>
+            <li>
+              <strong>Firebase Analytics</strong> (Google) &mdash; aggregate
+              usage and feature-engagement analytics.
+            </li>
+            <li>
+              <strong>Firebase Crashlytics</strong> (Google) &mdash; crash and
+              error reporting to help us fix bugs; reports may include a
+              device-scoped identifier and, when signed in, your account id.
+            </li>
+            <li>
+              <strong>Firebase Cloud Messaging</strong> (Google) &mdash;
+              delivers push notifications (e.g. daily reminders) you have
+              opted into.
+            </li>
+            <li>
+              <strong>Groq</strong> &mdash; processes AI text prompts/output
+              and speech-to-text transcription for AI-assisted practice
+              features.
+            </li>
+          </ul>
         </section>
 
         <section class="legal-card">
@@ -92,6 +128,11 @@
             We retain operational and account data for as long as needed to run
             the service, comply with legal obligations, resolve disputes, or
             enforce agreements.
+          </p>
+          <p>
+            Users can request account and data deletion through the public
+            <a href="/account-deletion">Account and Data Deletion</a>
+            page.
           </p>
         </section>
 

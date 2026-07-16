@@ -130,6 +130,7 @@ public class UserController {
             return ResponseEntity.ok(Map.of(
                     "userId", id,
                     "isActive", user.get().isSubscriptionActive(),
+                    "aiPlanCode", user.get().getAiPlanCode(),
                     "endDate",
                     user.get().getSubscriptionEndDate() != null ? user.get().getSubscriptionEndDate() : "null"));
         }

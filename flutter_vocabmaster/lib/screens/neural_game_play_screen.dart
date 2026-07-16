@@ -136,7 +136,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white70,
                             backgroundColor: selectedTheme.colors.background
-                                .withOpacity(0.38),
+                                .withValues(alpha: 0.38),
                           ),
                         ),
                       ),
@@ -192,7 +192,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                                   ),
                                 ),
                                 backgroundColor: selectedTheme.colors.accent
-                                    .withOpacity(0.20),
+                                    .withValues(alpha: 0.20),
                                 side: BorderSide(
                                   color: selectedTheme.colors.glassBorder,
                                   width: 1,
@@ -255,15 +255,17 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                                   ),
                                   decoration: BoxDecoration(
                                     color: state.isError
-                                        ? Colors.redAccent.withOpacity(0.18)
+                                        ? Colors.redAccent
+                                            .withValues(alpha: 0.18)
                                         : selectedTheme.colors.primary
-                                            .withOpacity(0.16),
+                                            .withValues(alpha: 0.16),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
                                       color: state.isError
-                                          ? Colors.redAccent.withOpacity(0.45)
+                                          ? Colors.redAccent
+                                              .withValues(alpha: 0.45)
                                           : selectedTheme.colors.primary
-                                              .withOpacity(0.45),
+                                              .withValues(alpha: 0.45),
                                     ),
                                   ),
                                   child: Text(
@@ -289,7 +291,8 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
-      return Provider.of<ThemeProvider?>(context, listen: listen)?.currentTheme ??
+      return Provider.of<ThemeProvider?>(context, listen: listen)
+              ?.currentTheme ??
           VocabThemes.defaultTheme;
     } catch (_) {
       return VocabThemes.defaultTheme;

@@ -136,7 +136,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const SizedBox(height: 16),
             Text(
               _text('Ne yapmak istiyorsunuz?', 'What would you like to do?'),
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             const SizedBox(height: 24),
             Row(
@@ -185,9 +185,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -229,7 +229,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF06b6d4).withOpacity(0.2),
+                    color: const Color(0xFF06b6d4).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.lightbulb,
@@ -249,7 +249,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               children: [
                 Text(
                   _text('Bu cumledeki anlami:', 'Meaning in this sentence:'),
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -299,10 +299,10 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
-              Icon(Icons.add_circle, color: Color(0xFF10b981)),
-              SizedBox(width: 12),
+              const Icon(Icons.add_circle, color: Color(0xFF10b981)),
+              const SizedBox(width: 12),
               Text(_text('Kelimeyi Gune Ekle', 'Add Word to Today'),
-                  style: TextStyle(color: Colors.white, fontSize: 18)),
+                  style: const TextStyle(color: Colors.white, fontSize: 18)),
             ],
           ),
           content: Column(
@@ -312,7 +312,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF06b6d4).withOpacity(0.1),
+                  color: const Color(0xFF06b6d4).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -336,7 +336,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               const SizedBox(height: 20),
               Text(
                 _text('Zorluk Seviyesi:', 'Difficulty Level:'),
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 12),
               Row(
@@ -393,8 +393,8 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? color.withOpacity(0.2)
-                : Colors.white.withOpacity(0.05),
+                ? color.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isSelected ? color : Colors.transparent),
           ),
@@ -513,19 +513,20 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                             'Ingilizce kelime yazin (orn: bring about)',
                             'Type an English word (e.g. bring about)',
                           ),
-                          hintStyle:
-                              TextStyle(color: Colors.white.withOpacity(0.5)),
+                          hintStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5)),
                           filled: true,
-                          fillColor: const Color(0xFF1e3a8a).withOpacity(0.5),
+                          fillColor:
+                              const Color(0xFF1e3a8a).withValues(alpha: 0.5),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.2)),
+                                color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.2)),
+                                color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -611,7 +612,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -623,7 +624,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const SizedBox(height: 24),
             Text(
               _text('Kelime Ara', 'Search Word'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -636,7 +637,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 'You can enter an English word or expression',
               ),
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 14,
               ),
             ),
@@ -701,13 +702,13 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF1e3a8a).withOpacity(0.6),
-                  const Color(0xFF0f172a).withOpacity(0.8)
+                  const Color(0xFF1e3a8a).withValues(alpha: 0.6),
+                  const Color(0xFF0f172a).withValues(alpha: 0.8)
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+              border: Border.all(
+                  color: const Color(0xFF06b6d4).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -727,7 +728,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                         Text(
                           _phonetic,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 16,
                             fontStyle: FontStyle.italic,
                           ),
@@ -740,7 +741,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                   icon: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF06b6d4).withOpacity(0.2),
+                      color: const Color(0xFF06b6d4).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child:
@@ -782,9 +783,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e3a8a).withOpacity(0.4),
+        color: const Color(0xFF1e3a8a).withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -797,7 +798,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: color),
                 ),
@@ -816,17 +817,17 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10b981).withOpacity(0.2),
+                    color: const Color(0xFF10b981).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, color: Color(0xFF10b981), size: 16),
-                      SizedBox(width: 4),
+                      const Icon(Icons.add, color: Color(0xFF10b981), size: 16),
+                      const SizedBox(width: 4),
                       Text(
                         _text('Gune Ekle', 'Add to Today'),
-                        style: TextStyle(
+                        style: const TextStyle(
                             color: Color(0xFF10b981),
                             fontSize: 12,
                             fontWeight: FontWeight.bold),
@@ -855,7 +856,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             Text(
               meaning.englishDefinition,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
               ),
@@ -866,7 +867,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const SizedBox(height: 16),
             Text(
               _text('Ornek Cumle', 'Example Sentence'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF06b6d4),
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -876,9 +877,9 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -890,7 +891,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                     Text(
                       meaning.exampleTranslation,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
                       ),
@@ -932,11 +933,11 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 : null,
             decoration: isHighlighted
                 ? BoxDecoration(
-                    color: const Color(0xFF06b6d4).withOpacity(0.3),
+                    color: const Color(0xFF06b6d4).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF06b6d4).withOpacity(0.5),
+                        color: const Color(0xFF06b6d4).withValues(alpha: 0.5),
                         blurRadius: 8,
                         spreadRadius: 1,
                       ),

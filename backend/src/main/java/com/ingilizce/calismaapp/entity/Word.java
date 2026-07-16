@@ -1,7 +1,9 @@
 package com.ingilizce.calismaapp.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
@@ -96,6 +98,18 @@ public class Word {
 
     public void setTurkishMeaning(String turkishMeaning) {
         this.turkishMeaning = turkishMeaning;
+    }
+
+    @JsonGetter("sourceMeaning")
+    public String getSourceMeaning() {
+        return turkishMeaning;
+    }
+
+    @JsonSetter("sourceMeaning")
+    public void setSourceMeaning(String sourceMeaning) {
+        if ((this.turkishMeaning == null || this.turkishMeaning.isBlank()) && sourceMeaning != null) {
+            this.turkishMeaning = sourceMeaning;
+        }
     }
 
     public LocalDate getLearnedDate() {

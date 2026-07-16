@@ -23,7 +23,7 @@ public class DataLoader {
                     BigDecimal.ZERO,
                     "USD",
                     3650,
-                    "Base app access. AI available only during free trial window.");
+                    "Base app access with 1500 daily AI token quota.");
 
             ensurePlan(
                     repository,

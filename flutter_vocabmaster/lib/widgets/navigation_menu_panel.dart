@@ -190,10 +190,10 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colors.background.withOpacity(0.98),
+              theme.colors.background.withValues(alpha: 0.98),
               _mix(theme.colors.background, theme.colors.primaryDark, 0.55)
-                  .withOpacity(0.98),
-              theme.colors.background.withOpacity(0.98),
+                  .withValues(alpha: 0.98),
+              theme.colors.background.withValues(alpha: 0.98),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -268,8 +268,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
           ? _mix(theme.colors.accent, Colors.white, 0.18)
           : _mix(theme.colors.primary, Colors.white, 0.18),
       shadowColor: isSpecial
-          ? theme.colors.accentGlow.withOpacity(0.45)
-          : theme.colors.accentGlow.withOpacity(0.35),
+          ? theme.colors.accentGlow.withValues(alpha: 0.45)
+          : theme.colors.accentGlow.withValues(alpha: 0.35),
     );
   }
 
@@ -313,8 +313,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   gradient: RadialGradient(
                     colors: [
                       index % 2 == 0
-                          ? theme.colors.orbColor1.withOpacity(0.18)
-                          : theme.colors.orbColor2.withOpacity(0.18),
+                          ? theme.colors.orbColor1.withValues(alpha: 0.18)
+                          : theme.colors.orbColor2.withValues(alpha: 0.18),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.7],
@@ -357,8 +357,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    theme.colors.particleColor.withOpacity(0.52),
-                    theme.colors.particleColor.withOpacity(0.22),
+                    theme.colors.particleColor.withValues(alpha: 0.52),
+                    theme.colors.particleColor.withValues(alpha: 0.22),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.5, 1.0],
@@ -366,7 +366,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 borderRadius: BorderRadius.circular(size),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.colors.particleGlow.withOpacity(0.45),
+                    color: theme.colors.particleGlow.withValues(alpha: 0.45),
                     blurRadius: 8,
                     spreadRadius: 0,
                   ),
@@ -406,7 +406,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colors.accentGlow.withOpacity(0.55),
+                      color: theme.colors.accentGlow.withValues(alpha: 0.55),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -425,10 +425,10 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 56, 18, 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         border: Border(
           bottom: BorderSide(
-            color: theme.colors.glassBorder.withOpacity(0.75),
+            color: theme.colors.glassBorder.withValues(alpha: 0.75),
             width: 1,
           ),
         ),
@@ -443,14 +443,14 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 height: 58,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: theme.colors.accent.withOpacity(0.28),
+                    color: theme.colors.accent.withValues(alpha: 0.28),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colors.accentGlow.withOpacity(0.45),
+                      color: theme.colors.accentGlow.withValues(alpha: 0.45),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
@@ -475,7 +475,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 icon:
                     const Icon(Icons.close, color: Color(0xB3FFFFFF), size: 20),
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.1),
+                  backgroundColor: Colors.white.withValues(alpha: 0.1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -511,7 +511,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: startColor.withOpacity(0.8),
+              color: startColor.withValues(alpha: 0.8),
               letterSpacing: 1.2,
             ),
           ),
@@ -546,8 +546,8 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                 child: InkWell(
                   onTap: onTap,
                   borderRadius: BorderRadius.circular(12),
-                  splashColor: activeStartColor.withOpacity(0.2),
-                  highlightColor: activeStartColor.withOpacity(0.1),
+                  splashColor: activeStartColor.withValues(alpha: 0.2),
+                  highlightColor: activeStartColor.withValues(alpha: 0.1),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
@@ -650,13 +650,13 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            theme.colors.accent.withOpacity(0.12),
-            theme.colors.primary.withOpacity(0.12),
+            theme.colors.accent.withValues(alpha: 0.12),
+            theme.colors.primary.withValues(alpha: 0.12),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: theme.colors.glassBorder.withOpacity(0.75),
+            color: theme.colors.glassBorder.withValues(alpha: 0.75),
             width: 1,
           ),
         ),

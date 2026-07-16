@@ -63,6 +63,33 @@ class AuthRateLimitServiceTest {
     }
 
     @Test
+    void login_ShouldShareRateLimitBucket_RegardlessOfCapitalIInEmail_OnTurkishLocaleJvm() {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
+
+            AuthRateLimitProperties properties = new AuthRateLimitProperties();
+            properties.setEnabled(true);
+            properties.setLoginPrincipalMaxAttempts(2);
+            properties.setLoginPrincipalWindowSeconds(60);
+            properties.setLoginPrincipalBlockSeconds(120);
+            properties.setLoginIpMaxAttempts(100);
+
+            TestableAuthRateLimitService service = new TestableAuthRateLimitService(properties);
+
+            // Same address, alternating case of 'I' - without Locale.ROOT this would
+            // land in two different buckets on a Turkish-locale JVM, letting an
+            // attacker dodge the block by flipping the case of one letter.
+            service.recordLoginFailure("MIKE@test.com", "10.0.0.5");
+            service.recordLoginFailure("mike@test.com", "10.0.0.5");
+
+            assertTrue(service.checkLogin("Mike@test.com", "10.0.0.5").blocked());
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     void passwordReset_ShouldBeBlockedByIpAfterConfiguredFailures() {
         AuthRateLimitProperties properties = new AuthRateLimitProperties();
         properties.setEnabled(true);

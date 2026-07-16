@@ -15,12 +15,12 @@ class GoogleLoginErrorMessageFormatter {
         normalized.contains('developer_error')) {
       return 'Google login configuration issue detected. '
           'Play test builds usually fail like this when the app signing SHA is not registered yet. '
-          'You can use email login for now.';
+          'Please install the latest Play build or contact support if it continues.';
     }
 
     if (normalized.contains('12500')) {
       return 'Google login is temporarily unavailable on this build. '
-          'Please try again later or use email login.';
+          'Please try again later or update to the latest Play build.';
     }
 
     if (normalized.contains('12501') ||
@@ -37,6 +37,6 @@ class GoogleLoginErrorMessageFormatter {
           'Check your connection and try again.';
     }
 
-    return 'Google sign-in failed. Please try again or use email login.';
+    return 'Google sign-in failed. Please try again.';
   }
 }

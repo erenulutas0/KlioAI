@@ -258,12 +258,12 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: const Color(0xFF22D3EE).withOpacity(0.3),
+              color: const Color(0xFF22D3EE).withValues(alpha: 0.3),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF06B6D4).withOpacity(0.2),
+                color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
                 blurRadius: 24,
                 spreadRadius: 4,
               ),
@@ -365,7 +365,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
               children: [
                 Text(
                   _text('Konusmaci Sec', 'Choose Speaker'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -376,7 +376,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                   _text('En sevdigin ses tonunu sec',
                       'Choose your preferred voice'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 14,
                   ),
                 ),
@@ -388,7 +388,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.close, color: Colors.white70, size: 20),
@@ -421,7 +421,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
             boxShadow: [
               if (isSelected)
                 BoxShadow(
-                  color: const Color(0xFF06B6D4).withOpacity(0.5),
+                  color: const Color(0xFF06B6D4).withValues(alpha: 0.5),
                   blurRadius: 16,
                   spreadRadius: 2,
                 ),
@@ -478,8 +478,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.9),
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.black.withValues(alpha: 0.9),
                         ],
                         stops: const [0.3, 0.6, 1.0],
                       ),
@@ -536,10 +536,12 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF06B6D4).withOpacity(0.3),
+                              color: const Color(0xFF06B6D4)
+                                  .withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF22D3EE).withOpacity(0.5),
+                                color: const Color(0xFF22D3EE)
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                             child: Row(
@@ -571,10 +573,12 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withOpacity(0.3),
+                              color: const Color(0xFF2563EB)
+                                  .withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF3B82F6).withOpacity(0.5),
+                                color: const Color(0xFF3B82F6)
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(
@@ -626,7 +630,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                                   color: (_isPlaying && _currentPage == index
                                           ? const Color(0xFFEF4444)
                                           : const Color(0xFF06B6D4))
-                                      .withOpacity(0.4),
+                                      .withValues(alpha: 0.4),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -685,7 +689,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF06B6D4).withOpacity(0.4),
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.4),
               blurRadius: 8,
             ),
           ],
@@ -708,7 +712,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
           decoration: BoxDecoration(
             color: isActive
                 ? const Color(0xFF22D3EE)
-                : Colors.white.withOpacity(0.3),
+                : Colors.white.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(4),
           ),
         );
@@ -729,7 +733,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                 _text('${_selectedVoice!.name} ile devam etmek istiyor musun?',
                     'Do you want to continue with ${_selectedVoice!.name}?'),
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
@@ -746,16 +750,16 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Center(
                       child: Text(
                         _text('Iptal', 'Cancel'),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -785,7 +789,8 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF06B6D4).withOpacity(0.4),
+                            color:
+                                const Color(0xFF06B6D4).withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -794,7 +799,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                       child: Center(
                         child: Text(
                           _text('Kaydet', 'Save'),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

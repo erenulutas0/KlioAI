@@ -10,6 +10,7 @@ import com.ingilizce.calismaapp.security.UserHeaderConsistencyFilter;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
+import com.ingilizce.calismaapp.service.PushNotificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -63,6 +64,9 @@ class AdminControllerTest {
 
     @MockBean
     private AiProviderMetricsService aiProviderMetricsService;
+
+    @MockBean
+    private PushNotificationService pushNotificationService;
 
     @Test
     void resetData_ShouldDeleteRepositoriesAndReturnSuccessMessage() throws Exception {
@@ -184,6 +188,8 @@ class AdminControllerTest {
                         5000,
                         30000,
                         60000,
+                        10000,
+                        20000,
                         0.10,
                         2,
                         3,
@@ -246,5 +252,54 @@ class AdminControllerTest {
 
         verify(aiTokenQuotaService).getUsageStats();
         verify(aiProviderMetricsService).snapshot();
+    }
+
+    @Test
+    void sendTestPush_ShouldSendToTargetUser() throws Exception {
+        when(pushNotificationService.sendToUser(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq("KlioAI"),
+                org.mockito.ArgumentMatchers.eq("Ping"),
+                org.mockito.ArgumentMatchers.anyMap()))
+                .thenReturn(java.util.Map.of(
+                        "attempted", true,
+                        "target", 1,
+                        "sent", 1,
+                        "failed", 0));
+
+        mockMvc.perform(post("/api/admin/push/test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":7,\"body\":\"Ping\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.userId").value(7))
+                .andExpect(jsonPath("$.sent").value(1));
+    }
+
+    @Test
+    void sendTestPush_ShouldRejectMissingUserId() throws Exception {
+        mockMvc.perform(post("/api/admin/push/test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void pushStatus_ShouldReturnProviderStatus() throws Exception {
+        when(pushNotificationService.getPushStatus())
+                .thenReturn(java.util.Map.of(
+                        "enabled", true,
+                        "serviceAccountFileConfigured", true,
+                        "initializationAttempted", true,
+                        "initialized", false,
+                        "reason", "initialization-failed"));
+
+        mockMvc.perform(get("/api/admin/push/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.serviceAccountFileConfigured").value(true))
+                .andExpect(jsonPath("$.reason").value("initialization-failed"));
     }
 }

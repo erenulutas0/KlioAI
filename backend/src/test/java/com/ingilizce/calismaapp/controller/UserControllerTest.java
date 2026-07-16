@@ -194,12 +194,14 @@ class UserControllerTest {
         @DisplayName("Should return active subscription status")
         void testGetSubscriptionStatusActive() throws Exception {
             userOne.setSubscriptionEndDate(LocalDateTime.now().plusDays(7));
+            userOne.setAiPlanCode("PREMIUM");
             Mockito.when(userService.getUserById(1L)).thenReturn(Optional.of(userOne));
 
             mockMvc.perform(get("/api/users/1/subscription/status"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.userId").value(1))
                     .andExpect(jsonPath("$.isActive").value(true))
+                    .andExpect(jsonPath("$.aiPlanCode").value("PREMIUM"))
                     .andExpect(jsonPath("$.endDate").exists());
         }
 

@@ -13,7 +13,7 @@ public class TrialAbuseProtectionProperties {
     private long redisFailureBlockSeconds = 60;
     private long windowHours = 24;
     private int maxTrialAccountsPerDevice = 2;
-    private int maxTrialAccountsPerIp = 3;
+    private int maxTrialAccountsPerIp = 4;
 
     public boolean isEnabled() {
         return enabled;

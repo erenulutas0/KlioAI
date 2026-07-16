@@ -1,5 +1,5 @@
 param(
-    [double]$Threshold = 30.0,
+    [double]$Threshold = 32.5,
     [string]$LcovPath
 )
 

@@ -3,6 +3,7 @@ package com.ingilizce.calismaapp.controller;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
+import com.ingilizce.calismaapp.service.PushNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +49,9 @@ public class AdminController {
 
     @Autowired(required = false)
     private AiProviderMetricsService aiProviderMetricsService;
+
+    @Autowired(required = false)
+    private PushNotificationService pushNotificationService;
 
     @PostMapping("/reset-data")
     public String resetData() {
@@ -170,6 +174,8 @@ public class AdminController {
         quotas.put("trialDailyTokenQuotaPerUser", stats.trialDailyTokenQuotaPerUser());
         quotas.put("premiumDailyTokenQuotaPerUser", stats.premiumDailyTokenQuotaPerUser());
         quotas.put("premiumPlusDailyTokenQuotaPerUser", stats.premiumPlusDailyTokenQuotaPerUser());
+        quotas.put("nonPaidAggregateDailyTokenQuotaPerDevice", stats.nonPaidAggregateDailyTokenQuotaPerDevice());
+        quotas.put("nonPaidAggregateDailyTokenQuotaPerIp", stats.nonPaidAggregateDailyTokenQuotaPerIp());
 
         Map<String, Object> memory = new HashMap<>();
         memory.put("globalSubjects", stats.memoryGlobalSubjects());
@@ -211,6 +217,49 @@ public class AdminController {
         return ResponseEntity.ok(body);
     }
 
+    @PostMapping("/push/test")
+    public ResponseEntity<Map<String, Object>> sendTestPush(@RequestBody Map<String, Object> payload) {
+        ResponseEntity<Map<String, Object>> authz = requireAdmin();
+        if (authz != null) return authz;
+        if (pushNotificationService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("success", false, "error", "Push notification service unavailable"));
+        }
+
+        Long userId = toNullableLong(payload.get("userId"));
+        if (userId == null || userId <= 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", "userId is required"));
+        }
+
+        String title = clean(payload.get("title"), 80, "KlioAI");
+        String body = clean(payload.get("body"), 180, "This is a KlioAI test notification.");
+        String route = clean(payload.get("route"), 64, "notifications");
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "admin_test");
+        data.put("route", route);
+
+        Map<String, Object> result = pushNotificationService.sendToUser(userId, title, body, data);
+        Map<String, Object> response = new HashMap<>(result);
+        response.put("success", true);
+        response.put("userId", userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/push/status")
+    public ResponseEntity<Map<String, Object>> pushStatus() {
+        ResponseEntity<Map<String, Object>> authz = requireAdmin();
+        if (authz != null) return authz;
+        if (pushNotificationService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("success", false, "error", "Push notification service unavailable"));
+        }
+
+        Map<String, Object> response = new HashMap<>(pushNotificationService.getPushStatus());
+        response.put("success", true);
+        return ResponseEntity.ok(response);
+    }
+
     private ResponseEntity<Map<String, Object>> requireAdminRateLimitService() {
         ResponseEntity<Map<String, Object>> authz = requireAdmin();
         if (authz != null) return authz;
@@ -241,5 +290,16 @@ public class AdminController {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private String clean(Object value, int maxLength, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String trimmed = value.toString().trim();
+        if (trimmed.isEmpty()) {
+            return fallback;
+        }
+        return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
     }
 }

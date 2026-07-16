@@ -415,7 +415,13 @@ public class AuthRateLimitService {
         if (value == null) {
             return "unknown";
         }
-        String normalized = value.trim().toLowerCase();
+        // Locale.ROOT is required here: on a JVM whose default locale is Turkish,
+        // toLowerCase() maps 'I' -> 'ı' (dotless) but 'i' stays 'i', so the same
+        // email/IP normalizes to a different rate-limit bucket depending on the
+        // case of any 'I'/'i' it contains - letting an attacker bypass
+        // login/registration/password-reset brute-force throttling simply by
+        // alternating the case of one letter between attempts.
+        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
         return normalized.isEmpty() ? "unknown" : normalized;
     }
 }

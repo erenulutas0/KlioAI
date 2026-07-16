@@ -10,7 +10,8 @@ class MatchmakingBanner extends StatefulWidget {
   State<MatchmakingBanner> createState() => _MatchmakingBannerState();
 }
 
-class _MatchmakingBannerState extends State<MatchmakingBanner> with SingleTickerProviderStateMixin {
+class _MatchmakingBannerState extends State<MatchmakingBanner>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -50,10 +51,11 @@ class _MatchmakingBannerState extends State<MatchmakingBanner> with SingleTicker
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.wifi_tethering, color: Colors.white, size: 24),
+                  child: const Icon(Icons.wifi_tethering,
+                      color: Colors.white, size: 24),
                 ),
               ),
               const SizedBox(width: 16),
@@ -83,4 +85,3 @@ class _MatchmakingBannerState extends State<MatchmakingBanner> with SingleTicker
     );
   }
 }
-

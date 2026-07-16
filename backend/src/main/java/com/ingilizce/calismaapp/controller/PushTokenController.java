@@ -4,7 +4,9 @@ import com.ingilizce.calismaapp.service.DevicePushTokenService;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +28,27 @@ public class PushTokenController {
             @RequestBody Map<String, String> payload) {
         try {
             return ResponseEntity.ok(devicePushTokenService.registerToken(userId, payload));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/preferences")
+    public ResponseEntity<Map<String, Object>> getPreferences(
+            @RequestHeader("X-User-Id") Long userId) {
+        try {
+            return ResponseEntity.ok(devicePushTokenService.getPreferences(userId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/preferences")
+    public ResponseEntity<Map<String, Object>> updatePreferences(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.ok(devicePushTokenService.updatePreferences(userId, payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }

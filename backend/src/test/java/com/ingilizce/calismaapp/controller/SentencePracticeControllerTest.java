@@ -6,6 +6,8 @@ import com.ingilizce.calismaapp.entity.SentencePractice;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.service.SentencePracticeService;
 import com.ingilizce.calismaapp.repository.SentenceRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -40,6 +43,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.driver-class-name=org.h2.Driver"
 })
 public class SentencePracticeControllerTest {
+
+    private Locale originalDefaultLocale;
+
+    @BeforeEach
+    void captureDefaultLocale() {
+        originalDefaultLocale = Locale.getDefault();
+    }
+
+    @AfterEach
+    void restoreDefaultLocale() {
+        Locale.setDefault(originalDefaultLocale);
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -268,6 +283,27 @@ public class SentencePracticeControllerTest {
                 .thenReturn(List.of(sp));
 
         mockMvc.perform(get("/api/sentences/difficulty/hard")
+                .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void testGetSentencesByDifficulty_MediumSucceeds_OnTurkishLocaleJvm() throws Exception {
+        // Regression test: on a JVM whose default locale is Turkish,
+        // "medium".toUpperCase() (without Locale.ROOT) used to produce "MEDİUM"
+        // (dotted capital I), which never matched DifficultyLevel.MEDIUM and
+        // caused this endpoint to always return 400 for medium-difficulty
+        // lookups. CI runners default to en_US, so this bug was invisible there.
+        Locale.setDefault(new Locale("tr", "TR"));
+
+        SentencePractice sp = new SentencePractice();
+        sp.setId(4L);
+        sp.setDifficulty(SentencePractice.DifficultyLevel.MEDIUM);
+        when(sentencePracticeService.getSentencesByDifficulty(1L, SentencePractice.DifficultyLevel.MEDIUM))
+                .thenReturn(List.of(sp));
+
+        mockMvc.perform(get("/api/sentences/difficulty/medium")
                 .header("X-User-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));

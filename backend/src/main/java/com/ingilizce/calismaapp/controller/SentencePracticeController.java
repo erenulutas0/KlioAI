@@ -50,6 +50,8 @@ public class SentencePracticeController {
             sentenceMap.put("id", "practice_" + sp.getId());
             sentenceMap.put("englishSentence", sp.getEnglishSentence());
             sentenceMap.put("turkishTranslation", sp.getTurkishTranslation());
+            sentenceMap.put("sourceTranslation", sp.getTurkishTranslation());
+            sentenceMap.put("sourceFullTranslation", sp.getTurkishTranslation());
             sentenceMap.put("difficulty", sp.getDifficulty());
             sentenceMap.put("createdDate", sp.getCreatedDate());
             sentenceMap.put("source", "practice");
@@ -66,6 +68,8 @@ public class SentencePracticeController {
             sentenceMap.put("id", "word_" + s.getId());
             sentenceMap.put("englishSentence", s.getSentence());
             sentenceMap.put("turkishTranslation", s.getTranslation());
+            sentenceMap.put("sourceTranslation", s.getTranslation());
+            sentenceMap.put("sourceFullTranslation", s.getTranslation());
             String difficulty = s.getDifficulty();
             if (difficulty == null || difficulty.trim().isEmpty()) {
                 difficulty = "easy";
@@ -79,6 +83,7 @@ public class SentencePracticeController {
             if (s.getWord() != null) {
                 sentenceMap.put("word", s.getWord().getEnglishWord());
                 sentenceMap.put("wordTranslation", s.getWord().getTurkishMeaning());
+                sentenceMap.put("sourceWordTranslation", s.getWord().getTurkishMeaning());
             }
             allSentences.add(sentenceMap);
         }
@@ -166,7 +171,7 @@ public class SentencePracticeController {
             @RequestHeader("X-User-Id") Long userId) {
         try {
             SentencePractice.DifficultyLevel difficultyLevel = SentencePractice.DifficultyLevel
-                    .valueOf(difficulty.toUpperCase());
+                    .valueOf(difficulty.toUpperCase(java.util.Locale.ROOT));
             List<SentencePractice> sentences = sentencePracticeService.getSentencesByDifficulty(userId,
                     difficultyLevel);
             return ResponseEntity.ok(sentences);
