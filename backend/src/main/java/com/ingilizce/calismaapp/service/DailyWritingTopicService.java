@@ -70,7 +70,7 @@ public class DailyWritingTopicService {
 
     private String generatePayload(LocalDate date, String level, String contentType) {
         String wordCount = DailyLevelSupport.writingWordCountForLevel(level);
-        AiProxyService.AiJsonResult generated = aiProxyService.generateWritingTopic(level, wordCount);
+        AiProxyService.AiJsonResult generated = aiProxyService.generateWritingTopic(level, wordCount, date.getDayOfYear());
 
         Map<String, Object> payload = new LinkedHashMap<>();
         if (generated != null && generated.json() != null) {

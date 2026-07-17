@@ -36,11 +36,16 @@ class AuthService {
   Map<String, dynamic>? _cachedUser;
   String? _cachedToken;
   String? _cachedRefreshToken;
+  static Future<bool>? _refreshInFlight;
   bool _hasLoggedUserIdResolution = false;
   bool _hasLoggedUserIdFailure = false;
+  static const bool _authDebugLogsEnabled = bool.fromEnvironment(
+    'AUTH_DEBUG_LOGS',
+    defaultValue: false,
+  );
 
   void _debugLog(String message) {
-    if (!kDebugMode) return;
+    if (!kDebugMode || !_authDebugLogsEnabled) return;
     debugPrint('[AUTH_DEBUG] $message');
   }
 
@@ -632,8 +637,25 @@ class AuthService {
     return merged;
   }
 
-  /// Kullanıcı ID'sini al
+  /// Refresh access token. Concurrent callers share the same in-flight request.
   Future<bool> refreshSession() async {
+    final current = _refreshInFlight;
+    if (current != null) {
+      return current;
+    }
+
+    final refreshFuture = _refreshSessionOnce();
+    _refreshInFlight = refreshFuture;
+    try {
+      return await refreshFuture;
+    } finally {
+      if (identical(_refreshInFlight, refreshFuture)) {
+        _refreshInFlight = null;
+      }
+    }
+  }
+
+  Future<bool> _refreshSessionOnce() async {
     final refreshToken = await getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
       return false;

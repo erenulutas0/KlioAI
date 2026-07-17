@@ -27,6 +27,20 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
             JOIN FETCH pt.user
             JOIN FETCH pt.plan
             WHERE pt.provider = :provider
+              AND pt.transactionId IN :transactionIds
+            ORDER BY pt.id DESC
+            """)
+    List<PaymentTransaction> findLatestByProviderAndTransactionIdsWithUserAndPlan(
+            @Param("provider") String provider,
+            @Param("transactionIds") List<String> transactionIds,
+            Pageable pageable);
+
+    @Query("""
+            SELECT pt
+            FROM PaymentTransaction pt
+            JOIN FETCH pt.user
+            JOIN FETCH pt.plan
+            WHERE pt.provider = :provider
               AND pt.id IN (
                   SELECT MAX(pt2.id)
                   FROM PaymentTransaction pt2

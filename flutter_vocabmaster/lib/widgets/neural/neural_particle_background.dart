@@ -82,11 +82,11 @@ class _NeuralParticleBackgroundState extends State<NeuralParticleBackground>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: selectedTheme.colors.particleColor
-                            .withOpacity(0.18 + progress * 0.25),
+                            .withValues(alpha: 0.18 + progress * 0.25),
                         boxShadow: [
                           BoxShadow(
                             color: selectedTheme.colors.particleGlow
-                                .withOpacity(0.20),
+                                .withValues(alpha: 0.20),
                             blurRadius: 8,
                             spreadRadius: 1,
                           ),

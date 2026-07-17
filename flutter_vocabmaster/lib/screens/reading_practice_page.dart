@@ -96,8 +96,8 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
   }
 
   Future<void> _loadSavedProgress() async {
-    final completed =
-        await _progressService.isCompleted(type: 'reading', level: widget.level);
+    final completed = await _progressService.isCompleted(
+        type: 'reading', level: widget.level);
     if (!mounted) {
       return;
     }
@@ -288,13 +288,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF0ea5e9).withOpacity(0.2),
-                  const Color(0xFF3b82f6).withOpacity(0.2)
+                  const Color(0xFF0ea5e9).withValues(alpha: 0.2),
+                  const Color(0xFF3b82f6).withValues(alpha: 0.2)
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.3)),
+              border: Border.all(
+                  color: const Color(0xFF0ea5e9).withValues(alpha: 0.3)),
             ),
             child: Column(
               children: [
@@ -318,9 +318,9 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
             child: Text(
               _passage,
@@ -350,8 +350,8 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _score == _questions.length
-                        ? const Color(0xFF10b981).withOpacity(0.2)
-                        : const Color(0xFFf59e0b).withOpacity(0.2),
+                        ? const Color(0xFF10b981).withValues(alpha: 0.2)
+                        : const Color(0xFFf59e0b).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -374,10 +374,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF10b981).withOpacity(0.12),
+                color: const Color(0xFF10b981).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: const Color(0xFF10b981).withOpacity(0.35)),
+                border: Border.all(
+                    color: const Color(0xFF10b981).withValues(alpha: 0.35)),
               ),
               child: Row(
                 children: [
@@ -426,7 +426,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
-                  disabledBackgroundColor: Colors.white.withOpacity(0.1),
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.1),
                 ),
                 child: Text(
                   _selectedAnswers.length == _questions.length
@@ -485,7 +485,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 style: TextStyle(color: Colors.white70),
               ),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
@@ -505,13 +505,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isChecked == null
-              ? Colors.white.withOpacity(0.1)
+              ? Colors.white.withValues(alpha: 0.1)
               : (isChecked ? const Color(0xFF10b981) : const Color(0xFFef4444))
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -525,7 +525,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8b5cf6).withOpacity(0.2),
+                  color: const Color(0xFF8b5cf6).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -559,20 +559,20 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             final isSelected = selectedAnswer == optionLabel;
             final isCorrectOption = question.correctAnswer == optionLabel;
 
-            Color borderColor = Colors.white.withOpacity(0.1);
+            Color borderColor = Colors.white.withValues(alpha: 0.1);
             Color bgColor = Colors.transparent;
 
             if (_showResults) {
               if (isCorrectOption) {
                 borderColor = const Color(0xFF10b981);
-                bgColor = const Color(0xFF10b981).withOpacity(0.1);
+                bgColor = const Color(0xFF10b981).withValues(alpha: 0.1);
               } else if (isSelected && !isCorrectOption) {
                 borderColor = const Color(0xFFef4444);
-                bgColor = const Color(0xFFef4444).withOpacity(0.1);
+                bgColor = const Color(0xFFef4444).withValues(alpha: 0.1);
               }
             } else if (isSelected) {
               borderColor = const Color(0xFF0ea5e9);
-              bgColor = const Color(0xFF0ea5e9).withOpacity(0.1);
+              bgColor = const Color(0xFF0ea5e9).withValues(alpha: 0.1);
             }
 
             return GestureDetector(
@@ -593,7 +593,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFF0ea5e9)
-                            : Colors.white.withOpacity(0.1),
+                            : Colors.white.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
@@ -632,10 +632,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF8b5cf6).withOpacity(0.1),
+                color: const Color(0xFF8b5cf6).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: const Color(0xFF8b5cf6).withOpacity(0.3)),
+                border: Border.all(
+                    color: const Color(0xFF8b5cf6).withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,4 +693,3 @@ class Question {
     required this.correctAnswerQuote,
   });
 }
-

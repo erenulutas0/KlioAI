@@ -19,7 +19,7 @@ class SupportTicketsPage extends StatefulWidget {
       barrierLabel: Localizations.localeOf(context).languageCode == 'tr'
           ? 'Destek'
           : 'Support',
-      barrierColor: Colors.black.withOpacity(0.28),
+      barrierColor: Colors.black.withValues(alpha: 0.28),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, animation, secondaryAnimation) {
         final size = MediaQuery.sizeOf(context);
@@ -122,11 +122,11 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
           builder: (context, setModalState) {
             return AlertDialog(
               backgroundColor:
-                  selectedTheme.colors.background.withOpacity(0.96),
+                  selectedTheme.colors.background.withValues(alpha: 0.96),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
                 side: BorderSide(
-                  color: selectedTheme.colors.accent.withOpacity(0.36),
+                  color: selectedTheme.colors.accent.withValues(alpha: 0.36),
                 ),
               ),
               title: Text(
@@ -138,7 +138,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: type,
+                      initialValue: type,
                       dropdownColor: selectedTheme.colors.background,
                       decoration: InputDecoration(
                         labelText: _text('Tur', 'Type'),
@@ -333,7 +333,8 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: selectedTheme.colors.accent,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.white.withOpacity(0.10),
+                        disabledBackgroundColor:
+                            Colors.white.withValues(alpha: 0.10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -352,11 +353,12 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color:
-                        selectedTheme.colors.cardBackground.withOpacity(0.58),
+                    color: selectedTheme.colors.cardBackground
+                        .withValues(alpha: 0.58),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: selectedTheme.colors.glassBorder.withOpacity(0.72),
+                      color: selectedTheme.colors.glassBorder
+                          .withValues(alpha: 0.72),
                     ),
                   ),
                   child: Column(
@@ -407,11 +409,11 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: selectedTheme.colors.cardBackground
-                                      .withOpacity(0.58),
+                                      .withValues(alpha: 0.58),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: selectedTheme.colors.glassBorder
-                                        .withOpacity(0.72),
+                                        .withValues(alpha: 0.72),
                                   ),
                                 ),
                                 child: Column(
@@ -426,7 +428,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: selectedTheme.colors.accent
-                                                .withOpacity(0.16),
+                                                .withValues(alpha: 0.16),
                                             borderRadius:
                                                 BorderRadius.circular(999),
                                           ),
@@ -486,10 +488,10 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
         borderRadius: BorderRadius.circular(8),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: selectedTheme.colors.background.withOpacity(0.92),
+            color: selectedTheme.colors.background.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: selectedTheme.colors.accent.withOpacity(0.34),
+              color: selectedTheme.colors.accent.withValues(alpha: 0.34),
             ),
           ),
           child: content,

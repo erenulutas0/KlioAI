@@ -108,7 +108,10 @@ public class WordController {
     public ResponseEntity<Word> addSentence(@PathVariable Long wordId, @RequestBody Map<String, String> request,
             @RequestHeader("X-User-Id") Long userId) {
         String sentence = request.get("sentence");
-        String translation = request.get("translation");
+        String translation = firstNonBlank(
+                request.get("sourceTranslation"),
+                request.get("translation"),
+                request.get("turkishTranslation"));
         String difficulty = request.get("difficulty");
 
         Word updatedWord = wordService.addSentence(wordId, sentence, translation, difficulty, userId);
@@ -126,5 +129,17 @@ public class WordController {
             return ResponseEntity.ok(updatedWord);
         }
         return ResponseEntity.notFound().build();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

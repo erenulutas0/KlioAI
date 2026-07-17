@@ -1,11 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../screens/notifications_page.dart';
+import '../screens/practice_page.dart';
+import '../widgets/theme_side_tab.dart';
 import 'analytics_service.dart';
 
 class LocalReminderService {
@@ -13,9 +16,11 @@ class LocalReminderService {
   static const String lastOpenedPayloadKey =
       'notifications:last_opened_payload';
   static const String lastOpenedAtKey = 'notifications:last_opened_at';
+  static const Duration _pendingRouteMaxAge = Duration(minutes: 5);
   static const int _dailyReminderId = 31001;
   static const int _streakGuardReminderId = 31002;
   static const int _trialExpiryReminderId = 31003;
+  static const int _remoteNotificationBaseId = 32000;
   static const int _dailyReminderHour = 20;
   static const int _dailyReminderMinute = 0;
   static const int _streakGuardHour = 20;
@@ -58,7 +63,7 @@ class LocalReminderService {
         settings,
         onDidReceiveNotificationResponse: (response) {
           unawaited(
-            _handleNotificationOpened(
+            handleNotificationOpened(
               source: 'tap',
               payload: response.payload,
             ),
@@ -75,7 +80,10 @@ class LocalReminderService {
 
   Future<bool> isDailyReminderEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(dailyReminderKey) ?? false;
+    // Varsayılan AÇIK (opt-out): hatırlatıcılar retention'ın temel direği ve
+    // gerçek kapı zaten OS bildirim izni (Android 13+ istemi). Kullanıcının
+    // ayarlardan verdiği açık "kapat" kararı (stored false) her zaman korunur.
+    return prefs.getBool(dailyReminderKey) ?? true;
   }
 
   Future<bool> setDailyReminderEnabled(bool enabled) async {
@@ -103,6 +111,31 @@ class LocalReminderService {
       enabled: enabled,
     );
     return enabled;
+  }
+
+  Future<bool> requestNotificationPermission() {
+    return _requestNotificationPermission();
+  }
+
+  Future<void> showRemoteNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await initialize();
+    if (title.trim().isEmpty && body.trim().isEmpty) {
+      return;
+    }
+
+    final id = _remoteNotificationBaseId +
+        DateTime.now().millisecondsSinceEpoch.remainder(1000);
+    await _notifications.show(
+      id,
+      title.trim().isEmpty ? 'KlioAI' : title.trim(),
+      body.trim().isEmpty ? null : body.trim(),
+      _notificationDetails(),
+      payload: payload,
+    );
   }
 
   Future<void> refreshScheduledReminders() async {
@@ -205,14 +238,14 @@ class LocalReminderService {
         await _notifications.getNotificationAppLaunchDetails();
     final response = launchDetails?.notificationResponse;
     if (launchDetails?.didNotificationLaunchApp == true) {
-      await _handleNotificationOpened(
+      await handleNotificationOpened(
         source: 'launch',
         payload: response?.payload,
       );
     }
   }
 
-  static Future<void> _handleNotificationOpened({
+  static Future<void> handleNotificationOpened({
     required String source,
     String? payload,
   }) async {
@@ -228,8 +261,52 @@ class LocalReminderService {
         lastOpenedAtKey,
         DateTime.now().toIso8601String(),
       );
+      _navigateForPayload(payload);
     } catch (e) {
       debugPrint('Notification open tracking skipped: $e');
+    }
+  }
+
+  static Future<String?> consumePendingNavigationPayload() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = prefs.getString(lastOpenedPayloadKey)?.trim();
+    final openedAtRaw = prefs.getString(lastOpenedAtKey);
+
+    await prefs.remove(lastOpenedPayloadKey);
+    await prefs.remove(lastOpenedAtKey);
+
+    if (payload == null || payload.isEmpty) {
+      return null;
+    }
+
+    final openedAt = DateTime.tryParse(openedAtRaw ?? '');
+    if (openedAt == null ||
+        DateTime.now().difference(openedAt).abs() > _pendingRouteMaxAge) {
+      return null;
+    }
+
+    return payload;
+  }
+
+  static void _navigateForPayload(String? payload) {
+    final route = (payload ?? '').trim().toLowerCase();
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null || route.isEmpty) {
+      return;
+    }
+
+    if (route == 'notifications' || route == 'admin_test') {
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => const NotificationsPage(openedFromPush: true),
+        ),
+      );
+      return;
+    }
+    if (route == 'daily_practice' || route == 'streak_guard') {
+      navigator.push(
+        MaterialPageRoute(builder: (_) => const PracticePage()),
+      );
     }
   }
 

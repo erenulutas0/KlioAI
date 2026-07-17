@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/writing_practice_models.dart';
+import '../providers/app_state_provider.dart';
 import '../services/groq_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
 import '../services/ai_paywall_handler.dart';
 import '../services/daily_practice_progress_service.dart';
+import '../services/xp_manager.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/animated_background.dart';
@@ -274,10 +277,10 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF22C55E).withOpacity(0.12),
+                color: const Color(0xFF22C55E).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFF22C55E).withOpacity(0.35),
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.35),
                 ),
               ),
               child: Text(
@@ -740,6 +743,23 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         topic: _topic?.topic ?? '',
         score: evaluation.score,
       );
+      if (mounted) {
+        final appState = context.read<AppStateProvider>();
+        final txBase =
+            'writing_${_selectedLevel}_${(_topic?.topic ?? '').hashCode}_${_userText.hashCode}';
+        await appState.addXPForAction(
+          XPActionTypes.writingComplete,
+          source: 'Yazma Pratiği',
+          transactionId: '$txBase:complete',
+        );
+        if (evaluation.score >= 90) {
+          await appState.addXPForAction(
+            XPActionTypes.writingPerfect,
+            source: 'Mükemmel Yazım',
+            transactionId: '$txBase:perfect',
+          );
+        }
+      }
       await _loadCompletionMap();
       if (mounted) {
         setState(() {
@@ -1120,9 +1140,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
         borderRadius: BorderRadius.circular(12),
@@ -1133,7 +1153,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           Text(
             title,
             style: TextStyle(
-              color: color.withOpacity(0.9),
+              color: color.withValues(alpha: 0.9),
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),

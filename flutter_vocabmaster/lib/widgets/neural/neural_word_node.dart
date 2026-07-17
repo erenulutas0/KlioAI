@@ -68,17 +68,17 @@ class _NeuralWordNodeState extends State<NeuralWordNode>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                selectedTheme.colors.primary.withOpacity(0.35),
-                selectedTheme.colors.accent.withOpacity(0.30),
+                selectedTheme.colors.primary.withValues(alpha: 0.35),
+                selectedTheme.colors.accent.withValues(alpha: 0.30),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selectedTheme.colors.accent.withOpacity(0.45),
+              color: selectedTheme.colors.accent.withValues(alpha: 0.45),
             ),
             boxShadow: [
               BoxShadow(
-                color: selectedTheme.colors.accentGlow.withOpacity(0.28),
+                color: selectedTheme.colors.accentGlow.withValues(alpha: 0.28),
                 blurRadius: 16,
                 spreadRadius: 1,
               ),

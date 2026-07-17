@@ -115,8 +115,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
     if (validSentences.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(_text(
-                'Lutfen en az bir cumle ve cevirisini girin.',
+            content: Text(_text('Lutfen en az bir cumle ve cevirisini girin.',
                 'Please enter at least one sentence and its translation.'))),
       );
       return;
@@ -142,11 +141,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
         widget.onSentencesAdded();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  _text(
-                    '${validSentences.length} cumle basariyla eklendi! (+${validSentences.length * 5} XP)',
-                    '${validSentences.length} sentence(s) added successfully! (+${validSentences.length * 5} XP)',
-                  )),
+              content: Text(_text(
+                '${validSentences.length} cumle basariyla eklendi! (+${validSentences.length * 5} XP)',
+                '${validSentences.length} sentence(s) added successfully! (+${validSentences.length * 5} XP)',
+              )),
               backgroundColor: Colors.green),
         );
       }
@@ -154,7 +152,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('${_text('Hata olustu', 'An error occurred')}: $e'), backgroundColor: Colors.red),
+              content: Text('${_text('Hata olustu', 'An error occurred')}: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -189,7 +188,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
           topRight: Radius.circular(24),
         ),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.66),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.66),
           width: 1,
         ),
       ),
@@ -261,9 +260,9 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                             colors: [
                               i % 2 == 0
                                   ? selectedTheme.colors.orbColor1
-                                      .withOpacity(0.45)
+                                      .withValues(alpha: 0.45)
                                   : selectedTheme.colors.orbColor2
-                                      .withOpacity(0.45),
+                                      .withValues(alpha: 0.45),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.7],
@@ -303,7 +302,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                             boxShadow: [
                               BoxShadow(
                                 color: selectedTheme.colors.particleGlow
-                                    .withOpacity(0.5),
+                                    .withValues(alpha: 0.5),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -328,10 +327,10 @@ class _AddSentenceModalState extends State<AddSentenceModal>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         border: Border(
           bottom: BorderSide(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.65),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.65),
             width: 1,
           ),
         ),
@@ -356,8 +355,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            selectedTheme.colors.accentGlow.withOpacity(0.42),
+                        color: selectedTheme.colors.accentGlow
+                            .withValues(alpha: 0.42),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
@@ -378,7 +377,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     children: [
                       Text(
                         _text('Cumle Ekle', 'Add Sentence'),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -442,15 +441,15 @@ class _AddSentenceModalState extends State<AddSentenceModal>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.5),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.5),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: selectedTheme.colors.accentGlow.withOpacity(0.2),
+            color: selectedTheme.colors.accentGlow.withValues(alpha: 0.2),
             blurRadius: 16,
             spreadRadius: 0,
           ),
@@ -486,7 +485,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                             boxShadow: [
                               BoxShadow(
                                 color: selectedTheme.colors.accentGlow
-                                    .withOpacity(0.42),
+                                    .withValues(alpha: 0.42),
                                 blurRadius: 12,
                                 spreadRadius: 2,
                               ),
@@ -506,7 +505,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         const SizedBox(width: 12),
                         Text(
                           _text('Cumle', 'Sentence'),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -568,7 +567,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: selectedTheme.colors.glassBorder
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                             width: 1,
                           ),
                         ),
@@ -576,7 +575,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: selectedTheme.colors.glassBorder
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                             width: 1,
                           ),
                         ),
@@ -630,7 +629,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: selectedTheme.colors.glassBorder
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                             width: 1,
                           ),
                         ),
@@ -638,7 +637,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: selectedTheme.colors.glassBorder
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                             width: 1,
                           ),
                         ),
@@ -679,8 +678,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         color: const Color(0x1AFFFFFF), // white 10% opacity
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                              selectedTheme.colors.glassBorder.withOpacity(0.6),
+                          color: selectedTheme.colors.glassBorder
+                              .withValues(alpha: 0.6),
                           width: 1,
                         ),
                       ),
@@ -705,7 +704,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                                     BoxShadow(
                                       color: _getDifficultyColor(
                                               sentence.difficulty)
-                                          .withOpacity(0.5),
+                                          .withValues(alpha: 0.5),
                                       blurRadius: 8,
                                       spreadRadius: 2,
                                     ),
@@ -755,7 +754,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       margin: const EdgeInsets.only(bottom: 16),
       child: CustomPaint(
         painter: DashedBorderPainter(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.65),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.65),
           strokeWidth: 2,
           dashWidth: 8,
           dashSpace: 4,
@@ -772,7 +771,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
-                color: selectedTheme.colors.accent.withOpacity(0.14),
+                color: selectedTheme.colors.accent.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -808,13 +807,13 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            selectedTheme.colors.accent.withOpacity(0.16),
-            selectedTheme.colors.primary.withOpacity(0.16),
+            selectedTheme.colors.accent.withValues(alpha: 0.16),
+            selectedTheme.colors.primary.withValues(alpha: 0.16),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.82),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.82),
             width: 2,
           ),
         ),
@@ -833,7 +832,8 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     backgroundColor:
                         const Color(0x0DFFFFFF), // white 5% opacity
                     side: BorderSide(
-                      color: selectedTheme.colors.glassBorder.withOpacity(0.65),
+                      color: selectedTheme.colors.glassBorder
+                          .withValues(alpha: 0.65),
                       width: 1,
                     ),
                     shape: RoundedRectangleBorder(
@@ -842,7 +842,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   ),
                   child: Text(
                     _text('Iptal', 'Cancel'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -872,7 +872,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           boxShadow: [
                             BoxShadow(
                               color: selectedTheme.colors.accentGlow
-                                  .withOpacity(0.55),
+                                  .withValues(alpha: 0.55),
                               blurRadius: 16,
                               spreadRadius: 0,
                             ),
@@ -888,7 +888,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                               child: Center(
                                 child: Text(
                                   _text('Kaydet', 'Save'),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -996,4 +996,3 @@ class DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

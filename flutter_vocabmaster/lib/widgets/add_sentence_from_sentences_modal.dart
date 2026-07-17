@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../constants/sentence_modal_colors.dart';
 import '../services/locale_text_service.dart';
 
-String _modalText(String tr, String en) => LocaleTextService.isTurkish ? tr : en;
+String _modalText(String tr, String en) =>
+    LocaleTextService.isTurkish ? tr : en;
 
 class SentenceItem {
   final int id;
@@ -12,7 +13,7 @@ class SentenceItem {
   String selectedWord;
   String selectedWordTurkish;
   bool addToTodaysWords;
-  
+
   // Controllers
   late final TextEditingController englishController;
   late final TextEditingController turkishController;
@@ -31,9 +32,10 @@ class SentenceItem {
     englishController = TextEditingController(text: english);
     turkishController = TextEditingController(text: turkish);
     selectedWordController = TextEditingController(text: selectedWord);
-    selectedWordTurkishController = TextEditingController(text: selectedWordTurkish);
+    selectedWordTurkishController =
+        TextEditingController(text: selectedWordTurkish);
   }
-  
+
   void dispose() {
     englishController.dispose();
     turkishController.dispose();
@@ -48,10 +50,11 @@ class AddSentenceFromSentencesModal extends StatefulWidget {
   const AddSentenceFromSentencesModal({super.key, required this.onSave});
 
   @override
-  State<AddSentenceFromSentencesModal> createState() => 
+  State<AddSentenceFromSentencesModal> createState() =>
       _AddSentenceFromSentencesModalState();
-      
-  static Future<void> show(BuildContext context, {required Function(List<SentenceItem>) onSave}) {
+
+  static Future<void> show(BuildContext context,
+      {required Function(List<SentenceItem>) onSave}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -61,9 +64,8 @@ class AddSentenceFromSentencesModal extends StatefulWidget {
   }
 }
 
-class _AddSentenceFromSentencesModalState 
-    extends State<AddSentenceFromSentencesModal>
-    with TickerProviderStateMixin {
+class _AddSentenceFromSentencesModalState
+    extends State<AddSentenceFromSentencesModal> with TickerProviderStateMixin {
   List<SentenceItem> sentences = [
     SentenceItem(id: 1),
   ];
@@ -72,7 +74,7 @@ class _AddSentenceFromSentencesModalState
   late AnimationController _orb1Controller;
   late AnimationController _orb2Controller;
   late AnimationController _orb3Controller;
-  
+
   late Animation<double> _modalAnimation;
   late Animation<double> _orb1Animation;
   late Animation<double> _orb2Animation;
@@ -83,7 +85,7 @@ class _AddSentenceFromSentencesModalState
   @override
   void initState() {
     super.initState();
-    
+
     // Modal Animation
     _modalController = AnimationController(
       vsync: this,
@@ -94,31 +96,31 @@ class _AddSentenceFromSentencesModalState
       curve: Curves.easeOutCubic,
     );
     _modalController.forward();
-    
+
     // Orb Animations
     _orb1Controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
-    
+
     _orb2Controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
     )..repeat(reverse: true);
-    
+
     _orb3Controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
     )..repeat(reverse: true);
-    
+
     _orb1Animation = Tween<double>(begin: 0.3, end: 0.5).animate(
       CurvedAnimation(parent: _orb1Controller, curve: Curves.easeInOut),
     );
-    
+
     _orb2Animation = Tween<double>(begin: 0.3, end: 0.5).animate(
       CurvedAnimation(parent: _orb2Controller, curve: Curves.easeInOut),
     );
-    
+
     _orb3Animation = Tween<double>(begin: 0.3, end: 0.5).animate(
       CurvedAnimation(parent: _orb3Controller, curve: Curves.easeInOut),
     );
@@ -139,12 +141,12 @@ class _AddSentenceFromSentencesModalState
 
   void _addSentence() {
     setState(() {
-      final newId = sentences.isNotEmpty 
-          ? sentences.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1 
+      final newId = sentences.isNotEmpty
+          ? sentences.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1
           : 1;
       sentences.add(SentenceItem(id: newId));
     });
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -172,10 +174,14 @@ class _AddSentenceFromSentencesModalState
 
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty) {
-      case 'easy': return SentenceModalColors.difficultyEasy;
-      case 'medium': return SentenceModalColors.difficultyMedium;
-      case 'hard': return SentenceModalColors.difficultyHard;
-      default: return Colors.grey;
+      case 'easy':
+        return SentenceModalColors.difficultyEasy;
+      case 'medium':
+        return SentenceModalColors.difficultyMedium;
+      case 'hard':
+        return SentenceModalColors.difficultyHard;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -195,8 +201,8 @@ class _AddSentenceFromSentencesModalState
       child: Container(
         margin: const EdgeInsets.only(
           top: 48,
-          left: 16, 
-          right: 16, 
+          left: 16,
+          right: 16,
           bottom: 80,
         ),
         child: ClipRRect(
@@ -218,10 +224,10 @@ class _AddSentenceFromSentencesModalState
               children: [
                 // Animated Orbs Background
                 _buildAnimatedOrbs(),
-                
+
                 // Sparkles
                 _buildSparkles(),
-                
+
                 // Content
                 Column(
                   children: [
@@ -275,7 +281,7 @@ class _AddSentenceFromSentencesModalState
                 },
               ),
             ),
-            
+
             // Orb 2
             Positioned(
               right: 0,
@@ -302,7 +308,7 @@ class _AddSentenceFromSentencesModalState
                 },
               ),
             ),
-            
+
             // Orb 3
             Positioned(
               left: 100,
@@ -382,7 +388,8 @@ class _AddSentenceFromSentencesModalState
               ),
               boxShadow: [
                 BoxShadow(
-                  color: SentenceModalColors.gradientStart.withOpacity(0.3),
+                  color:
+                      SentenceModalColors.gradientStart.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -394,9 +401,9 @@ class _AddSentenceFromSentencesModalState
               size: 20,
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Title & Subtitle
           Expanded(
             child: Column(
@@ -404,28 +411,28 @@ class _AddSentenceFromSentencesModalState
               children: [
                 Text(
                   _modalText('Yeni Cumle Ekle', 'Add New Sentence'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: SentenceModalColors.textWhite,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.auto_awesome,
                       color: SentenceModalColors.textCyan,
                       size: 14,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         _modalText(
                           'Kelime secerek veya secmeden cumle ekleyin',
                           'Add a sentence with or without selecting a word',
                         ),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: SentenceModalColors.textCyan,
                           fontSize: 11,
                         ),
@@ -437,7 +444,7 @@ class _AddSentenceFromSentencesModalState
               ],
             ),
           ),
-          
+
           // Close Button
           IconButton(
             onPressed: _close,
@@ -464,7 +471,7 @@ class _AddSentenceFromSentencesModalState
           child: _SentenceCard(
             sentence: sentences[index],
             index: index,
-            onDelete: sentences.length > 1 
+            onDelete: sentences.length > 1
                 ? () => _removeSentence(sentences[index].id)
                 : null,
             onUpdate: (field, value) {
@@ -522,20 +529,20 @@ class _AddSentenceFromSentencesModalState
               strokeAlign: BorderSide.strokeAlignInside,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: SentenceModalColors.orb1Color.withOpacity(0.1),
+            color: SentenceModalColors.orb1Color.withValues(alpha: 0.1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.add,
                 color: SentenceModalColors.textCyan,
                 size: 18,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 _modalText('Yeni Cumle Ekle', 'Add New Sentence'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: SentenceModalColors.textCyan,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -563,8 +570,8 @@ class _AddSentenceFromSentencesModalState
         ),
         gradient: LinearGradient(
           colors: [
-            SentenceModalColors.gradientStart.withOpacity(0.1),
-            SentenceModalColors.gradientEnd.withOpacity(0.1),
+            SentenceModalColors.gradientStart.withValues(alpha: 0.1),
+            SentenceModalColors.gradientEnd.withValues(alpha: 0.1),
           ],
         ),
       ),
@@ -586,7 +593,7 @@ class _AddSentenceFromSentencesModalState
               ),
               child: Text(
                 _modalText('Iptal', 'Cancel'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: SentenceModalColors.textWhite,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -594,9 +601,9 @@ class _AddSentenceFromSentencesModalState
               ),
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Save Button
           Expanded(
             child: _GradientButton(
@@ -606,16 +613,17 @@ class _AddSentenceFromSentencesModalState
                   sentence.english = sentence.englishController.text;
                   sentence.turkish = sentence.turkishController.text;
                   sentence.selectedWord = sentence.selectedWordController.text;
-                  sentence.selectedWordTurkish = sentence.selectedWordTurkishController.text;
+                  sentence.selectedWordTurkish =
+                      sentence.selectedWordTurkishController.text;
                 }
-                
+
                 // Async callback'i bekle
                 await widget.onSave(sentences);
                 if (mounted) Navigator.of(context).pop();
               },
               child: Text(
                 _modalText('Cumle Ekle', 'Add Sentence'),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -653,18 +661,18 @@ class _SentenceCardState extends State<_SentenceCard> {
 
   List<TextSpan> _highlightWord(String sentence, String word) {
     if (word.isEmpty) return [TextSpan(text: sentence)];
-    
+
     final parts = sentence.split(RegExp(word, caseSensitive: false));
     final matches = RegExp(word, caseSensitive: false).allMatches(sentence);
-    
+
     List<TextSpan> spans = [];
     int matchIndex = 0;
-    
+
     for (int i = 0; i < parts.length; i++) {
       if (parts[i].isNotEmpty) {
         spans.add(TextSpan(text: parts[i]));
       }
-      
+
       if (matchIndex < matches.length) {
         spans.add(
           TextSpan(
@@ -678,7 +686,7 @@ class _SentenceCardState extends State<_SentenceCard> {
         matchIndex++;
       }
     }
-    
+
     return spans;
   }
 
@@ -691,13 +699,13 @@ class _SentenceCardState extends State<_SentenceCard> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           border: Border.all(
-            color: _isHovered 
+            color: _isHovered
                 ? SentenceModalColors.borderStrong
                 : SentenceModalColors.borderLight,
             width: 1,
           ),
           borderRadius: BorderRadius.circular(16),
-          color: _isHovered 
+          color: _isHovered
               ? SentenceModalColors.bgOverlay10
               : SentenceModalColors.bgOverlay5,
         ),
@@ -720,7 +728,8 @@ class _SentenceCardState extends State<_SentenceCard> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: SentenceModalColors.gradientStart.withOpacity(0.3),
+                        color: SentenceModalColors.gradientStart
+                            .withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -737,20 +746,16 @@ class _SentenceCardState extends State<_SentenceCard> {
                     ),
                   ),
                 ),
-                
                 const SizedBox(width: 8),
-                
                 Text(
                   _modalText('Cumle', 'Sentence'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: SentenceModalColors.textWhite,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
                 ),
-                
                 const Spacer(),
-                
                 if (widget.onDelete != null)
                   AnimatedOpacity(
                     opacity: _isHovered ? 1.0 : 0.0,
@@ -768,43 +773,47 @@ class _SentenceCardState extends State<_SentenceCard> {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Word Selection (Optional)
             Text(
-              _modalText('Kelime Seçimi (Opsiyonel)', 'Word Selection (Optional)'),
-              style: TextStyle(
+              _modalText(
+                  'Kelime Seçimi (Opsiyonel)', 'Word Selection (Optional)'),
+              style: const TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 6),
-            
+
             Row(
               children: [
                 Expanded(
                   child: _CustomTextField(
                     placeholder: _modalText('Ingilizce kelime', 'English word'),
                     controller: widget.sentence.selectedWordController,
-                    onChanged: (value) => widget.onUpdate('selectedWord', value),
+                    onChanged: (value) =>
+                        widget.onUpdate('selectedWord', value),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _CustomTextField(
-                    placeholder: _modalText('Ceviri / anlam', 'Translation / meaning'),
+                    placeholder:
+                        _modalText('Ceviri / anlam', 'Translation / meaning'),
                     controller: widget.sentence.selectedWordTurkishController,
-                    onChanged: (value) => widget.onUpdate('selectedWordTurkish', value),
+                    onChanged: (value) =>
+                        widget.onUpdate('selectedWordTurkish', value),
                   ),
                 ),
               ],
             ),
-            
+
             // Add to Today's Words Checkbox
-            if (widget.sentence.selectedWord.isNotEmpty && 
+            if (widget.sentence.selectedWord.isNotEmpty &&
                 widget.sentence.selectedWordTurkish.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -819,9 +828,7 @@ class _SentenceCardState extends State<_SentenceCard> {
                   ),
                   child: InkWell(
                     onTap: () => widget.onUpdate(
-                      'addToTodaysWords', 
-                      !widget.sentence.addToTodaysWords
-                    ),
+                        'addToTodaysWords', !widget.sentence.addToTodaysWords),
                     child: Row(
                       children: [
                         SizedBox(
@@ -830,9 +837,7 @@ class _SentenceCardState extends State<_SentenceCard> {
                           child: Checkbox(
                             value: widget.sentence.addToTodaysWords,
                             onChanged: (value) => widget.onUpdate(
-                              'addToTodaysWords', 
-                              value ?? false
-                            ),
+                                'addToTodaysWords', value ?? false),
                             activeColor: SentenceModalColors.checkboxFill,
                             side: const BorderSide(
                               color: SentenceModalColors.checkboxBorder,
@@ -840,16 +845,15 @@ class _SentenceCardState extends State<_SentenceCard> {
                             ),
                           ),
                         ),
-                        
                         const SizedBox(width: 8),
-                        
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _modalText('Bugunun Kelimelerine Ekle', 'Add to Today\'s Words'),
-                                style: TextStyle(
+                                _modalText('Bugunun Kelimelerine Ekle',
+                                    'Add to Today\'s Words'),
+                                style: const TextStyle(
                                   color: SentenceModalColors.textWhite,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -874,29 +878,29 @@ class _SentenceCardState extends State<_SentenceCard> {
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 8),
-            
+
             // English Sentence
             Text(
               _modalText('Ingilizce Cumle', 'English Sentence'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 6),
-            
+
             _CustomTextField(
               placeholder: 'Enter an example sentence...',
               controller: widget.sentence.englishController,
               onChanged: (value) => widget.onUpdate('english', value),
             ),
-            
+
             // Preview
-            if (widget.sentence.english.isNotEmpty && 
+            if (widget.sentence.english.isNotEmpty &&
                 widget.sentence.selectedWord.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -918,34 +922,32 @@ class _SentenceCardState extends State<_SentenceCard> {
                       children: [
                         TextSpan(
                           text: _modalText('Onizleme: ', 'Preview: '),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        ..._highlightWord(
-                          widget.sentence.english, 
-                          widget.sentence.selectedWord
-                        ),
+                        ..._highlightWord(widget.sentence.english,
+                            widget.sentence.selectedWord),
                       ],
                     ),
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Turkish Translation
             Text(
               _modalText('Ceviri', 'Translation'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 6),
-            
+
             _CustomTextField(
               placeholder: _modalText(
                 'Cumlenin Turkce cevirisi...',
@@ -954,21 +956,21 @@ class _SentenceCardState extends State<_SentenceCard> {
               controller: widget.sentence.turkishController,
               onChanged: (value) => widget.onUpdate('turkish', value),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Difficulty
             Text(
               _modalText('Zorluk Seviyesi', 'Difficulty Level'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: SentenceModalColors.textCyan,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 6),
-            
+
             _DifficultyDropdown(
               value: widget.sentence.difficulty,
               onChanged: (value) => widget.onUpdate('difficulty', value),
@@ -1004,7 +1006,7 @@ class _CustomTextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: placeholder,
         hintStyle: TextStyle(
-          color: SentenceModalColors.textWhite.withOpacity(0.4),
+          color: SentenceModalColors.textWhite.withValues(alpha: 0.4),
           fontSize: 13,
         ),
         filled: true,
@@ -1097,7 +1099,7 @@ class _DifficultyDropdown extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: getColor(value).withOpacity(0.5),
+                  color: getColor(value).withValues(alpha: 0.5),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),
@@ -1123,9 +1125,8 @@ class _GradientButton extends StatefulWidget {
   State<_GradientButton> createState() => _GradientButtonState();
 }
 
-class _GradientButtonState extends State<_GradientButton> 
+class _GradientButtonState extends State<_GradientButton>
     with SingleTickerProviderStateMixin {
-  
   late AnimationController _shineController;
   late Animation<double> _shineAnimation;
 
@@ -1167,7 +1168,8 @@ class _GradientButtonState extends State<_GradientButton>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: SentenceModalColors.gradientStart.withOpacity(0.5),
+                  color:
+                      SentenceModalColors.gradientStart.withValues(alpha: 0.5),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -1190,7 +1192,7 @@ class _GradientButtonState extends State<_GradientButton>
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.transparent,
-                                  Colors.white.withOpacity(0.2),
+                                  Colors.white.withValues(alpha: 0.2),
                                   Colors.transparent,
                                 ],
                               ),
@@ -1201,7 +1203,7 @@ class _GradientButtonState extends State<_GradientButton>
                     );
                   },
                 ),
-                
+
                 // Button Content
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -1234,7 +1236,6 @@ class _SparkleWidget extends StatefulWidget {
 
 class _SparkleWidgetState extends State<_SparkleWidget>
     with SingleTickerProviderStateMixin {
-  
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -1242,21 +1243,21 @@ class _SparkleWidgetState extends State<_SparkleWidget>
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 2000 + (widget.delay % 1000)),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.5).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    
+
     _opacityAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 50),
     ]).animate(_controller);
-    
+
     Future.delayed(Duration(milliseconds: widget.delay), () {
       if (mounted) {
         _controller.repeat();
@@ -1290,7 +1291,8 @@ class _SparkleWidgetState extends State<_SparkleWidget>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: SentenceModalColors.sparkleColor.withOpacity(0.5),
+                      color: SentenceModalColors.sparkleColor
+                          .withValues(alpha: 0.5),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -1304,4 +1306,3 @@ class _SparkleWidgetState extends State<_SparkleWidget>
     );
   }
 }
-

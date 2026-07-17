@@ -9,12 +9,13 @@ class ExamConfigurationDialog extends StatefulWidget {
   final String examType; // Artık sadece başlık/log için
 
   const ExamConfigurationDialog({
-    super.key, 
+    super.key,
     required this.examType,
   });
 
   @override
-  State<ExamConfigurationDialog> createState() => _ExamConfigurationDialogState();
+  State<ExamConfigurationDialog> createState() =>
+      _ExamConfigurationDialogState();
 }
 
 class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
@@ -27,7 +28,11 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
     {'value': 'vocabulary', 'label': 'Vocabulary', 'icon': '📚'},
     {'value': 'sentence_completion', 'label': 'Cümle Tamamlama', 'icon': '✏️'},
     {'value': 'translation', 'label': 'Çeviri (İng-Tr)', 'icon': '🔄'},
-    {'value': 'paragraph_completion', 'label': 'Paragraf Tamamlama', 'icon': '📄'},
+    {
+      'value': 'paragraph_completion',
+      'label': 'Paragraf Tamamlama',
+      'icon': '📄'
+    },
     {'value': 'reading', 'label': 'Okuma Parçası', 'icon': '📖'},
     {'value': 'cloze_test', 'label': 'Cloze Test', 'icon': '🧩'},
   ];
@@ -37,7 +42,7 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
 
     try {
       final ExamBundle exam = await GroqService.generateExamBundle(
-        examType: "YDS/YÖKDİL", 
+        examType: "YDS/YÖKDİL",
         // mode parametresi artık GroqService içinde yok sayılabilir veya 'category' gönderilir
         mode: "category",
         category: _selectedCategory,
@@ -48,7 +53,7 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
 
       if (!mounted) return;
       Navigator.pop(context); // Dialogu kapat
-      
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -89,7 +94,7 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.2),
+                    color: primaryColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.school, color: primaryColor),
@@ -119,33 +124,39 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
             const SizedBox(height: 24),
 
             // KATEGORİ SEÇİMİ
-            const Text('Kategori Seçin', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const Text('Kategori Seçin',
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: surfaceColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: primaryColor.withOpacity(0.3)),
+                border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedCategory,
                   isExpanded: true,
                   dropdownColor: surfaceColor,
-                  icon: const Icon(Icons.keyboard_arrow_down, color: primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: primaryColor),
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   onChanged: (value) {
-                    if (value != null) setState(() => _selectedCategory = value);
+                    if (value != null) {
+                      setState(() => _selectedCategory = value);
+                    }
                   },
                   items: _categories.map((cat) {
                     return DropdownMenuItem<String>(
                       value: cat['value'],
                       child: Row(
                         children: [
-                          Text(cat['icon']!, style: const TextStyle(fontSize: 18)),
+                          Text(cat['icon']!,
+                              style: const TextStyle(fontSize: 18)),
                           const SizedBox(width: 12),
-                          Text(cat['label']!, style: const TextStyle(color: Colors.white)),
+                          Text(cat['label']!,
+                              style: const TextStyle(color: Colors.white)),
                         ],
                       ),
                     );
@@ -157,7 +168,8 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
             const SizedBox(height: 24),
 
             // SORU SAYISI
-            const Text('Soru Sayısı', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const Text('Soru Sayısı',
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.center, // Ortala
@@ -165,7 +177,8 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
                 final isSelected = _questionCount == count;
                 return Container(
                   width: 80, // Sabit genişlik ile daha düzgün görünüm
-                  margin: const EdgeInsets.symmetric(horizontal: 12), // Aralarına boşluk
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 12), // Aralarına boşluk
                   child: GestureDetector(
                     onTap: () => setState(() => _questionCount = count),
                     child: Container(
@@ -201,18 +214,23 @@ class _ExamConfigurationDialogState extends State<ExamConfigurationDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : const Text(
                         'Testi Başlat',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
                       ),
               ),
             ),

@@ -75,9 +75,11 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                     child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: _historyFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const Center(
-                            child: CircularProgressIndicator(color: Color(0xFF22D3EE)),
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF22D3EE)),
                           );
                         }
 
@@ -99,23 +101,30 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
 
                         return ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 8),
                           itemCount: items.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final item = items[index];
                             final amount = item['amount'] as int? ?? 0;
                             final isPositive = amount >= 0;
-                            final actionName = item['actionName']?.toString() ?? 'XP';
+                            final actionName =
+                                item['actionName']?.toString() ?? 'XP';
                             final source = item['source']?.toString();
-                            final createdAt = item['createdAt']?.toString() ?? '';
+                            final createdAt =
+                                item['createdAt']?.toString() ?? '';
 
                             return Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0F172A).withOpacity(0.7),
+                                color: const Color(0xFF0F172A)
+                                    .withValues(alpha: 0.7),
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.08)),
                               ),
                               child: Row(
                                 children: [
@@ -124,20 +133,25 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                                     height: 36,
                                     decoration: BoxDecoration(
                                       color: isPositive
-                                          ? const Color(0xFF22C55E).withOpacity(0.2)
-                                          : const Color(0xFFEF4444).withOpacity(0.2),
+                                          ? const Color(0xFF22C55E)
+                                              .withValues(alpha: 0.2)
+                                          : const Color(0xFFEF4444)
+                                              .withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
                                       isPositive ? Icons.add : Icons.remove,
-                                      color: isPositive ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                                      color: isPositive
+                                          ? const Color(0xFF22C55E)
+                                          : const Color(0xFFEF4444),
                                       size: 18,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           actionName,
@@ -150,14 +164,16 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                                           Text(
                                             source,
                                             style: TextStyle(
-                                              color: Colors.white.withOpacity(0.5),
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.5),
                                               fontSize: 12,
                                             ),
                                           ),
                                         Text(
                                           _formatDate(createdAt),
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.4),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.4),
                                             fontSize: 11,
                                           ),
                                         ),
@@ -167,7 +183,9 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                                   Text(
                                     '${isPositive ? '+' : ''}$amount',
                                     style: TextStyle(
-                                      color: isPositive ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                                      color: isPositive
+                                          ? const Color(0xFF22C55E)
+                                          : const Color(0xFFEF4444),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
@@ -189,4 +207,3 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
     );
   }
 }
-

@@ -89,3 +89,7 @@ tmp_flutter_version.txt
 AGENTS.md
 TODO.md
 premortem_analysis.md
+
+# Personal thesis/dissertation materials (kept local, not in repo)
+docs/dissertation/
+build-analyzer-machine.txt

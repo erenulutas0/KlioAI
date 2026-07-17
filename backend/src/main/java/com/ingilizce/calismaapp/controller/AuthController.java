@@ -575,7 +575,12 @@ public class AuthController {
         if (email == null) {
             return null;
         }
-        String normalized = email.trim().toLowerCase();
+        // Locale.ROOT is required here: on a JVM whose default locale is Turkish,
+        // toLowerCase() maps 'I' -> 'ı' (dotless), so an email like "MIKE@x.com"
+        // would normalize to "mık e@x.com" instead of "mike@x.com", corrupting the
+        // exact-match DB lookup and silently breaking login/registration for any
+        // user whose email contains a capital I.
+        String normalized = email.trim().toLowerCase(java.util.Locale.ROOT);
         return normalized.isEmpty() ? null : normalized;
     }
 

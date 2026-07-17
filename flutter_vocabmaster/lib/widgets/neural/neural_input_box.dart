@@ -90,7 +90,8 @@ class _NeuralInputBoxState extends State<NeuralInputBox>
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.55)),
+                  hintStyle:
+                      TextStyle(color: Colors.white.withValues(alpha: 0.55)),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 ),

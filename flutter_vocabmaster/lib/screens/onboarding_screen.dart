@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
 import '../widgets/animated_background.dart';
 import 'login_page.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/learning_language_provider.dart';
 import '../services/app_tour_service.dart';
 import '../services/analytics_service.dart';
+import '../services/learning_language_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final bool fromSettings;
+  final int initialPage;
+  final WidgetBuilder? loginPageBuilder;
 
   const OnboardingScreen({
     super.key,
     this.fromSettings = false,
+    this.initialPage = 0,
+    this.loginPageBuilder,
   });
 
   @override
@@ -20,8 +27,8 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+  late final PageController _pageController;
+  late int _currentPage;
 
   // Icon Animation Controllers
   late AnimationController _iconController;
@@ -31,6 +38,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    _currentPage = widget.initialPage;
+    _pageController = PageController(initialPage: widget.initialPage);
     AnalyticsService.logOnboardingStarted(
       source: widget.fromSettings ? 'settings' : 'first_run',
     );
@@ -77,7 +86,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _finishOnboarding() async {
-    await AppTourService().markCompleted();
+    final learningProfile = context.read<LearningLanguageProvider>();
+    await AnalyticsService.logLearningProfileUpdated(
+      sourceLanguage: learningProfile.sourceLanguage,
+      englishLevel: learningProfile.englishLevel,
+      learningGoal: learningProfile.learningGoal,
+      source: widget.fromSettings ? 'settings_onboarding' : 'onboarding',
+    );
+    await AppTourService().markCompleted(
+      source: widget.fromSettings ? 'settings' : 'first_run',
+    );
     if (!mounted) return;
 
     if (widget.fromSettings) {
@@ -88,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const LoginPage(),
+            widget.loginPageBuilder?.call(context) ?? const LoginPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -121,15 +139,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           context.tr('landing.feature.writing.h3'),
         ],
       ),
+      // Social features are disabled in production (community flag off), so
+      // this slide advertises what the app actually delivers daily instead.
       OnboardingData(
-        title: context.tr('landing.feature.social.title'),
-        description: context.tr('landing.feature.social.description'),
-        icon: Icons.people,
+        title: context.tr('landing.feature.daily.title'),
+        description: context.tr('landing.feature.daily.description'),
+        icon: Icons.auto_stories,
         gradient: [const Color(0xFF22d3ee), const Color(0xFF3b82f6)],
         featureTexts: [
-          context.tr('landing.feature.social.h1'),
-          context.tr('landing.feature.social.h2'),
-          context.tr('landing.feature.social.h3'),
+          context.tr('landing.feature.daily.h1'),
+          context.tr('landing.feature.daily.h2'),
+          context.tr('landing.feature.daily.h3'),
         ],
       ),
       OnboardingData(
@@ -143,7 +163,49 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           context.tr('landing.feature.progress.h3'),
         ],
       ),
+      OnboardingData(
+        title: context.tr('onboarding.profile.title'),
+        description: context.tr('onboarding.profile.description'),
+        icon: Icons.tune,
+        gradient: [const Color(0xFF14b8a6), const Color(0xFF8b5cf6)],
+        featureTexts: const [],
+        isProfileSetup: true,
+      ),
     ];
+  }
+
+  String _learningLanguageLabel(BuildContext context, String language) {
+    switch (language) {
+      case 'Turkish':
+        return context.tr('language.turkish');
+      case 'Spanish':
+        return context.tr('language.spanish');
+      case 'Portuguese':
+        return context.tr('language.portuguese');
+      case 'Indonesian':
+        return context.tr('language.indonesian');
+      case 'German':
+        return context.tr('language.german');
+      case 'French':
+        return context.tr('language.french');
+      default:
+        return context.tr('language.english');
+    }
+  }
+
+  String _learningGoalLabel(BuildContext context, String goal) {
+    switch (goal) {
+      case 'Vocabulary':
+        return context.tr('learning.goal.vocabulary');
+      case 'Exam':
+        return context.tr('learning.goal.exam');
+      case 'Work':
+        return context.tr('learning.goal.work');
+      case 'Travel':
+        return context.tr('learning.goal.travel');
+      default:
+        return context.tr('learning.goal.speaking');
+    }
   }
 
   @override
@@ -172,20 +234,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             alignment: Alignment(0.8, 0.8), // Bottom Right
             duration: 5,
           ),
-
-          // Skip Button
-          if (_currentPage < pages.length - 1)
-            Positioned(
-              top: 50,
-              right: 20,
-              child: TextButton(
-                onPressed: _finishOnboarding,
-                child: Text(
-                  context.tr('common.skip'),
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
-            ),
 
           // Main Page View
           PageView.builder(
@@ -221,6 +269,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               );
             },
           ),
+
+          // Skip Button
+          if (_currentPage < pages.length - 1)
+            Positioned(
+              top: 50,
+              right: 20,
+              child: TextButton(
+                key: const ValueKey('onboarding-skip-button'),
+                onPressed: () {
+                  _pageController.animateToPage(
+                    pages.length - 1,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Text(
+                  context.tr('common.skip'),
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
 
           // Bottom Controls
           Positioned(
@@ -273,6 +342,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                     // Next / Start Button
                     ElevatedButton(
+                      key: ValueKey(
+                        _currentPage == pages.length - 1
+                            ? 'onboarding-start-button'
+                            : 'onboarding-next-button',
+                      ),
                       onPressed: _currentPage == pages.length - 1
                           ? _finishOnboarding
                           : () {
@@ -287,7 +361,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 12),
                         elevation: 8,
-                        shadowColor: const Color(0xFF0ea5e9).withOpacity(0.4),
+                        shadowColor:
+                            const Color(0xFF0ea5e9).withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -335,13 +410,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 colors: [Color(0xFF06b6d4), Color(0xFF3b82f6)],
               )
             : null,
-        color: _currentPage == index ? null : Colors.white.withOpacity(0.2),
+        color:
+            _currentPage == index ? null : Colors.white.withValues(alpha: 0.2),
       ),
     );
   }
 
   Widget _buildPageContent(int index) {
     final data = _pages(context)[index];
+    if (data.isProfileSetup) {
+      return _buildProfileSetupContent(data);
+    }
 
     // Key ensures StaggeredFeatures rebuilds and restarts animation on page change
     return Padding(
@@ -372,7 +451,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: data.gradient[0].withOpacity(0.4),
+                              color: data.gradient[0].withValues(alpha: 0.4),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
@@ -406,7 +485,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: const Color(0xFF67e8f9).withOpacity(0.8),
+              color: const Color(0xFF67e8f9).withValues(alpha: 0.8),
               height: 1.5,
             ),
           ),
@@ -423,6 +502,194 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
   }
+
+  Widget _buildProfileSetupContent(OnboardingData data) {
+    final learningProfile = context.watch<LearningLanguageProvider>();
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedBuilder(
+              animation: _iconController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _iconScaleAnimation.value,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(26),
+                      gradient: LinearGradient(
+                        colors: data.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: data.gradient.first.withValues(alpha: 0.35),
+                          blurRadius: 28,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Icon(data.icon, size: 48, color: Colors.white),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Text(
+              data.title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 27,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              data.description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.white.withValues(alpha: 0.74),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildChoiceSection(
+              title: context.tr('onboarding.profile.sourceLanguage'),
+              children: LearningLanguageService.supportedSourceLanguages
+                  .map(
+                    (language) => _buildChoiceChip(
+                      key: ValueKey('onboarding-source-$language'),
+                      label: _learningLanguageLabel(context, language),
+                      selected: learningProfile.sourceLanguage == language,
+                      onTap: () =>
+                          learningProfile.selectSourceLanguage(language),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 14),
+            _buildChoiceSection(
+              title: context.tr('onboarding.profile.englishLevel'),
+              children: LearningLanguageService.supportedEnglishLevels
+                  .map(
+                    (level) => _buildChoiceChip(
+                      key: ValueKey('onboarding-level-$level'),
+                      label: level,
+                      selected: learningProfile.englishLevel == level,
+                      onTap: () => learningProfile.selectEnglishLevel(level),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 14),
+            _buildChoiceSection(
+              title: context.tr('onboarding.profile.learningGoal'),
+              children: LearningLanguageService.supportedLearningGoals
+                  .map(
+                    (goal) => _buildChoiceChip(
+                      key: ValueKey('onboarding-goal-$goal'),
+                      label: _learningGoalLabel(context, goal),
+                      selected: learningProfile.learningGoal == goal,
+                      onTap: () => learningProfile.selectLearningGoal(goal),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 120),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChoiceSection({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: children,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChoiceChip({
+    Key? key,
+    required String label,
+    required bool selected,
+    required Future<void> Function() onTap,
+  }) {
+    return InkWell(
+      key: key,
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: selected
+              ? const Color(0xFF06b6d4).withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF67e8f9)
+                : Colors.white.withValues(alpha: 0.16),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              const Icon(Icons.check_circle, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.82),
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ------ Helper Models ------
@@ -433,6 +700,7 @@ class OnboardingData {
   final IconData icon;
   final List<Color> gradient;
   final List<String> featureTexts;
+  final bool isProfileSetup;
 
   OnboardingData({
     required this.title,
@@ -440,6 +708,7 @@ class OnboardingData {
     required this.icon,
     required this.gradient,
     required this.featureTexts,
+    this.isProfileSetup = false,
   });
 }
 
@@ -583,10 +852,10 @@ class _StaggeredFeaturesState extends State<StaggeredFeatures>
                     padding:
                         const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color(0xFF06b6d4).withOpacity(0.3),
+                        color: const Color(0xFF06b6d4).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -687,8 +956,8 @@ class _PulsingOrbState extends State<PulsingOrb>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      widget.color.withOpacity(0.5),
-                      widget.color.withOpacity(0.0),
+                      widget.color.withValues(alpha: 0.5),
+                      widget.color.withValues(alpha: 0.0),
                     ],
                     stops: const [0.2, 1.0],
                   ),

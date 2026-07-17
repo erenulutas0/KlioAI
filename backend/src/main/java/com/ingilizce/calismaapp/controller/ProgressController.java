@@ -18,6 +18,8 @@ import java.util.Map;
 @RequestMapping("/api/progress")
 public class ProgressController {
 
+    private static final int MAX_MANUAL_XP_AWARD = 1000;
+
     private final ProgressService progressService;
     private final CurrentUserContext currentUserContext;
 
@@ -81,18 +83,30 @@ public class ProgressController {
     }
 
     /**
-     * Award XP to user (for testing or manual awards)
+     * Award XP to user (admin-only manual/test awards).
+     *
+     * The ADMIN requirement is intentionally unconditional: when enforce-auth is
+     * off (dev/docker defaults) there is no authenticated principal at all, so a
+     * conditional guard would leave this endpoint accepting arbitrary
+     * client-chosen XP amounts. Legitimate user XP always flows through
+     * server-computed paths (SRS reviews, new words/sentences, achievements).
      */
     @PostMapping("/award-xp")
     public ResponseEntity<Map<String, Object>> awardXp(@RequestHeader("X-User-Id") Long userId,
             @RequestBody Map<String, Object> request) {
-        if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.hasRole("ADMIN")) {
+        if (!currentUserContext.hasRole("ADMIN")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Admin role required", "success", false));
         }
 
         try {
             int xp = Integer.parseInt(request.get("xp").toString());
+            if (xp < 1 || xp > MAX_MANUAL_XP_AWARD) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(
+                                "error", "xp must be between 1 and " + MAX_MANUAL_XP_AWARD,
+                                "success", false));
+            }
             String reason = request.getOrDefault("reason", "Manual award").toString();
 
             progressService.awardXp(userId, xp, reason);

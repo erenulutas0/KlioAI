@@ -94,9 +94,10 @@ class ReviewModeSelectorPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.12),
+                        color: accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: accent.withOpacity(0.22)),
+                        border:
+                            Border.all(color: accent.withValues(alpha: 0.22)),
                       ),
                       child: Row(
                         children: [
@@ -199,7 +200,7 @@ class _ReviewModeCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.14),
+              color: accentColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: accentColor),

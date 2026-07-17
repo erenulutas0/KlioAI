@@ -961,6 +961,41 @@ class LocalDatabaseService {
     return 0;
   }
 
+  /// Ensure local total XP is not below a known earned floor.
+  ///
+  /// This is used for offline-first recovery when XP history/idempotency state is
+  /// stale but the local learning content proves the user has earned at least a
+  /// baseline amount of XP.
+  Future<int> ensureTotalXpAtLeast(int minimumXp) async {
+    if (minimumXp <= 0) return 0;
+
+    final db = await database;
+    final rows = await db.query('user_stats', limit: 1);
+    final now = DateTime.now().toIso8601String();
+
+    if (rows.isEmpty) {
+      await db.insert('user_stats', {
+        'totalXp': minimumXp,
+        'lastSyncedXp': 0,
+        'pendingXp': minimumXp,
+        'lastUpdated': now,
+      });
+      return minimumXp;
+    }
+
+    final currentXp = rows.first['totalXp'] as int? ?? 0;
+    if (currentXp >= minimumXp) return 0;
+
+    final diff = minimumXp - currentXp;
+    await db.rawUpdate('''
+      UPDATE user_stats
+      SET totalXp = ?,
+          pendingXp = MAX(0, pendingXp + ?),
+          lastUpdated = ?
+    ''', [minimumXp, diff, now]);
+    return diff;
+  }
+
   /// Pending XP getir (sync edilecek)
   Future<int> getPendingXp() async {
     final db = await database;

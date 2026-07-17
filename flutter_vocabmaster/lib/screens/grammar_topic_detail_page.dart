@@ -95,7 +95,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                widget.topic.color.withOpacity(0.3),
+                widget.topic.color.withValues(alpha: 0.3),
                 const Color(0xFF111827),
               ],
               begin: Alignment.topCenter,
@@ -122,7 +122,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                   Text(
                     widget.topic.title,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 16,
                     ),
                   ),
@@ -144,13 +144,13 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: isExpanded
-              ? widget.topic.color.withOpacity(0.05)
-              : Colors.white.withOpacity(0.03),
+              ? widget.topic.color.withValues(alpha: 0.05)
+              : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isExpanded
-                ? widget.topic.color.withOpacity(0.3)
-                : Colors.white.withOpacity(0.1),
+                ? widget.topic.color.withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Column(
@@ -173,8 +173,9 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                           Text(
                             _isTurkish ? subtopic.titleTr : subtopic.title,
                             style: TextStyle(
-                              color:
-                                  isExpanded ? widget.topic.color : Colors.white,
+                              color: isExpanded
+                                  ? widget.topic.color
+                                  : Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -183,7 +184,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                             Text(
                               subtopic.title,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
                               ),
                             ),
@@ -271,7 +272,8 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                       _text('Ornekler', 'Examples'),
                       Icons.check_circle_outline,
                     ),
-                    ...subtopic.examples.map((example) => _buildExampleRow(example)),
+                    ...subtopic.examples
+                        .map((example) => _buildExampleRow(example)),
                     const SizedBox(height: 20),
                     if (_isTurkish && subtopic.commonMistakes.isNotEmpty) ...[
                       _buildSectionHeader(
@@ -281,9 +283,10 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
+                          color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           children: subtopic.commonMistakes
@@ -313,9 +316,10 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           subtopic.comparison!,
@@ -333,13 +337,14 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              const Color(0xFF8b5cf6).withOpacity(0.2),
-                              const Color(0xFF6366f1).withOpacity(0.2),
+                              const Color(0xFF8b5cf6).withValues(alpha: 0.2),
+                              const Color(0xFF6366f1).withValues(alpha: 0.2),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFF8b5cf6).withOpacity(0.5),
+                            color:
+                                const Color(0xFF8b5cf6).withValues(alpha: 0.5),
                           ),
                         ),
                         child: Row(
@@ -397,13 +402,13 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: example.isCorrect
-            ? Colors.white.withOpacity(0.05)
-            : Colors.red.withOpacity(0.1),
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: example.isCorrect
               ? Colors.white10
-              : Colors.red.withOpacity(0.3),
+              : Colors.red.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -435,7 +440,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
             child: Text(
               _isTurkish ? example.turkish : 'English usage example',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
               ),

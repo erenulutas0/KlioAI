@@ -23,27 +23,27 @@ class ModernCardContainer extends StatelessWidget {
       decoration: BoxDecoration(
         // ⭐ ÇOK ÖNEMLİ: Solid color kullan, gradient değil!
         color: AppColors.cardBackgroundDark, // #0A1628
-        
+
         // Border radius
         borderRadius: BorderRadius.circular(16),
-        
+
         // Border (cyan, 0.4-0.5 opacity)
         border: Border.all(
-          color: AppColors.cardBorderCyan.withOpacity(0.45),
+          color: AppColors.cardBorderCyan.withValues(alpha: 0.45),
           width: 1.5,
         ),
-        
+
         // Shadow (daha koyu ve belirgin)
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowDark.withOpacity(0.6),
+            color: AppColors.shadowDark.withValues(alpha: 0.6),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(0, 8),
           ),
           // İkinci shadow (depth için)
           BoxShadow(
-            color: AppColors.cardBorderCyan.withOpacity(0.1),
+            color: AppColors.cardBorderCyan.withValues(alpha: 0.1),
             blurRadius: 12,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -69,7 +69,7 @@ class ModernCardContainer extends StatelessWidget {
             ),
             const SizedBox(height: 20),
           ],
-          
+
           // Content
           Padding(
             padding: padding ?? const EdgeInsets.all(24),
@@ -80,4 +80,3 @@ class ModernCardContainer extends StatelessWidget {
     );
   }
 }
-

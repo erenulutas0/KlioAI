@@ -2,6 +2,7 @@ package com.ingilizce.calismaapp.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayInputStream;
@@ -339,6 +340,51 @@ class PiperTtsServiceTest {
 
         concrete.deleteIfExistsPublic(tempText);
         assertFalse(Files.exists(tempText));
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldNotUseCache_WhenCacheDisabledByDefault(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "configuredCacheDir", tempDir.toString());
+
+        service.synthesizeSpeech("Hello cache", "amy");
+
+        assertTrue(service.startProcessCalled);
+        assertEquals(0, tempDir.toFile().listFiles().length,
+                "plain-constructed service must not write cache files");
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldServeSecondCallFromCache_WhenCacheEnabled(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "cacheEnabled", true);
+        ReflectionTestUtils.setField(service, "configuredCacheDir", tempDir.toString());
+
+        String first = service.synthesizeSpeech("Hello cache", "amy");
+        assertTrue(service.startProcessCalled, "first call must run the real synthesis");
+        assertEquals(1, tempDir.toFile().listFiles().length, "first call must write one cache file");
+
+        service.startProcessCalled = false;
+        String second = service.synthesizeSpeech("Hello cache", "amy");
+
+        assertEquals(first, second);
+        assertFalse(service.startProcessCalled, "second call must be served from cache");
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldEvictOldestCacheEntry_WhenOverMaxEntries(@TempDir Path tempDir) throws Exception {
+        ReflectionTestUtils.setField(service, "cacheEnabled", true);
+        ReflectionTestUtils.setField(service, "configuredCacheDir", tempDir.toString());
+        ReflectionTestUtils.setField(service, "cacheMaxEntries", 1);
+
+        service.synthesizeSpeech("first text", "amy");
+        File[] afterFirst = tempDir.toFile().listFiles();
+        assertEquals(1, afterFirst.length);
+        // Make the first entry clearly older so eviction ordering is deterministic.
+        assertTrue(afterFirst[0].setLastModified(System.currentTimeMillis() - 60_000));
+
+        service.synthesizeSpeech("second text", "amy");
+
+        assertEquals(1, tempDir.toFile().listFiles().length,
+                "cache must keep at most cacheMaxEntries files");
     }
 
     static class StubPiperTtsService extends PiperTtsService {

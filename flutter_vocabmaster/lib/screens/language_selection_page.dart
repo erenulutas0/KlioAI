@@ -57,7 +57,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.cyan,
               foregroundColor: Colors.black,
-              disabledBackgroundColor: Colors.cyan.withOpacity(0.5),
+              disabledBackgroundColor: Colors.cyan.withValues(alpha: 0.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -99,7 +99,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                 Text(
                   context.tr('language.setup.subtitle'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.78),
+                    color: Colors.white.withValues(alpha: 0.78),
                     fontSize: 14,
                     height: 1.45,
                   ),
@@ -108,9 +108,11 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.14)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -140,7 +142,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                 Text(
                   context.tr('language.setup.select'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.86),
+                    color: Colors.white.withValues(alpha: 0.86),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -167,13 +169,13 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? Colors.cyan.withOpacity(0.2)
-                              : Colors.white.withOpacity(0.06),
+                              ? Colors.cyan.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isSelected
                                 ? Colors.cyanAccent
-                                : Colors.white.withOpacity(0.16),
+                                : Colors.white.withValues(alpha: 0.16),
                           ),
                         ),
                         child: Row(
@@ -215,7 +217,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                 Text(
                   context.tr('language.setup.help'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.62),
+                    color: Colors.white.withValues(alpha: 0.62),
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -232,6 +234,8 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
     switch (code) {
       case 'tr':
         return context.tr('language.turkish');
+      case 'de':
+        return context.tr('language.german');
       default:
         return context.tr('language.english');
     }

@@ -35,21 +35,21 @@ class AppColors {
   static const errorRed = Color(0xFFFF4D6D);
   static const successGreen = Color(0xFF2EF57B);
 
-  static final Color glassWhite = Colors.white.withOpacity(0.06);
-  static final Color borderGlow = Colors.white.withOpacity(0.14);
+  static final Color glassWhite = Colors.white.withValues(alpha: 0.06);
+  static final Color borderGlow = Colors.white.withValues(alpha: 0.14);
 
   static Color withOpacity(Color color, double opacity) {
-    return color.withOpacity(opacity);
+    return color.withValues(alpha: opacity);
   }
 
-  static final cyan400_50 = cyan400.withOpacity(0.5);
-  static final cyan400_70 = cyan400.withOpacity(0.7);
-  static final cyan500_20 = cyan500.withOpacity(0.2);
-  static final cyan500_30 = cyan500.withOpacity(0.3);
-  static final blue500_20 = blue500.withOpacity(0.2);
-  static final slate900_30 = slate900.withOpacity(0.3);
-  static final slate900_50 = slate900.withOpacity(0.5);
-  static final slate900_60 = slate900.withOpacity(0.6);
+  static final cyan400_50 = cyan400.withValues(alpha: 0.5);
+  static final cyan400_70 = cyan400.withValues(alpha: 0.7);
+  static final cyan500_20 = cyan500.withValues(alpha: 0.2);
+  static final cyan500_30 = cyan500.withValues(alpha: 0.3);
+  static final blue500_20 = blue500.withValues(alpha: 0.2);
+  static final slate900_30 = slate900.withValues(alpha: 0.3);
+  static final slate900_50 = slate900.withValues(alpha: 0.5);
+  static final slate900_60 = slate900.withValues(alpha: 0.6);
 
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,

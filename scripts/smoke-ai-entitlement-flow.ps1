@@ -6,6 +6,7 @@ param(
     [string]$PostgresUser = "postgres",
     [int]$ExpectedTrialDays = 7,
     [long]$ExpectedTrialDailyTokenLimit = 5000,
+    [long]$ExpectedFreeDailyTokenLimit = 1500,
     [long]$ExpectedPremiumDailyTokenLimit = 30000,
     [long]$ExpectedPremiumPlusDailyTokenLimit = 60000
 )
@@ -147,21 +148,11 @@ Invoke-PostgresNonQuery -Sql "UPDATE users SET created_at = NOW() - INTERVAL '8 
 $freeQuota = Invoke-Api -Method GET -Uri "$BackendBaseUrl/api/chatbot/quota/status" -Headers $headers
 Assert-QuotaState -Response $freeQuota `
     -ExpectedPlanCode "FREE" `
-    -ExpectedAiAccessEnabled $false `
+    -ExpectedAiAccessEnabled $true `
     -ExpectedTrialActive $false `
-    -ExpectedTokenLimit 0
+    -ExpectedTokenLimit $ExpectedFreeDailyTokenLimit
 $freeTrialDaysRemaining = if ($freeQuota.Json.ContainsKey("trialDaysRemaining")) { [int]$freeQuota.Json["trialDaysRemaining"] } else { -1 }
 Assert-True ($freeTrialDaysRemaining -eq 0) "Expected trialDaysRemaining=0 after forced expiry."
-
-$paywallResponse = Invoke-Api -Method POST -Uri "$BackendBaseUrl/api/chatbot/dictionary/lookup" -Headers $headers -Body @{
-    word = "apple"
-}
-Assert-True ($paywallResponse.StatusCode -eq 403) "Expected paywall HTTP 403, got $($paywallResponse.StatusCode)."
-Assert-True ($null -ne $paywallResponse.Json) "Paywall response is not valid JSON."
-$paywallReason = if ($paywallResponse.Json.ContainsKey("reason")) { [string]$paywallResponse.Json["reason"] } else { "" }
-$upgradeRequired = if ($paywallResponse.Json.ContainsKey("upgradeRequired")) { [bool]$paywallResponse.Json["upgradeRequired"] } else { $false }
-Assert-True ($paywallReason -eq "ai-access-disabled") "Unexpected paywall reason: '$paywallReason' raw=$($paywallResponse.Raw)"
-Assert-True $upgradeRequired "Expected upgradeRequired=true on paywall response. raw=$($paywallResponse.Raw)"
 
 Invoke-PostgresNonQuery -Sql "UPDATE users SET subscription_end_date = NOW() + INTERVAL '30 days', ai_plan_code = 'PREMIUM' WHERE id = $userId;"
 

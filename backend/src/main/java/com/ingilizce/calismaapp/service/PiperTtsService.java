@@ -5,10 +5,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -17,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 public class PiperTtsService {
@@ -27,6 +33,20 @@ public class PiperTtsService {
 
     @Value("${piper.tts.default-model:en_US-amy-medium.onnx}")
     private String configuredDefaultModel;
+
+    // Cache is ON in Spring-managed runtime (placeholder default) but OFF for
+    // plain `new PiperTtsService()` construction, so the existing seam-based
+    // unit tests keep exercising the real synthesis path without cross-test
+    // cache pollution. Piper output is deterministic per (model, text), which
+    // is what makes disk caching safe here.
+    @Value("${app.tts.cache-enabled:true}")
+    private boolean cacheEnabled = false;
+
+    @Value("${app.tts.cache-dir:}")
+    private String configuredCacheDir;
+
+    @Value("${app.tts.cache-max-entries:512}")
+    private int cacheMaxEntries = 512;
 
     // --- KRİTİK DEĞİŞİKLİK BURADA ---
     // Modelleri Türkçe karakter sorunu olmaması için C:\piper klasöründen okuyoruz.
@@ -55,6 +75,15 @@ public class PiperTtsService {
         try {
             // Select model based on voice
             String modelFile = getModelFile(voice);
+
+            Path cacheFile = cacheEnabled ? cacheFileFor(modelFile, text) : null;
+            if (cacheFile != null) {
+                byte[] cachedAudio = readCachedAudio(cacheFile);
+                if (cachedAudio != null && cachedAudio.length > 0) {
+                    log.debug("Piper TTS cache hit for model={} textLength={}", modelFile, text.length());
+                    return Base64.getEncoder().encodeToString(cachedAudio);
+                }
+            }
 
             // Create temporary output file
             Path outputPath = createTempOutputPath();
@@ -142,6 +171,10 @@ public class PiperTtsService {
             // Read generated audio file
             byte[] audioData = readAllBytes(outputPath);
 
+            if (cacheFile != null && audioData != null && audioData.length > 0) {
+                writeCachedAudio(cacheFile, audioData);
+            }
+
             // Clean up temporary file
             deleteIfExists(outputPath);
 
@@ -150,6 +183,67 @@ public class PiperTtsService {
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to synthesize speech: " + e.getMessage(), e);
+        }
+    }
+
+    private Path cacheFileFor(String modelFile, String text) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((modelFile + "\n" + text).getBytes(StandardCharsets.UTF_8));
+            return cacheDir().resolve(HexFormat.of().formatHex(hash) + ".wav");
+        } catch (Exception e) {
+            log.debug("Piper TTS cache key computation failed: {}", e.toString());
+            return null;
+        }
+    }
+
+    private Path cacheDir() {
+        if (configuredCacheDir != null && !configuredCacheDir.isBlank()) {
+            return Paths.get(configuredCacheDir.trim());
+        }
+        return Paths.get(System.getProperty("java.io.tmpdir"), "piper-tts-cache");
+    }
+
+    /** Best-effort cache read; any IO problem falls back to real synthesis. */
+    protected byte[] readCachedAudio(Path cacheFile) {
+        try {
+            if (Files.isRegularFile(cacheFile)) {
+                return Files.readAllBytes(cacheFile);
+            }
+        } catch (IOException e) {
+            log.debug("Piper TTS cache read failed for {}: {}", cacheFile, e.toString());
+        }
+        return null;
+    }
+
+    /** Best-effort cache write with atomic move; failures never break synthesis. */
+    protected void writeCachedAudio(Path cacheFile, byte[] audioData) {
+        try {
+            Files.createDirectories(cacheFile.getParent());
+            Path tmp = cacheFile.resolveSibling(cacheFile.getFileName() + ".tmp-" + UUID.randomUUID());
+            Files.write(tmp, audioData);
+            Files.move(tmp, cacheFile, StandardCopyOption.REPLACE_EXISTING);
+            evictCacheIfNeeded(cacheFile.getParent());
+        } catch (IOException e) {
+            log.debug("Piper TTS cache write failed for {}: {}", cacheFile, e.toString());
+        }
+    }
+
+    private void evictCacheIfNeeded(Path dir) {
+        if (cacheMaxEntries <= 0) {
+            return;
+        }
+        try (Stream<Path> entries = Files.list(dir)) {
+            List<Path> wavFiles = entries
+                    .filter(p -> p.getFileName().toString().endsWith(".wav"))
+                    .sorted(Comparator.comparingLong(p -> p.toFile().lastModified()))
+                    .toList();
+            int excess = wavFiles.size() - cacheMaxEntries;
+            for (int i = 0; i < excess; i++) {
+                Files.deleteIfExists(wavFiles.get(i));
+            }
+        } catch (IOException e) {
+            log.debug("Piper TTS cache eviction failed for {}: {}", dir, e.toString());
         }
     }
 
@@ -292,7 +386,11 @@ public class PiperTtsService {
         if (voice == null || voice.trim().isEmpty()) {
             return "default";
         }
-        String normalized = voice.trim().toLowerCase();
+        // Locale.ROOT is required here: on a JVM whose default locale is Turkish,
+        // toLowerCase() maps 'I' -> 'ı' (dotless), so a client-requested voice like
+        // "JENNY_DIOCO" would silently fail to match the literal below or any key
+        // in the voice model map, falling back to the default voice instead.
+        String normalized = voice.trim().toLowerCase(java.util.Locale.ROOT);
         if ("jenny_dioco".equals(normalized)) {
             return "jenny";
         }

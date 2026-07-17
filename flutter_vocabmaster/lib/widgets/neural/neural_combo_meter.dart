@@ -26,7 +26,8 @@ class NeuralComboMeter extends StatelessWidget {
         boxShadow: isHot
             ? [
                 BoxShadow(
-                  color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                  color:
+                      selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                   blurRadius: 18,
                   spreadRadius: 1,
                 ),
@@ -36,14 +37,14 @@ class NeuralComboMeter extends StatelessWidget {
       child: GlassmorphismCard(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         borderRadius: 16,
-        color: selectedTheme.colors.accent.withOpacity(0.12),
+        color: selectedTheme.colors.accent.withValues(alpha: 0.12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'COMBO',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.72),
+                color: Colors.white.withValues(alpha: 0.72),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1,

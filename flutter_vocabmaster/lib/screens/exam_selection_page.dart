@@ -17,7 +17,8 @@ class ExamSelectionPage extends StatelessWidget {
               children: [
                 // Custom App Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   child: Row(
                     children: [
                       IconButton(
@@ -47,7 +48,7 @@ class ExamSelectionPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
@@ -77,11 +78,11 @@ class ExamSelectionPage extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
-                        
+
                         const SizedBox(height: 40),
 
                         // TURKEY EXAMS CARD (NEW)
-                         _buildExamCard(
+                        _buildExamCard(
                           context,
                           title: 'YDS & YÖKDİL',
                           subtitle: 'Türkiye Akademik Dil Sınavları',
@@ -93,22 +94,24 @@ class ExamSelectionPage extends StatelessWidget {
                           color: const Color(0xFFEF4444), // Red for Turkey
                           icon: Icons.flag,
                           onTap: () {
-                             Navigator.push(
-                               context,
-                               MaterialPageRoute(
-                                 builder: (context) => const TurkeyExamsPage(), // Will create this next
-                               ),
-                             );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const TurkeyExamsPage(), // Will create this next
+                              ),
+                            );
                           },
                         ),
 
                         const SizedBox(height: 24),
-                        
+
                         // IELTS Card
                         _buildExamCard(
                           context,
                           title: 'IELTS',
-                          subtitle: 'International English Language\nTesting System',
+                          subtitle:
+                              'International English Language\nTesting System',
                           features: [
                             'Speaking Part 1-3',
                             'Band Score Feedback',
@@ -120,14 +123,15 @@ class ExamSelectionPage extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ExamChatPage(examType: 'IELTS'),
+                                builder: (context) =>
+                                    const ExamChatPage(examType: 'IELTS'),
                               ),
                             );
                           },
                         ),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // TOEFL Card
                         _buildExamCard(
                           context,
@@ -144,7 +148,8 @@ class ExamSelectionPage extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ExamChatPage(examType: 'TOEFL'),
+                                builder: (context) =>
+                                    const ExamChatPage(examType: 'TOEFL'),
                               ),
                             );
                           },
@@ -175,12 +180,12 @@ class ExamSelectionPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF1e3a8a).withOpacity(0.3),
+          color: const Color(0xFF1e3a8a).withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -198,7 +203,7 @@ class ExamSelectionPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.4),
+                        color: color.withValues(alpha: 0.4),
                         blurRadius: 12,
                       ),
                     ],
@@ -222,7 +227,7 @@ class ExamSelectionPage extends StatelessWidget {
                       Text(
                         subtitle,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 13,
                         ),
                       ),
@@ -269,4 +274,3 @@ class ExamSelectionPage extends StatelessWidget {
     );
   }
 }
-

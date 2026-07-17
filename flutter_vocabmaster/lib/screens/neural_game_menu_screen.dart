@@ -123,7 +123,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               color: Colors.white
-                                                  .withOpacity(0.76),
+                                                  .withValues(alpha: 0.76),
                                               fontSize: bodySize,
                                               height: 1.25,
                                             ),
@@ -277,7 +277,8 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                   gradient: selectedTheme.colors.buttonGradient,
                   boxShadow: [
                     BoxShadow(
-                      color: selectedTheme.colors.accentGlow.withOpacity(0.4),
+                      color: selectedTheme.colors.accentGlow
+                          .withValues(alpha: 0.4),
                       blurRadius: 30,
                       spreadRadius: 2,
                     ),
@@ -310,7 +311,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: selectedTheme.colors.accent.withOpacity(opacity),
+            color: selectedTheme.colors.accent.withValues(alpha: opacity),
             width: 2,
           ),
         ),
@@ -328,9 +329,9 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: compact ? 6 : 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.white.withOpacity(0.045),
+        color: Colors.white.withValues(alpha: 0.045),
         border: Border.all(
-          color: selectedTheme.colors.accent.withOpacity(0.18),
+          color: selectedTheme.colors.accent.withValues(alpha: 0.18),
         ),
       ),
       child: Column(
@@ -341,7 +342,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.70),
+              color: Colors.white.withValues(alpha: 0.70),
               fontSize: compact ? 9.5 : 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -410,12 +411,12 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: selected
-              ? selectedTheme.colors.accent.withOpacity(0.16)
-              : Colors.white.withOpacity(0.04),
+              ? selectedTheme.colors.accent.withValues(alpha: 0.16)
+              : Colors.white.withValues(alpha: 0.04),
           border: Border.all(
             color: selected
-                ? selectedTheme.colors.accent.withOpacity(0.65)
-                : Colors.white.withOpacity(0.12),
+                ? selectedTheme.colors.accent.withValues(alpha: 0.65)
+                : Colors.white.withValues(alpha: 0.12),
           ),
         ),
         child: Column(
@@ -446,7 +447,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
             Text(
               subtitle,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.72),
+                color: Colors.white.withValues(alpha: 0.72),
                 fontSize: compact ? 9.5 : 10.5,
               ),
             ),

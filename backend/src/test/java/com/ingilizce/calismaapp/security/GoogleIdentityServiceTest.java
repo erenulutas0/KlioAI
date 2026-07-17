@@ -46,6 +46,35 @@ class GoogleIdentityServiceTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    void verifyIdToken_ShouldNormalizeEmailWithCapitalI_OnTurkishLocaleJvm() {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
+
+            AuthSecurityProperties properties = new AuthSecurityProperties();
+            properties.setGoogleIdTokenRequired(true);
+            properties.setGoogleClientIds(List.of("client-123"));
+
+            RestTemplate restTemplate = mock(RestTemplate.class);
+            when(restTemplate.getForObject(any(String.class), eq(Map.class), eq("id-token-mike"))).thenReturn(Map.of(
+                    "iss", "https://accounts.google.com",
+                    "aud", "client-123",
+                    "sub", "google-subject",
+                    "email", "MIKE@test.com",
+                    "email_verified", "true",
+                    "exp", String.valueOf(Instant.now().plusSeconds(300).getEpochSecond())
+            ));
+
+            GoogleIdentityService service = new GoogleIdentityService(properties, restTemplate);
+            GoogleIdentityService.VerifiedIdentity identity = service.verifyIdToken("id-token-mike");
+
+            assertEquals("mike@test.com", identity.email());
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     void verifyIdToken_ShouldThrowInvalid_WhenAudienceMismatches() {
         AuthSecurityProperties properties = new AuthSecurityProperties();
         properties.setGoogleIdTokenRequired(true);

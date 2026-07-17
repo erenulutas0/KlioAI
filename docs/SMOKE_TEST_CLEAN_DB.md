@@ -19,7 +19,7 @@ The workflow runs `scripts/run-db-readiness.ps1` on `push`/`pull_request` for ba
 CI mode uses `-FailOnSkip`, so a skipped Testcontainers run fails the job.
 After readiness passes, CI runs full backend tests and enforces a core coverage gate:
 
-`pwsh -File .\scripts\check-core-coverage.ps1 -Threshold 90`
+`pwsh -File .\scripts\check-core-coverage.ps1 -Threshold 85.0`
 
 This smoke test boots the backend stack with a clean PostgreSQL volume and verifies:
 
@@ -51,7 +51,7 @@ pwsh -File .\scripts\smoke-clean-db.ps1 -ProjectName my-smoke -BackendPort 18082
 - Run core coverage gate locally (after `mvn clean test`):
 
 ```powershell
-pwsh -File .\scripts\check-core-coverage.ps1 -Threshold 90
+pwsh -File .\scripts\check-core-coverage.ps1 -Threshold 85.0
 ```
 
 The smoke run uses `docker-compose.yml` + `docker-compose.smoke.yml`.

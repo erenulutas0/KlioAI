@@ -83,6 +83,12 @@ class AiErrorMessageFormatter {
     if (e is ApiUpgradeRequiredException) {
       return forUpgrade(e);
     }
+    if (e is ApiAiServiceException) {
+      return LocaleTextService.pick(
+        'KlioAI su an yanit uretirken zorlandi. Biraz sonra tekrar dene.',
+        'KlioAI could not generate a response right now. Please try again shortly.',
+      );
+    }
     return normalizedFallback;
   }
 

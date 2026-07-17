@@ -15,6 +15,7 @@ class ChatbotService {
     List<String> lengths = const ['medium'],
     bool checkGrammar = false,
     bool fresh = false,
+    String direction = 'EN_TO_TR',
   }) async {
     try {
       return await _api.chatbotGenerateSentences(
@@ -23,6 +24,7 @@ class ChatbotService {
         lengths: lengths,
         checkGrammar: checkGrammar,
         fresh: fresh,
+        direction: direction,
       );
     } catch (e) {
       debugPrint('ChatbotService.generateSentences error: $e');
@@ -34,11 +36,12 @@ class ChatbotService {
   Future<Map<String, dynamic>> checkTranslation({
     required String originalSentence,
     required String userTranslation,
-    required String direction, // 'EN_TO_TR' or 'TR_TO_EN'
+    required String
+        direction, // 'TARGET_TO_SOURCE'/'SOURCE_TO_TARGET' or legacy 'EN_TO_TR'/'TR_TO_EN'
     String? referenceSentence,
   }) async {
     try {
-      if (direction == 'TR_TO_EN') {
+      if (direction == 'TR_TO_EN' || direction == 'SOURCE_TO_TARGET') {
         return await _api.chatbotCheckTranslation(
           direction: direction,
           userTranslation: userTranslation,
@@ -61,7 +64,8 @@ class ChatbotService {
   /// AI Bot ile sohbet (BACKEND - kota uygulanır)
   /// [scenario] parametresi ile profesyonel senaryolar desteklenir
   /// [scenarioContext] ile senaryoya özel bağlam (örn: pozisyon adı, sunum konusu) eklenir
-  Future<String> chat(String message, {String? scenario, String? scenarioContext}) async {
+  Future<String> chat(String message,
+      {String? scenario, String? scenarioContext}) async {
     try {
       return await _api.chatbotChat(
         message: message,
@@ -71,6 +75,75 @@ class ChatbotService {
     } catch (e) {
       debugPrint('ChatbotService.chat error: $e');
       rethrow;
+    }
+  }
+
+  /// Konuşma sesini backend Groq Whisper proxy ile metne çevirir.
+  Future<String> transcribeSpeech({
+    required String audioPath,
+    required int durationMs,
+    String locale = 'en_US',
+  }) async {
+    final detailed = await transcribeSpeechDetailed(
+      audioPath: audioPath,
+      durationMs: durationMs,
+      locale: locale,
+    );
+    return detailed.text;
+  }
+
+  /// Metnin yanında Whisper'ın ölçtüğü gerçek ses süresini de döndürür.
+  /// İstemci duvar-saati (dokunma gecikmesi dahil) yerine bu süre kullanılınca
+  /// konuşma hızı (WPM) dürüst hesaplanır. Eski backend'lerde alan yoksa null.
+  Future<SpeechTranscription> transcribeSpeechDetailed({
+    required String audioPath,
+    required int durationMs,
+    String locale = 'en_US',
+  }) async {
+    try {
+      final result = await _api.chatbotTranscribeSpeech(
+        audioPath: audioPath,
+        durationMs: durationMs,
+        locale: locale,
+      );
+      final measured = result['measuredDurationMs'];
+      return SpeechTranscription(
+        text: (result['text'] ?? '').toString().trim(),
+        measuredDurationMs:
+            measured is num && measured > 0 ? measured.toInt() : null,
+      );
+    } catch (e) {
+      debugPrint('ChatbotService.transcribeSpeech error: $e');
+      rethrow;
+    }
+  }
+
+  /// Telaffuz calismasi icin kisa okunacak metinler uretir.
+  Future<List<String>> generatePronunciationTexts({
+    required String level,
+    List<String> focusWords = const [],
+  }) async {
+    try {
+      final result = await _api.chatbotGeneratePronunciationTexts(
+        level: level,
+        focusWords: focusWords,
+      );
+      final texts = result['texts'];
+      if (texts is! List) return const [];
+      final seen = <String>{};
+      final output = <String>[];
+      for (final item in texts) {
+        final text = item.toString().trim().replaceAll(RegExp(r'\s+'), ' ');
+        if (text.isEmpty) continue;
+        if (seen.add(text.toLowerCase())) {
+          output.add(text);
+        }
+        if (output.length >= 3) break;
+      }
+      return output;
+    } catch (e) {
+      debugPrint('ChatbotService.generatePronunciationTexts error: $e');
+      return const [];
     }
   }
 
@@ -142,7 +215,8 @@ class ChatbotService {
       if (!normalized.containsKey('suggestions')) {
         final improvements = normalized['improvements'];
         if (improvements is List) {
-          normalized['suggestions'] = improvements.map((e) => '- ${e.toString()}').join('\n');
+          normalized['suggestions'] =
+              improvements.map((e) => '- ${e.toString()}').join('\n');
         }
       }
 
@@ -163,7 +237,7 @@ class ChatbotService {
     int count = 1,
   }) async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     String subTypePrompt = '';
     switch (subType) {
       case 'tense_voice':
@@ -296,7 +370,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL/YDS sınavı için profesyonel soru üreten bir İngilizce dil uzmanısın. MUTLAKA iki boşluklu, akademik cümleler üret. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL/YDS sınavı için profesyonel soru üreten bir İngilizce dil uzmanısın. MUTLAKA iki boşluklu, akademik cümleler üret. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -313,7 +391,7 @@ JSON formatında döndür:
     String subType = 'phrasal_verb', // phrasal_verb, academic_word
   }) async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     String subTypePrompt = '';
     switch (subType) {
       case 'phrasal_verb':
@@ -447,7 +525,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel vocabulary sorusu üreten bir uzman. MUTLAKA cümle içinde boşluk doldurma formatı kullan. ASLA tanım sorma formatı kullanma. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel vocabulary sorusu üreten bir uzman. MUTLAKA cümle içinde boşluk doldurma formatı kullan. ASLA tanım sorma formatı kullanma. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -462,7 +544,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Preposition sorusu üret
   Future<Map<String, dynamic>> generateYokdilPrepositionQuestion() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Preposition (Edat) sorusu üret. Seviye: C1
 
@@ -487,7 +569,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.8,
@@ -502,7 +588,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Cloze Test üret (5 soruluk paragraf)
   Future<Map<String, dynamic>> generateYokdilClozeTest() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Cloze Test üret. 
 
@@ -537,7 +623,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -552,7 +642,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Sentence Completion sorusu üret
   Future<Map<String, dynamic>> generateYokdilSentenceCompletion() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Sentence Completion (Cümle Tamamlama) sorusu üret.
 
@@ -583,7 +673,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.8,
@@ -600,10 +694,10 @@ JSON formatında döndür:
     String direction = 'en_to_tr', // en_to_tr veya tr_to_en
   }) async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
-    String directionPrompt = direction == 'en_to_tr' 
-      ? 'İngilizce cümle ver, 5 Türkçe çeviri şık sun.'
-      : 'Türkçe cümle ver, 5 İngilizce çeviri şık sun.';
+
+    String directionPrompt = direction == 'en_to_tr'
+        ? 'İngilizce cümle ver, 5 Türkçe çeviri şık sun.'
+        : 'Türkçe cümle ver, 5 İngilizce çeviri şık sun.';
 
     final prompt = '''
 YÖKDİL/YDS Translation (Çeviri) sorusu üret.
@@ -637,7 +731,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel çeviri sorusu üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel çeviri sorusu üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -652,7 +750,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Paragraph Completion sorusu üret
   Future<Map<String, dynamic>> generateYokdilParagraphCompletion() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Paragraph Completion (Paragraf Tamamlama) sorusu üret.
 
@@ -682,7 +780,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -697,7 +799,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Irrelevant Sentence sorusu üret
   Future<Map<String, dynamic>> generateYokdilIrrelevantSentence() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Irrelevant Sentence (Anlam Bütünlüğünü Bozan Cümle) sorusu üret.
 
@@ -727,7 +829,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -742,7 +848,7 @@ JSON formatında döndür:
   /// YÖKDİL/YDS Reading Passage soruları üret (1 paragraf + 3 soru)
   Future<Map<String, dynamic>> generateYokdilReadingPassage() async {
     final randomSeed = DateTime.now().millisecondsSinceEpoch;
-    
+
     final prompt = '''
 YÖKDİL/YDS Reading Passage (Okuma Parçası) üret.
 
@@ -785,7 +891,11 @@ JSON formatında döndür:
     try {
       return await GroqApiClient.getJsonResponse(
         messages: [
-          {'role': 'system', 'content': 'Sen YÖKDİL sınavı için profesyonel okuma parçası ve soru üreten bir uzman. SADECE geçerli JSON döndür.'},
+          {
+            'role': 'system',
+            'content':
+                'Sen YÖKDİL sınavı için profesyonel okuma parçası ve soru üreten bir uzman. SADECE geçerli JSON döndür.'
+          },
           {'role': 'user', 'content': prompt}
         ],
         temperature: 0.7,
@@ -804,27 +914,28 @@ JSON formatında döndür:
     int sentenceCount = 2,
   }) async {
     final questions = <Map<String, dynamic>>[];
-    
+
     // Grammar soruları
     for (int i = 0; i < grammarCount; i++) {
       final subTypes = ['tense_voice', 'conjunctions', 'relative_clause'];
       final q = await generateYokdilGrammarQuestion(subType: subTypes[i % 3]);
       questions.add(q);
     }
-    
+
     // Vocabulary soruları
     for (int i = 0; i < vocabCount; i++) {
       final subTypes = ['phrasal_verb', 'academic_word'];
-      final q = await generateYokdilVocabularyQuestion(subType: subTypes[i % 2]);
+      final q =
+          await generateYokdilVocabularyQuestion(subType: subTypes[i % 2]);
       questions.add(q);
     }
-    
+
     // Sentence Completion soruları
     for (int i = 0; i < sentenceCount; i++) {
       final q = await generateYokdilSentenceCompletion();
       questions.add(q);
     }
-    
+
     return {
       'test_type': 'yokdil_mini',
       'total_questions': questions.length,
@@ -834,3 +945,13 @@ JSON formatında döndür:
   }
 }
 
+/// Transkript + Whisper'ın ölçtüğü gerçek ses süresi (varsa).
+class SpeechTranscription {
+  final String text;
+  final int? measuredDurationMs;
+
+  const SpeechTranscription({
+    required this.text,
+    this.measuredDurationMs,
+  });
+}

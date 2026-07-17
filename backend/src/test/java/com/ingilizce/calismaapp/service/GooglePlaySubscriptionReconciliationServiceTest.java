@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -138,6 +139,129 @@ class GooglePlaySubscriptionReconciliationServiceTest {
         assertEquals(PaymentTransaction.Status.FAILED, tx.getStatus());
         assertEquals("FREE", tx.getUser().getAiPlanCode());
         assertNull(tx.getUser().getSubscriptionEndDate());
+    }
+
+    @Test
+    void reconcileNow_shouldPageThroughAllUsers_NotJustTheFirstPage() {
+        // Regression: a single PageRequest.of(0, maxUsersPerRun) silently skipped
+        // every user beyond the newest N rows - their renewals never extended and
+        // their refunds never revoked once subscriber count passed the cap.
+        GooglePlaySubscriptionProperties googleProps = new GooglePlaySubscriptionProperties();
+        googleProps.setEnabled(true);
+        GooglePlaySubscriptionReconciliationProperties smallPageProps =
+                new GooglePlaySubscriptionReconciliationProperties();
+        smallPageProps.setEnabled(true);
+        smallPageProps.setMaxUsersPerRun(1);
+        GooglePlaySubscriptionReconciliationService pagingService =
+                new GooglePlaySubscriptionReconciliationService(
+                        googleProps,
+                        smallPageProps,
+                        verificationService,
+                        transactionRepository,
+                        planRepository,
+                        Clock.fixed(now, ZoneOffset.UTC));
+
+        PaymentTransaction tx1 = buildGoogleTx("google:token-page-1", "PREMIUM");
+        PaymentTransaction tx2 = buildGoogleTx("google:token-page-2", "PREMIUM");
+        tx2.getUser().setId(43L);
+        when(transactionRepository.findLatestByProviderPerUser(eq("GOOGLE_IAP"), any(Pageable.class)))
+                .thenReturn(List.of(tx1))
+                .thenReturn(List.of(tx2))
+                .thenReturn(List.of());
+
+        for (String token : List.of("token-page-1", "token-page-2")) {
+            GooglePlaySubscriptionVerificationService.VerificationResult snapshot =
+                    new GooglePlaySubscriptionVerificationService.VerificationResult(
+                            "com.VocabMaster",
+                            token,
+                            "SUBSCRIPTION_STATE_ACTIVE",
+                            "order-" + token,
+                            now.plusSeconds(3600),
+                            List.of("pro_monthly_subscription"));
+            when(verificationService.fetchSubscriptionState(token, null)).thenReturn(snapshot);
+            when(verificationService.resolvePlanName(snapshot, null)).thenReturn("PREMIUM");
+        }
+        when(verificationService.isStateEligibleForAccess("SUBSCRIPTION_STATE_ACTIVE")).thenReturn(true);
+        when(planRepository.findByName("PREMIUM")).thenReturn(Optional.of(tx1.getPlan()));
+
+        pagingService.reconcileNow();
+
+        assertEquals("PREMIUM", tx1.getUser().getAiPlanCode());
+        assertEquals("PREMIUM", tx2.getUser().getAiPlanCode());
+        assertEquals(PaymentTransaction.Status.SUCCESS, tx1.getStatus());
+        assertEquals(PaymentTransaction.Status.SUCCESS, tx2.getStatus());
+    }
+
+    @Test
+    void reconcileNow_shouldHonorGoogleExpiryExactly_WhenTrustVerifiedExpiryEnabled() {
+        // Production billing-truth mode: a canceled-but-paid-up subscription must
+        // end exactly at Google's expiry, not get pushed to now+30d on every run.
+        GooglePlaySubscriptionProperties trustProps = new GooglePlaySubscriptionProperties();
+        trustProps.setEnabled(true);
+        trustProps.setTrustVerifiedExpiry(true);
+        GooglePlaySubscriptionReconciliationProperties reconciliationProps =
+                new GooglePlaySubscriptionReconciliationProperties();
+        reconciliationProps.setEnabled(true);
+        reconciliationProps.setMaxUsersPerRun(50);
+        GooglePlaySubscriptionReconciliationService trustingService =
+                new GooglePlaySubscriptionReconciliationService(
+                        trustProps,
+                        reconciliationProps,
+                        verificationService,
+                        transactionRepository,
+                        planRepository,
+                        Clock.fixed(now, ZoneOffset.UTC));
+
+        PaymentTransaction tx = buildGoogleTx("google:token-trust", "PREMIUM");
+        when(transactionRepository.findLatestByProviderPerUser(eq("GOOGLE_IAP"), any(Pageable.class)))
+                .thenReturn(List.of(tx));
+
+        Instant expiry = now.plusSeconds(5 * 24 * 3600);
+        GooglePlaySubscriptionVerificationService.VerificationResult snapshot =
+                new GooglePlaySubscriptionVerificationService.VerificationResult(
+                        "com.VocabMaster",
+                        "token-trust",
+                        "SUBSCRIPTION_STATE_CANCELED",
+                        "order-trust",
+                        expiry,
+                        List.of("pro_monthly_subscription"));
+        when(verificationService.fetchSubscriptionState("token-trust", null)).thenReturn(snapshot);
+        when(verificationService.resolvePlanName(snapshot, null)).thenReturn("PREMIUM");
+        when(verificationService.isStateEligibleForAccess("SUBSCRIPTION_STATE_CANCELED")).thenReturn(false);
+        when(planRepository.findByName("PREMIUM")).thenReturn(Optional.of(tx.getPlan()));
+
+        trustingService.reconcileNow();
+
+        assertEquals(PaymentTransaction.Status.SUCCESS, tx.getStatus());
+        assertEquals(LocalDateTime.ofInstant(expiry, ZoneOffset.UTC), tx.getUser().getSubscriptionEndDate());
+    }
+
+    @Test
+    void reconcilePurchaseToken_shouldFetchLatestMatchingGoogleTransaction() {
+        PaymentTransaction tx = buildGoogleTx("google:token-rtdn", "PREMIUM");
+        when(transactionRepository.findLatestByProviderAndTransactionIdsWithUserAndPlan(
+                eq("GOOGLE_IAP"),
+                eq(List.of("google:token-rtdn", "token-rtdn")),
+                any(Pageable.class)))
+                .thenReturn(List.of(tx));
+
+        Instant expiry = now.plusSeconds(3600);
+        GooglePlaySubscriptionVerificationService.VerificationResult snapshot =
+                new GooglePlaySubscriptionVerificationService.VerificationResult(
+                        "com.VocabMaster",
+                        "token-rtdn",
+                        "SUBSCRIPTION_STATE_ACTIVE",
+                        "order-rtdn",
+                        expiry,
+                        List.of("pro_monthly_subscription"));
+        when(verificationService.fetchSubscriptionState("token-rtdn", null)).thenReturn(snapshot);
+        when(verificationService.resolvePlanName(snapshot, null)).thenReturn("PREMIUM");
+        when(verificationService.isStateEligibleForAccess("SUBSCRIPTION_STATE_ACTIVE")).thenReturn(true);
+        when(planRepository.findByName("PREMIUM")).thenReturn(Optional.of(tx.getPlan()));
+
+        assertTrue(reconciliationService.reconcilePurchaseToken("token-rtdn"));
+        assertEquals(PaymentTransaction.Status.SUCCESS, tx.getStatus());
+        assertEquals("PREMIUM", tx.getUser().getAiPlanCode());
     }
 
     private PaymentTransaction buildGoogleTx(String transactionId, String planName) {

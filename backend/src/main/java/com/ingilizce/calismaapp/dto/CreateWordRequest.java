@@ -35,6 +35,16 @@ public class CreateWordRequest {
     public void setTurkish(String turkish) {
         this.turkish = turkish;
     }
+
+    public String getSourceMeaning() {
+        return turkish;
+    }
+
+    public void setSourceMeaning(String sourceMeaning) {
+        if ((this.turkish == null || this.turkish.isBlank()) && sourceMeaning != null) {
+            this.turkish = sourceMeaning;
+        }
+    }
     
     public String getAddedDate() {
         return addedDate;

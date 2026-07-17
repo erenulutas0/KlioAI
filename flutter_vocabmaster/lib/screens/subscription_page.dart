@@ -282,6 +282,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         planName: plan.name,
         reason: 'unsupported_platform',
       );
+      if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -301,6 +302,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         planName: plan.name,
         reason: 'mobile_iap_disabled',
       );
+      if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -333,6 +335,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         planName: plan.name,
         reason: e.toString(),
       );
+      if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -358,6 +361,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         planName: plan.name,
         reason: 'demo:${e.toString()}',
       );
+      if (!mounted) return;
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -470,7 +474,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.15),
+                          color: Colors.orange.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.orange),
                         ),
@@ -517,7 +521,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.15),
+                          color: Colors.green.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.greenAccent),
                         ),
@@ -581,9 +585,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
@@ -611,7 +615,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.2),
+                            color: Colors.amber.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12)),
                         child: Text(_text('%40 Tasarruf', 'Save 40%'),
                             style: const TextStyle(
@@ -679,6 +683,25 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // The backend grants every new account a 7-day trial AI quota
+                // (FREE_TRIAL_7D); the paywall never mentioned it, giving the
+                // trial away without any conversion framing.
+                Text(
+                  key: const ValueKey('paywall-trial-note'),
+                  _text(
+                    'Yeni hesaplar 7 gunluk deneme AI kotasiyla baslar. '
+                        'Aboneligi istedigin zaman Google Play uzerinden iptal edebilirsin.',
+                    'New accounts start with a 7-day trial AI quota. '
+                        'Cancel your subscription anytime in Google Play.',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    height: 1.3,
                   ),
                 ),
               ],

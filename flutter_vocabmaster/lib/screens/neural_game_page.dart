@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,6 +7,7 @@ import '../bloc/neural_game_bloc.dart';
 import '../bloc/neural_game_event.dart';
 import '../bloc/neural_game_state.dart';
 import '../models/neural_game_mode.dart';
+import '../services/analytics_service.dart';
 import 'neural_game_menu_screen.dart';
 import 'neural_game_play_screen.dart';
 import 'neural_game_results_screen.dart';
@@ -38,8 +41,20 @@ class _NeuralGamePageState extends State<NeuralGamePage> {
 
   void _startGame(NeuralGameMode mode) {
     _selectedMode = mode;
+    unawaited(AnalyticsService.logNeuralGameStarted(mode: mode.name));
     _bloc.add(StartGameEvent(mode: mode));
     setState(() => _view = _NeuralGameView.play);
+  }
+
+  void _returnToMenu({required String source}) {
+    unawaited(
+      AnalyticsService.logNeuralGameExited(
+        mode: _selectedMode.name,
+        source: source,
+      ),
+    );
+    _bloc.add(const ResetGameEvent());
+    setState(() => _view = _NeuralGameView.menu);
   }
 
   @override
@@ -48,8 +63,7 @@ class _NeuralGamePageState extends State<NeuralGamePage> {
       canPop: _view == _NeuralGameView.menu,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && _view != _NeuralGameView.menu) {
-          _bloc.add(const ResetGameEvent());
-          setState(() => _view = _NeuralGameView.menu);
+          _returnToMenu(source: 'system_back');
         }
       },
       child: switch (_view) {
@@ -62,10 +76,24 @@ class _NeuralGamePageState extends State<NeuralGamePage> {
             child: NeuralGamePlayScreen(
               mode: _selectedMode,
               onExit: () {
-                _bloc.add(const ResetGameEvent());
-                setState(() => _view = _NeuralGameView.menu);
+                _returnToMenu(source: 'exit_button');
               },
               onFinished: (result) {
+                unawaited(
+                  AnalyticsService.logNeuralGameFinished(
+                    mode: result.mode.name,
+                    finalScore: result.finalScore,
+                    totalWords: result.totalWords,
+                    maxCombo: result.maxCombo,
+                  ),
+                );
+                unawaited(
+                  AnalyticsService.logPracticeCompleted(
+                    type: 'neural_game',
+                    score: result.finalScore,
+                    totalQuestions: result.totalWords,
+                  ),
+                );
                 setState(() {
                   _latestResult = result;
                   _view = _NeuralGameView.results;
@@ -77,8 +105,7 @@ class _NeuralGamePageState extends State<NeuralGamePage> {
             result: _latestResult!,
             onPlayAgain: () => _startGame(_selectedMode),
             onBackToMenu: () {
-              _bloc.add(const ResetGameEvent());
-              setState(() => _view = _NeuralGameView.menu);
+              _returnToMenu(source: 'results_back_to_menu');
             },
           ),
       },

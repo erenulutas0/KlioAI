@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -15,11 +16,15 @@ import '../services/xp_manager.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import '../widgets/session_summary_sheet.dart';
 
 class RepeatPage extends StatefulWidget {
-  const RepeatPage({super.key, this.initialWordId});
+  const RepeatPage({super.key, this.initialWordId, this.apiService});
 
   final int? initialWordId;
+
+  /// Test seam; production always uses the real [ApiService].
+  final ApiService? apiService;
 
   @override
   State<RepeatPage> createState() => _RepeatPageState();
@@ -31,8 +36,34 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
   bool _showTranslation = false;
   List<Word> words = [];
   bool isLoading = true;
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService = widget.apiService ?? ApiService();
   final FlutterTts flutterTts = FlutterTts();
+  bool _isSubmittingSrsGrade = false;
+
+  // Oturum özeti: bu oturumda tamamlanan aksiyon sayısı ve kazanılan XP.
+  // Tam bir tur (words.length aksiyon) tamamlanınca özet gösterilir.
+  int _sessionActions = 0;
+  int _sessionXp = 0;
+
+  void _registerSessionAction({required int xpEarned}) {
+    _sessionActions++;
+    _sessionXp += xpEarned;
+    if (words.isNotEmpty && _sessionActions >= words.length) {
+      final xpForSheet = _sessionXp;
+      final itemsForSheet = _sessionActions;
+      _sessionActions = 0;
+      _sessionXp = 0;
+      // Kart geçiş animasyonuyla çakışmaması için bir frame sonra göster.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        SessionSummarySheet.show(
+          context,
+          xpEarned: xpForSheet,
+          itemsCompleted: itemsForSheet,
+        );
+      });
+    }
+  }
 
   // Button states
   bool _previousPressed = false;
@@ -166,6 +197,36 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     await flutterTts.speak(word);
   }
 
+  /// Classic Review previously never fed the backend SM-2 engine — grades
+  /// went nowhere and due dates never advanced. Submitting here reuses the
+  /// same `/api/srs/submit-review` path as Neural review. Offline/temp-id
+  /// failures are tolerated: the session keeps flowing either way.
+  Future<void> _submitSrsGrade(int quality) async {
+    if (words.isEmpty || _isSubmittingSrsGrade) return;
+    final word = words[_currentIndex];
+    setState(() => _isSubmittingSrsGrade = true);
+    try {
+      await context
+          .read<AppStateProvider>()
+          .submitWordReview(wordId: word.id, quality: quality);
+    } catch (e) {
+      debugPrint('Classic review SRS submit failed (offline?): $e');
+    }
+    if (!mounted) return;
+    // SRS notlama bugüne kadar hiç XP/streak vermiyordu - yalnızca manuel
+    // "öğrenildi" butonu veriyordu. Not vermek de bir tekrar tamamlamadır;
+    // addXPForAction ayrıca streak'i işler (creditLearningActivity).
+    // Bilinçli olarak await edilmiyor: kart akışı XP alt sistemine (prefs/DB)
+    // takılmamalı - kazanç toast'u zaten global dinleyiciden gelir.
+    unawaited(context.read<AppStateProvider>().addXPForAction(
+          XPActionTypes.reviewComplete,
+          source: 'SRS Tekrar',
+        ));
+    _registerSessionAction(xpEarned: XPActionTypes.reviewComplete.xpAmount);
+    setState(() => _isSubmittingSrsGrade = false);
+    _handleNext();
+  }
+
   Future<void> _markAsLearned() async {
     // XP ekle
     if (!mounted) return;
@@ -175,6 +236,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     await AnalyticsService.logPracticeCompleted(type: 'classic_review');
     await InAppReviewService().recordPracticeCompletion();
     if (!mounted) return;
+    _registerSessionAction(xpEarned: XPActionTypes.reviewComplete.xpAmount);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -325,7 +387,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                 width: 256,
                 height: 256,
                 decoration: BoxDecoration(
-                  color: theme.colors.orbColor1.withOpacity(0.6),
+                  color: theme.colors.orbColor1.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -352,9 +414,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   child: const Icon(Icons.arrow_back,
                       color: Colors.white, size: 20),
@@ -375,7 +438,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   Text(
                     '${_currentIndex + 1} / ${words.length}',
                     style: TextStyle(
-                      color: theme.colors.accent.withOpacity(0.75),
+                      color: theme.colors.accent.withValues(alpha: 0.75),
                       fontSize: 14,
                     ),
                   ),
@@ -446,9 +509,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: gradient[0].withOpacity(0.3)),
+              border: Border.all(color: gradient[0].withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -459,7 +522,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: gradient[1].withOpacity(0.8),
+                      color: gradient[1].withValues(alpha: 0.8),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -498,10 +561,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          theme.colors.accent.withOpacity(0.26),
-                          theme.colors.primary.withOpacity(0.26),
+                          theme.colors.accent.withValues(alpha: 0.26),
+                          theme.colors.primary.withValues(alpha: 0.26),
                           _mix(theme.colors.primary, theme.colors.accent, 0.5)
-                              .withOpacity(0.26),
+                              .withValues(alpha: 0.26),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(24),
@@ -524,18 +587,18 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.05),
+                      Colors.white.withValues(alpha: 0.1),
+                      Colors.white.withValues(alpha: 0.05),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 40,
                       offset: const Offset(0, 20),
                     ),
@@ -588,7 +651,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                     boxShadow: [
                                       BoxShadow(
                                         color: theme.colors.accentGlow
-                                            .withOpacity(0.5),
+                                            .withValues(alpha: 0.5),
                                         blurRadius: 12,
                                         offset: const Offset(0, 4),
                                       ),
@@ -607,8 +670,8 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                   icon: const Icon(Icons.volume_up,
                                       color: Colors.white),
                                   style: IconButton.styleFrom(
-                                    backgroundColor:
-                                        theme.colors.primary.withOpacity(0.45),
+                                    backgroundColor: theme.colors.primary
+                                        .withValues(alpha: 0.45),
                                     padding: const EdgeInsets.all(8),
                                   ),
                                   onPressed: _playAudio,
@@ -651,7 +714,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                       card.turkishMeaning,
                                       style: TextStyle(
                                         color: const Color(0xFFE0F2FE)
-                                            .withOpacity(0.8),
+                                            .withValues(alpha: 0.8),
                                         fontSize: _getMeaningFontSize(
                                             card.turkishMeaning),
                                       ),
@@ -675,6 +738,11 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                             const Spacer(flex: 2),
 
                           const SizedBox(height: 16),
+
+                          // SRS grade buttons (feed the SM-2 scheduler)
+                          _buildSrsGradeButtons(),
+
+                          const SizedBox(height: 12),
 
                           // Action Buttons
                           _buildActionButtons(),
@@ -756,7 +824,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     Text(
                       '"$example"',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: example.length > 80 ? 12 : 14,
                         fontStyle: FontStyle.italic,
                       ),
@@ -765,12 +833,13 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     if (_showTranslation) ...[
                       const SizedBox(height: 8),
                       Container(
-                          height: 1, color: Colors.white.withOpacity(0.1)),
+                          height: 1,
+                          color: Colors.white.withValues(alpha: 0.1)),
                       const SizedBox(height: 8),
                       Text(
                         exampleTr,
                         style: TextStyle(
-                          color: theme.colors.accent.withOpacity(0.85),
+                          color: theme.colors.accent.withValues(alpha: 0.85),
                           fontSize: exampleTr.length > 80 ? 12 : 13,
                         ),
                         textAlign: TextAlign.center,
@@ -799,6 +868,93 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildSrsGradeButtons() {
+    final theme = _theme(listen: true);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Bu kelime ne kadar kolaydı?',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _buildSrsGradeButton(
+              key: const ValueKey('srs-grade-hard'),
+              label: 'Zor',
+              icon: Icons.replay_rounded,
+              color: const Color(0xFFF87171),
+              quality: 2,
+            ),
+            const SizedBox(width: 10),
+            _buildSrsGradeButton(
+              key: const ValueKey('srs-grade-good'),
+              label: 'İyi',
+              icon: Icons.check_rounded,
+              color: theme.colors.accent,
+              quality: 4,
+            ),
+            const SizedBox(width: 10),
+            _buildSrsGradeButton(
+              key: const ValueKey('srs-grade-easy'),
+              label: 'Kolay',
+              icon: Icons.done_all_rounded,
+              color: const Color(0xFF34D399),
+              quality: 5,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSrsGradeButton({
+    required Key key,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required int quality,
+  }) {
+    return Expanded(
+      child: InkWell(
+        key: key,
+        onTap: _isSubmittingSrsGrade ? null : () => _submitSrsGrade(quality),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButtons() {
     final theme = _theme(listen: true);
     return Row(
@@ -814,10 +970,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: const Color(0xFFEC4899).withOpacity(0.3)),
+                      color: const Color(0xFFEC4899).withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -919,9 +1075,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   child: const Center(
                     child: Text(
@@ -958,7 +1115,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: theme.colors.accentGlow.withOpacity(0.5),
+                        color: theme.colors.accentGlow.withValues(alpha: 0.5),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

@@ -21,14 +21,14 @@ class ExamResultPage extends StatelessWidget {
     int totalQuestions = 0;
     int correctCount = 0;
     int blankCount = 0;
-    
+
     // Group analysis by section
     Map<String, _SectionResult> sectionResults = {};
 
     for (var section in examBundle.sections) {
       int sectionCorrect = 0;
       int sectionTotal = section.items.length;
-      
+
       for (var item in section.items) {
         totalQuestions++;
         final userAnswer = userAnswers[item.id];
@@ -39,10 +39,11 @@ class ExamResultPage extends StatelessWidget {
           sectionCorrect++;
         }
       }
-      
-      sectionResults[section.name] = _SectionResult(sectionCorrect, sectionTotal);
+
+      sectionResults[section.name] =
+          _SectionResult(sectionCorrect, sectionTotal);
     }
-    
+
     int incorrectCount = totalQuestions - correctCount - blankCount;
     // YDS score is typically Correct * 1.25 (since 80 questions = 100 points)
     // But for general purpose let's just do percentage or normalized score
@@ -67,7 +68,7 @@ class ExamResultPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // SCORE CARD
                   Container(
                     width: double.infinity,
@@ -75,19 +76,19 @@ class ExamResultPage extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                         const Color(0xFF0ea5e9).withOpacity(0.8),
-                         const Color(0xFF3b82f6).withOpacity(0.8),
+                          const Color(0xFF0ea5e9).withValues(alpha: 0.8),
+                          const Color(0xFF3b82f6).withValues(alpha: 0.8),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(32),
                       boxShadow: [
-                         BoxShadow(
-                           color: const Color(0xFF3b82f6).withOpacity(0.3),
-                           blurRadius: 30,
-                           offset: const Offset(0, 10),
-                         ),
+                        BoxShadow(
+                          color: const Color(0xFF3b82f6).withValues(alpha: 0.3),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
                       ],
                     ),
                     child: Column(
@@ -113,17 +114,20 @@ class ExamResultPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildStatItem('Doğru', correctCount.toString(), Colors.greenAccent),
-                            _buildStatItem('Yanlış', incorrectCount.toString(), Colors.redAccent),
-                            _buildStatItem('Boş', blankCount.toString(), Colors.white60),
+                            _buildStatItem('Doğru', correctCount.toString(),
+                                Colors.greenAccent),
+                            _buildStatItem('Yanlış', incorrectCount.toString(),
+                                Colors.redAccent),
+                            _buildStatItem(
+                                'Boş', blankCount.toString(), Colors.white60),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // REVIEW BUTTONS
                   Padding(
                     padding: const EdgeInsets.only(bottom: 32),
@@ -132,24 +136,23 @@ class ExamResultPage extends StatelessWidget {
                         // Yanlışlar
                         if (incorrectCount > 0)
                           _buildReviewBtn(
-                            context, 
-                            'Yanlışları İncele ($incorrectCount)', 
-                            Colors.redAccent, 
-                            Icons.cancel_outlined, 
-                            (item, ans) => ans != null && ans != item.correct
-                          ),
+                              context,
+                              'Yanlışları İncele ($incorrectCount)',
+                              Colors.redAccent,
+                              Icons.cancel_outlined,
+                              (item, ans) =>
+                                  ans != null && ans != item.correct),
 
                         // Boşlar
                         if (blankCount > 0)
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: _buildReviewBtn(
-                              context, 
-                              'Boşları İncele ($blankCount)', 
-                              Colors.amber.shade700, 
-                              Icons.help_outline, 
-                              (item, ans) => ans == null
-                            ),
+                                context,
+                                'Boşları İncele ($blankCount)',
+                                Colors.amber.shade700,
+                                Icons.help_outline,
+                                (item, ans) => ans == null),
                           ),
 
                         // Doğrular
@@ -157,17 +160,16 @@ class ExamResultPage extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: _buildReviewBtn(
-                              context, 
-                              'Doğruları İncele ($correctCount)', 
-                              Colors.green, 
-                              Icons.check_circle_outline, 
-                              (item, ans) => ans == item.correct
-                            ),
+                                context,
+                                'Doğruları İncele ($correctCount)',
+                                Colors.green,
+                                Icons.check_circle_outline,
+                                (item, ans) => ans == item.correct),
                           ),
                       ],
                     ),
                   ),
-                  
+
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -180,7 +182,7 @@ class ExamResultPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                   const Text(
+                  const Text(
                     'Detaylar için bölümlere tıkla',
                     style: TextStyle(
                       color: Colors.white54,
@@ -188,7 +190,7 @@ class ExamResultPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   ...sectionResults.entries.map((entry) {
                     final sectionName = entry.key;
                     final stats = entry.value;
@@ -197,32 +199,35 @@ class ExamResultPage extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: InkWell(
                         onTap: () {
-                           // Navigate to review this specific section
-                            final section = examBundle.sections.firstWhere((s) => s.name == sectionName);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ExamReviewPage(
-                                  items: section.items,
-                                  userAnswers: userAnswers,
-                                  title: sectionName,
-                                ),
+                          // Navigate to review this specific section
+                          final section = examBundle.sections
+                              .firstWhere((s) => s.name == sectionName);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ExamReviewPage(
+                                items: section.items,
+                                userAnswers: userAnswers,
+                                title: sectionName,
                               ),
-                            );
+                            ),
+                          );
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     sectionName.toUpperCase(),
@@ -235,10 +240,12 @@ class ExamResultPage extends StatelessWidget {
                                     children: [
                                       Text(
                                         '${stats.correct} / ${stats.total}',
-                                        style: const TextStyle(color: Colors.white70),
+                                        style: const TextStyle(
+                                            color: Colors.white70),
                                       ),
                                       const SizedBox(width: 8),
-                                      const Icon(Icons.chevron_right, color: Colors.white54),
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.white54),
                                     ],
                                   ),
                                 ],
@@ -248,7 +255,11 @@ class ExamResultPage extends StatelessWidget {
                                 value: percentage,
                                 backgroundColor: Colors.white10,
                                 valueColor: AlwaysStoppedAnimation(
-                                  percentage > 0.7 ? Colors.green : (percentage > 0.4 ? Colors.amber : Colors.red),
+                                  percentage > 0.7
+                                      ? Colors.green
+                                      : (percentage > 0.4
+                                          ? Colors.amber
+                                          : Colors.red),
                                 ),
                               ),
                             ],
@@ -257,19 +268,20 @@ class ExamResultPage extends StatelessWidget {
                       ),
                     );
                   }),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context), 
+                          onPressed: () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.white54),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text('Kapat', style: TextStyle(color: Colors.white)),
+                          child: const Text('Kapat',
+                              style: TextStyle(color: Colors.white)),
                         ),
                       ),
                     ],
@@ -297,7 +309,7 @@ class ExamResultPage extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: color.withOpacity(0.7),
+            color: color.withValues(alpha: 0.7),
             fontSize: 12,
           ),
         ),
@@ -306,20 +318,15 @@ class ExamResultPage extends StatelessWidget {
   }
 
   // Helper for Review Buttons
-  Widget _buildReviewBtn(
-    BuildContext context, 
-    String label, 
-    Color color, 
-    IconData icon, 
-    bool Function(ExamItem, String?) filter
-  ) {
+  Widget _buildReviewBtn(BuildContext context, String label, Color color,
+      IconData icon, bool Function(ExamItem, String?) filter) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () {
           final filteredItems = <ExamItem>[];
           final originalIndices = <int>[];
-          
+
           int globalIndex = 0;
           for (var section in examBundle.sections) {
             for (var item in section.items) {
@@ -331,7 +338,7 @@ class ExamResultPage extends StatelessWidget {
               globalIndex++;
             }
           }
-          
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -345,11 +352,13 @@ class ExamResultPage extends StatelessWidget {
           );
         },
         icon: Icon(icon, color: Colors.white),
-        label: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+        label: Text(label,
+            style: const TextStyle(color: Colors.white, fontSize: 16)),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
     );
@@ -361,4 +370,3 @@ class _SectionResult {
   final int total;
   _SectionResult(this.correct, this.total);
 }
-

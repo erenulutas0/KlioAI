@@ -79,7 +79,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
           topRight: Radius.circular(24),
         ),
         border: Border.all(
-          color: selectedTheme.colors.glassBorder.withOpacity(0.68),
+          color: selectedTheme.colors.glassBorder.withValues(alpha: 0.68),
           width: 1,
         ),
       ),
@@ -152,9 +152,9 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             colors: [
                               i % 2 == 0
                                   ? selectedTheme.colors.orbColor1
-                                      .withOpacity(0.45)
+                                      .withValues(alpha: 0.45)
                                   : selectedTheme.colors.orbColor2
-                                      .withOpacity(0.45),
+                                      .withValues(alpha: 0.45),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.7],
@@ -203,7 +203,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             boxShadow: [
                               BoxShadow(
                                 color: selectedTheme.colors.particleGlow
-                                    .withOpacity(0.5),
+                                    .withValues(alpha: 0.5),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -231,10 +231,10 @@ class _WordSentencesModalState extends State<WordSentencesModal>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         border: Border(
           bottom: BorderSide(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.65),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.65),
             width: 1,
           ),
         ),
@@ -259,8 +259,8 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            selectedTheme.colors.accentGlow.withOpacity(0.42),
+                        color: selectedTheme.colors.accentGlow
+                            .withValues(alpha: 0.42),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
@@ -339,7 +339,8 @@ class _WordSentencesModalState extends State<WordSentencesModal>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notes, size: 64, color: Colors.white.withOpacity(0.2)),
+          Icon(Icons.notes,
+              size: 64, color: Colors.white.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           Text(
             _text(
@@ -375,15 +376,17 @@ class _WordSentencesModalState extends State<WordSentencesModal>
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selectedTheme.colors.glassBorder.withOpacity(0.52),
+                  color:
+                      selectedTheme.colors.glassBorder.withValues(alpha: 0.52),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.2),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.2),
                     blurRadius: 16,
                     spreadRadius: 0,
                   ),
@@ -414,7 +417,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                   BoxShadow(
                                     color: _getDifficultyColor(
                                             sentence.difficulty ?? 'medium')
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                     blurRadius: 8,
                                     spreadRadius: 1,
                                   ),
@@ -442,11 +445,11 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: selectedTheme.colors.accent
-                                      .withOpacity(0.2),
+                                      .withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color: selectedTheme.colors.accent
-                                        .withOpacity(0.35),
+                                        .withValues(alpha: 0.35),
                                     width: 1,
                                   ),
                                 ),
@@ -493,15 +496,16 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  selectedTheme.colors.accent.withOpacity(0.15),
+                                  selectedTheme.colors.accent
+                                      .withValues(alpha: 0.15),
                                   selectedTheme.colors.primary
-                                      .withOpacity(0.15),
+                                      .withValues(alpha: 0.15),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: selectedTheme.colors.glassBorder
-                                    .withOpacity(0.52),
+                                    .withValues(alpha: 0.52),
                                 width: 1,
                               ),
                             ),
@@ -509,7 +513,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                               '🇹🇷 ${sentence.translation}',
                               style: TextStyle(
                                 color: selectedTheme.colors.textPrimary
-                                    .withOpacity(0.92),
+                                    .withValues(alpha: 0.92),
                                 fontSize: 15,
                                 height: 1.6,
                               ),
@@ -536,11 +540,11 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              backgroundColor:
-                                  selectedTheme.colors.accent.withOpacity(0.12),
+                              backgroundColor: selectedTheme.colors.accent
+                                  .withValues(alpha: 0.12),
                               side: BorderSide(
                                 color: selectedTheme.colors.glassBorder
-                                    .withOpacity(0.6),
+                                    .withValues(alpha: 0.6),
                                 width: 1,
                               ),
                               shape: RoundedRectangleBorder(
@@ -634,7 +638,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: selectedTheme.colors.accentGlow.withOpacity(0.45),
+              color: selectedTheme.colors.accentGlow.withValues(alpha: 0.45),
               blurRadius: 12,
               spreadRadius: 2,
             ),
@@ -679,13 +683,13 @@ class _WordSentencesModalState extends State<WordSentencesModal>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            selectedTheme.colors.accent.withOpacity(0.16),
-            selectedTheme.colors.primary.withOpacity(0.16),
+            selectedTheme.colors.accent.withValues(alpha: 0.16),
+            selectedTheme.colors.primary.withValues(alpha: 0.16),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: selectedTheme.colors.glassBorder.withOpacity(0.8),
+            color: selectedTheme.colors.glassBorder.withValues(alpha: 0.8),
             width: 2,
           ),
         ),
@@ -749,7 +753,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.5),
+                color: color.withValues(alpha: 0.5),
                 blurRadius: 8,
                 spreadRadius: 2,
               ),

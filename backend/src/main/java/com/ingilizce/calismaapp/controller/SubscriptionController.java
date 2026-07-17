@@ -1,5 +1,6 @@
 package com.ingilizce.calismaapp.controller;
 
+import com.ingilizce.calismaapp.config.GooglePlaySubscriptionProperties;
 import com.ingilizce.calismaapp.entity.PaymentTransaction;
 import com.ingilizce.calismaapp.entity.SubscriptionPlan;
 import com.ingilizce.calismaapp.entity.User;
@@ -38,6 +39,7 @@ public class SubscriptionController {
     private final IyzicoService iyzicoService;
     private final GooglePlaySubscriptionVerificationService googlePlaySubscriptionVerificationService;
     private final CurrentUserContext currentUserContext;
+    private final GooglePlaySubscriptionProperties googlePlayProperties;
     @Value("${app.subscription.mock-verification-enabled:true}")
     private boolean mockVerificationEnabled;
 
@@ -46,13 +48,15 @@ public class SubscriptionController {
             PaymentTransactionRepository transactionRepository,
             IyzicoService iyzicoService,
             GooglePlaySubscriptionVerificationService googlePlaySubscriptionVerificationService,
-            CurrentUserContext currentUserContext) {
+            CurrentUserContext currentUserContext,
+            GooglePlaySubscriptionProperties googlePlayProperties) {
         this.planRepository = planRepository;
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.iyzicoService = iyzicoService;
         this.googlePlaySubscriptionVerificationService = googlePlaySubscriptionVerificationService;
         this.currentUserContext = currentUserContext;
+        this.googlePlayProperties = googlePlayProperties;
     }
 
     @GetMapping("/plans")
@@ -168,6 +172,10 @@ public class SubscriptionController {
             User user = userOpt.get();
 
             if (mockVerificationEnabled) {
+                if (currentUserContext.shouldEnforceAuthz() && !currentUserContext.isSelfOrAdmin(userId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Authenticated user does not match requested user"));
+                }
                 String planName = request.get("planName");
                 Optional<SubscriptionPlan> planOpt = planRepository.findByName(planName);
                 if (planOpt.isEmpty()) {
@@ -291,32 +299,41 @@ public class SubscriptionController {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime currentEnd = user.getSubscriptionEndDate();
         int durationDays = resolveEffectiveDurationDays(plan);
+        boolean hasActiveEnd = currentEnd != null && currentEnd.isAfter(now);
         if (verifiedExpiryUtc != null && verifiedExpiryUtc.isAfter(now)) {
-            if (currentEnd == null || currentEnd.isBefore(now)) {
+            if (googlePlayProperties.isTrustVerifiedExpiry()) {
+                // Google is the billing source of truth: honor exactly what was
+                // paid, no minimum-duration floor. Never shrink an end date the
+                // user was already shown.
+                return hasActiveEnd && currentEnd.isAfter(verifiedExpiryUtc) ? currentEnd : verifiedExpiryUtc;
+            }
+            if (!hasActiveEnd) {
                 LocalDateTime minimumPlanEnd = now.plusDays(durationDays);
                 return verifiedExpiryUtc.isAfter(minimumPlanEnd) ? verifiedExpiryUtc : minimumPlanEnd;
             }
             return verifiedExpiryUtc.isAfter(currentEnd) ? verifiedExpiryUtc : currentEnd;
         }
-        if (currentEnd == null || currentEnd.isBefore(now)) {
-            return now.plusDays(durationDays);
+        // No trustworthy Google expiry (mock flow, or a grace-period edge where
+        // the reported expiry is already past). Guarantee at least one plan
+        // duration from now, but never STACK onto an already-future end date:
+        // the old currentEnd.plusDays(...) here let every repeated verify or
+        // restore call extend the subscription by another full duration.
+        LocalDateTime floor = now.plusDays(durationDays);
+        if (hasActiveEnd && currentEnd.isAfter(floor)) {
+            return currentEnd;
         }
-        return currentEnd.plusDays(durationDays);
+        return floor;
     }
 
     private int resolveEffectiveDurationDays(SubscriptionPlan plan) {
         if (plan == null) {
             return STANDARD_SUBSCRIPTION_DAYS;
         }
-        AiPlanTier tier = AiPlanTier.fromSubscriptionPlanName(plan.getName());
-        if (tier == AiPlanTier.PREMIUM || tier == AiPlanTier.PREMIUM_PLUS) {
-            return STANDARD_SUBSCRIPTION_DAYS;
-        }
         Integer configuredDuration = plan.getDurationDays();
         if (configuredDuration == null || configuredDuration < 1) {
             return STANDARD_SUBSCRIPTION_DAYS;
         }
-        return configuredDuration;
+        return Math.max(STANDARD_SUBSCRIPTION_DAYS, configuredDuration);
     }
 
     private boolean isSubscriptionCurrentlyActive(User user) {
@@ -429,6 +446,14 @@ public class SubscriptionController {
         if (plan == null) {
             return AiPlanTier.FREE.name();
         }
-        return AiPlanTier.fromSubscriptionPlanName(plan.getName()).name();
+        AiPlanTier tier = AiPlanTier.fromSubscriptionPlanName(plan.getName());
+        if (tier == AiPlanTier.FREE) {
+            // The name mapping is substring-based (PRO/PREMIUM/PLUS). A future
+            // paid plan named without those markers would silently give a
+            // paying user the FREE AI tier - make that loud instead of silent.
+            log.warn("AI_PLAN_MAPPING_FALLBACK: subscription plan '{}' resolved to FREE ai tier - "
+                    + "check AiPlanTier.fromSubscriptionPlanName mapping", plan.getName());
+        }
+        return tier.name();
     }
 }

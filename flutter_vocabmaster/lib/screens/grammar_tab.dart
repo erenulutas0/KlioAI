@@ -49,7 +49,7 @@ class _GrammarTabState extends State<GrammarTab> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: selectedTheme.colors.accent.withOpacity(0.12),
+                  color: selectedTheme.colors.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: selectedTheme.colors.accent,
@@ -57,7 +57,8 @@ class _GrammarTabState extends State<GrammarTab> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                      color: selectedTheme.colors.accentGlow
+                          .withValues(alpha: 0.35),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
@@ -157,13 +158,13 @@ class _GrammarTabState extends State<GrammarTab> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? accent.withOpacity(0.18)
-              : Colors.white.withOpacity(0.05),
+              ? accent.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
-                ? accent.withOpacity(0.76)
-                : Colors.white.withOpacity(0.10),
+                ? accent.withValues(alpha: 0.76)
+                : Colors.white.withValues(alpha: 0.10),
             width: 1.2,
           ),
         ),
@@ -222,9 +223,9 @@ class _GrammarTabState extends State<GrammarTab> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.12),
+                  color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: accent.withOpacity(0.32)),
+                  border: Border.all(color: accent.withValues(alpha: 0.32)),
                 ),
                 child: Icon(topic.icon, color: accent, size: 28),
               ),
@@ -250,7 +251,7 @@ class _GrammarTabState extends State<GrammarTab> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary
-                            .withOpacity(0.78),
+                            .withValues(alpha: 0.78),
                         fontSize: 12,
                       ),
                     ),
@@ -265,8 +266,8 @@ class _GrammarTabState extends State<GrammarTab> {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isComingSoon
-                          ? Colors.white.withOpacity(0.05)
-                          : accent.withOpacity(0.10),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : accent.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -288,7 +289,7 @@ class _GrammarTabState extends State<GrammarTab> {
                         _text(
                             '$exampleCount+ Ornek', '$exampleCount+ Examples'),
                         style: TextStyle(
-                          color: accent.withOpacity(0.85),
+                          color: accent.withValues(alpha: 0.85),
                           fontSize: 10,
                         ),
                       ),
@@ -298,7 +299,8 @@ class _GrammarTabState extends State<GrammarTab> {
               const SizedBox(width: 8),
               Icon(
                 Icons.arrow_forward_ios,
-                color: selectedTheme.colors.textSecondary.withOpacity(0.35),
+                color:
+                    selectedTheme.colors.textSecondary.withValues(alpha: 0.35),
                 size: 14,
               ),
             ],

@@ -53,7 +53,9 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
           _buildHeader(context),
           const SizedBox(height: 24),
           if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: SocialFeedColors.avatarCyan))
+            const Center(
+                child: CircularProgressIndicator(
+                    color: SocialFeedColors.avatarCyan))
           else if (_activities.isEmpty)
             const Center(
               child: Text(
@@ -63,20 +65,20 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
             )
           else
             ..._activities.map((a) => Column(
-              children: [
-                _buildPost(
-                  context,
-                  name: 'User ${a.userId}',
-                  time: _formatTimestamp(a.createdAt),
-                  content: a.description,
-                  likes: 0,
-                  comments: 0,
-                  avatarColor: SocialFeedColors.avatarCyan,
-                  avatarLetter: 'U',
-                ),
-                if (a != _activities.last) const SizedBox(height: 20),
-              ],
-            )),
+                  children: [
+                    _buildPost(
+                      context,
+                      name: 'User ${a.userId}',
+                      time: _formatTimestamp(a.createdAt),
+                      content: a.description,
+                      likes: 0,
+                      comments: 0,
+                      avatarColor: SocialFeedColors.avatarCyan,
+                      avatarLetter: 'U',
+                    ),
+                    if (a != _activities.last) const SizedBox(height: 20),
+                  ],
+                )),
           const SizedBox(height: 24),
           _buildCTAButton(context),
         ],
@@ -131,7 +133,8 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
     );
   }
 
-  Widget _buildPost(BuildContext context, {
+  Widget _buildPost(
+    BuildContext context, {
     required String name,
     required String time,
     required String content,
@@ -142,17 +145,18 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
   }) {
     return InkWell(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const SocialFeedPage()));
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const SocialFeedPage()));
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -166,7 +170,7 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
                   height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: avatarColor.withOpacity(0.2),
+                    color: avatarColor.withValues(alpha: 0.2),
                     border: Border.all(
                       color: avatarColor,
                       width: 2,
@@ -266,7 +270,8 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
   Widget _buildCTAButton(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const SocialFeedPage()));
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const SocialFeedPage()));
       },
       child: ModernCard(
         width: double.infinity,
@@ -297,4 +302,3 @@ class _SocialFeedPreviewState extends State<SocialFeedPreview> {
     );
   }
 }
-

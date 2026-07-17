@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -34,12 +33,15 @@ import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'services/crashlytics_service.dart';
 import 'services/local_reminder_service.dart';
 import 'services/push_token_service.dart';
 import 'widgets/matchmaking_banner.dart';
 import 'widgets/theme_side_tab.dart';
+import 'widgets/xp_toast_host.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/language_provider.dart';
+import 'providers/learning_language_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
 
@@ -68,6 +70,7 @@ void main() async {
   final currentUserId = await authService.getUserId();
   if (currentUserId != null && currentUserId > 0) {
     await AnalyticsService.setUserId(currentUserId.toString());
+    await CrashlyticsService.setUserId(currentUserId.toString());
   }
   if (await authService.isLoggedIn()) {
     await offlineSyncService.initialDataLoad();
@@ -81,8 +84,10 @@ void main() async {
   final appStateProvider = AppStateProvider();
   final themeProvider = ThemeProvider();
   final languageProvider = LanguageProvider();
+  final learningLanguageProvider = LearningLanguageProvider();
   await themeProvider.initialize();
   await languageProvider.initialize();
+  await learningLanguageProvider.initialize();
 
   appStateProvider.addListener(() {
     final xp = (appStateProvider.userStats['xp'] as int?) ?? 0;
@@ -116,6 +121,7 @@ void main() async {
         ChangeNotifierProvider.value(value: appStateProvider),
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: languageProvider),
+        ChangeNotifierProvider.value(value: learningLanguageProvider),
       ],
       child: const KlioAIApp(),
     ),
@@ -137,15 +143,17 @@ class _AppOpenLifecycleObserver extends WidgetsBindingObserver {
 Future<bool> _initializeFirebaseTelemetry() async {
   try {
     await Firebase.initializeApp();
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    CrashlyticsService.setEnabled(true);
+    FlutterError.onError = CrashlyticsService.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      unawaited(CrashlyticsService.recordError(error, stack, fatal: true));
       return true;
     };
     AnalyticsService.setEnabled(true);
     return true;
   } catch (e) {
     AnalyticsService.setEnabled(false);
+    CrashlyticsService.setEnabled(false);
     debugPrint('Firebase telemetry disabled: $e');
     return false;
   }
@@ -185,7 +193,9 @@ class KlioAIApp extends StatelessWidget {
         fontFamily: 'Inter',
       ),
       builder: (context, child) => ThemeSideTab(
-        child: child ?? const SizedBox.shrink(),
+        child: XpToastHost(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: const AppEntryGate(),
     );
@@ -228,6 +238,7 @@ class _MainScreenState extends State<MainScreen> {
     _currentIndex = widget.initialIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _logTabScreen(_currentIndex);
+      unawaited(_consumePendingNotificationNavigation());
     });
   }
 
@@ -240,6 +251,9 @@ class _MainScreenState extends State<MainScreen> {
         _practiceInitialMode = practiceInitialMode;
       }
     });
+    if (index == 0) {
+      unawaited(context.read<AppStateProvider>().refreshXpStatsFromLocal());
+    }
     _logTabScreen(index);
   }
 
@@ -248,6 +262,28 @@ class _MainScreenState extends State<MainScreen> {
       _screenNameForIndex(index),
       screenClass: 'MainScreen',
     );
+  }
+
+  Future<void> _consumePendingNotificationNavigation() async {
+    final payload =
+        await LocalReminderService.consumePendingNavigationPayload();
+    if (!mounted || payload == null) {
+      return;
+    }
+
+    final route = payload.trim().toLowerCase();
+    if (route == 'notifications' || route == 'admin_test') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const NotificationsPage(openedFromPush: true),
+        ),
+      );
+      return;
+    }
+
+    if (route == 'daily_practice' || route == 'streak_guard') {
+      _selectTab(4);
+    }
   }
 
   String _screenNameForIndex(int index) {
@@ -320,7 +356,7 @@ class _MainScreenState extends State<MainScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: l10n.t('nav.selectChatMode'),
-      barrierColor: Colors.black.withOpacity(0.8),
+      barrierColor: Colors.black.withValues(alpha: 0.8),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
         return Align(
@@ -332,11 +368,11 @@ class _MainScreenState extends State<MainScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: const Color(0xFF0F172A)
-                    .withOpacity(0.9), // Darker, glass-like
+                    .withValues(alpha: 0.9), // Darker, glass-like
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                   color: const Color(0xFF22D3EE)
-                      .withOpacity(0.5), // Neon blue border
+                      .withValues(alpha: 0.5), // Neon blue border
                   width: 1.5,
                 ),
                 boxShadow: const [
@@ -494,6 +530,8 @@ class _MainScreenState extends State<MainScreen> {
     switch (code) {
       case 'tr':
         return context.tr('language.turkish');
+      case 'de':
+        return context.tr('language.german');
       default:
         return context.tr('language.english');
     }
@@ -512,10 +550,10 @@ class _MainScreenState extends State<MainScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
@@ -545,7 +583,7 @@ class _MainScreenState extends State<MainScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -554,7 +592,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
             ),
           ],
         ),

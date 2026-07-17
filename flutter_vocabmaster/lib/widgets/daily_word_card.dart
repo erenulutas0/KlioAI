@@ -31,7 +31,8 @@ class DailyWordCard extends StatefulWidget {
   State<DailyWordCard> createState() => _DailyWordCardState();
 }
 
-class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateMixin {
+class _DailyWordCardState extends State<DailyWordCard>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _rotationController;
   late AnimationController _tapController;
@@ -45,7 +46,7 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
       vsync: this,
       duration: const Duration(seconds: 2),
     );
-    
+
     // Stagger start based on index
     _pulseStartTimer = Timer(Duration(milliseconds: 200 * widget.index), () {
       if (mounted) _pulseController.repeat(reverse: true);
@@ -79,7 +80,8 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
   Widget build(BuildContext context) {
     final selectedTheme = _currentTheme();
     // Determine colors based on difficulty
-    final difficulty = (widget.wordData['difficulty'] as String? ?? 'Medium').toLowerCase();
+    final difficulty =
+        (widget.wordData['difficulty'] as String? ?? 'Medium').toLowerCase();
     Color badgeColor;
     Color badgeBgColor;
     Color badgeBorderColor;
@@ -107,13 +109,19 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
       animation: _tapController,
       builder: (context, child) {
         final fullyAdded = widget.isWordAdded && widget.isSentenceAdded;
+        final meanings = _meanings();
+        final senseLabel = meanings.length >= 2
+            ? context
+                .tr('wotd.senseCount')
+                .replaceFirst('{count}', '${meanings.length}')
+            : (widget.wordData['partOfSpeech'] ?? '').toString();
         return Transform.scale(
           scale: 1.0 - _tapController.value,
           child: GestureDetector(
             onTapDown: (_) => _tapController.forward(),
             onTapUp: (_) {
-               _tapController.reverse();
-               widget.onTap();
+              _tapController.reverse();
+              widget.onTap();
             },
             onTapCancel: () => _tapController.reverse(),
             child: Container(
@@ -124,24 +132,26 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                 gradient: LinearGradient(
                   colors: fullyAdded
                       ? [
-                          selectedTheme.colors.primary.withOpacity(0.18),
-                          selectedTheme.colors.accent.withOpacity(0.18),
+                          selectedTheme.colors.primary.withValues(alpha: 0.18),
+                          selectedTheme.colors.accent.withValues(alpha: 0.18),
                         ]
                       : [
-                          selectedTheme.colors.accent.withOpacity(0.20),
-                          selectedTheme.colors.primary.withOpacity(0.20),
+                          selectedTheme.colors.accent.withValues(alpha: 0.20),
+                          selectedTheme.colors.primary.withValues(alpha: 0.20),
                         ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(
-                  color: selectedTheme.colors.glassBorder.withOpacity(0.9),
+                  color:
+                      selectedTheme.colors.glassBorder.withValues(alpha: 0.9),
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.32),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.32),
                     blurRadius: 12,
                     spreadRadius: 2,
                     offset: const Offset(0, 4),
@@ -150,7 +160,7 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
               ),
               child: Stack(
                 children: [
-                   ClipRRect(
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -163,7 +173,8 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: badgeBgColor,
                                   border: Border.all(color: badgeBorderColor),
@@ -179,7 +190,7 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                                 ),
                               ),
                             ),
-                            
+
                             // Word with Pulse Animation
                             AnimatedBuilder(
                               animation: _pulseController,
@@ -202,12 +213,13 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                               ),
                             ),
 
-                            // Translation
+                            // Meaning hint
                             Text(
-                              widget.wordData['translation'] ?? '',
-                              style: const TextStyle(
-                                color: Color(0xB3FFFFFF),
+                              senseLabel,
+                              style: TextStyle(
+                                color: selectedTheme.colors.textSecondary,
                                 fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
                               textAlign: TextAlign.center,
                               maxLines: 2,
@@ -217,11 +229,8 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                             // Sparkles Icon with Rotation
                             RotationTransition(
                               turns: _rotationController,
-                              child: Icon(
-                                Icons.auto_awesome, 
-                                color: selectedTheme.colors.accent, 
-                                size: 16
-                              ),
+                              child: Icon(Icons.auto_awesome,
+                                  color: selectedTheme.colors.accent, size: 16),
                             ),
 
                             if (widget.isWordAdded && !widget.isSentenceAdded)
@@ -230,13 +239,15 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                                 child: GestureDetector(
                                   onTap: widget.onAddSentence,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: selectedTheme.colors.primary.withOpacity(0.2),
+                                      color: selectedTheme.colors.primary
+                                          .withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: selectedTheme.colors.primary
-                                            .withOpacity(0.5),
+                                            .withValues(alpha: 0.5),
                                       ),
                                     ),
                                     child: Text(
@@ -255,13 +266,15 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: selectedTheme.colors.primary.withOpacity(0.15),
+                                    color: selectedTheme.colors.primary
+                                        .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: selectedTheme.colors.primary
-                                          .withOpacity(0.4),
+                                          .withValues(alpha: 0.4),
                                     ),
                                   ),
                                   child: Text(
@@ -279,7 +292,7 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                       ),
                     ),
                   ),
-                  
+
                   // Quick Add Button
                   if (!widget.isWordAdded)
                     Positioned(
@@ -290,11 +303,13 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2)),
                           ),
-                          child: const Icon(Icons.add, color: Colors.white, size: 16),
+                          child: const Icon(Icons.add,
+                              color: Colors.white, size: 16),
                         ),
                       ),
                     ),
@@ -315,5 +330,17 @@ class _DailyWordCardState extends State<DailyWordCard> with TickerProviderStateM
       return VocabThemes.defaultTheme;
     }
   }
-}
 
+  List<Map<String, dynamic>> _meanings() {
+    final raw = widget.wordData['meanings'];
+    if (raw is! List) {
+      return const [];
+    }
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where(
+            (item) => (item['translation'] ?? '').toString().trim().isNotEmpty)
+        .toList(growable: false);
+  }
+}

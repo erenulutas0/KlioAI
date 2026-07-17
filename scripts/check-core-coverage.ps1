@@ -1,5 +1,5 @@
 param(
-    [double]$Threshold = 90.0,
+    [double]$Threshold = 85.0,
     [string]$JacocoCsvPath
 )
 

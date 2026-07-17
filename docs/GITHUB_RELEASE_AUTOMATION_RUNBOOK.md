@@ -1,11 +1,12 @@
 # GitHub Release Automation Runbook
 
-Last update: 2026-07-04
+Last update: 2026-07-05
 
 This runbook covers the high-risk automation layer for KlioAI releases:
 
 - required branch checks on `main`
 - Android signing secrets for GitHub-built AAB artifacts
+- clean database migration preflight before release/deploy
 - production backend deploy behind GitHub environment approval
 - manual workflow dispatch for AAB and backend deploy
 
@@ -132,7 +133,61 @@ Environment secrets uploaded to `production-backend`:
 - `VPS_SSH_PORT`
 - `VPS_SSH_PRIVATE_KEY`
 
-## 5. Build AAB Artifact In GitHub Actions
+## 5. Run Release Preflight
+
+The release preflight workflow is the broad manual gate before publishing a Play
+build or approving a backend deploy.
+
+Workflow:
+
+- `.github/workflows/release-preflight.yml`
+
+Default checks:
+
+- repo secret scan
+- backend Maven tests
+- migration preflight
+- Flutter quality gate
+
+The migration preflight runs:
+
+- `scripts/run-db-readiness.ps1 -FailOnSkip -SkipSmokeFallback`
+- `scripts/smoke-clean-db.ps1` against a clean Docker Compose database
+- `scripts/check-db-parity.ps1` against that stack
+
+Local command:
+
+```powershell
+pwsh -File scripts/run-migration-preflight.ps1
+```
+
+GitHub dispatch dry-run:
+
+```powershell
+pwsh -File scripts/dispatch-github-release-preflight-workflow.ps1
+```
+
+GitHub dispatch:
+
+```powershell
+pwsh -File scripts/dispatch-github-release-preflight-workflow.ps1 -Execute
+```
+
+GitHub UI:
+
+1. Open Actions.
+2. Run `Release Preflight`.
+3. Keep `run_migration_preflight=true` unless the release contains no backend,
+   database, Docker, or migration-sensitive changes.
+
+Expected result:
+
+- Testcontainers Flyway readiness passes without being skipped.
+- Clean Docker Compose backend reaches health `UP`.
+- DB parity confirms latest Flyway version, core tables, required indexes, and
+  uniqueness constraints.
+
+## 6. Build AAB Artifact In GitHub Actions
 
 Dry-run:
 
@@ -155,7 +210,7 @@ Expected artifacts:
 - `klioai-release-aab`
 - `klioai-release-checklist`
 
-## 6. Deploy Backend Through Protected Environment
+## 7. Deploy Backend Through Protected Environment
 
 Dry-run:
 
@@ -193,4 +248,3 @@ Expected behavior:
   backend container logs before retrying.
 - Keep Play upload manual until at least two GitHub-built AAB artifacts pass
   internal-track device smoke.
-

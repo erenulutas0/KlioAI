@@ -70,6 +70,8 @@ services:
       - ${PIPER_MODEL_HOST_PATH:-C:/piper}:/piper:ro
       # Google Play service-account JSON mount (override host path via .env).
       - ${APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH:-./backend/config/google-play-service-account.placeholder.json}:/run/secrets/google-play-service-account.json:ro
+      # Firebase Admin service-account JSON mount for FCM push delivery (disabled by default).
+      - ${APP_PUSH_FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-./backend/config/firebase-admin-service-account.placeholder.json}:/run/secrets/firebase-admin-service-account.json:ro
     environment:
       # Spring Profile
       SPRING_PROFILES_ACTIVE: docker
@@ -116,6 +118,11 @@ services:
       # Piper TTS (binary is installed in backend image; /piper contains mounted voice models)
       PIPER_TTS_PATH: ${PIPER_TTS_PATH:-/opt/piper/piper}
       PIPER_TTS_DEFAULT_MODEL: ${PIPER_TTS_DEFAULT_MODEL:-en_US-amy-medium.onnx}
+      APP_PUSH_FIREBASE_ENABLED: ${APP_PUSH_FIREBASE_ENABLED:-false}
+      APP_PUSH_FIREBASE_SERVICE_ACCOUNT_FILE: /run/secrets/firebase-admin-service-account.json
+      APP_PUSH_DAILY_REMINDERS_ENABLED: ${APP_PUSH_DAILY_REMINDERS_ENABLED:-false}
+      APP_PUSH_DAILY_REMINDERS_ZONE: ${APP_PUSH_DAILY_REMINDERS_ZONE:-Europe/Istanbul}
+      APP_PUSH_DAILY_REMINDERS_CRON: ${APP_PUSH_DAILY_REMINDERS_CRON:-0 30 19 * * *}
       # Keep secure defaults in compose; relax only via explicit local override if needed.
       APP_SECURITY_JWT_ENFORCE_AUTH: ${APP_SECURITY_JWT_ENFORCE_AUTH:-true}
       # Required: set APP_SECURITY_JWT_SECRET in your .env (not committed) to start the backend.
@@ -141,6 +148,8 @@ services:
       APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_ANNUAL: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PRO_ANNUAL:-PREMIUM_PLUS}
       APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_MONTHLY: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_MONTHLY:-PREMIUM}
       APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_PLUS_MONTHLY: ${APP_SUBSCRIPTION_GOOGLE_PLAY_PRODUCT_PLAN_PREMIUM_PLUS_MONTHLY:-PREMIUM_PLUS}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_ENABLED: ${APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_ENABLED:-false}
+      APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET: ${APP_SUBSCRIPTION_GOOGLE_PLAY_RTDN_SHARED_SECRET:-}
       
     ports:
       - "${BACKEND_HTTP_PORT:-8082}:8082"

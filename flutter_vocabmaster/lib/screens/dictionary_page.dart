@@ -156,7 +156,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_text('Kelime bugüne kaydedildi!', 'Word saved to today!')),
+            content: Text(
+                _text('Kelime bugüne kaydedildi!', 'Word saved to today!')),
             backgroundColor: Colors.green,
           ),
         );
@@ -218,7 +219,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           Expanded(
                             child: Text(
                               _text('Hizli Sozluk', 'Quick Dictionary'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -231,10 +232,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
                       // Search Bar
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -246,10 +247,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
                               'Ingilizce kelime yazin (orn: apple)',
                               'Type an English word (e.g. apple)',
                             ),
-                            hintStyle:
-                                TextStyle(color: Colors.white.withOpacity(0.5)),
+                            hintStyle: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.5)),
                             prefixIcon: Icon(Icons.search,
-                                color: Colors.white.withOpacity(0.5)),
+                                color: Colors.white.withValues(alpha: 0.5)),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 20),
@@ -286,11 +287,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.search, color: Colors.white),
-                                    SizedBox(width: 8),
+                                    const Icon(Icons.search,
+                                        color: Colors.white),
+                                    const SizedBox(width: 8),
                                     Text(
                                       _text('Ara', 'Search'),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -326,7 +328,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
             const SizedBox(height: 16),
             Text(
               errorMessage!,
-              style: TextStyle(color: Colors.white.withOpacity(0.6)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -346,13 +348,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.menu_book,
                 size: 48,
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withValues(alpha: 0.4),
               ),
             ),
             const SizedBox(height: 24),
@@ -361,8 +363,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 'Herhangi bir Ingilizce kelime arayin',
                 'Search for any English word',
               ),
-              style:
-                  TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
@@ -370,8 +372,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 'AI ile detayli anlamlari getirin',
                 'Get detailed meanings with AI',
               ),
-              style:
-                  TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
             ),
           ],
         ),
@@ -397,8 +399,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
           const SizedBox(height: 16),
           Text(
             _text('Sonuc bulunamadi', 'No result found'),
-            style:
-                TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
           ),
         ],
       ),
@@ -417,9 +419,9 @@ class _DictionaryPageState extends State<DictionaryPage> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,17 +446,18 @@ class _DictionaryPageState extends State<DictionaryPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
+                    color: Colors.green.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.green),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check, color: Colors.green, size: 16),
-                      SizedBox(width: 4),
+                      const Icon(Icons.check, color: Colors.green, size: 16),
+                      const SizedBox(width: 4),
                       Text(_text('Kayitli', 'Saved'),
-                          style: TextStyle(color: Colors.green, fontSize: 12)),
+                          style: const TextStyle(
+                              color: Colors.green, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -467,7 +470,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -482,17 +485,17 @@ class _DictionaryPageState extends State<DictionaryPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0ea5e9).withOpacity(0.1),
+                  color: const Color(0xFF0ea5e9).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: const Color(0xFF0ea5e9).withOpacity(0.3)),
+                      color: const Color(0xFF0ea5e9).withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Example:',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12)),
                     const SizedBox(height: 4),
                     Text('"$example"',
@@ -501,8 +504,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     if (exampleTr.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text('"$exampleTr"',
-                          style:
-                              TextStyle(color: Colors.white.withOpacity(0.6))),
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6))),
                     ],
                   ],
                 ),
@@ -530,13 +533,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF0ea5e9).withOpacity(0.2),
-                  const Color(0xFF3b82f6).withOpacity(0.2)
+                  const Color(0xFF0ea5e9).withValues(alpha: 0.2),
+                  const Color(0xFF3b82f6).withValues(alpha: 0.2)
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: const Color(0xFF0ea5e9).withOpacity(0.3)),
+              border: Border.all(
+                  color: const Color(0xFF0ea5e9).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -554,7 +557,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                       if (type.isNotEmpty)
                         Text(type,
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 14)),
                     ],
                   ),
@@ -601,13 +604,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF0ea5e9).withOpacity(0.15)
-                      : Colors.white.withOpacity(0.05),
+                      ? const Color(0xFF0ea5e9).withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFF0ea5e9)
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
                 child: Column(
@@ -621,7 +624,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? const Color(0xFF0ea5e9)
-                                : Colors.white.withOpacity(0.1),
+                                : Colors.white.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
@@ -654,7 +657,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8b5cf6).withOpacity(0.2),
+                          color: const Color(0xFF8b5cf6).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -669,7 +672,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -682,7 +685,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                               child: Text(
                                 example,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                   fontSize: 13,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -734,7 +737,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                         const SizedBox(width: 8),
                         Text(
                           selectedMeaningIndices.isEmpty
-                              ? _text('Tumunu Bugune Kaydet', 'Save All to Today')
+                              ? _text(
+                                  'Tumunu Bugune Kaydet', 'Save All to Today')
                               : '${selectedMeaningIndices.length} ${_text('Anlami Kaydet', 'Save Meaning')}',
                           style: const TextStyle(
                             color: Colors.white,
@@ -753,8 +757,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
               'Kaydetmek istediginiz anlamlari secebilirsiniz',
               'You can choose which meanings to save',
             ),
-            style:
-                TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
             textAlign: TextAlign.center,
           ),
 
@@ -764,5 +768,3 @@ class _DictionaryPageState extends State<DictionaryPage> {
     );
   }
 }
-
-

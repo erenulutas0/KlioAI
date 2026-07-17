@@ -43,8 +43,8 @@ class _NeonButtonState extends State<NeonButton> {
         ? selectedTheme.colors.accent
         : selectedTheme.colors.primary;
 
-    final primaryColor = baseA.withOpacity(0.24);
-    final secondaryColor = baseB.withOpacity(0.18);
+    final primaryColor = baseA.withValues(alpha: 0.24);
+    final secondaryColor = baseB.withValues(alpha: 0.18);
     final borderColor = Color.lerp(baseA, Colors.white, 0.20) ?? baseA;
     final glowColor =
         Color.lerp(baseB, selectedTheme.colors.accentGlow, 0.55) ?? baseB;
@@ -63,14 +63,15 @@ class _NeonButtonState extends State<NeonButton> {
           ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: _isHovered ? borderColor : borderColor.withOpacity(0.5),
+            color:
+                _isHovered ? borderColor : borderColor.withValues(alpha: 0.5),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
               color: _isHovered
-                  ? glowColor.withOpacity(0.6)
-                  : glowColor.withOpacity(0.3),
+                  ? glowColor.withValues(alpha: 0.6)
+                  : glowColor.withValues(alpha: 0.3),
               blurRadius: _isHovered ? 25 : 15,
               spreadRadius: 0,
             ),
@@ -86,8 +87,8 @@ class _NeonButtonState extends State<NeonButton> {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: widget.onTap,
-                    splashColor: glowColor.withOpacity(0.2),
-                    highlightColor: glowColor.withOpacity(0.1),
+                    splashColor: glowColor.withValues(alpha: 0.2),
+                    highlightColor: glowColor.withValues(alpha: 0.1),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
@@ -125,9 +126,9 @@ class _NeonButtonState extends State<NeonButton> {
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                           colors: [
-                            glowColor.withOpacity(0.0),
-                            glowColor.withOpacity(0.2),
-                            glowColor.withOpacity(0.0),
+                            glowColor.withValues(alpha: 0.0),
+                            glowColor.withValues(alpha: 0.2),
+                            glowColor.withValues(alpha: 0.0),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(8),
@@ -143,4 +144,3 @@ class _NeonButtonState extends State<NeonButton> {
     );
   }
 }
-

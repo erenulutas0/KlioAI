@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
 import com.ingilizce.calismaapp.config.TrialAbuseProtectionProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ public class TrialAbuseProtectionService {
     private static final Logger log = LoggerFactory.getLogger(TrialAbuseProtectionService.class);
     private static final String DEVICE_PREFIX = "auth:trial:device:";
     private static final String IP_PREFIX = "auth:trial:ip:";
+    private static final String METRIC_BLOCK_TOTAL = "auth.trial.abuse.block.total";
 
     public record TrialDecision(boolean trialEligible, String reason) {
         public static TrialDecision allowed() {
@@ -38,6 +40,7 @@ public class TrialAbuseProtectionService {
 
     private final TrialAbuseProtectionProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
+    private final MeterRegistry meterRegistry;
     private final AtomicBoolean redisFailureLogged = new AtomicBoolean(false);
     private final ConcurrentHashMap<String, AttemptState> deviceAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AttemptState> ipAttempts = new ConcurrentHashMap<>();
@@ -45,13 +48,15 @@ public class TrialAbuseProtectionService {
     @Autowired
     public TrialAbuseProtectionService(TrialAbuseProtectionProperties properties,
                                        @Qualifier("securityStringRedisTemplate")
-                                       @Autowired(required = false) StringRedisTemplate stringRedisTemplate) {
+                                       @Autowired(required = false) StringRedisTemplate stringRedisTemplate,
+                                       @Autowired(required = false) MeterRegistry meterRegistry) {
         this.properties = properties;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.meterRegistry = meterRegistry;
     }
 
     TrialAbuseProtectionService(TrialAbuseProtectionProperties properties) {
-        this(properties, null);
+        this(properties, null, null);
     }
 
     public TrialDecision evaluate(String deviceId, String clientIp) {
@@ -63,6 +68,7 @@ public class TrialAbuseProtectionService {
         if (normalizedDeviceId != null) {
             long deviceCount = getCount(DEVICE_PREFIX + normalizedDeviceId, deviceAttempts);
             if (deviceCount >= properties.getMaxTrialAccountsPerDevice()) {
+                onBlock("device-limit");
                 return TrialDecision.blocked("device-limit");
             }
         }
@@ -71,6 +77,7 @@ public class TrialAbuseProtectionService {
         if (normalizedIp != null) {
             long ipCount = getCount(IP_PREFIX + normalizedIp, ipAttempts);
             if (ipCount >= properties.getMaxTrialAccountsPerIp()) {
+                onBlock("ip-limit");
                 return TrialDecision.blocked("ip-limit");
             }
         }
@@ -166,6 +173,12 @@ public class TrialAbuseProtectionService {
     private boolean isFailClosedMode() {
         String mode = properties.getRedisFallbackMode();
         return mode != null && "deny".equalsIgnoreCase(mode.trim());
+    }
+
+    private void onBlock(String reason) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(METRIC_BLOCK_TOTAL, "reason", reason).increment();
+        }
     }
 
     private long parseLong(String value) {

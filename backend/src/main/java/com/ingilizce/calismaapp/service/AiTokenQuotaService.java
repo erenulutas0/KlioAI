@@ -65,6 +65,8 @@ public class AiTokenQuotaService {
                              long trialDailyTokenQuotaPerUser,
                              long premiumDailyTokenQuotaPerUser,
                              long premiumPlusDailyTokenQuotaPerUser,
+                             long nonPaidAggregateDailyTokenQuotaPerDevice,
+                             long nonPaidAggregateDailyTokenQuotaPerIp,
                              double estimatedCostUsdPerMillionTokens,
                              long memoryGlobalSubjects,
                              long memoryScopeSubjects,
@@ -93,6 +95,8 @@ public class AiTokenQuotaService {
 
     private static final String DAILY_TOKEN_PREFIX = "ai:tokens:day:";
     private static final String DAILY_SCOPE_TOKEN_PREFIX = "ai:tokens:day:scope:";
+    private static final String DAILY_NON_PAID_DEVICE_TOKEN_PREFIX = "ai:tokens:day:nonpaid:device:";
+    private static final String DAILY_NON_PAID_IP_TOKEN_PREFIX = "ai:tokens:day:nonpaid:ip:";
 
     private static final String METRIC_BLOCK_TOTAL = "ai.token.quota.block.total";
     private static final String METRIC_REDIS_FAILURE_TOTAL = "ai.token.quota.redis.failure.total";
@@ -140,6 +144,10 @@ public class AiTokenQuotaService {
     }
 
     public Decision check(Long userId, String scope) {
+        return check(userId, scope, null, null);
+    }
+
+    public Decision check(Long userId, String scope, String deviceId, String clientIp) {
         if (!properties.isEnabled()) {
             return Decision.allowed();
         }
@@ -151,13 +159,23 @@ public class AiTokenQuotaService {
 
         String normalizedScope = normalize(scope);
         String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
+        String normalizedDevice = normalizeDeviceId(deviceId);
+        String normalizedIp = normalizeIp(clientIp);
 
         long globalLimit = Math.max(0L, entitlement.dailyTokenLimit());
         Long scopeLimit = resolveScopeLimit(normalizedScope);
+        boolean applyNonPaidAggregate = isNonPaidAggregatePlan(entitlement);
 
         if (canUseRedis()) {
             try {
-                return checkRedis(normalizedUser, normalizedScope, globalLimit, scopeLimit);
+                return checkRedis(
+                        normalizedUser,
+                        normalizedScope,
+                        globalLimit,
+                        scopeLimit,
+                        applyNonPaidAggregate,
+                        normalizedDevice,
+                        normalizedIp);
             } catch (Exception ex) {
                 onRedisFailure("check");
                 if (isFailClosedMode()) {
@@ -166,10 +184,21 @@ public class AiTokenQuotaService {
             }
         }
 
-        return checkMemory(normalizedUser, normalizedScope, globalLimit, scopeLimit);
+        return checkMemory(
+                normalizedUser,
+                normalizedScope,
+                globalLimit,
+                scopeLimit,
+                applyNonPaidAggregate,
+                normalizedDevice,
+                normalizedIp);
     }
 
     public Usage consume(Long userId, String scope, long tokens) {
+        return consume(userId, scope, tokens, null, null);
+    }
+
+    public Usage consume(Long userId, String scope, long tokens, String deviceId, String clientIp) {
         if (!properties.isEnabled()) {
             return new Usage(0L, 0L, 0L);
         }
@@ -181,19 +210,30 @@ public class AiTokenQuotaService {
 
         long delta = Math.max(0L, tokens);
         if (delta == 0L) {
-            Decision check = check(userId, scope);
+            Decision check = check(userId, scope, deviceId, clientIp);
             return new Usage(check.tokensUsed(), check.tokensRemaining(), check.tokenLimit());
         }
 
         String normalizedScope = normalize(scope);
         String normalizedUser = userId == null ? "anonymous" : String.valueOf(userId);
+        String normalizedDevice = normalizeDeviceId(deviceId);
+        String normalizedIp = normalizeIp(clientIp);
 
         long globalLimit = Math.max(0L, entitlement.dailyTokenLimit());
         Long scopeLimit = resolveScopeLimit(normalizedScope);
+        boolean applyNonPaidAggregate = isNonPaidAggregatePlan(entitlement);
 
         if (canUseRedis()) {
             try {
-                Usage usage = consumeRedis(normalizedUser, normalizedScope, delta, globalLimit, scopeLimit);
+                Usage usage = consumeRedis(
+                        normalizedUser,
+                        normalizedScope,
+                        delta,
+                        globalLimit,
+                        scopeLimit,
+                        applyNonPaidAggregate,
+                        normalizedDevice,
+                        normalizedIp);
                 onRedisSuccess();
                 return usage;
             } catch (Exception ex) {
@@ -204,7 +244,15 @@ public class AiTokenQuotaService {
             }
         }
 
-        return consumeMemory(normalizedUser, normalizedScope, delta, globalLimit, scopeLimit);
+        return consumeMemory(
+                normalizedUser,
+                normalizedScope,
+                delta,
+                globalLimit,
+                scopeLimit,
+                applyNonPaidAggregate,
+                normalizedDevice,
+                normalizedIp);
     }
 
     public Usage getGlobalUsage(Long userId) {
@@ -273,6 +321,8 @@ public class AiTokenQuotaService {
                 properties.getTrialDailyTokenQuotaPerUser(),
                 properties.getPremiumDailyTokenQuotaPerUser(),
                 properties.getPremiumPlusDailyTokenQuotaPerUser(),
+                properties.getNonPaidAggregateDailyTokenQuotaPerDevice(),
+                properties.getNonPaidAggregateDailyTokenQuotaPerIp(),
                 rate,
                 memoryGlobal.subjects(),
                 memoryScope.subjects(),
@@ -290,10 +340,21 @@ public class AiTokenQuotaService {
                 quotaBlockSnapshot(dateUtc));
     }
 
-    private Decision checkRedis(String userId, String scope, long globalLimit, Long scopeLimit) {
+    private Decision checkRedis(String userId,
+                                String scope,
+                                long globalLimit,
+                                Long scopeLimit,
+                                boolean applyNonPaidAggregate,
+                                String deviceId,
+                                String clientIp) {
         String day = LocalDate.now(ZoneOffset.UTC).toString();
         String globalKey = DAILY_TOKEN_PREFIX + day + ":" + userId;
         String scopeKey = DAILY_SCOPE_TOKEN_PREFIX + day + ":" + scope + ":" + userId;
+
+        Decision aggregateDecision = checkNonPaidAggregateRedis(day, scope, applyNonPaidAggregate, deviceId, clientIp);
+        if (aggregateDecision.blocked()) {
+            return aggregateDecision;
+        }
 
         if (globalLimit > 0) {
             long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(globalKey));
@@ -317,9 +378,18 @@ public class AiTokenQuotaService {
         return Decision.allowed();
     }
 
-    private Usage consumeRedis(String userId, String scope, long tokens, long globalLimit, Long scopeLimit) {
+    private Usage consumeRedis(String userId,
+                               String scope,
+                               long tokens,
+                               long globalLimit,
+                               Long scopeLimit,
+                               boolean applyNonPaidAggregate,
+                               String deviceId,
+                               String clientIp) {
         String day = LocalDate.now(ZoneOffset.UTC).toString();
         long ttlSeconds = Math.max(1L, secondsUntilNextUtcDay());
+
+        incrementNonPaidAggregateRedis(day, tokens, ttlSeconds, applyNonPaidAggregate, deviceId, clientIp);
 
         String globalKey = DAILY_TOKEN_PREFIX + day + ":" + userId;
         Long globalUsed = stringRedisTemplate.opsForValue().increment(globalKey, tokens);
@@ -350,9 +420,20 @@ public class AiTokenQuotaService {
         return new Usage(used, 0L, 0L);
     }
 
-    private Decision checkMemory(String userId, String scope, long globalLimit, Long scopeLimit) {
+    private Decision checkMemory(String userId,
+                                 String scope,
+                                 long globalLimit,
+                                 Long scopeLimit,
+                                 boolean applyNonPaidAggregate,
+                                 String deviceId,
+                                 String clientIp) {
         long now = currentTimeMillis();
         runMemoryCleanupIfNeeded(now);
+
+        Decision aggregateDecision = checkNonPaidAggregateMemory(now, scope, applyNonPaidAggregate, deviceId, clientIp);
+        if (aggregateDecision.blocked()) {
+            return aggregateDecision;
+        }
 
         if (globalLimit > 0) {
             DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
@@ -383,9 +464,18 @@ public class AiTokenQuotaService {
         return Decision.allowed();
     }
 
-    private Usage consumeMemory(String userId, String scope, long tokens, long globalLimit, Long scopeLimit) {
+    private Usage consumeMemory(String userId,
+                                String scope,
+                                long tokens,
+                                long globalLimit,
+                                Long scopeLimit,
+                                boolean applyNonPaidAggregate,
+                                String deviceId,
+                                String clientIp) {
         long now = currentTimeMillis();
         runMemoryCleanupIfNeeded(now);
+
+        incrementNonPaidAggregateMemory(now, tokens, applyNonPaidAggregate, deviceId, clientIp);
 
         DailyTokenCounter global = dailyCounters.computeIfAbsent("global:" + userId, ignored -> new DailyTokenCounter());
         synchronized (global) {
@@ -438,6 +528,144 @@ public class AiTokenQuotaService {
         }
     }
 
+    private Decision checkNonPaidAggregateRedis(String day,
+                                                String scope,
+                                                boolean applyNonPaidAggregate,
+                                                String deviceId,
+                                                String clientIp) {
+        if (!applyNonPaidAggregate) {
+            return Decision.allowed();
+        }
+
+        long deviceLimit = properties.getNonPaidAggregateDailyTokenQuotaPerDevice();
+        if (deviceLimit > 0 && deviceId != null) {
+            String key = DAILY_NON_PAID_DEVICE_TOKEN_PREFIX + day + ":" + deviceId;
+            long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(key));
+            if (used >= deviceLimit) {
+                onBlock("non-paid-device-token-quota", scope);
+                return Decision.blocked("non-paid-device-token-quota", ttlOrDaySeconds(key), used, deviceLimit);
+            }
+        }
+
+        long ipLimit = properties.getNonPaidAggregateDailyTokenQuotaPerIp();
+        if (ipLimit > 0 && clientIp != null) {
+            String key = DAILY_NON_PAID_IP_TOKEN_PREFIX + day + ":" + clientIp;
+            long used = parseLongOrZero(stringRedisTemplate.opsForValue().get(key));
+            if (used >= ipLimit) {
+                onBlock("non-paid-ip-token-quota", scope);
+                return Decision.blocked("non-paid-ip-token-quota", ttlOrDaySeconds(key), used, ipLimit);
+            }
+        }
+
+        return Decision.allowed();
+    }
+
+    private void incrementNonPaidAggregateRedis(String day,
+                                                long tokens,
+                                                long ttlSeconds,
+                                                boolean applyNonPaidAggregate,
+                                                String deviceId,
+                                                String clientIp) {
+        if (!applyNonPaidAggregate) {
+            return;
+        }
+
+        if (properties.getNonPaidAggregateDailyTokenQuotaPerDevice() > 0 && deviceId != null) {
+            incrementDailyRedisCounter(DAILY_NON_PAID_DEVICE_TOKEN_PREFIX + day + ":" + deviceId, tokens, ttlSeconds);
+        }
+        if (properties.getNonPaidAggregateDailyTokenQuotaPerIp() > 0 && clientIp != null) {
+            incrementDailyRedisCounter(DAILY_NON_PAID_IP_TOKEN_PREFIX + day + ":" + clientIp, tokens, ttlSeconds);
+        }
+    }
+
+    private void incrementDailyRedisCounter(String key, long tokens, long ttlSeconds) {
+        Long used = stringRedisTemplate.opsForValue().increment(key, tokens);
+        if (used != null && used == tokens) {
+            stringRedisTemplate.expire(key, Duration.ofSeconds(ttlSeconds));
+        }
+    }
+
+    private Decision checkNonPaidAggregateMemory(long now,
+                                                 String scope,
+                                                 boolean applyNonPaidAggregate,
+                                                 String deviceId,
+                                                 String clientIp) {
+        if (!applyNonPaidAggregate) {
+            return Decision.allowed();
+        }
+
+        long deviceLimit = properties.getNonPaidAggregateDailyTokenQuotaPerDevice();
+        if (deviceLimit > 0 && deviceId != null) {
+            Decision decision = checkAggregateMemoryCounter(
+                    now,
+                    "nonpaid-device:" + deviceId,
+                    deviceLimit,
+                    "non-paid-device-token-quota",
+                    scope);
+            if (decision.blocked()) {
+                return decision;
+            }
+        }
+
+        long ipLimit = properties.getNonPaidAggregateDailyTokenQuotaPerIp();
+        if (ipLimit > 0 && clientIp != null) {
+            Decision decision = checkAggregateMemoryCounter(
+                    now,
+                    "nonpaid-ip:" + clientIp,
+                    ipLimit,
+                    "non-paid-ip-token-quota",
+                    scope);
+            if (decision.blocked()) {
+                return decision;
+            }
+        }
+
+        return Decision.allowed();
+    }
+
+    private Decision checkAggregateMemoryCounter(long now,
+                                                 String key,
+                                                 long limit,
+                                                 String reason,
+                                                 String scope) {
+        DailyTokenCounter counter = dailyCounters.computeIfAbsent(key, ignored -> new DailyTokenCounter());
+        synchronized (counter) {
+            counter.rollIfNeeded(now);
+            counter.lastTouchedMs = now;
+            if (counter.tokensUsed >= limit) {
+                onBlock(reason, scope);
+                return Decision.blocked(reason, counter.retryAfterSeconds(now), counter.tokensUsed, limit);
+            }
+        }
+        return Decision.allowed();
+    }
+
+    private void incrementNonPaidAggregateMemory(long now,
+                                                 long tokens,
+                                                 boolean applyNonPaidAggregate,
+                                                 String deviceId,
+                                                 String clientIp) {
+        if (!applyNonPaidAggregate) {
+            return;
+        }
+
+        if (properties.getNonPaidAggregateDailyTokenQuotaPerDevice() > 0 && deviceId != null) {
+            incrementAggregateMemoryCounter(now, "nonpaid-device:" + deviceId, tokens);
+        }
+        if (properties.getNonPaidAggregateDailyTokenQuotaPerIp() > 0 && clientIp != null) {
+            incrementAggregateMemoryCounter(now, "nonpaid-ip:" + clientIp, tokens);
+        }
+    }
+
+    private void incrementAggregateMemoryCounter(long now, String key, long tokens) {
+        DailyTokenCounter counter = dailyCounters.computeIfAbsent(key, ignored -> new DailyTokenCounter());
+        synchronized (counter) {
+            counter.rollIfNeeded(now);
+            counter.lastTouchedMs = now;
+            counter.tokensUsed += tokens;
+        }
+    }
+
     private Long resolveScopeLimit(String normalizedScope) {
         if (properties.getScopes() == null || normalizedScope == null || normalizedScope.isBlank()) {
             return null;
@@ -474,6 +702,18 @@ public class AiTokenQuotaService {
                 Math.max(0, entitlement.trialDaysRemaining()));
     }
 
+    private boolean isNonPaidAggregatePlan(Entitlement entitlement) {
+        if (entitlement == null || entitlement.planCode() == null) {
+            return false;
+        }
+        // Locale.ROOT is required here: on a JVM whose default locale is Turkish,
+        // toUpperCase() maps 'i' -> 'İ' (dotted capital), so "free_trial_7d" becomes
+        // "FREE_TRİAL_7D" and never equals the ASCII literal below, silently treating
+        // a free-trial user as a paid plan for quota/entitlement purposes.
+        String planCode = entitlement.planCode().trim().toUpperCase(java.util.Locale.ROOT);
+        return "FREE".equals(planCode) || "FREE_TRIAL_7D".equals(planCode);
+    }
+
     private boolean canUseRedis() {
         return properties.isRedisEnabled() && stringRedisTemplate != null;
     }
@@ -489,6 +729,25 @@ public class AiTokenQuotaService {
         }
         String trimmed = value.trim().toLowerCase();
         return trimmed.isEmpty() ? "unknown" : trimmed;
+    }
+
+    private String normalizeDeviceId(String deviceId) {
+        if (deviceId == null) {
+            return null;
+        }
+        String normalized = deviceId.trim().toLowerCase();
+        if (normalized.isEmpty() || "unknown-device".equals(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String normalizeIp(String clientIp) {
+        if (clientIp == null) {
+            return null;
+        }
+        String normalized = clientIp.trim().toLowerCase();
+        return normalized.isEmpty() || "unknown".equals(normalized) ? null : normalized;
     }
 
     private long secondsUntilNextUtcDay() {

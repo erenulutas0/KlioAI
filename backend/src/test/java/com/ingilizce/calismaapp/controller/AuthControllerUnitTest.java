@@ -31,6 +31,8 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -196,6 +198,26 @@ class AuthControllerUnitTest {
     }
 
     @Test
+    void login_ShouldNormalizeEmailWithCapitalI_OnTurkishLocaleJvm() throws Exception {
+        java.util.Locale original = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
+            when(userRepository.findByEmail("mike@test.com")).thenReturn(Optional.empty());
+
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "email", "MIKE@test.com",
+                                    "password", "pass123"))))
+                    .andExpect(status().isUnauthorized());
+
+            verify(userRepository).findByEmail("mike@test.com");
+        } finally {
+            java.util.Locale.setDefault(original);
+        }
+    }
+
+    @Test
     void login_ShouldReturnTooManyRequests_WhenRateLimited() throws Exception {
         when(authRateLimitService.checkLogin(anyString(), anyString())).thenReturn(RateLimitDecision.blocked(60));
 
@@ -319,8 +341,9 @@ class AuthControllerUnitTest {
     }
 
     @Test
-    void googleLogin_ShouldDisableTrial_WhenTrialAbuseProtectionBlocksNewUser() throws Exception {
+    void googleLogin_ShouldCreateFreeAccountWithoutTrial_WhenSharedIpTrialLimitIsReached() throws Exception {
         when(userRepository.findByEmail("google-new@test.com")).thenReturn(Optional.empty());
+        when(clientIpResolver.resolve(any())).thenReturn("203.0.113.10");
         when(trialAbuseProtectionService.evaluate(anyString(), anyString()))
                 .thenReturn(TrialAbuseProtectionService.TrialDecision.blocked("ip-limit"));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -340,6 +363,9 @@ class AuthControllerUnitTest {
                 .andExpect(jsonPath("$.trialEligible").value(false))
                 .andExpect(jsonPath("$.trialBlockedReason").value("ip-limit"));
 
+        verify(trialAbuseProtectionService).evaluate(eq("device-77"), eq("203.0.113.10"));
+        verify(userRepository).save(argThat(user ->
+                "google-new@test.com".equals(user.getEmail()) && !user.isTrialEligible()));
         verify(trialAbuseProtectionService, never()).recordTrialGrant(anyString(), anyString());
     }
 

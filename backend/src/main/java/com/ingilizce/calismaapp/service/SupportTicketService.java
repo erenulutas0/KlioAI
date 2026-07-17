@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -71,7 +72,11 @@ public class SupportTicketService {
             return SupportTicket.TicketType.REQUEST;
         }
         try {
-            return SupportTicket.TicketType.valueOf(raw.trim().toUpperCase());
+            // Locale.ROOT avoids the Turkish-locale "i" -> "İ" uppercasing bug: on a
+            // tr_TR JVM, "account_deletion".toUpperCase() (default locale) produces
+            // "ACCOUNT_DELETİON", which never matches any enum constant and silently
+            // falls back to REQUEST below.
+            return SupportTicket.TicketType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             return SupportTicket.TicketType.REQUEST;
         }

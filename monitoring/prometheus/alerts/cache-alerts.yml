@@ -136,6 +136,50 @@ groups:
           summary: "AI rate-limit blocking spike detected"
           description: "AI rate-limit blocks reached {{ $value | printf \"%.0f\" }} in the last 5m."
 
+  - name: ai-entitlement-abuse-observability
+    rules:
+      - record: auth_trial_abuse_blocks:increase15m
+        expr: |
+          sum by (reason) (
+            increase({__name__=~"auth_trial_abuse_block_total(_total)?"}[15m])
+          )
+
+      - record: ai_token_quota_blocks:increase15m
+        expr: |
+          sum by (reason, scope) (
+            increase({__name__=~"ai_token_quota_block_total(_total)?"}[15m])
+          )
+
+      - alert: TrialAbuseBlocksDetected
+        expr: sum(auth_trial_abuse_blocks:increase15m) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: trial-abuse
+        annotations:
+          summary: "Trial-abuse protection is blocking new trial grants"
+          description: "Trial-abuse blocks observed {{ $value | printf \"%.0f\" }} times in the last 15m. Check reason labels for device-limit or ip-limit."
+
+      - alert: NonPaidAggregateAiQuotaBlocksDetected
+        expr: sum(ai_token_quota_blocks:increase15m{reason=~"non-paid-(device|ip)-token-quota"}) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: ai-token-quota
+        annotations:
+          summary: "Non-paid aggregate AI quota is blocking usage"
+          description: "Non-paid aggregate quota blocks observed {{ $value | printf \"%.0f\" }} times in the last 15m. This can indicate shared-device/IP abuse or an overly tight threshold."
+
+      - alert: AiTokenQuotaBlocksSpike
+        expr: sum(ai_token_quota_blocks:increase15m) >= 25
+        for: 0m
+        labels:
+          severity: warning
+          component: ai-token-quota
+        annotations:
+          summary: "AI token quota block spike detected"
+          description: "AI token quota blocks reached {{ $value | printf \"%.0f\" }} in the last 15m across all reasons/scopes."
+
   - name: scale-readiness-observability
     rules:
       - record: node_filesystem_used_ratio:ratio5m

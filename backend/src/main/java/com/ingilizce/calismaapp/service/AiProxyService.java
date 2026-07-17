@@ -76,10 +76,11 @@ Look up the %s word/phrase "%s" and provide ALL its different meanings with word
 
 For EACH meaning, provide:
 1. "type" - Word type (n = noun, v = verb, adj = adjective, adv = adverb, phr = phrasal verb, idiom = idiom)
-2. "turkishMeaning" - %s translation for this specific meaning
-3. "englishDefinition" - Brief %s definition
-4. "example" - A %s example sentence using the word in this specific meaning
-5. "exampleTranslation" - %s translation of the example sentence
+2. "sourceMeaning" - %s translation for this specific meaning
+3. "turkishMeaning" - same value as "sourceMeaning" for backward compatibility
+4. "englishDefinition" - Brief %s definition
+5. "example" - A %s example sentence using the word in this specific meaning
+6. "exampleTranslation" - %s translation of the example sentence
 
 Return ONLY valid JSON in this exact format:
 {
@@ -88,6 +89,7 @@ Return ONLY valid JSON in this exact format:
   "meanings": [
     {
       "type": "v",
+      "sourceMeaning": "neden olmak, yol açmak",
       "turkishMeaning": "neden olmak, yol açmak",
       "englishDefinition": "to cause something to happen",
       "example": "The new policy will bring about significant changes.",
@@ -272,19 +274,94 @@ Format:
         return generateWritingTopic(level, wordCount, LearningLanguageProfile.defaultProfile());
     }
 
+    public AiJsonResult generateWritingTopic(String level, String wordCount, int dayOfYear) {
+        return generateWritingTopic(level, wordCount, LearningLanguageProfile.defaultProfile(), dayOfYear);
+    }
+
+    public AiJsonResult generatePronunciationTexts(String level, List<String> focusWords) {
+        return generatePronunciationTexts(level, focusWords, LearningLanguageProfile.defaultProfile());
+    }
+
+    public AiJsonResult generatePronunciationTexts(
+            String level,
+            List<String> focusWords,
+            LearningLanguageProfile profile
+    ) {
+        String normalizedLevel = normalizeReadingLevel(level);
+        List<String> words = sanitizeFocusWords(focusWords);
+        String wordList = words.isEmpty() ? "general English practice" : String.join(", ", words);
+        String levelRule = switch (normalizedLevel) {
+            case "A1" -> "6-9 words, very common vocabulary, present simple only";
+            case "A2" -> "8-12 words, simple past/present, one basic connector";
+            case "B2" -> "14-22 words, natural clauses and one useful collocation";
+            case "C1", "C2" -> "16-26 words, fluent but still readable aloud";
+            default -> "10-16 words, natural everyday English";
+        };
+
+        String prompt = """
+%s
+
+Generate 3 short read-aloud pronunciation practice texts for %s learners.
+
+LEVEL: %s
+LEVEL RULE: %s
+FOCUS WORDS: %s
+
+Rules:
+- Each text must be one natural English sentence.
+- If focus words are provided, each sentence must include at least one focus word naturally.
+- Do not write meta sentences about practicing, repeating, hearing, or using the word.
+- Do not put focus words in quotation marks.
+- Prefer concrete real-life situations over textbook sentences.
+- Keep punctuation simple enough for a learner to read aloud.
+- Avoid names unless they make the sentence more natural.
+
+Return ONLY valid JSON:
+{
+  "texts": ["sentence one", "sentence two", "sentence three"],
+  "focusWords": ["word"],
+  "level": "%s"
+}
+""".formatted(
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
+                normalizedLevel,
+                levelRule,
+                wordList,
+                normalizedLevel
+        );
+
+        return callJson(
+                "You write natural English read-aloud practice sentences. Return valid JSON only.",
+                prompt,
+                320,
+                0.55,
+                "pronunciation-text-generate");
+    }
+
     public AiJsonResult generateWritingTopic(String level, String wordCount, LearningLanguageProfile profile) {
-        long seed = System.currentTimeMillis();
+        return generateWritingTopic(level, wordCount, profile, (int) (System.currentTimeMillis() / 86_400_000L));
+    }
+
+    // dayOfYear steers topic CATEGORY via the same rotating taxonomy already used for
+    // daily words (PromptCatalog.topicForDay) - a raw millisecond timestamp gives the
+    // model no semantic hook for diversity, so day-to-day topics didn't meaningfully
+    // vary even though this content is cached and regenerated only once per day+level
+    // (see DailyWritingTopicService). The model still invents the specific topic
+    // within that category, so within-category variety is unaffected.
+    public AiJsonResult generateWritingTopic(String level, String wordCount, LearningLanguageProfile profile, int dayOfYear) {
+        String topicCategory = PromptCatalog.topicForDay(dayOfYear);
         String prompt = """
 %s
 
 Generate a UNIQUE and creative writing topic for %s level %s learners. The topic should be engaging and appropriate for someone who needs to write %s words.
+TOPIC CATEGORY FOR TODAY: %s
 IMPORTANT: Avoid generic topics like "My Daily Routine" unless explicitly asked.
-Try to be diverse (culture, science, abstract, storytelling, opinion, etc.).
-seed: %d
+Invent a specific, concrete topic within the category above - do not just restate the category name.
 
 Return JSON with:
 topic, description, level, wordCount.
-""".formatted(profile.toPromptPolicyBlock(), level, profile.targetLanguage(), wordCount, seed);
+""".formatted(profile.toPromptPolicyBlock(), level, profile.targetLanguage(), wordCount, topicCategory);
         return callJson("Return valid JSON only.", prompt, 450, 0.9, "writing-topic");
     }
 
@@ -455,7 +532,7 @@ JSON ÇIKTI FORMATI:
         int promptTokens = completion != null ? completion.promptTokens() : 0;
         int completionTokens = completion != null ? completion.completionTokens() : 0;
 
-        Map<String, Object> parsed = tryParseJsonMap(cleaned);
+        Map<String, Object> parsed = normalizeScopeAliases(scope, tryParseJsonMap(cleaned));
         if (parsed != null && !parsed.isEmpty() && isValidScopeJson(scope, parsed)) {
             return new AiJsonResult(parsed, totalTokens, promptTokens, completionTokens);
         }
@@ -511,6 +588,7 @@ JSON ÇIKTI FORMATI:
             case "dictionary-explain" -> hasNonBlank(parsed, "definition");
             case "reading-generate" ->
                     hasNonBlank(parsed, "title") && hasNonBlank(parsed, "text") && hasList(parsed, "questions");
+            case "pronunciation-text-generate" -> hasList(parsed, "texts");
             case "writing-topic" -> hasNonBlank(parsed, "topic") && hasNonBlank(parsed, "description");
             case "writing-evaluate" -> parsed.containsKey("score") && hasNonBlank(parsed, "overall");
             case "exam-generate" -> parsed.containsKey("meta") && hasList(parsed, "sections");
@@ -528,6 +606,35 @@ JSON ÇIKTI FORMATI:
         return value instanceof List<?> list && !list.isEmpty();
     }
 
+    private Map<String, Object> normalizeScopeAliases(String scope, Map<String, Object> parsed) {
+        if (!"dictionary-lookup-detailed".equals(scope) || parsed == null) {
+            return parsed;
+        }
+        Object meanings = parsed.get("meanings");
+        if (!(meanings instanceof List<?> meaningList)) {
+            return parsed;
+        }
+        for (Object item : meaningList) {
+            if (!(item instanceof Map<?, ?> rawMeaning)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> meaning = (Map<String, Object>) rawMeaning;
+            Object sourceMeaning = meaning.get("sourceMeaning");
+            Object turkishMeaning = meaning.get("turkishMeaning");
+            if (isBlankObject(sourceMeaning) && !isBlankObject(turkishMeaning)) {
+                meaning.put("sourceMeaning", turkishMeaning);
+            } else if (isBlankObject(turkishMeaning) && !isBlankObject(sourceMeaning)) {
+                meaning.put("turkishMeaning", sourceMeaning);
+            }
+        }
+        return parsed;
+    }
+
+    private boolean isBlankObject(Object value) {
+        return value == null || value.toString().trim().isBlank();
+    }
+
     private Map<String, Object> buildScopeFallback(String scope, String userPrompt, String raw) {
         return switch (scope) {
             case "dictionary-lookup" -> buildDictionaryLookupFallback(userPrompt);
@@ -535,6 +642,7 @@ JSON ÇIKTI FORMATI:
             case "dictionary-specific-sentence" -> buildDictionarySpecificSentenceFallback(userPrompt);
             case "dictionary-explain" -> buildDictionaryExplainFallback();
             case "reading-generate" -> buildReadingFallback(raw);
+            case "pronunciation-text-generate" -> buildPronunciationTextsFallback(userPrompt);
             case "writing-topic" -> buildWritingTopicFallback();
             case "writing-evaluate" -> buildWritingEvaluateFallback();
             case "exam-generate" -> buildExamFallback();
@@ -568,6 +676,7 @@ JSON ÇIKTI FORMATI:
         String word = extractWordHint(userPrompt);
         Map<String, Object> meaning = new HashMap<>();
         meaning.put("type", "n");
+        meaning.put("sourceMeaning", "Anlam gecici olarak getirilemedi");
         meaning.put("turkishMeaning", "Anlam gecici olarak getirilemedi");
         meaning.put("englishDefinition", "AI response was temporarily unavailable.");
         meaning.put("example", word.isBlank()
@@ -664,6 +773,21 @@ JSON ÇIKTI FORMATI:
         return fallback;
     }
 
+    private Map<String, Object> buildPronunciationTextsFallback(String userPrompt) {
+        String hint = extractFocusWordsHint(userPrompt);
+        List<String> texts = List.of(
+                "Although the meeting was delayed, everyone stayed calm and focused.",
+                "The speaker gave a short example to support her main idea.",
+                "Learning a language becomes easier when practice feels useful.");
+
+        Map<String, Object> fallback = new HashMap<>();
+        fallback.put("texts", texts);
+        fallback.put("focusWords", hint.isBlank() ? new ArrayList<>() : List.of(hint));
+        fallback.put("level", "B1");
+        fallback.put("fallback", true);
+        return fallback;
+    }
+
     private Map<String, Object> buildWritingEvaluateFallback() {
         Map<String, Object> fallback = new HashMap<>();
         fallback.put("score", 0);
@@ -718,6 +842,46 @@ JSON ÇIKTI FORMATI:
         return prompt.trim();
     }
 
+    private String extractFocusWordsHint(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            return "";
+        }
+        Matcher matcher = Pattern.compile("FOCUS WORDS:\\s*([^\\n\\r]+)").matcher(prompt);
+        if (!matcher.find()) {
+            return "";
+        }
+        String hint = matcher.group(1).trim();
+        if (hint.equalsIgnoreCase("general English practice")) {
+            return "";
+        }
+        String first = hint.split(",")[0].trim();
+        return first.replaceAll("[^A-Za-z' -]", "").trim();
+    }
+
+    private List<String> sanitizeFocusWords(List<String> focusWords) {
+        List<String> result = new ArrayList<>();
+        if (focusWords == null) {
+            return result;
+        }
+        for (String rawWord : focusWords) {
+            if (rawWord == null) {
+                continue;
+            }
+            String word = rawWord.trim().replaceAll("\\s+", " ");
+            if (word.isEmpty() || word.length() > 40) {
+                continue;
+            }
+            boolean exists = result.stream().anyMatch(existing -> existing.equalsIgnoreCase(word));
+            if (!exists) {
+                result.add(word);
+            }
+            if (result.size() >= 4) {
+                break;
+            }
+        }
+        return result;
+    }
+
     private int approximateWordCount(String text) {
         if (text == null || text.isBlank()) {
             return 0;
@@ -753,7 +917,7 @@ JSON ÇIKTI FORMATI:
                 rescueModel);
 
         String rescueRaw = rescue != null ? rescue.content() : null;
-        Map<String, Object> rescueParsed = tryParseJsonMap(normalizeJson(rescueRaw));
+        Map<String, Object> rescueParsed = normalizeScopeAliases(scope, tryParseJsonMap(normalizeJson(rescueRaw)));
         if (rescueParsed == null || rescueParsed.isEmpty()) {
             return null;
         }

@@ -21,6 +21,8 @@ public class AiTokenQuotaProperties {
     private long freeDailyTokenQuotaPerUser = 1_500;
     private long premiumDailyTokenQuotaPerUser = 30_000;
     private long premiumPlusDailyTokenQuotaPerUser = 60_000;
+    private long nonPaidAggregateDailyTokenQuotaPerDevice = 10_000;
+    private long nonPaidAggregateDailyTokenQuotaPerIp = 20_000;
     private double estimatedCostUsdPerMillionTokens = 0.10;
 
     /**
@@ -150,6 +152,22 @@ public class AiTokenQuotaProperties {
 
     public void setPremiumPlusDailyTokenQuotaPerUser(long premiumPlusDailyTokenQuotaPerUser) {
         this.premiumPlusDailyTokenQuotaPerUser = Math.max(0L, premiumPlusDailyTokenQuotaPerUser);
+    }
+
+    public long getNonPaidAggregateDailyTokenQuotaPerDevice() {
+        return nonPaidAggregateDailyTokenQuotaPerDevice;
+    }
+
+    public void setNonPaidAggregateDailyTokenQuotaPerDevice(long nonPaidAggregateDailyTokenQuotaPerDevice) {
+        this.nonPaidAggregateDailyTokenQuotaPerDevice = Math.max(0L, nonPaidAggregateDailyTokenQuotaPerDevice);
+    }
+
+    public long getNonPaidAggregateDailyTokenQuotaPerIp() {
+        return nonPaidAggregateDailyTokenQuotaPerIp;
+    }
+
+    public void setNonPaidAggregateDailyTokenQuotaPerIp(long nonPaidAggregateDailyTokenQuotaPerIp) {
+        this.nonPaidAggregateDailyTokenQuotaPerIp = Math.max(0L, nonPaidAggregateDailyTokenQuotaPerIp);
     }
 
     public double getEstimatedCostUsdPerMillionTokens() {

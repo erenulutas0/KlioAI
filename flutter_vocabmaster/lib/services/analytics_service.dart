@@ -72,78 +72,22 @@ class AnalyticsService {
     return logEvent('onboarding_completed', parameters: {'source': source});
   }
 
-  static Future<void> logActivationCardShown({
-    required int completedSteps,
-    required int wordCount,
-    required int sentenceCount,
-  }) {
-    return _logOnce(
-      key: 'analytics:first_session_activation_card_shown',
-      eventName: 'first_session_activation_card_shown',
+  static Future<void> logLearningProfileUpdated({
+    required String sourceLanguage,
+    required String englishLevel,
+    required String learningGoal,
+    String source = 'unknown',
+  }) async {
+    await setUserProperty('source_language', sourceLanguage);
+    await setUserProperty('english_level', englishLevel);
+    await setUserProperty('learning_goal', learningGoal);
+    await logEvent(
+      'learning_profile_updated',
       parameters: {
-        'completed_steps': completedSteps,
-        'word_count': wordCount,
-        'sentence_count': sentenceCount,
-      },
-    );
-  }
-
-  static Future<void> logActivationLevelSelected({
-    required String level,
-  }) {
-    return _logOnce(
-      key: 'analytics:first_session_level_selected',
-      eventName: 'first_session_level_selected',
-      parameters: {'level': level},
-    );
-  }
-
-  static Future<void> logActivationStepCompleted({
-    required String step,
-    int? completedSteps,
-  }) {
-    return _logOnce(
-      key: 'analytics:first_session_step_completed:$step',
-      eventName: 'first_session_step_completed',
-      parameters: {
-        'step': step,
-        if (completedSteps != null) 'completed_steps': completedSteps,
-      },
-    );
-  }
-
-  static Future<void> logActivationCompleted({
-    required int wordCount,
-    required int sentenceCount,
-  }) {
-    return _logOnce(
-      key: 'analytics:first_session_activation_completed',
-      eventName: 'first_session_activation_completed',
-      parameters: {
-        'word_count': wordCount,
-        'sentence_count': sentenceCount,
-      },
-    );
-  }
-
-  static Future<void> logActivationDismissed({
-    required int completedSteps,
-  }) {
-    return logEvent(
-      'first_session_activation_dismissed',
-      parameters: {'completed_steps': completedSteps},
-    );
-  }
-
-  static Future<void> logProgressiveUnlockBlocked({
-    required String mode,
-    required String source,
-  }) {
-    return logEvent(
-      'progressive_unlock_blocked',
-      parameters: {
-        'mode': mode,
         'source': source,
+        'source_language': sourceLanguage,
+        'english_level': englishLevel,
+        'learning_goal': learningGoal,
       },
     );
   }
@@ -181,6 +125,20 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logWordAdded({
+    String? source,
+    String? difficulty,
+  }) {
+    return logEvent(
+      'word_added',
+      parameters: {
+        if (source != null && source.isNotEmpty) 'source': source,
+        if (difficulty != null && difficulty.isNotEmpty)
+          'difficulty': difficulty,
+      },
+    );
+  }
+
   static Future<void> logFirstSentenceAdded({
     String? difficulty,
   }) {
@@ -206,18 +164,59 @@ class AnalyticsService {
     );
   }
 
+  static Future<void> logFirstAiSentenceGenerated({
+    String? source,
+    String? direction,
+    int? sentenceCount,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_ai_sentence_generated',
+      eventName: 'first_ai_sentence_generated',
+      parameters: {
+        if (source != null && source.isNotEmpty) 'source': source,
+        if (direction != null && direction.isNotEmpty) 'direction': direction,
+        if (sentenceCount != null) 'sentence_count': sentenceCount,
+      },
+    );
+  }
+
+  static Future<void> logFirstSpeakingStarted({
+    String? source,
+    String? scenario,
+  }) {
+    return _logOnce(
+      key: 'analytics:first_speaking_started',
+      eventName: 'first_speaking_started',
+      parameters: {
+        if (source != null && source.isNotEmpty) 'source': source,
+        if (scenario != null && scenario.isNotEmpty) 'scenario': scenario,
+      },
+    );
+  }
+
+  static Future<void> logPronunciationReportCompleted({
+    required String level,
+    required int score,
+    bool placementMode = false,
+    int? wordCount,
+  }) {
+    return logEvent(
+      'pronunciation_report_completed',
+      parameters: {
+        'level': level,
+        'score': score,
+        'placement_mode': placementMode,
+        if (wordCount != null) 'word_count': wordCount,
+      },
+    );
+  }
+
   static Future<void> logPracticeCompleted({
     required String type,
     String? level,
     int? score,
     int? totalQuestions,
   }) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('activation:practice_completed', true);
-    } catch (e) {
-      debugPrint('Activation practice completion marker failed: $e');
-    }
     await logEvent(
       'practice_completed',
       parameters: {
@@ -244,8 +243,48 @@ class AnalyticsService {
     );
   }
 
-  static Future<void> logPaywallShown({String source = 'unknown'}) {
-    return logEvent('paywall_shown', parameters: {'source': source});
+  static Future<void> logNeuralGameStarted({
+    required String mode,
+  }) {
+    return logEvent(
+      'neural_game_started',
+      parameters: {'mode': mode},
+    );
+  }
+
+  static Future<void> logNeuralGameFinished({
+    required String mode,
+    required int finalScore,
+    required int totalWords,
+    required int maxCombo,
+  }) {
+    return logEvent(
+      'neural_game_finished',
+      parameters: {
+        'mode': mode,
+        'final_score': finalScore,
+        'total_words': totalWords,
+        'max_combo': maxCombo,
+      },
+    );
+  }
+
+  static Future<void> logNeuralGameExited({
+    required String mode,
+    required String source,
+  }) {
+    return logEvent(
+      'neural_game_exited',
+      parameters: {
+        'mode': mode,
+        'source': source,
+      },
+    );
+  }
+
+  static Future<void> logPaywallShown({String source = 'unknown'}) async {
+    await logEvent('paywall_viewed', parameters: {'source': source});
+    await logEvent('paywall_shown', parameters: {'source': source});
   }
 
   static Future<void> logPurchaseStarted({

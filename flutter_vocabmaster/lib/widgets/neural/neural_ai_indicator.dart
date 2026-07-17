@@ -40,9 +40,9 @@ class _NeuralAiIndicatorState extends State<NeuralAiIndicator>
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
-          color: selectedTheme.colors.accent.withOpacity(0.14),
+          color: selectedTheme.colors.accent.withValues(alpha: 0.14),
           border: Border.all(
-            color: selectedTheme.colors.accent.withOpacity(0.5),
+            color: selectedTheme.colors.accent.withValues(alpha: 0.5),
             width: 1,
           ),
         ),

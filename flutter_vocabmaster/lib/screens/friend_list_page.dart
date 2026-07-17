@@ -12,7 +12,8 @@ class FriendListPage extends StatefulWidget {
   State<FriendListPage> createState() => _FriendListPageState();
 }
 
-class _FriendListPageState extends State<FriendListPage> with SingleTickerProviderStateMixin {
+class _FriendListPageState extends State<FriendListPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final SocialService _socialService = SocialService();
   final TextEditingController _searchController = TextEditingController();
@@ -42,22 +43,22 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
 
     try {
       final users = await _socialService.getFriends();
-      
+
       if (mounted) {
         setState(() {
           _friends = users.map((user) {
-             String name = user['displayName'] ?? 'User';
-             String initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
-             if (name.contains(' ') && name.split(' ').length > 1) {
-               initials += name.split(' ')[1][0].toUpperCase();
-             }
-             
-             return {
-               'id': user['id'],
-               'name': name,
-               'username': user['userTag'] ?? '@user',
-               'avatar': initials,
-             };
+            String name = user['displayName'] ?? 'User';
+            String initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+            if (name.contains(' ') && name.split(' ').length > 1) {
+              initials += name.split(' ')[1][0].toUpperCase();
+            }
+
+            return {
+              'id': user['id'],
+              'name': name,
+              'username': user['userTag'] ?? '@user',
+              'avatar': initials,
+            };
           }).toList();
           _isLoading = false;
         });
@@ -91,7 +92,7 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
     // Since _friends now contains ALL users from backend (as per previous request),
     // we can filter that list. Ideally, this should call a search API.
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     if (mounted) {
       setState(() {
         _searchResults = _friends.where((u) {
@@ -140,9 +141,10 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: TabBar(
                     controller: _tabController,
@@ -160,7 +162,7 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Content
@@ -183,7 +185,8 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
 
   Widget _buildFriendsList() {
     if (_isLoading && _friends.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)));
+      return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF22D3EE)));
     }
 
     if (_friends.isEmpty) {
@@ -191,11 +194,13 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.white.withOpacity(0.2)),
+            Icon(Icons.people_outline,
+                size: 64, color: Colors.white.withValues(alpha: 0.2)),
             const SizedBox(height: 16),
             Text(
               'Henüz arkadaşın yok',
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
             ),
           ],
         ),
@@ -215,10 +220,14 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: const Color(0xFF06B6D4),
-              child: Text(friend['avatar'], style: const TextStyle(color: Colors.white)),
+              child: Text(friend['avatar'],
+                  style: const TextStyle(color: Colors.white)),
             ),
-            title: Text(friend['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text(friend['username'], style: const TextStyle(color: Colors.white70)),
+            title: Text(friend['name'],
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: Text(friend['username'],
+                style: const TextStyle(color: Colors.white70)),
             trailing: IconButton(
               icon: const Icon(Icons.message, color: Color(0xFF22D3EE)),
               onPressed: () {
@@ -251,10 +260,10 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Kullanıcı adı veya isim ara...',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               prefixIcon: const Icon(Icons.search, color: Color(0xFF22D3EE)),
               filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
+              fillColor: Colors.white.withValues(alpha: 0.05),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -267,57 +276,63 @@ class _FriendListPageState extends State<FriendListPage> with SingleTickerProvid
             onSubmitted: _searchUsers,
           ),
         ),
-        
         Expanded(
           child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
-            : _searchResults.isEmpty
-              ? Center(
-                  child: Text(
-                    'Arama sonucu yok',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _searchResults.length,
-                  itemBuilder: (context, index) {
-                    final user = _searchResults[index];
-                    return ModernCard(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      borderRadius: BorderRadius.circular(16),
-                      variant: BackgroundVariant.secondary,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          child: Text(user['avatar'], style: const TextStyle(color: Colors.white)),
-                        ),
-                        title: Text(user['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        subtitle: Text(user['username'], style: const TextStyle(color: Colors.white70)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.message, color: Color(0xFF22D3EE)),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatDetailPage(
-                                  userId: user['id'],
-                                  name: user['name'],
-                                  avatar: user['avatar'],
-                                  status: 'Çevrimiçi',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
+              : _searchResults.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Arama sonucu yok',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5)),
                       ),
-                    );
-                  },
-                ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _searchResults.length,
+                      itemBuilder: (context, index) {
+                        final user = _searchResults[index];
+                        return ModernCard(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          borderRadius: BorderRadius.circular(16),
+                          variant: BackgroundVariant.secondary,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              child: Text(user['avatar'],
+                                  style: const TextStyle(color: Colors.white)),
+                            ),
+                            title: Text(user['name'],
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(user['username'],
+                                style: const TextStyle(color: Colors.white70)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.message,
+                                  color: Color(0xFF22D3EE)),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ChatDetailPage(
+                                      userId: user['id'],
+                                      name: user['name'],
+                                      avatar: user['avatar'],
+                                      status: 'Çevrimiçi',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
         ),
       ],
     );
   }
 }
-

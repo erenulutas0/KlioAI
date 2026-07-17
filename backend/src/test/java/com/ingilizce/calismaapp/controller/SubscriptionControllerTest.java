@@ -319,6 +319,30 @@ public class SubscriptionControllerTest {
                 }
 
                 @Test
+                @DisplayName("Should verify annual Google Play purchase for one year")
+                void testVerifyGoogleAnnualPurchaseUsesAnnualDuration() throws Exception {
+                        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                        Mockito.when(planRepository.findByName("PRO_ANNUAL")).thenReturn(Optional.of(annualPlan));
+
+                        Map<String, String> request = Map.of(
+                                        "planName", "PRO_ANNUAL",
+                                        "purchaseToken", "google-annual-token-123",
+                                        "productId", "pro_annual_subscription");
+
+                        mockMvc.perform(post("/api/subscription/verify/google")
+                                        .header("X-User-Id", "1")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(request)))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.message").value("Google IAP verified"));
+
+                        Mockito.verify(userRepository).save(argThat(user ->
+                                        user.getSubscriptionEndDate() != null
+                                                        && user.getSubscriptionEndDate()
+                                                                        .isAfter(LocalDateTime.now().plusDays(360))));
+                }
+
+                @Test
                 @DisplayName("Should be idempotent when mock Google verify is called while subscription is already active")
                 void testVerifyGooglePurchaseActiveSubscriptionNoExtension() throws Exception {
                         LocalDateTime existingEnd = LocalDateTime.now().plusDays(7);
@@ -362,8 +386,8 @@ public class SubscriptionControllerTest {
                 }
 
                 @Test
-                @DisplayName("Should cap AI tier duration to 30 days even when legacy annual plan is requested")
-                void testVerifyGooglePurchaseLegacyAnnualStillThirtyDays() throws Exception {
+                @DisplayName("Should keep annual duration when legacy annual plan is requested")
+                void testVerifyGooglePurchaseLegacyAnnualUsesAnnualDuration() throws Exception {
                         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
                         Mockito.when(planRepository.findByName("PRO_ANNUAL")).thenReturn(Optional.of(annualPlan));
 
@@ -371,8 +395,8 @@ public class SubscriptionControllerTest {
                                         "planName", "PRO_ANNUAL",
                                         "purchaseToken", "google-token-annual");
 
-                        LocalDateTime lowerBound = LocalDateTime.now().plusDays(29);
-                        LocalDateTime upperBound = LocalDateTime.now().plusDays(31);
+                        LocalDateTime lowerBound = LocalDateTime.now().plusDays(360);
+                        LocalDateTime upperBound = LocalDateTime.now().plusDays(370);
 
                         mockMvc.perform(post("/api/subscription/verify/google")
                                         .header("X-User-Id", "1")

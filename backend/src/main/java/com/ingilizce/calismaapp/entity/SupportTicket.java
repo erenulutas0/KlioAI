@@ -14,7 +14,8 @@ public class SupportTicket {
     public enum TicketType {
         REQUEST,
         COMPLAINT,
-        BUG
+        BUG,
+        ACCOUNT_DELETION
     }
 
     public enum TicketStatus {

@@ -29,10 +29,10 @@ class AiEntitlementServiceTest {
     void setUp() {
         AiTokenQuotaProperties properties = new AiTokenQuotaProperties();
         properties.setTrialDurationDays(7);
-        properties.setTrialDailyTokenQuotaPerUser(25_000);
-        properties.setFreeDailyTokenQuotaPerUser(0);
-        properties.setPremiumDailyTokenQuotaPerUser(50_000);
-        properties.setPremiumPlusDailyTokenQuotaPerUser(100_000);
+        properties.setTrialDailyTokenQuotaPerUser(5_000);
+        properties.setFreeDailyTokenQuotaPerUser(1_500);
+        properties.setPremiumDailyTokenQuotaPerUser(30_000);
+        properties.setPremiumPlusDailyTokenQuotaPerUser(60_000);
         aiEntitlementService = new AiEntitlementService(userRepository, properties);
     }
 
@@ -47,13 +47,13 @@ class AiEntitlementServiceTest {
 
         assertEquals(AiPlanTier.FREE_TRIAL_7D, entitlement.planTier());
         assertTrue(entitlement.aiAccessEnabled());
-        assertEquals(25_000, entitlement.dailyTokenLimit());
+        assertEquals(5_000, entitlement.dailyTokenLimit());
         assertTrue(entitlement.trialActive());
         assertTrue(entitlement.trialDaysRemaining() > 0);
     }
 
     @Test
-    void resolve_ShouldReturnFree_WhenTrialExpiredAndNoSubscription() {
+    void resolve_ShouldReturnFreeWithDailyTokens_WhenTrialExpiredAndNoSubscription() {
         User user = new User();
         user.setCreatedAt(LocalDateTime.now().minusDays(20));
         user.setSubscriptionEndDate(LocalDateTime.now().minusDays(1));
@@ -62,8 +62,8 @@ class AiEntitlementServiceTest {
         AiEntitlementService.Entitlement entitlement = aiEntitlementService.resolve(2L);
 
         assertEquals(AiPlanTier.FREE, entitlement.planTier());
-        assertFalse(entitlement.aiAccessEnabled());
-        assertEquals(0, entitlement.dailyTokenLimit());
+        assertTrue(entitlement.aiAccessEnabled());
+        assertEquals(1_500, entitlement.dailyTokenLimit());
         assertFalse(entitlement.trialActive());
         assertEquals(0, entitlement.trialDaysRemaining());
     }
@@ -79,7 +79,8 @@ class AiEntitlementServiceTest {
         AiEntitlementService.Entitlement entitlement = aiEntitlementService.resolve(22L);
 
         assertEquals(AiPlanTier.FREE, entitlement.planTier());
-        assertFalse(entitlement.aiAccessEnabled());
+        assertTrue(entitlement.aiAccessEnabled());
+        assertEquals(1_500, entitlement.dailyTokenLimit());
         assertFalse(entitlement.trialActive());
         assertEquals(0, entitlement.trialDaysRemaining());
     }
@@ -96,7 +97,7 @@ class AiEntitlementServiceTest {
 
         assertEquals(AiPlanTier.PREMIUM_PLUS, entitlement.planTier());
         assertTrue(entitlement.aiAccessEnabled());
-        assertEquals(100_000, entitlement.dailyTokenLimit());
+        assertEquals(60_000, entitlement.dailyTokenLimit());
     }
 
     @Test
@@ -111,6 +112,6 @@ class AiEntitlementServiceTest {
 
         assertEquals(AiPlanTier.PREMIUM, entitlement.planTier());
         assertTrue(entitlement.aiAccessEnabled());
-        assertEquals(50_000, entitlement.dailyTokenLimit());
+        assertEquals(30_000, entitlement.dailyTokenLimit());
     }
 }

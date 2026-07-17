@@ -119,7 +119,8 @@ class ProgressControllerTest {
     }
 
     @Test
-    void awardXpReturnsUpdatedStats() throws Exception {
+    void awardXpReturnsUpdatedStats_ForAdmin() throws Exception {
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(true);
         when(progressService.getStats(USER_ID)).thenReturn(Map.of("totalXp", 300));
 
         mockMvc.perform(post("/api/progress/award-xp")
@@ -134,6 +135,8 @@ class ProgressControllerTest {
 
     @Test
     void awardXpReturnsBadRequestWhenInputIsInvalid() throws Exception {
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(true);
+
         mockMvc.perform(post("/api/progress/award-xp")
                 .header(USER_ID_HEADER, USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -142,8 +145,34 @@ class ProgressControllerTest {
     }
 
     @Test
-    void awardXpReturnsForbiddenWhenAuthzEnforcedAndNotAdmin() throws Exception {
-        when(currentUserContext.shouldEnforceAuthz()).thenReturn(true);
+    void awardXpRejectsOutOfRangeAmounts_EvenForAdmin() throws Exception {
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(true);
+
+        mockMvc.perform(post("/api/progress/award-xp")
+                .header(USER_ID_HEADER, USER_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"xp\":999999,\"reason\":\"exploit\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("xp must be between 1 and 1000"));
+
+        mockMvc.perform(post("/api/progress/award-xp")
+                .header(USER_ID_HEADER, USER_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"xp\":0,\"reason\":\"exploit\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(progressService, org.mockito.Mockito.never())
+                .awardXp(org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.anyInt(),
+                        org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void awardXpReturnsForbiddenWhenNotAdmin_EvenWithoutEnforcedAuthz() throws Exception {
+        // Regression guard for the premortem finding: the old conditional guard
+        // (shouldEnforceAuthz() && !ADMIN) left this endpoint fully open whenever
+        // enforce-auth was off, letting any client award itself arbitrary XP.
+        when(currentUserContext.shouldEnforceAuthz()).thenReturn(false);
         when(currentUserContext.hasRole("ADMIN")).thenReturn(false);
 
         mockMvc.perform(post("/api/progress/award-xp")

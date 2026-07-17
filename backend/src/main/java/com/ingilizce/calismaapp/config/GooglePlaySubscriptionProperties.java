@@ -20,6 +20,13 @@ public class GooglePlaySubscriptionProperties {
     private long accessTokenSkewSeconds = 60;
     private Map<String, String> productPlanMap = new HashMap<>();
 
+    // When true, a Google-verified expiry time is taken as the authoritative
+    // subscription end (never floored up to a minimum plan duration). Google is
+    // the billing source of truth in production; the floor exists only because
+    // Play Console license-tester purchases expire within minutes, which made
+    // real-device testing impossible. Keep false for test environments.
+    private boolean trustVerifiedExpiry = false;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -82,6 +89,14 @@ public class GooglePlaySubscriptionProperties {
 
     public void setAccessTokenSkewSeconds(long accessTokenSkewSeconds) {
         this.accessTokenSkewSeconds = Math.max(0L, accessTokenSkewSeconds);
+    }
+
+    public boolean isTrustVerifiedExpiry() {
+        return trustVerifiedExpiry;
+    }
+
+    public void setTrustVerifiedExpiry(boolean trustVerifiedExpiry) {
+        this.trustVerifiedExpiry = trustVerifiedExpiry;
     }
 
     public Map<String, String> getProductPlanMap() {

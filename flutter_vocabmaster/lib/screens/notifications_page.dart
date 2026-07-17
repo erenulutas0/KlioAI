@@ -9,14 +9,21 @@ import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
 
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
+  final bool openedFromPush;
+  final SocialService? socialService;
+
+  const NotificationsPage({
+    super.key,
+    this.openedFromPush = false,
+    this.socialService,
+  });
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  final SocialService _socialService = SocialService();
+  late final SocialService _socialService;
   List<dynamic> notifications = [];
   bool isLoading = true;
 
@@ -46,6 +53,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
+    _socialService = widget.socialService ?? SocialService();
     _loadNotifications();
   }
 
@@ -63,8 +71,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
         setState(() {
           isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bildirimler yüklenemedi')));
+        if (!widget.openedFromPush) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bildirimler yüklenemedi')),
+          );
+        }
       }
     }
   }
@@ -120,26 +131,100 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           ),
                         )
                       : notifications.isEmpty
-                          ? Center(
-                              child: Text(
-                                'Henüz bildiriminiz yok.',
-                                style: TextStyle(
-                                  color: selectedTheme.colors.textSecondary,
-                                ),
-                              ),
-                            )
+                          ? _buildEmptyState(selectedTheme)
                           : ListView.builder(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 20),
-                              itemCount: notifications.length,
+                              itemCount: notifications.length +
+                                  (widget.openedFromPush ? 1 : 0),
                               itemBuilder: (context, index) {
-                                final notification = notifications[index];
+                                if (widget.openedFromPush && index == 0) {
+                                  return _buildPushReceivedCard(selectedTheme);
+                                }
+                                final dataIndex =
+                                    widget.openedFromPush ? index - 1 : index;
                                 return _buildNotificationCard(
-                                  notification,
+                                  notifications[dataIndex],
                                   selectedTheme,
                                 );
                               },
                             ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(AppThemeConfig selectedTheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (widget.openedFromPush) ...[
+            _buildPushReceivedCard(selectedTheme),
+            const SizedBox(height: 20),
+          ],
+          Text(
+            widget.openedFromPush
+                ? 'Bu test push başarıyla açıldı. Sosyal bildirim listeniz şu an boş.'
+                : 'Henüz bildiriminiz yok.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selectedTheme.colors.textSecondary,
+              fontSize: 15,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPushReceivedCard(AppThemeConfig selectedTheme) {
+    return ModernCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(16),
+      variant: BackgroundVariant.primary,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: selectedTheme.colors.accent.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.notifications_active_outlined,
+              color: selectedTheme.colors.accent,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Push bildirimi alındı',
+                  style: TextStyle(
+                    color: selectedTheme.colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Bu ekran sosyal bildirimleri listeler; test pushları burada kalıcı kayıt oluşturmaz.',
+                  style: TextStyle(
+                    color: selectedTheme.colors.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -191,7 +276,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.2),
+                color: iconColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: iconColor, size: 20),

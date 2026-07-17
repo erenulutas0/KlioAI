@@ -7,7 +7,7 @@ import '../models/sentence_practice.dart';
 import '../config/app_config.dart';
 import 'analytics_service.dart';
 import 'auth_service.dart';
-import 'locale_text_service.dart';
+import 'learning_language_service.dart';
 
 class ApiService {
   final http.Client client;
@@ -91,6 +91,15 @@ class ApiService {
     bool json = false,
   }) async {
     final response = await _withProtectedRetry(send, json: json);
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    if (response.statusCode >= 500) {
+      throw _aiServiceFromResponse(response, feature: feature);
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       unawaited(AnalyticsService.logFirstAiUse(feature: feature));
     }
@@ -98,11 +107,7 @@ class ApiService {
   }
 
   Map<String, String> _learningLanguageProfile() {
-    return {
-      'sourceLanguage': 'Turkish',
-      'targetLanguage': 'English',
-      'feedbackLanguage': LocaleTextService.isTurkish ? 'Turkish' : 'English',
-    };
+    return LearningLanguageService.currentProfile();
   }
 
   Future<void> registerPushToken({
@@ -111,6 +116,7 @@ class ApiService {
     String? deviceId,
     String? appVersion,
     String? locale,
+    String? timezone,
     bool dailyRemindersEnabled = false,
   }) async {
     final trimmedToken = token.trim();
@@ -130,6 +136,7 @@ class ApiService {
           if (appVersion != null && appVersion.isNotEmpty)
             'appVersion': appVersion,
           if (locale != null && locale.isNotEmpty) 'locale': locale,
+          if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
           'dailyRemindersEnabled': dailyRemindersEnabled.toString(),
         }),
       ),
@@ -139,6 +146,44 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to register push token: ${response.statusCode}');
     }
+  }
+
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/push-tokens/preferences'),
+        headers: headers,
+      ),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Failed to load notification preferences: ${response.statusCode}',
+      );
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateNotificationPreferences(
+    Map<String, dynamic> preferences,
+  ) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.put(
+        Uri.parse('$url/push-tokens/preferences'),
+        headers: headers,
+        body: json.encode(preferences),
+      ),
+      json: true,
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Failed to update notification preferences: ${response.statusCode}',
+      );
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
   }
 
   Future<bool> _tryRefreshSessionCoalesced() async {
@@ -316,6 +361,7 @@ class ApiService {
           body: json.encode({
             'englishWord': english,
             'turkishMeaning': turkish,
+            'sourceMeaning': turkish,
             'learnedDate': addedDate.toIso8601String().split('T')[0],
             'notes': '',
             'difficulty': difficulty,
@@ -366,6 +412,7 @@ class ApiService {
           body: json.encode({
             'sentence': sentence,
             'translation': translation,
+            'sourceTranslation': translation,
             'difficulty': difficulty,
           }),
         ),
@@ -423,6 +470,21 @@ class ApiService {
     } catch (e) {
       throw Exception('Error submitting review: $e');
     }
+  }
+
+  /// SRS istatistikleri: {dueToday, totalWords, reviewedWords}.
+  Future<Map<String, dynamic>> getSrsStats() async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/srs/stats'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    throw Exception('Failed to load SRS stats: ${response.statusCode}');
   }
   // ==================== SENTENCES ====================
 
@@ -546,6 +608,8 @@ class ApiService {
           body: json.encode({
             'englishSentence': englishSentence,
             'turkishTranslation': turkishTranslation,
+            'sourceTranslation': turkishTranslation,
+            'sourceFullTranslation': turkishTranslation,
             'difficulty': difficulty.toUpperCase(),
             'createdDate': DateTime.now().toIso8601String().split('T')[0],
           }),
@@ -558,6 +622,8 @@ class ApiService {
           'id': 'practice_${responseData['id']}',
           'englishSentence': responseData['englishSentence'],
           'turkishTranslation': responseData['turkishTranslation'],
+          'sourceTranslation': responseData['sourceTranslation'],
+          'sourceFullTranslation': responseData['sourceFullTranslation'],
           'difficulty': responseData['difficulty'],
           'createdDate': responseData['createdDate'],
           'source': 'practice',
@@ -685,6 +751,33 @@ class ApiService {
     );
   }
 
+  static ApiAiServiceException _aiServiceFromResponse(
+    http.Response response, {
+    required String feature,
+  }) {
+    String? backendMessage;
+    String? reason;
+    try {
+      final dynamic decoded = json.decode(response.body);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        backendMessage = (map['message'] ?? map['error'])?.toString();
+        reason = map['reason']?.toString();
+      }
+    } catch (_) {
+      // Backend may return plain text for unexpected failures.
+    }
+
+    return ApiAiServiceException(
+      message: backendMessage == null || backendMessage.trim().isEmpty
+          ? 'AI servisi su an yanit veremiyor.'
+          : backendMessage,
+      statusCode: response.statusCode,
+      feature: feature,
+      reason: reason,
+    );
+  }
+
   static int? _toNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -718,6 +811,7 @@ class ApiService {
     List<String> lengths = const ['medium'],
     bool checkGrammar = false,
     bool fresh = false,
+    String direction = 'EN_TO_TR',
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -730,6 +824,7 @@ class ApiService {
           'lengths': lengths,
           'checkGrammar': checkGrammar,
           'fresh': fresh,
+          'direction': direction,
           ..._learningLanguageProfile(),
         }),
       ),
@@ -780,7 +875,8 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> chatbotCheckTranslation({
-    required String direction, // EN_TO_TR or TR_TO_EN
+    required String
+        direction, // TARGET_TO_SOURCE/SOURCE_TO_TARGET or legacy EN_TO_TR/TR_TO_EN
     required String userTranslation,
     String? englishSentence,
     String? turkishSentence,
@@ -835,6 +931,7 @@ class ApiService {
           'message': message,
           if (scenario != null) 'scenario': scenario,
           if (scenarioContext != null) 'scenarioContext': scenarioContext,
+          ..._learningLanguageProfile(),
         }),
       ),
       feature: 'chat',
@@ -854,6 +951,75 @@ class ApiService {
       throw _upgradeFromResponse(response);
     }
     throw Exception('AI sohbet başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotTranscribeSpeech({
+    required String audioPath,
+    required int durationMs,
+    String locale = 'en_US',
+  }) async {
+    final url = await baseUrl;
+    final response = await _withAiRetry(
+      (headers) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$url/chatbot/speech/transcribe'),
+        );
+        request.headers.addAll(headers);
+        request.fields['durationMs'] = durationMs.toString();
+        request.fields['locale'] = locale;
+        request.files.add(await http.MultipartFile.fromPath(
+          'audio',
+          audioPath,
+          filename: 'speech.m4a',
+        ));
+        final streamed = await client.send(request);
+        return http.Response.fromStream(streamed);
+      },
+      feature: 'speech_transcribe',
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception('Ses yazıya çevirme başarısız: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> chatbotGeneratePronunciationTexts({
+    required String level,
+    List<String> focusWords = const [],
+  }) async {
+    final url = await baseUrl;
+    final response = await _withAiRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/pronunciation/generate-texts'),
+        headers: headers,
+        body: json.encode({
+          'level': level,
+          'focusWords': focusWords,
+          ..._learningLanguageProfile(),
+        }),
+      ),
+      feature: 'pronunciation_text_generate',
+      json: true,
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception(
+      'Telaffuz metni üretimi başarısız: ${response.statusCode}',
+    );
   }
 
   Future<Map<String, dynamic>> chatbotGenerateSpeakingTestQuestions({
@@ -1220,4 +1386,21 @@ class ApiUnauthorizedException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class ApiAiServiceException implements Exception {
+  final String message;
+  final int statusCode;
+  final String feature;
+  final String? reason;
+
+  ApiAiServiceException({
+    required this.message,
+    required this.statusCode,
+    required this.feature,
+    this.reason,
+  });
+
+  @override
+  String toString() => 'AI service error ($statusCode/$feature): $message';
 }

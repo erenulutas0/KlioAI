@@ -259,7 +259,7 @@ class XPManager {
   XPManager._internal();
 
   final LocalDatabaseService _localDb = LocalDatabaseService();
-  
+
   // UI güncellemeleri için callback
   XPCallback? _onXPChanged;
 
@@ -267,15 +267,15 @@ class XPManager {
   DateTime? _mockDate;
   @visibleForTesting
   set mockDate(DateTime? date) => _mockDate = date;
-  
+
   DateTime get _now => _mockDate ?? DateTime.now();
-  
+
   // Cache
   int _cachedTotalXP = 0;
   int _cachedWeeklyXP = 0;
   DateTime? _lastCacheUpdate;
   static const Duration _cacheDuration = Duration(seconds: 5);
-  
+
   // 🆔 İdempotency için transaction takibi (SharedPreferences ile kalıcı)
   // Aynı işlem için birden fazla XP verilmesini engeller
   static Set<String> _processedTransactions = {};
@@ -285,7 +285,7 @@ class XPManager {
   void setOnXPChanged(XPCallback? callback) {
     _onXPChanged = callback;
   }
-  
+
   /// Transaction geçmişini SharedPreferences'tan yükle
   Future<void> _loadTransactions() async {
     if (_transactionsLoaded) return;
@@ -298,20 +298,21 @@ class XPManager {
       debugPrint('Error loading transactions: $e');
     }
   }
-  
+
   /// Transaction'ı SharedPreferences'a kaydet
   Future<void> _saveTransaction(String txId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _processedTransactions.add(txId);
-      
+
       // Son 500 transaction'ı tut (memory optimization)
       if (_processedTransactions.length > 500) {
         final list = _processedTransactions.toList();
         _processedTransactions = list.skip(list.length - 500).toSet();
       }
-      
-      await prefs.setStringList('xp_transactions', _processedTransactions.toList());
+
+      await prefs.setStringList(
+          'xp_transactions', _processedTransactions.toList());
     } catch (e) {
       debugPrint('Error saving transaction: $e');
     }
@@ -320,21 +321,23 @@ class XPManager {
   /// XP ekle ve callback'i tetikle
   /// [transactionId]: Benzersiz işlem ID'si - aynı ID ile tekrar XP verilmez (idempotency)
   /// Returns: Eklenen XP miktarı (0 = zaten işlenmiş veya hata)
-  Future<int> addXP(XPActionType action, {String? source, String? transactionId}) async {
+  Future<int> addXP(XPActionType action,
+      {String? source, String? transactionId}) async {
     try {
       // 🆔 İdempotency kontrolü - SharedPreferences'tan yükle
       await _loadTransactions();
-      
+
       if (transactionId != null) {
         if (_processedTransactions.contains(transactionId)) {
-          debugPrint('⚠️ XP işlemi zaten işlenmiş (idempotent): $transactionId');
+          debugPrint(
+              '⚠️ XP işlemi zaten işlenmiş (idempotent): $transactionId');
           return 0;
         }
-        
+
         // Transaction'ı kalıcı olarak kaydet
         await _saveTransaction(transactionId);
       }
-      
+
       // Tekrarlanabilirlik kontrolü (action bazlı)
       if (!action.isRepeatable) {
         final alreadyAwarded = await _checkAlreadyAwarded(action.id);
@@ -351,7 +354,7 @@ class XPManager {
 
       // XP'yi local DB'ye kaydet
       await _localDb.addXp(action.xpAmount);
-      
+
       // Günlük XP kaydı (analitik için)
       await _recordDailyXP(action);
 
@@ -362,19 +365,20 @@ class XPManager {
         amount: action.xpAmount,
         source: source,
       );
-      
+
       // Cache'i güncelle (doğru değerle)
       _cachedTotalXP = newTotalXP;
       _cachedWeeklyXP += action.xpAmount;
-      
+
       // SharedPreferences'a da kaydet (web için önemli - kalıcılık)
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('total_xp_persistent', newTotalXP);
-      
+
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, action.xpAmount, action.name);
-      
-      debugPrint('🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP) Toplam: $newTotalXP ${source != null ? '[$source]' : ''} ${transactionId != null ? 'tx:$transactionId' : ''}');
+
+      debugPrint(
+          '🎯 XP Kazanıldı: ${action.name} (+${action.xpAmount} XP) Toplam: $newTotalXP ${source != null ? '[$source]' : ''} ${transactionId != null ? 'tx:$transactionId' : ''}');
       return action.xpAmount;
     } catch (e) {
       debugPrint('❌ XP ekleme hatası: $e');
@@ -385,12 +389,12 @@ class XPManager {
   /// Özel miktar ile XP ekle (örn: quiz puanları)
   Future<int> addCustomXP(int amount, String reason) async {
     if (amount <= 0) return 0;
-    
+
     try {
       // 🔥 Önce mevcut XP değerini al (cache 0 olabileceği için)
       final currentXP = await getTotalXP(forceRefresh: true);
       final newTotalXP = currentXP + amount;
-      
+
       await _localDb.addXp(amount);
 
       // Günlük kayıt
@@ -399,11 +403,11 @@ class XPManager {
       final todayKey = 'xp_$today';
       final currentDailyXP = prefs.getInt(todayKey) ?? 0;
       await prefs.setInt(todayKey, currentDailyXP + amount);
-      
+
       // Cache'i güncelle (doğru değerle)
       _cachedTotalXP = newTotalXP;
       _cachedWeeklyXP += amount;
-      
+
       // SharedPreferences'a da kaydet (web için kalıcılık)
       await prefs.setInt('total_xp_persistent', newTotalXP);
 
@@ -414,10 +418,10 @@ class XPManager {
         amount: amount,
         source: reason,
       );
-      
+
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, amount, reason);
-      
+
       debugPrint('🎯 XP Kazanıldı: $reason (+$amount XP) Toplam: $newTotalXP');
       return amount;
     } catch (e) {
@@ -428,16 +432,18 @@ class XPManager {
 
   /// XP düşür (silme işlemleri için)
   /// [transactionId]: Benzersiz işlem ID'si - aynı ID ile tekrar XP düşülmez (idempotency)
-  Future<void> deductXP(int amount, String reason, {String? transactionId}) async {
+  Future<void> deductXP(int amount, String reason,
+      {String? transactionId}) async {
     if (amount <= 0) return;
-    
+
     try {
       // 🆔 İdempotency kontrolü - SharedPreferences'tan yükle
       await _loadTransactions();
 
       if (transactionId != null) {
         if (_processedTransactions.contains(transactionId)) {
-          debugPrint('⚠️ XP düşürme işlemi zaten işlenmiş (idempotent): $transactionId');
+          debugPrint(
+              '⚠️ XP düşürme işlemi zaten işlenmiş (idempotent): $transactionId');
           return;
         }
         await _saveTransaction(transactionId);
@@ -446,21 +452,23 @@ class XPManager {
       // 🔥 Önce mevcut XP değerini al (cache 0 olabileceği için)
       final currentXP = await getTotalXP(forceRefresh: true);
       final newTotalXP = (currentXP - amount) > 0 ? (currentXP - amount) : 0;
-      
+
       await _localDb.deductXp(amount);
-      
+
       // Günlük kayıt güncelle (eksiye düşebilir)
       final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now().toIso8601String().split('T')[0];
       final todayKey = 'xp_$today';
       final currentDailyXP = prefs.getInt(todayKey) ?? 0;
-      await prefs.setInt(todayKey, (currentDailyXP - amount) > 0 ? (currentDailyXP - amount) : 0);
-      
+      await prefs.setInt(todayKey,
+          (currentDailyXP - amount) > 0 ? (currentDailyXP - amount) : 0);
+
       // Cache'i güncelle (doğru değerle)
       _cachedTotalXP = newTotalXP;
-      _cachedWeeklyXP = (_cachedWeeklyXP - amount) > 0 ? (_cachedWeeklyXP - amount) : 0;
-      
-      // SharedPreferences'a da kaydet 
+      _cachedWeeklyXP =
+          (_cachedWeeklyXP - amount) > 0 ? (_cachedWeeklyXP - amount) : 0;
+
+      // SharedPreferences'a da kaydet
       await prefs.setInt('total_xp_persistent', newTotalXP);
 
       // XP geçmişi (negatif miktar)
@@ -470,10 +478,10 @@ class XPManager {
         amount: -amount,
         source: reason,
       );
-      
+
       // Callback'i tetikle
       _onXPChanged?.call(newTotalXP, -amount, reason);
-      
+
       debugPrint('🗑️ XP Silindi: $reason (-$amount XP) Toplam: $newTotalXP');
     } catch (e) {
       debugPrint('❌ XP silme hatası: $e');
@@ -489,24 +497,50 @@ class XPManager {
         return _cachedTotalXP;
       }
     }
-    
+
     // Önce SharedPreferences'tan oku (web için daha güvenilir)
     final prefs = await SharedPreferences.getInstance();
     final prefsXP = prefs.getInt('total_xp_persistent') ?? 0;
-    
+
     // Database'den de oku
     final dbXP = await _localDb.getTotalXp();
-    
+
     // En büyük değeri kullan (veri kaybını önle)
     _cachedTotalXP = prefsXP > dbXP ? prefsXP : dbXP;
-    
+
     // Eğer fark varsa senkronize et
     if (prefsXP != _cachedTotalXP) {
       await prefs.setInt('total_xp_persistent', _cachedTotalXP);
     }
-    
+
     _lastCacheUpdate = DateTime.now();
     return _cachedTotalXP;
+  }
+
+  /// Reconcile local total XP upward when existing learning content proves the
+  /// user has earned at least [minimumXp].
+  Future<int> ensureMinimumTotalXP(int minimumXp) async {
+    if (minimumXp <= 0) return 0;
+
+    try {
+      final added = await _localDb.ensureTotalXpAtLeast(minimumXp);
+      final prefs = await SharedPreferences.getInstance();
+      final prefsXP = prefs.getInt('total_xp_persistent') ?? 0;
+      if (prefsXP < minimumXp) {
+        await prefs.setInt('total_xp_persistent', minimumXp);
+      }
+      if (added > 0) {
+        _cachedTotalXP = minimumXp;
+        _lastCacheUpdate = DateTime.now();
+        _onXPChanged?.call(minimumXp, 0, 'XP reconciliation');
+      } else if (_cachedTotalXP < minimumXp) {
+        _cachedTotalXP = minimumXp;
+      }
+      return added;
+    } catch (e) {
+      debugPrint('❌ XP reconciliation failed: $e');
+      return 0;
+    }
   }
 
   /// Bu hafta kazanılan XP
@@ -520,14 +554,14 @@ class XPManager {
 
     final prefs = await SharedPreferences.getInstance();
     int totalWeeklyXP = 0;
-    
+
     final now = DateTime.now();
     for (int i = 0; i < 7; i++) {
       final date = now.subtract(Duration(days: i));
       final dateStr = date.toIso8601String().split('T')[0];
       totalWeeklyXP += prefs.getInt('xp_$dateStr') ?? 0;
     }
-    
+
     _cachedWeeklyXP = totalWeeklyXP;
     return totalWeeklyXP;
   }
@@ -551,7 +585,7 @@ class XPManager {
     if (totalXP < 8000) return 8;
     if (totalXP < 11000) return 9;
     if (totalXP < 15000) return 10;
-    
+
     // 10. seviyeden sonra her 5000 XP = 1 seviye
     return 10 + ((totalXP - 15000) ~/ 5000);
   }
@@ -570,7 +604,7 @@ class XPManager {
     final nextLevelXP = _getXPForLevel(currentLevel + 1);
     final xpInCurrentLevel = totalXP - currentLevelXP;
     final xpNeededForLevel = nextLevelXP - currentLevelXP;
-    
+
     return xpInCurrentLevel / xpNeededForLevel;
   }
 
@@ -586,7 +620,7 @@ class XPManager {
     if (level == 9) return 8000;
     if (level == 10) return 11000;
     if (level == 11) return 15000;
-    
+
     // 11. seviyeden sonra her seviye +5000 XP
     return 15000 + ((level - 11) * 5000);
   }
@@ -596,12 +630,12 @@ class XPManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final today = _now.toIso8601String().split('T')[0];
-      
+
       // Bugünkü toplam XP
       final todayKey = 'xp_$today';
       final currentDailyXP = prefs.getInt(todayKey) ?? 0;
       await prefs.setInt(todayKey, currentDailyXP + action.xpAmount);
-      
+
       // Kategori bazlı XP
       final categoryKey = 'xp_${action.category}_$today';
       final currentCategoryXP = prefs.getInt(categoryKey) ?? 0;
@@ -625,7 +659,6 @@ class XPManager {
     await prefs.setBool('xp_awarded_${actionId}_$today', true);
   }
 
-
   /// Cache'i temizle (yeni veri yüklemeden önce)
   void invalidateCache() {
     _lastCacheUpdate = null;
@@ -634,7 +667,7 @@ class XPManager {
   /// Streak bonuslarını kontrol et ve gerekirse ver
   Future<int> checkAndAwardStreakBonus(int currentStreak) async {
     int bonusXP = 0;
-    
+
     if (currentStreak == 3) {
       bonusXP += await addXP(XPActionTypes.streakBonus3);
     } else if (currentStreak == 7) {
@@ -642,10 +675,9 @@ class XPManager {
     } else if (currentStreak == 30) {
       bonusXP += await addXP(XPActionTypes.streakBonus30);
     }
-    
+
     return bonusXP;
   }
-
 
   /// Test amaçlı idempotency durumunu sıfırla
   @visibleForTesting
@@ -669,5 +701,3 @@ class XPManager {
     return false;
   }
 }
-
-

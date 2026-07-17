@@ -47,7 +47,8 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
               children: [
                 // AppBar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   child: Row(
                     children: [
                       IconButton(
@@ -70,7 +71,8 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                               widget.originalIndices != null
                                   ? 'Soru ${widget.originalIndices![_currentIndex] + 1} (Toplam: ${widget.items.length})'
                                   : 'Soru ${_currentIndex + 1} / ${widget.items.length}',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
                             ),
                           ],
                         ),
@@ -78,7 +80,7 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                     ],
                   ),
                 ),
-                
+
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -93,7 +95,7 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                     },
                   ),
                 ),
-                
+
                 // Bottom Navigation
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -110,9 +112,10 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                                 );
                               }
                             : null,
-                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                        icon: const Icon(Icons.arrow_back_ios,
+                            color: Colors.white),
                       ),
-                       IconButton(
+                      IconButton(
                         onPressed: _currentIndex < widget.items.length - 1
                             ? () {
                                 _pageController.nextPage(
@@ -121,7 +124,8 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
                                 );
                               }
                             : null,
-                        icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                        icon: const Icon(Icons.arrow_forward_ios,
+                            color: Colors.white),
                       ),
                     ],
                   ),
@@ -136,11 +140,11 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
 
   Widget _buildReviewItem(ExamItem item) {
     final userAnswer = widget.userAnswers[item.id];
-    
-    // Resolve passage if necessary (though strictly we would need the full context logic here too, 
+
+    // Resolve passage if necessary (though strictly we would need the full context logic here too,
     // for simplicity we assume passage is on the item or we display just the question)
     // Ideally we pass 'activePassage' but let's see if item has passage
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -151,17 +155,17 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white10),
               ),
               child: Text(
                 item.passage!,
-                style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 14, height: 1.5),
               ),
             ),
           ],
-          
           Text(
             item.stem,
             style: const TextStyle(
@@ -171,7 +175,6 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
             ),
           ),
           const SizedBox(height: 24),
-          
           ...['A', 'B', 'C', 'D', 'E'].map((optionLabel) {
             final optionText = item.options[optionLabel];
             if (optionText == null) return const SizedBox.shrink();
@@ -182,11 +185,11 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
 
             if (optionLabel == item.correct) {
               borderColor = Colors.green;
-              bgColor = Colors.green.withOpacity(0.2);
+              bgColor = Colors.green.withValues(alpha: 0.2);
               textColor = Colors.white;
             } else if (optionLabel == userAnswer) {
               borderColor = Colors.red;
-              bgColor = Colors.red.withOpacity(0.2);
+              bgColor = Colors.red.withValues(alpha: 0.2);
               textColor = Colors.white;
             }
 
@@ -222,41 +225,45 @@ class _ExamReviewPageState extends State<ExamReviewPage> {
               ),
             );
           }),
-          
           const SizedBox(height: 24),
-          
           if (item.explanationTr != null || item.explanationEn != null) ...[
-             Container(
-               padding: const EdgeInsets.all(16),
-               decoration: BoxDecoration(
-                 color: const Color(0xFF0F172A),
-                 borderRadius: BorderRadius.circular(12),
-                 border: Border.all(color: Colors.amber.withOpacity(0.3)),
-               ),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   const Row(
-                     children: [
-                       Icon(Icons.lightbulb, color: Colors.amber, size: 20),
-                       SizedBox(width: 8),
-                       Text('Açıklama', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-                     ],
-                   ),
-                   const SizedBox(height: 8),
-                   if (item.explanationTr != null)
-                     Text(item.explanationTr!, style: const TextStyle(color: Colors.white70)),
-                   if (item.explanationEn != null) ...[
-                      const SizedBox(height: 8),
-                      Text(item.explanationEn!, style: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic)),
-                   ]
-                 ],
-               ),
-             )
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.lightbulb, color: Colors.amber, size: 20),
+                      SizedBox(width: 8),
+                      Text('Açıklama',
+                          style: TextStyle(
+                              color: Colors.amber,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (item.explanationTr != null)
+                    Text(item.explanationTr!,
+                        style: const TextStyle(color: Colors.white70)),
+                  if (item.explanationEn != null) ...[
+                    const SizedBox(height: 8),
+                    Text(item.explanationEn!,
+                        style: const TextStyle(
+                            color: Colors.white54,
+                            fontStyle: FontStyle.italic)),
+                  ]
+                ],
+              ),
+            )
           ]
         ],
       ),
     );
   }
 }
-

@@ -19,11 +19,15 @@ Prepared by: `{{PREPARED_BY}}`
 ## Automated Gates
 
 - [ ] Repo secret scan passed: `pwsh -File scripts/scan-repo-secrets.ps1`
+- [ ] Prod secret parity passed before backend release/scale:
+      `pwsh -File scripts/check-prod-secret-parity-vps.ps1 -Execute`
 - [ ] Flutter quality gate passed: `pwsh -File scripts/flutter-quality-gate.ps1`
-- [ ] Flutter coverage gate passed at or above the current 30% threshold.
+- [ ] Flutter coverage gate passed at or above the current 32.5% threshold.
 - [ ] Flutter analyzer burn-down report generated when cleanup work changed analyzer debt:
       `pwsh -File scripts/new-flutter-analyzer-burndown-report.ps1`
 - [ ] Backend targeted tests passed when backend code changed.
+- [ ] Migration preflight passed when backend, Docker, or DB migration-sensitive code changed:
+      `pwsh -File scripts/run-migration-preflight.ps1`
 - [ ] Release AAB was built from the commit SHA above.
 - [ ] No unexpected secrets, local `.env` values, or service-account JSON files are included in the artifact.
 
@@ -38,6 +42,10 @@ Prepared by: `{{PREPARED_BY}}`
 ## Play Console / Policy
 
 - [ ] Data Safety form still matches app behavior.
+- [ ] Data Safety form's account-deletion question confirms KlioAI provides an
+      in-app deletion path (Profile > Account Settings > Delete my account),
+      not just the web/email resource — required by Google Play's account
+      deletion policy for standard mobile apps.
 - [ ] Privacy policy and account deletion URLs are reachable.
 - [ ] Version code is higher than the previous uploaded AAB.
 - [ ] Play test track processing completed before device smoke.
@@ -46,7 +54,7 @@ Prepared by: `{{PREPARED_BY}}`
 ## Device Smoke
 
 - [ ] Play-installed device smoke report generated:
-      `pwsh -File scripts/new-play-device-smoke-report.ps1 -Tester <name> -Device <device> -AndroidVersion <version> -PlayVersionCode <code>`
+      `pwsh -File scripts/new-play-device-smoke-report.ps1 -Tester <name> -Device <device> -AndroidVersion <version> -PlayVersionCode <code> -GitHubRunUrl <actions-run-url> -ReleaseChecklistPath <checklist-path>`
 - [ ] App version/build shown in Profile matches uploaded AAB.
 - [ ] Google Sign-In works on a fresh install.
 - [ ] Home loads without stale XP/weekly XP values.
@@ -58,6 +66,7 @@ Prepared by: `{{PREPARED_BY}}`
 - [ ] Notification permission/preference flow works.
 - [ ] Push notification tap opens the expected app surface.
 - [ ] Subscription restore/purchase smoke completed if billing changed.
+- [ ] Firebase Crashlytics dashboard shows no new fatal crash spike for the previous release before promoting this one.
 
 ## Release Decision
 

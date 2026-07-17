@@ -6,6 +6,7 @@ import '../services/global_state.dart';
 import 'exam_selection_page.dart';
 import 'translation_practice_page.dart';
 import 'reading_practice_page.dart';
+import 'pronunciation_practice_page.dart';
 import 'writing_practice_page.dart';
 import 'video_call_page.dart';
 import '../services/matchmaking_service.dart';
@@ -22,7 +23,6 @@ import '../services/daily_practice_progress_service.dart';
 import '../services/app_market_config.dart';
 import '../services/ai_access_policy.dart';
 import '../services/analytics_service.dart';
-import '../services/first_session_activation_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
@@ -43,6 +43,7 @@ class _PracticePageState extends State<PracticePage>
   static const String _modeWriting = 'writing';
   static const String _modeGrammar = 'grammar';
   static const String _modeSpeaking = 'speaking';
+  static const String _modePronunciation = 'pronunciation';
   static const String _modeExams = 'exams';
   static const String _modeNeural = 'neural';
   static const String _modeWordGalaxy = 'word_galaxy';
@@ -68,9 +69,6 @@ class _PracticePageState extends State<PracticePage>
   final DailyPracticeProgressService _dailyProgressService =
       DailyPracticeProgressService();
   Map<String, bool> _readingCompletedLevels = {};
-  final FirstSessionActivationService _activationService =
-      FirstSessionActivationService();
-  bool _firstSessionPracticeCompleted = false;
 
   AppThemeConfig _currentTheme({bool listen = true}) {
     try {
@@ -91,12 +89,7 @@ class _PracticePageState extends State<PracticePage>
     _modeWriting,
     _modeGrammar,
     _modeSpeaking,
-  ];
-
-  static const List<String> _starterPracticeModes = [
-    _modeTranslate,
-    _modeWriting,
-    _modeSpeaking,
+    _modePronunciation,
   ];
 
   List<String> _availableModesForLocale(Locale? locale) {
@@ -109,19 +102,6 @@ class _PracticePageState extends State<PracticePage>
     return modes;
   }
 
-  List<String> _selectableModesForLocale(Locale? locale) {
-    return _availableModesForLocale(locale).where(_isModeUnlocked).toList();
-  }
-
-  bool _isModeUnlocked(String mode) {
-    return _firstSessionPracticeCompleted ||
-        _starterPracticeModes.contains(mode);
-  }
-
-  String _unlockText(String tr, String en) {
-    return Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
-  }
-
   String _modeLabel(String mode) {
     switch (mode) {
       case _modeReading:
@@ -132,6 +112,10 @@ class _PracticePageState extends State<PracticePage>
         return context.tr('practice.mode.grammar');
       case _modeSpeaking:
         return context.tr('practice.mode.speaking');
+      case _modePronunciation:
+        return Localizations.localeOf(context).languageCode == 'tr'
+            ? 'Telaffuz'
+            : 'Pronunciation';
       case _modeExams:
         return context.tr('practice.mode.exams');
       case _modeWordGalaxy:
@@ -171,6 +155,9 @@ class _PracticePageState extends State<PracticePage>
       case 'konusma':
       case 'speaking':
         return _modeSpeaking;
+      case 'telaffuz':
+      case 'pronunciation':
+        return _modePronunciation;
       case 'sınavlar':
       case 'sinavlar':
       case 'exams':
@@ -190,10 +177,8 @@ class _PracticePageState extends State<PracticePage>
   void _ensureSelectedModeVisible() {
     final locale = Localizations.maybeLocaleOf(context);
     final availableModes = _availableModesForLocale(locale);
-    final selectableModes = _selectableModesForLocale(locale);
-    if (!availableModes.contains(_selectedMode) ||
-        !_isModeUnlocked(_selectedMode)) {
-      _selectedMode = selectableModes.first;
+    if (!availableModes.contains(_selectedMode)) {
+      _selectedMode = availableModes.first;
     }
   }
 
@@ -209,7 +194,6 @@ class _PracticePageState extends State<PracticePage>
     super.initState();
     _loadWords();
     _loadDailyCompletionBadges();
-    _loadFirstSessionPracticeState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshPracticeAccessIfNeeded();
       _logPracticeStarted();
@@ -250,50 +234,12 @@ class _PracticePageState extends State<PracticePage>
     }
   }
 
-  Future<void> _loadFirstSessionPracticeState() async {
-    final completed = await _activationService.isPracticeCompleted();
-    if (!mounted) return;
-    setState(() => _firstSessionPracticeCompleted = completed);
-  }
-
-  Future<void> _refreshFirstSessionPracticeState() async {
-    if (_firstSessionPracticeCompleted) return;
-    final completed = await _activationService.isPracticeCompleted();
-    if (!mounted || !completed) return;
-    setState(() {
-      _firstSessionPracticeCompleted = true;
-      _ensureSelectedModeVisible();
-    });
-  }
-
   void _selectPracticeMode(String mode) {
     if (_selectedMode == mode) {
       return;
     }
-    if (!_isModeUnlocked(mode)) {
-      _showProgressiveUnlockMessage(mode);
-      return;
-    }
     setState(() => _selectedMode = mode);
     _logPracticeStarted(type: mode);
-  }
-
-  void _showProgressiveUnlockMessage(String mode) {
-    AnalyticsService.logProgressiveUnlockBlocked(
-      mode: mode,
-      source: 'practice_tab',
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _unlockText(
-            'Bu modu açmak için önce ilk pratiğini tamamla.',
-            'Complete your first practice to unlock this mode.',
-          ),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _logPracticeStarted({String? type}) {
@@ -514,7 +460,7 @@ class _PracticePageState extends State<PracticePage>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -594,11 +540,6 @@ class _PracticePageState extends State<PracticePage>
     final isEntitlementLoading = appState.isLoadingAiEntitlement &&
         !hasAiEntitlementSnapshot(appState.userInfo);
     final locale = Localizations.maybeLocaleOf(context);
-    if (!_firstSessionPracticeCompleted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _refreshFirstSessionPracticeState();
-      });
-    }
     final availableModes = _availableModesForLocale(locale);
     if (!availableModes.contains(_selectedMode)) {
       _selectedMode = availableModes.first;
@@ -633,10 +574,10 @@ class _PracticePageState extends State<PracticePage>
                           colors: [
                             _mix(selectedTheme.colors.background,
                                     selectedTheme.colors.accent, 0.48)
-                                .withOpacity(0.92),
+                                .withValues(alpha: 0.92),
                             _mix(selectedTheme.colors.background,
                                     selectedTheme.colors.primary, 0.48)
-                                .withOpacity(0.92),
+                                .withValues(alpha: 0.92),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -645,30 +586,39 @@ class _PracticePageState extends State<PracticePage>
                         boxShadow: [
                           BoxShadow(
                             color: selectedTheme.colors.accentGlow
-                                .withOpacity(0.22),
+                                .withValues(alpha: 0.22),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.school,
-                                  color: Colors.white, size: 28),
-                              const SizedBox(width: 12),
-                              Text(
-                                context.tr('practice.start'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.school,
+                                    color: Colors.white, size: 28),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      context.tr('practice.start'),
+                                      maxLines: 1,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 12),
                           IconButton(
                             onPressed: () {
                               InfoDialog.show(
@@ -703,18 +653,54 @@ class _PracticePageState extends State<PracticePage>
                   // Top Tabs
                   Padding(
                     padding: const EdgeInsets.all(20),
-                    child: ModernCard(
-                      borderRadius: BorderRadius.circular(16),
-                      padding: const EdgeInsets.all(4),
-                      variant: BackgroundVariant.secondary,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: availableModes
-                              .map((mode) => _buildTopTab(mode))
-                              .toList(),
-                        ),
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final selectorRadius = BorderRadius.circular(16);
+                        return SizedBox(
+                          width: constraints.maxWidth,
+                          child: ClipRRect(
+                            borderRadius: selectorRadius,
+                            clipBehavior: Clip.hardEdge,
+                            child: ModernCard(
+                              width: constraints.maxWidth,
+                              borderRadius: selectorRadius,
+                              padding: const EdgeInsets.all(4),
+                              variant: BackgroundVariant.secondary,
+                              child: LayoutBuilder(
+                                builder: (context, tabConstraints) {
+                                  const visibleTabCount = 3;
+                                  const tabGap = 8.0;
+                                  final tabWidth = (tabConstraints.maxWidth -
+                                          (visibleTabCount - 1) * tabGap) /
+                                      visibleTabCount;
+                                  return SizedBox(
+                                    height: 56,
+                                    child: ClipRect(
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        clipBehavior: Clip.hardEdge,
+                                        physics: const BouncingScrollPhysics(
+                                          parent:
+                                              AlwaysScrollableScrollPhysics(),
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        itemCount: availableModes.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(width: tabGap),
+                                        itemBuilder: (context, index) =>
+                                            _buildTopTab(
+                                          availableModes[index],
+                                          width: tabWidth,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
 
@@ -737,6 +723,8 @@ class _PracticePageState extends State<PracticePage>
       return _buildReadingTab();
     } else if (_selectedMode == _modeSpeaking) {
       return _buildSpeakingTab();
+    } else if (_selectedMode == _modePronunciation) {
+      return _buildPronunciationTab();
     } else if (_selectedMode == _modeWriting) {
       return _buildWritingTab();
     } else if (_selectedMode == _modeExams &&
@@ -765,7 +753,7 @@ class _PracticePageState extends State<PracticePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selectedTheme.colors.accent,
@@ -773,7 +761,8 @@ class _PracticePageState extends State<PracticePage>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -907,7 +896,7 @@ class _PracticePageState extends State<PracticePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selectedTheme.colors.accent,
@@ -915,7 +904,8 @@ class _PracticePageState extends State<PracticePage>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -957,15 +947,16 @@ class _PracticePageState extends State<PracticePage>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: selectedTheme.colors.accent.withOpacity(0.1),
+                  color: selectedTheme.colors.accent.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: selectedTheme.colors.accent.withOpacity(0.5),
+                    color: selectedTheme.colors.accent.withValues(alpha: 0.5),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: selectedTheme.colors.accentGlow.withOpacity(0.2),
+                      color: selectedTheme.colors.accentGlow
+                          .withValues(alpha: 0.2),
                       blurRadius: 12,
                     ),
                   ],
@@ -1054,7 +1045,7 @@ class _PracticePageState extends State<PracticePage>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.mic, color: Colors.white, size: 24),
@@ -1147,7 +1138,7 @@ class _PracticePageState extends State<PracticePage>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.mic_none_outlined,
@@ -1221,6 +1212,385 @@ class _PracticePageState extends State<PracticePage>
     );
   }
 
+  Widget _buildPronunciationTab() {
+    final selectedTheme = _currentTheme();
+    final isTurkish = Localizations.localeOf(context).languageCode == 'tr';
+    String text(String tr, String en) => isTurkish ? tr : en;
+    final selectedWords = _selectedWordsForPractice();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: selectedTheme.colors.accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selectedTheme.colors.accent,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.record_voice_over,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    // Clarity framing on purpose: scoring is transcript+pace
+                    // based, not phoneme-level pronunciation accuracy.
+                    text('Okuma Netligi Raporu', 'Reading Clarity Report'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    text(
+                      'Metni oku, sesini kaydet, netlik raporu al',
+                      'Read aloud, record, and get a clarity report',
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selectedTheme.colors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        ModernCard(
+          showGlow: true,
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                text('Seviye', 'Level'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+                    .map((level) => _buildLevelChip(level))
+                    .toList(),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                text(
+                  'Ilk surum hedef metin ile algilanan konusmayi karsilastirir. Fonem bazli kesin telaffuz teshisi degildir.',
+                  'The first version compares the target text with detected speech. It is not strict phoneme-level pronunciation diagnosis.',
+                ),
+                style: TextStyle(
+                  color: selectedTheme.colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildPronunciationWordSelectionCard(selectedTheme, text),
+        const SizedBox(height: 24),
+        ModernCard(
+          width: double.infinity,
+          variant: BackgroundVariant.accent,
+          showGlow: true,
+          borderRadius: BorderRadius.circular(16),
+          padding: EdgeInsets.zero,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PronunciationPracticePage(
+                    level: _selectedLevel,
+                    focusWords:
+                        selectedWords.map((word) => word.englishWord).toList(),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.mic_rounded, color: Colors.white),
+            label: Text(
+              text(
+                  'Telaffuz calismasina basla', 'Start pronunciation practice'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ModernCard(
+          width: double.infinity,
+          borderRadius: BorderRadius.circular(16),
+          padding: EdgeInsets.zero,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PronunciationPracticePage(
+                    level: 'B1',
+                    placementMode: true,
+                  ),
+                ),
+              );
+            },
+            icon: Icon(
+              Icons.insights_rounded,
+              color: selectedTheme.colors.accent,
+            ),
+            label: Text(
+              text('Seviyemi olc', 'Check my level'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: selectedTheme.colors.accent.withValues(alpha: 0.55),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  List<Word> _selectedWordsForPractice() {
+    return _allWords
+        .where((word) => _selectedWordIds.contains(word.id))
+        .toList();
+  }
+
+  Widget _buildPronunciationWordSelectionCard(
+    AppThemeConfig selectedTheme,
+    String Function(String tr, String en) text,
+  ) {
+    final selectedWords = _selectedWordsForPractice();
+    return ModernCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: BorderRadius.circular(20),
+      variant: BackgroundVariant.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text('Kendi kelimelerin', 'Your words'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                text(
+                  '${selectedWords.length} secili',
+                  '${selectedWords.length} selected',
+                ),
+                style: TextStyle(
+                  color: selectedTheme.colors.accent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text(
+              'Kelimelerini secersen okuma metni onlardan olusur. Secmezsen seviye metni kullanilir.',
+              'Select words to build the reading text from them. If none are selected, a level text is used.',
+            ),
+            style: TextStyle(
+              color: selectedTheme.colors.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selectedTheme.colors.cardBorder.withValues(alpha: 0.8),
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                icon: Icon(
+                  Icons.search_rounded,
+                  color: selectedTheme.colors.textSecondary,
+                ),
+                hintText: text('Kelime ara', 'Search words'),
+                hintStyle: TextStyle(
+                  color:
+                      selectedTheme.colors.textSecondary.withValues(alpha: 0.7),
+                ),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingWords)
+            Center(
+              child: CircularProgressIndicator(
+                color: selectedTheme.colors.accent,
+              ),
+            )
+          else if (_allWords.isEmpty)
+            Text(
+              text(
+                'Henuz kelime yok. Once Words sayfasindan kelime ekleyebilirsin.',
+                'No words yet. Add words from the Words page first.',
+              ),
+              style: TextStyle(
+                color: selectedTheme.colors.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            )
+          else
+            SizedBox(
+              height: 220,
+              child: ListView.separated(
+                itemCount: _filteredWords.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final word = _filteredWords[index];
+                  final isSelected = _selectedWordIds.contains(word.id);
+                  final displayMeaning = word.turkishMeaning
+                      .replaceAll('★', '')
+                      .replaceAll('⭐', '')
+                      .trim();
+                  return InkWell(
+                    onTap: () => _toggleWordSelection(word.id),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? selectedTheme.colors.accent
+                                .withValues(alpha: 0.14)
+                            : Colors.white.withValues(alpha: 0.045),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected
+                              ? selectedTheme.colors.accent
+                                  .withValues(alpha: 0.65)
+                              : selectedTheme.colors.cardBorder,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            color: isSelected
+                                ? selectedTheme.colors.accent
+                                : selectedTheme.colors.textSecondary,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  word.englishWord,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                if (displayMeaning.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    displayMeaning,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: selectedTheme.colors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExamsTab() {
     final selectedTheme = _currentTheme();
     return Column(
@@ -1231,7 +1601,7 @@ class _PracticePageState extends State<PracticePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: selectedTheme.colors.accent.withOpacity(0.12),
+                color: selectedTheme.colors.accent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selectedTheme.colors.accent,
@@ -1239,7 +1609,8 @@ class _PracticePageState extends State<PracticePage>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -1349,7 +1720,7 @@ class _PracticePageState extends State<PracticePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selectedTheme.colors.accent,
@@ -1357,7 +1728,8 @@ class _PracticePageState extends State<PracticePage>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                    color:
+                        selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -1411,9 +1783,9 @@ class _PracticePageState extends State<PracticePage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
             child: TextField(
               style: const TextStyle(color: Colors.white),
@@ -1467,9 +1839,10 @@ class _PracticePageState extends State<PracticePage>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -1593,7 +1966,7 @@ class _PracticePageState extends State<PracticePage>
                                                 decoration: BoxDecoration(
                                                   color: selectedTheme
                                                       .colors.accent
-                                                      .withOpacity(0.2),
+                                                      .withValues(alpha: 0.2),
                                                   borderRadius:
                                                       BorderRadius.circular(4),
                                                 ),
@@ -1635,8 +2008,8 @@ class _PracticePageState extends State<PracticePage>
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color:
-                                                Colors.white.withOpacity(0.1),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
@@ -1657,13 +2030,13 @@ class _PracticePageState extends State<PracticePage>
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
                                               color: selectedTheme.colors.accent
-                                                  .withOpacity(0.2),
+                                                  .withValues(alpha: 0.2),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                               border: Border.all(
                                                 color: selectedTheme
                                                     .colors.accent
-                                                    .withOpacity(0.3),
+                                                    .withValues(alpha: 0.3),
                                                 width: 1,
                                               ),
                                             ),
@@ -1747,42 +2120,29 @@ class _PracticePageState extends State<PracticePage>
     );
   }
 
-  Widget _buildTopTab(String text) {
+  Widget _buildTopTab(String text, {double? width}) {
     final isSelected = _selectedMode == text;
-    final isUnlocked = _isModeUnlocked(text);
     return GestureDetector(
       onTap: () => _selectPracticeMode(text),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        child: Opacity(
-          opacity: isUnlocked ? 1 : 0.58,
-          child: ModernCard(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            borderRadius: BorderRadius.circular(12),
-            variant: isSelected
-                ? BackgroundVariant.accent
-                : BackgroundVariant.secondary,
-            showGlow: isSelected,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!isUnlocked) ...[
-                    const Icon(
-                      Icons.lock_rounded,
-                      color: Colors.white70,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    _modeLabel(text),
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white70,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+      child: SizedBox(
+        width: width,
+        child: ModernCard(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          borderRadius: BorderRadius.circular(12),
+          variant: isSelected
+              ? BackgroundVariant.accent
+              : BackgroundVariant.secondary,
+          showGlow: false,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                _modeLabel(text),
+                maxLines: 1,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -1880,7 +2240,8 @@ class _PracticePageState extends State<PracticePage>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: selectedTheme.colors.accentGlow.withOpacity(0.35),
+                      color: selectedTheme.colors.accentGlow
+                          .withValues(alpha: 0.35),
                       blurRadius: 14,
                       spreadRadius: 2,
                     ),
@@ -2022,8 +2383,8 @@ class _PracticePageState extends State<PracticePage>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              selectedTheme.colors.accentGlow.withOpacity(0.22),
+                          color: selectedTheme.colors.accentGlow
+                              .withValues(alpha: 0.22),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
@@ -2215,10 +2576,10 @@ class _NeuralCompactInfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.045),
+        color: Colors.white.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selectedTheme.colors.accent.withOpacity(0.18),
+          color: selectedTheme.colors.accent.withValues(alpha: 0.18),
         ),
       ),
       child: Column(

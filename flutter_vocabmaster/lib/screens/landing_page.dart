@@ -214,11 +214,11 @@ class _LandingPageState extends State<LandingPage>
                 width: 384,
                 height: 384,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF06B6D4).withOpacity(0.2),
+                  color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF06B6D4).withOpacity(0.2),
+                      const Color(0xFF06B6D4).withValues(alpha: 0.2),
                       Colors.transparent
                     ],
                   ),
@@ -261,7 +261,7 @@ class _LandingPageState extends State<LandingPage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF22D3EE).withOpacity(0.5),
+                        color: const Color(0xFF22D3EE).withValues(alpha: 0.5),
                         blurRadius: 40,
                         spreadRadius: 5,
                       ),
@@ -335,7 +335,7 @@ class _LandingPageState extends State<LandingPage>
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 16,
-        color: const Color(0xFFE0F2FE).withOpacity(0.8),
+        color: const Color(0xFFE0F2FE).withValues(alpha: 0.8),
         height: 1.5,
       ),
     );
@@ -382,10 +382,10 @@ class _LandingPageState extends State<LandingPage>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFF22D3EE).withOpacity(0.2),
+                color: const Color(0xFF22D3EE).withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -408,7 +408,7 @@ class _LandingPageState extends State<LandingPage>
                   stats[index]['label'] as String,
                   style: TextStyle(
                     fontSize: 12,
-                    color: const Color(0xFF67E8F9).withOpacity(0.7),
+                    color: const Color(0xFF67E8F9).withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -512,15 +512,15 @@ class _LandingPageState extends State<LandingPage>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    gradient[0].withOpacity(0.1),
-                    gradient[1].withOpacity(0.05),
+                    gradient[0].withValues(alpha: 0.1),
+                    gradient[1].withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 boxShadow: [
                   BoxShadow(
-                    color: gradient[0].withOpacity(0.1),
+                    color: gradient[0].withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -573,10 +573,12 @@ class _LandingPageState extends State<LandingPage>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF06B6D4).withOpacity(0.2),
+                              color: const Color(0xFF06B6D4)
+                                  .withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF22D3EE).withOpacity(0.3),
+                                color: const Color(0xFF22D3EE)
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Text(
@@ -606,7 +608,7 @@ class _LandingPageState extends State<LandingPage>
                         feature['subtitle'] as String,
                         style: TextStyle(
                           fontSize: 12,
-                          color: const Color(0xFF67E8F9).withOpacity(0.6),
+                          color: const Color(0xFF67E8F9).withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -616,7 +618,7 @@ class _LandingPageState extends State<LandingPage>
                         feature['description'] as String,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           height: 1.5,
                         ),
                       ),
@@ -637,7 +639,7 @@ class _LandingPageState extends State<LandingPage>
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: const Color(0xFFE0F2FE)
-                                        .withOpacity(0.9),
+                                        .withValues(alpha: 0.9),
                                   ),
                                 ),
                               ),
@@ -680,7 +682,7 @@ class _LandingPageState extends State<LandingPage>
                   : null,
               color: _currentFeature == index
                   ? null
-                  : Colors.white.withOpacity(0.3),
+                  : Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -741,12 +743,13 @@ class _LandingPageState extends State<LandingPage>
   Widget _buildTrustIndicator(IconData icon, String label) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF67E8F9).withOpacity(0.6), size: 16),
+        Icon(icon,
+            color: const Color(0xFF67E8F9).withValues(alpha: 0.6), size: 16),
         const SizedBox(width: 6),
         Text(
           label,
           style: TextStyle(
-            color: const Color(0xFF67E8F9).withOpacity(0.6),
+            color: const Color(0xFF67E8F9).withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -759,16 +762,16 @@ class _LandingPageState extends State<LandingPage>
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.1)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
       ),
       child: Column(
         children: [
           Text(
             context.tr('landing.footer.copy'),
             style: TextStyle(
-              color: const Color(0xFF67E8F9).withOpacity(0.6),
+              color: const Color(0xFF67E8F9).withValues(alpha: 0.6),
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -777,7 +780,7 @@ class _LandingPageState extends State<LandingPage>
           Text(
             context.tr('landing.footer.subtitle'),
             style: TextStyle(
-              color: const Color(0xFF67E8F9).withOpacity(0.4),
+              color: const Color(0xFF67E8F9).withValues(alpha: 0.4),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,

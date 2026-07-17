@@ -23,7 +23,7 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   final SocialService _socialService = SocialService();
-  
+
   Map<String, dynamic>? profile;
   bool isLoading = true;
   String? errorMessage;
@@ -58,7 +58,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1e1b4b),
-        title: const Text('Arkadaşlıktan Çıkar', style: TextStyle(color: Colors.white)),
+        title: const Text('Arkadaşlıktan Çıkar',
+            style: TextStyle(color: Colors.white)),
         content: Text(
           '${profile?['displayName'] ?? 'Bu kişiyi'} arkadaşlıktan çıkarmak istediğinize emin misiniz?',
           style: const TextStyle(color: Colors.white70),
@@ -70,7 +71,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Çıkar', style: TextStyle(color: Colors.redAccent)),
+            child:
+                const Text('Çıkar', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -81,7 +83,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         await _socialService.removeFriend(widget.userId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Arkadaşlıktan çıkarıldı'), backgroundColor: Colors.orange),
+            const SnackBar(
+                content: Text('Arkadaşlıktan çıkarıldı'),
+                backgroundColor: Colors.orange),
           );
           _loadProfile(); // Refresh
         }
@@ -97,12 +101,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _sendFriendRequest() async {
     if (profile == null || profile!['email'] == null) return;
-    
+
     try {
       await _socialService.sendFriendRequest(profile!['email']);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Arkadaşlık isteği gönderildi!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Arkadaşlık isteği gönderildi!'),
+              backgroundColor: Colors.green),
         );
         _loadProfile(); // Refresh
       }
@@ -155,9 +161,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                                  const Icon(Icons.error_outline,
+                                      color: Colors.red, size: 48),
                                   const SizedBox(height: 16),
-                                  Text(errorMessage!, style: const TextStyle(color: Colors.white70)),
+                                  Text(errorMessage!,
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
                                 ],
                               ),
                             )
@@ -206,14 +215,20 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: isOnline
-                              ? [const Color(0xFF22d3ee), const Color(0xFF3b82f6)]
+                              ? [
+                                  const Color(0xFF22d3ee),
+                                  const Color(0xFF3b82f6)
+                                ]
                               : [Colors.grey.shade600, Colors.grey.shade800],
                         ),
                       ),
                       child: Center(
                         child: Text(
                           initial,
-                          style: const TextStyle(fontSize: 48, color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 48,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -226,7 +241,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         decoration: BoxDecoration(
                           color: isOnline ? Colors.green : Colors.grey.shade500,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF1e1b4b), width: 3),
+                          border: Border.all(
+                              color: const Color(0xFF1e1b4b), width: 3),
                         ),
                       ),
                     ),
@@ -281,7 +297,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildStatItem(Icons.star, 'Seviye', level.toString()),
-                    _buildStatItem(Icons.calendar_today, 'Katılım', _formatDate(createdAt)),
+                    _buildStatItem(Icons.calendar_today, 'Katılım',
+                        _formatDate(createdAt)),
                   ],
                 ),
               ],
@@ -317,22 +334,27 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         );
                       },
                       icon: const Icon(Icons.message, color: Colors.white),
-                      label: const Text('Mesaj Gönder', style: TextStyle(color: Colors.white)),
+                      label: const Text('Mesaj Gönder',
+                          style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF22d3ee),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: _removeFriend,
-                      icon: const Icon(Icons.person_remove, color: Colors.redAccent),
-                      label: const Text('Arkadaşlıktan Çıkar', style: TextStyle(color: Colors.redAccent)),
+                      icon: const Icon(Icons.person_remove,
+                          color: Colors.redAccent),
+                      label: const Text('Arkadaşlıktan Çıkar',
+                          style: TextStyle(color: Colors.redAccent)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.redAccent),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ] else if (friendshipStatus == 'PENDING') ...[
@@ -340,7 +362,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.2),
+                        color: Colors.orange.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -350,7 +372,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           SizedBox(width: 8),
                           Text(
                             'Arkadaşlık isteği bekliyor',
-                            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -360,11 +384,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ElevatedButton.icon(
                       onPressed: _sendFriendRequest,
                       icon: const Icon(Icons.person_add, color: Colors.white),
-                      label: const Text('Arkadaş Ekle', style: TextStyle(color: Colors.white)),
+                      label: const Text('Arkadaş Ekle',
+                          style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF22d3ee),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ],
@@ -388,7 +414,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   Expanded(
                     child: Text(
                       email,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ),
                 ],
@@ -408,7 +435,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         Text(
           label,
@@ -428,4 +456,3 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 }
-

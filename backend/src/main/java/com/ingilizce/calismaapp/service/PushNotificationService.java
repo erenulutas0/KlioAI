@@ -6,7 +6,12 @@ import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import com.ingilizce.calismaapp.config.PushNotificationProperties;
 import com.ingilizce.calismaapp.entity.DevicePushToken;
+import com.ingilizce.calismaapp.entity.NotificationDeliveryLog;
+import com.ingilizce.calismaapp.repository.NotificationDeliveryLogRepository;
 import com.ingilizce.calismaapp.repository.DevicePushTokenRepository;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +29,17 @@ public class PushNotificationService {
 
     private final FirebaseMessagingProvider messagingProvider;
     private final DevicePushTokenRepository tokenRepository;
+    private final NotificationDeliveryLogRepository deliveryLogRepository;
     private final PushNotificationProperties properties;
 
     public PushNotificationService(
             FirebaseMessagingProvider messagingProvider,
             DevicePushTokenRepository tokenRepository,
+            NotificationDeliveryLogRepository deliveryLogRepository,
             PushNotificationProperties properties) {
         this.messagingProvider = messagingProvider;
         this.tokenRepository = tokenRepository;
+        this.deliveryLogRepository = deliveryLogRepository;
         this.properties = properties;
     }
 
@@ -69,21 +77,28 @@ public class PushNotificationService {
             Map<String, String> data) {
         Optional<FirebaseMessaging> messaging = messagingProvider.getMessaging();
         if (messaging.isEmpty()) {
-            return response(false, tokens.size(), 0, 0, "firebase-disabled");
+            String reason = messagingProvider.getUnavailableReason();
+            for (DevicePushToken token : tokens) {
+                saveDeliveryLog(token, title, body, data, "SKIPPED", null, reason);
+            }
+            return response(false, tokens.size(), 0, 0, reason);
         }
 
         int sent = 0;
         int failed = 0;
         for (DevicePushToken token : tokens) {
             try {
-                messaging.get().send(buildMessage(token.getToken(), title, body, data));
+                String providerMessageId = messaging.get().send(buildMessage(token.getToken(), title, body, data));
+                saveDeliveryLog(token, title, body, data, "SENT", providerMessageId, null);
                 sent++;
             } catch (FirebaseMessagingException ex) {
                 failed++;
                 handleSendFailure(token, ex);
+                saveDeliveryLog(token, title, body, data, "FAILED", null, providerErrorCode(ex));
             } catch (RuntimeException ex) {
                 failed++;
                 logger.warn("Push notification send failed for token id={}", token.getId(), ex);
+                saveDeliveryLog(token, title, body, data, "FAILED", null, ex.getClass().getSimpleName());
             }
         }
 
@@ -115,9 +130,7 @@ public class PushNotificationService {
     }
 
     private void handleSendFailure(DevicePushToken token, FirebaseMessagingException ex) {
-        String code = ex.getMessagingErrorCode() == null
-                ? ""
-                : ex.getMessagingErrorCode().name();
+        String code = providerErrorCode(ex);
         if ("UNREGISTERED".equals(code) || "INVALID_ARGUMENT".equals(code)) {
             token.setEnabled(false);
             tokenRepository.save(token);
@@ -125,6 +138,64 @@ public class PushNotificationService {
             return;
         }
         logger.warn("Push notification send failed for token id={} errorCode={}", token.getId(), code, ex);
+    }
+
+    private void saveDeliveryLog(
+            DevicePushToken token,
+            String title,
+            String body,
+            Map<String, String> data,
+            String status,
+            String providerMessageId,
+            String providerErrorCode) {
+        try {
+            NotificationDeliveryLog log = new NotificationDeliveryLog();
+            log.setUserId(token.getUserId());
+            log.setDevicePushTokenId(token.getId());
+            log.setType(notificationType(data));
+            log.setTitleHash(sha256(title));
+            log.setBodyHash(sha256(body));
+            log.setStatus(status);
+            log.setProviderMessageId(providerMessageId);
+            log.setProviderErrorCode(providerErrorCode);
+            deliveryLogRepository.save(log);
+        } catch (RuntimeException ex) {
+            logger.warn("Unable to record push delivery log for token id={}", token.getId(), ex);
+        }
+    }
+
+    private String notificationType(Map<String, String> data) {
+        if (data == null) {
+            return "UNKNOWN";
+        }
+        String type = data.get("type");
+        if (type == null || type.isBlank()) {
+            return "UNKNOWN";
+        }
+        return type.trim().length() <= 64 ? type.trim() : type.trim().substring(0, 64);
+    }
+
+    private String providerErrorCode(FirebaseMessagingException ex) {
+        return ex.getMessagingErrorCode() == null
+                ? ex.getClass().getSimpleName()
+                : ex.getMessagingErrorCode().name();
+    }
+
+    private String sha256(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.trim().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     private Map<String, Object> response(boolean attempted, int target, int sent, int failed, String reason) {
@@ -137,6 +208,10 @@ public class PushNotificationService {
             payload.put("reason", reason);
         }
         return payload;
+    }
+
+    public Map<String, Object> getPushStatus() {
+        return messagingProvider.getStatus();
     }
 
     private String safe(String value, String fallback) {

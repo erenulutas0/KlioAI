@@ -23,9 +23,14 @@ class NodePositionCalculator {
     final rawX = center.dx + radius * cos(angle);
     final rawY = center.dy + radius * sin(angle);
 
-    const padding = 28.0;
-    final x = rawX.clamp(padding, screenSize.width - padding).toDouble();
-    final y = rawY.clamp(padding, screenSize.height - padding - 120).toDouble();
+    const horizontalPadding = 78.0;
+    const topPadding = 36.0;
+    const bottomReservedHeight = 150.0;
+    final safeMaxX =
+        max(horizontalPadding, screenSize.width - horizontalPadding);
+    final safeMaxY = max(topPadding, screenSize.height - bottomReservedHeight);
+    final x = rawX.clamp(horizontalPadding, safeMaxX).toDouble();
+    final y = rawY.clamp(topPadding, safeMaxY).toDouble();
 
     return Offset(x, y);
   }

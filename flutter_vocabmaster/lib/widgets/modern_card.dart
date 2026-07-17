@@ -37,7 +37,8 @@ class ModernCard extends StatelessWidget {
     } catch (_) {
       themeProvider = null;
     }
-    final selectedTheme = themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
+    final selectedTheme =
+        themeProvider?.currentTheme ?? VocabThemes.defaultTheme;
 
     return Container(
       width: width,
@@ -48,14 +49,15 @@ class ModernCard extends StatelessWidget {
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: selectedTheme.colors.accentGlow.withOpacity(0.32),
+                  color:
+                      selectedTheme.colors.accentGlow.withValues(alpha: 0.32),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -89,7 +91,8 @@ class ModernCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: borderRadius ?? BorderRadius.circular(24),
                     border: Border.all(
-                      color: selectedTheme.colors.glassBorder.withOpacity(0.85),
+                      color: selectedTheme.colors.glassBorder
+                          .withValues(alpha: 0.85),
                       width: 1,
                     ),
                   ),
@@ -107,4 +110,3 @@ class ModernCard extends StatelessWidget {
     );
   }
 }
-

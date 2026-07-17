@@ -203,7 +203,8 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
   void _centerCanvasInViewport(Size viewportSize) {
     final dx = (viewportSize.width - _canvasSize.width) / 2;
     final dy = (viewportSize.height - _canvasSize.height) / 2;
-    _transformationController.value = Matrix4.identity()..translate(dx, dy);
+    _transformationController.value = Matrix4.identity()
+      ..translateByDouble(dx, dy, 0, 1);
   }
 
   void _recenterCanvas() {
@@ -584,7 +585,8 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                         IconButton(
                           onPressed: () => Navigator.of(context).maybePop(),
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.08),
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.08),
                           ),
                           icon: const Icon(Icons.arrow_back_rounded,
                               color: Colors.white),
@@ -631,8 +633,8 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                           border: Border.all(color: surfacePalette.borderColor),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  surfacePalette.panelColor.withOpacity(0.28),
+                              color: surfacePalette.panelColor
+                                  .withValues(alpha: 0.28),
                               blurRadius: 20,
                               offset: const Offset(0, 12),
                             ),
@@ -743,10 +745,10 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                                 nodes: nodes,
                                                 links: links,
                                                 linkColor: _preset.accentColor
-                                                    .withOpacity(0.32),
+                                                    .withValues(alpha: 0.32),
                                                 highlightColor: _preset
                                                     .highlightColor
-                                                    .withOpacity(0.28),
+                                                    .withValues(alpha: 0.28),
                                               ),
                                             ),
                                             ...nodes.map(
@@ -804,7 +806,8 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                         color: surfacePalette.overlayColor,
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.12),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.12),
                                         ),
                                       ),
                                       child: Padding(
@@ -992,8 +995,8 @@ class _GalaxyLinkPainter extends CustomPainter {
       final to = nodes[link.toIndex].center;
       final opacity = (0.14 + (link.strength * 0.38)).clamp(0.0, 1.0);
       paint
-        ..color =
-            (link.isHighlight ? highlightColor : linkColor).withOpacity(opacity)
+        ..color = (link.isHighlight ? highlightColor : linkColor)
+            .withValues(alpha: opacity)
         ..strokeWidth = 0.8 + (link.strength * 2.2)
         ..maskFilter = MaskFilter.blur(
           BlurStyle.normal,
@@ -1044,10 +1047,10 @@ class _WordGalaxyNodeCard extends StatelessWidget {
                 ? 0.42
                 : 0.68;
     final background = isFocus
-        ? accentColor.withOpacity(0.34)
+        ? accentColor.withValues(alpha: 0.34)
         : isDue
-            ? accentColor.withOpacity(0.16)
-            : Colors.white.withOpacity(0.08);
+            ? accentColor.withValues(alpha: 0.16)
+            : Colors.white.withValues(alpha: 0.08);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1062,22 +1065,22 @@ class _WordGalaxyNodeCard extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 background,
-                Colors.black.withOpacity(isFocus ? 0.18 : 0.28),
+                Colors.black.withValues(alpha: isFocus ? 0.18 : 0.28),
               ],
             ),
             border: Border.all(
               color: isFocus
-                  ? highlightColor.withOpacity(0.9)
+                  ? highlightColor.withValues(alpha: 0.9)
                   : isOverdue
-                      ? highlightColor.withOpacity(0.72)
+                      ? highlightColor.withValues(alpha: 0.72)
                       : isDue
-                          ? accentColor.withOpacity(0.72)
-                          : Colors.white.withOpacity(0.18),
+                          ? accentColor.withValues(alpha: 0.72)
+                          : Colors.white.withValues(alpha: 0.18),
             ),
             boxShadow: [
               BoxShadow(
                 color: (isFocus ? highlightColor : accentColor)
-                    .withOpacity(0.18 + (glowStrength * 0.18)),
+                    .withValues(alpha: 0.18 + (glowStrength * 0.18)),
                 blurRadius: isFocus ? 22 : 10 + (glowStrength * 8),
                 spreadRadius: 1,
               ),
@@ -1180,9 +1183,9 @@ class _WordGalaxyMinimap extends StatelessWidget {
           width: minimapWidth,
           height: minimapHeight,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.34),
+            color: Colors.black.withValues(alpha: 0.34),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Stack(
             children: [
@@ -1196,8 +1199,8 @@ class _WordGalaxyMinimap extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: node.isFocus
-                          ? highlightColor.withOpacity(0.95)
-                          : accentColor.withOpacity(0.68),
+                          ? highlightColor.withValues(alpha: 0.95)
+                          : accentColor.withValues(alpha: 0.68),
                     ),
                   ),
                 ),
@@ -1211,10 +1214,10 @@ class _WordGalaxyMinimap extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.92),
+                      color: Colors.white.withValues(alpha: 0.92),
                       width: 1.2,
                     ),
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                 ),
               ),
@@ -1246,7 +1249,7 @@ class _WordQuickActionSheet extends StatelessWidget {
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: SafeArea(
         top: false,
@@ -1345,9 +1348,9 @@ class _QuickActionTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: Ink(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -1703,7 +1706,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: SafeArea(
         top: false,
@@ -1762,7 +1765,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                 Text(
                   _nextReviewDetailLabel(_word, _isTurkish)!,
                   style: TextStyle(
-                    color: widget.accentColor.withOpacity(0.92),
+                    color: widget.accentColor.withValues(alpha: 0.92),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1832,10 +1835,10 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.08)),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: Text(
                           _text(
@@ -1853,10 +1856,10 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                           child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                  color: Colors.white.withOpacity(0.08)),
+                                  color: Colors.white.withValues(alpha: 0.08)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1899,8 +1902,8 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                             _isGeneratingAi ? null : _generateAiSuggestions,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side:
-                              BorderSide(color: Colors.white.withOpacity(0.16)),
+                          side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.16)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -1947,7 +1950,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                         ),
                         hintStyle: const TextStyle(color: Colors.white54),
                         filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
+                        fillColor: Colors.white.withValues(alpha: 0.05),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none,
@@ -1964,7 +1967,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                         hintText: _text('Çeviri', 'Translation'),
                         hintStyle: const TextStyle(color: Colors.white54),
                         filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
+                        fillColor: Colors.white.withValues(alpha: 0.05),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none,
@@ -2008,7 +2011,8 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                           Navigator.of(context).pop(_WordSheetAction.viewAll),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
-                        side: BorderSide(color: Colors.white.withOpacity(0.16)),
+                        side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.16)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -2023,7 +2027,8 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                       onPressed: () => Navigator.of(context).maybePop(),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white70,
-                        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+                        side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -2066,9 +2071,9 @@ class _AiSuggestionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2133,13 +2138,13 @@ class _ReviewActionButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: accentColor.withOpacity(0.16),
+          backgroundColor: accentColor.withValues(alpha: 0.16),
           foregroundColor: accentColor,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: accentColor.withOpacity(0.28)),
+            side: BorderSide(color: accentColor.withValues(alpha: 0.28)),
           ),
         ),
         icon: isLoading
@@ -2245,7 +2250,7 @@ class _WordGalaxyBackdrop extends StatelessWidget {
               left: -90,
               top: -30,
               child: _GlowOrb(
-                color: preset.accentColor.withOpacity(0.22),
+                color: preset.accentColor.withValues(alpha: 0.22),
                 size: 280,
               ),
             ),
@@ -2253,7 +2258,7 @@ class _WordGalaxyBackdrop extends StatelessWidget {
               right: -80,
               top: 120,
               child: _GlowOrb(
-                color: preset.highlightColor.withOpacity(0.18),
+                color: preset.highlightColor.withValues(alpha: 0.18),
                 size: 220,
               ),
             ),
@@ -2261,7 +2266,7 @@ class _WordGalaxyBackdrop extends StatelessWidget {
               right: -110,
               bottom: -10,
               child: _GlowOrb(
-                color: preset.accentColor.withOpacity(0.16),
+                color: preset.accentColor.withValues(alpha: 0.16),
                 size: 300,
               ),
             ),
@@ -2269,8 +2274,8 @@ class _WordGalaxyBackdrop extends StatelessWidget {
               child: IgnorePointer(
                 child: CustomPaint(
                   painter: _StarFieldPainter(
-                    starColor: Colors.white.withOpacity(0.36),
-                    accentColor: preset.highlightColor.withOpacity(0.22),
+                    starColor: Colors.white.withValues(alpha: 0.36),
+                    accentColor: preset.highlightColor.withValues(alpha: 0.22),
                   ),
                 ),
               ),
@@ -2353,9 +2358,9 @@ class _TinyBadge extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 116),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Text(
         label,
