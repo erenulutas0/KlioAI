@@ -76,18 +76,20 @@ jobs:
           $sshTarget = "$($env:VPS_SSH_USER)@$($env:VPS_SSH_HOST)"
           $sshOptions = @("-i", "$HOME/.ssh/klioai_vps_deploy", "-p", $sshPort, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes")
           $scpOptions = @("-i", "$HOME/.ssh/klioai_vps_deploy", "-P", $sshPort, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes")
-          $deployArgs = @(
-            "-SshTarget", $sshTarget,
-            "-Label", "${{ inputs.label }}",
-            "-SshOptions", $sshOptions,
-            "-ScpOptions", $scpOptions,
-            "-Execute"
-          )
-          if ("${{ inputs.no_cache }}" -eq "true") {
-            $deployArgs += "-NoCache"
+          # Invoke the script in THIS pwsh session via hashtable splatting so the
+          # [string[]] SshOptions/ScpOptions bind as single arrays. The previous
+          # `pwsh -File ... @flatArgs` flattened those arrays onto the command
+          # line, where the ssh/scp `-p`/`-P` port flags collided with the
+          # script's -PublicBaseUrl parameter abbreviation and failed binding
+          # ("parameter 'PublicBaseUrl' is specified more than once").
+          $deployParams = @{
+            SshTarget  = $sshTarget
+            Label      = "${{ inputs.label }}"
+            SshOptions = $sshOptions
+            ScpOptions = $scpOptions
+            Execute    = $true
           }
-          if ("${{ inputs.skip_public_smoke }}" -eq "true") {
-            $deployArgs += "-SkipPublicSmoke"
-          }
-          pwsh -File ./scripts/deploy-backend-vps.ps1 @deployArgs
+          if ("${{ inputs.no_cache }}" -eq "true") { $deployParams['NoCache'] = $true }
+          if ("${{ inputs.skip_public_smoke }}" -eq "true") { $deployParams['SkipPublicSmoke'] = $true }
+          & ./scripts/deploy-backend-vps.ps1 @deployParams
 
