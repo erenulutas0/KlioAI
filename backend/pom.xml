@@ -22,6 +22,11 @@
 		<spring-framework.version>6.2.11</spring-framework.version>
 		<spring-security.version>6.5.9</spring-security.version>
 		<netty.version>4.1.133.Final</netty.version>
+		<!-- CVE-2026-54512 & CVE-2026-54513 (jackson-databind arbitrary code
+		     execution via PolymorphicTypeValidator/security bypass). Spring Boot
+		     3.5.12 manages Jackson at 2.19.4; override the managed Jackson BOM to
+		     2.21.4 (first 2.x release with the fix) across the whole family. -->
+		<jackson-bom.version>2.21.4</jackson-bom.version>
 	</properties>
 	<dependencies>
 		<dependency>
