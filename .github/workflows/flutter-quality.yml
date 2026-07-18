@@ -8,11 +8,12 @@ on:
       - "flutter_vocabmaster/**"
       - "scripts/flutter-quality-gate.ps1"
       - ".github/workflows/flutter-quality.yml"
+  # No paths filter on pull_request: this is a branch-protection REQUIRED
+  # check, so it must always run and report on every PR. With a paths filter
+  # it silently skips on PRs that don't touch Flutter files, leaving the
+  # required check stuck "Expected — waiting for status" forever and blocking
+  # merge. The gate is fast and passes cleanly when Flutter code is unchanged.
   pull_request:
-    paths:
-      - "flutter_vocabmaster/**"
-      - "scripts/flutter-quality-gate.ps1"
-      - ".github/workflows/flutter-quality.yml"
   workflow_dispatch:
 
 jobs:

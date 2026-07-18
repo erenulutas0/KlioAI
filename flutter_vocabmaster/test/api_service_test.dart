@@ -69,6 +69,47 @@ void main() {
       expect(words, isEmpty);
     });
 
+    test(
+        'terminal auth failure (401 + failed refresh) fires onSessionExpired '
+        'and throws ApiUnauthorizedException', () async {
+      var signaled = false;
+      ApiService.onSessionExpired = () => signaled = true;
+      addTearDown(() => ApiService.onSessionExpired = null);
+
+      // Everything 401s, including POST /auth/refresh -> refresh cannot
+      // recover -> terminal auth failure path.
+      mockClient = MockClient((request) async {
+        return http.Response('Unauthorized', 401);
+      });
+      apiService = ApiService(client: mockClient, baseUrl: testBaseUrl);
+
+      await expectLater(
+        apiService.chatbotQuotaStatus(),
+        throwsA(isA<ApiUnauthorizedException>()),
+      );
+      expect(signaled, isTrue,
+          reason:
+              'App must be signalled to clear session and route to login');
+    });
+
+    test('successful protected call does NOT fire onSessionExpired', () async {
+      var signaled = false;
+      ApiService.onSessionExpired = () => signaled = true;
+      addTearDown(() => ApiService.onSessionExpired = null);
+
+      mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/chatbot/quota/status')) {
+          return http.Response(
+              json.encode({'tokenLimit': 1500, 'tokensRemaining': 1500}), 200);
+        }
+        return http.Response('Not Found', 404);
+      });
+      apiService = ApiService(client: mockClient, baseUrl: testBaseUrl);
+
+      await apiService.chatbotQuotaStatus();
+      expect(signaled, isFalse);
+    });
+
     test('createWord sends post request and returns word', () async {
       final newWordJson = {
         "id": 2,

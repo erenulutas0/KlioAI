@@ -15,6 +15,22 @@ class ApiService {
   final AuthService _authService;
   static Future<bool>? _refreshInFlight;
 
+  /// Fired when a protected request terminally fails auth: the session
+  /// existed but the token is dead AND the refresh could not recover it
+  /// (e.g. a refresh token invalidated by a server-side JWT-secret rotation).
+  /// The app wires this to clear the local session and route back to login,
+  /// so a user is never stranded on a cached screen retrying a refresh that
+  /// can never succeed. Handler must be idempotent (may be called by several
+  /// concurrent failing requests).
+  static void Function()? onSessionExpired;
+
+  void _signalSessionExpired() {
+    final handler = onSessionExpired;
+    if (handler != null) {
+      handler();
+    }
+  }
+
   ApiService({http.Client? client, String? baseUrl, AuthService? authService})
       : client = client ?? http.Client(),
         _testBaseUrl = baseUrl,
@@ -74,12 +90,17 @@ class ApiService {
 
     final refreshed = await _tryRefreshSessionCoalesced();
     if (!refreshed) {
+      // Refresh exhausted: the session is unrecoverable. Signal the app to
+      // clear it and route to login instead of leaving the user stuck.
+      _signalSessionExpired();
       throw _unauthorizedFromResponse(response);
     }
 
     headers = await _protectedHeaders(json: json);
     response = await send(headers);
     if (response.statusCode == 401) {
+      // Still 401 even with a freshly refreshed token: dead session.
+      _signalSessionExpired();
       throw _unauthorizedFromResponse(response);
     }
     return response;
