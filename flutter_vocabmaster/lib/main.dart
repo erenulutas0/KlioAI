@@ -32,6 +32,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
+import 'services/api_service.dart';
 import 'services/analytics_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/local_reminder_service.dart';
@@ -46,9 +47,39 @@ import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
 
 bool _firebaseTelemetryEnabled = false;
+bool _handlingSessionExpiry = false;
+
+/// Wired to [ApiService.onSessionExpired]: when a protected request can no
+/// longer recover its session (dead token + refresh exhausted), clear the
+/// local session and bounce the user to a clean entry so they can sign in
+/// again — instead of stranding them on a cached screen. Idempotent: many
+/// concurrent failing requests may call this at once.
+void _handleSessionExpired() {
+  if (_handlingSessionExpiry) {
+    return;
+  }
+  _handlingSessionExpiry = true;
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      await AuthService().logout();
+    } catch (_) {
+      // Best-effort: even if the server logout call fails, local tokens are
+      // cleared by logout() and we still route to login.
+    }
+    final navigator = appNavigatorKey.currentState;
+    if (navigator != null) {
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        (route) => false,
+      );
+    }
+    _handlingSessionExpiry = false;
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiService.onSessionExpired = _handleSessionExpired;
   _firebaseTelemetryEnabled = await _initializeFirebaseTelemetry();
   if (_firebaseTelemetryEnabled) {
     AnalyticsService.logAppOpen(source: 'cold_start');
