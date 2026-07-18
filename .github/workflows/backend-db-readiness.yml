@@ -10,13 +10,12 @@ on:
       - "docker-compose.yml"
       - "docker-compose.smoke.yml"
       - ".github/workflows/backend-db-readiness.yml"
+  # No paths filter on pull_request: this is a branch-protection REQUIRED
+  # check, so it must always run and report on every PR. With a paths filter
+  # it silently skips on PRs that don't touch backend files, leaving the
+  # required check stuck "Expected — waiting for status" forever and blocking
+  # merge.
   pull_request:
-    paths:
-      - "backend/**"
-      - "scripts/**"
-      - "docker-compose.yml"
-      - "docker-compose.smoke.yml"
-      - ".github/workflows/backend-db-readiness.yml"
   workflow_dispatch:
 
 jobs:
