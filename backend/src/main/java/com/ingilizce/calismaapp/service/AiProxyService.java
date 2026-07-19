@@ -295,6 +295,71 @@ Format:
         };
     }
 
+    // Gramer konusu için seviyeye uygun mini-quiz üretir. topic: UI'daki konu
+    // başlığı (ör. "Conditionals - Type 2"). Şıklar/İngilizce cümleler hedef
+    // dilde, açıklamalar profile'ın feedback diline göre üretilir.
+    public AiJsonResult generateGrammarQuiz(
+            String topic,
+            String level,
+            LearningLanguageProfile profile,
+            int variantSeed
+    ) {
+        String normalizedLevel = normalizeReadingLevel(level);
+        String levelRule = switch (normalizedLevel) {
+            case "A1", "A2" -> "Use short everyday sentences (max 10 words), basic vocabulary, single-gap questions only.";
+            case "B1" -> "Use realistic everyday and work contexts, one clear grammar decision per question.";
+            case "B2" -> "Use longer sentences with subordinate clauses; distractors must reflect typical B2 confusions.";
+            default -> "Use academic/abstract sentences; include two-gap questions and near-miss distractors that are only wrong in nuance.";
+        };
+        String variantRule = variantSeed == 0
+                ? ""
+                : "\nVARIANT REQUEST #" + variantSeed
+                + ": The learner already did a quiz on this topic. Use clearly different sentences, contexts and tested sub-rules.\n";
+
+        String prompt = """
+%s
+
+Create a grammar practice quiz for a %s learner at CEFR level %s.
+
+GRAMMAR TOPIC: %s
+LEVEL RULE: %s
+%s
+REQUIREMENTS:
+- Exactly 5 multiple-choice questions testing ONLY this grammar topic.
+- Each question: a sentence with a gap marked ---- (or an error-spotting question at B2+).
+- Exactly 4 options; exactly one is grammatically correct in context.
+- Distractors must be plausible mistakes learners actually make on this topic.
+- "explanation" must state why the correct option is right AND why the closest distractor is wrong, written in the learner's feedback language per the policy above.
+- Do not repeat the same tested sub-rule twice.
+
+Return ONLY valid JSON. No markdown formatting, no extra text.
+
+Format:
+{
+  "topic": "%s",
+  "questions": [
+    {
+      "question": "Sentence with ---- gap.",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correctAnswer": "option1",
+      "explanation": "Why it is correct and why the closest distractor is wrong."
+    }
+  ]
+}
+""".formatted(
+                profile.toPromptPolicyBlock(),
+                profile.targetLanguage(),
+                normalizedLevel,
+                topic,
+                levelRule,
+                variantRule,
+                topic
+        );
+
+        String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
+        return callJson(system, prompt, 1200, 0.7, "grammar-quiz");
+    }
+
     public AiJsonResult generateWritingTopic(String level, String wordCount) {
         return generateWritingTopic(level, wordCount, LearningLanguageProfile.defaultProfile());
     }
@@ -637,6 +702,7 @@ JSON ÇIKTI FORMATI:
             case "reading-generate" ->
                     hasNonBlank(parsed, "title") && hasNonBlank(parsed, "text") && hasList(parsed, "questions");
             case "pronunciation-text-generate" -> hasList(parsed, "texts");
+            case "grammar-quiz" -> hasList(parsed, "questions");
             case "writing-topic" -> hasNonBlank(parsed, "topic") && hasNonBlank(parsed, "description");
             case "writing-evaluate" -> parsed.containsKey("score") && hasNonBlank(parsed, "overall");
             case "exam-generate" -> parsed.containsKey("meta") && hasList(parsed, "sections");
@@ -991,7 +1057,8 @@ JSON ÇIKTI FORMATI:
         String normalized = scope.trim().toLowerCase(Locale.ROOT);
         return "dictionary-lookup".equals(normalized)
                 || "dictionary-lookup-detailed".equals(normalized)
-                || "reading-generate".equals(normalized);
+                || "reading-generate".equals(normalized)
+                || "grammar-quiz".equals(normalized);
     }
 
     private List<Map<String, String>> buildRescueMessages(List<Map<String, String>> messages) {

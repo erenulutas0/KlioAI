@@ -2025,6 +2025,44 @@ public class ChatbotController {
         }
     }
 
+    // Gramer sekmesindeki statik konu anlatımlarına AI destekli pratik quiz'i
+    // ekler: konu + CEFR seviyesine göre 5 soruluk çoktan seçmeli üretir.
+    @PostMapping("/grammar/practice-quiz")
+    public ResponseEntity<Map<String, Object>> generateGrammarPracticeQuiz(@RequestBody Map<String, Object> request,
+            @RequestHeader("X-User-Id") Long userId,
+            HttpServletRequest httpRequest) {
+        ResponseEntity<Map<String, Object>> accessLimit = enforceAiAccess(userId, httpRequest, "grammar-quiz");
+        if (accessLimit != null) return accessLimit;
+        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "grammar-quiz");
+        if (aiLimit != null) return aiLimit;
+
+        String topic = request.get("topic") != null ? request.get("topic").toString().trim() : "";
+        if (topic.isEmpty() || topic.length() > 120) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A grammar topic (max 120 chars) is required."));
+        }
+        String level = request.get("level") != null ? request.get("level").toString() : "B1";
+        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        int quizVariant = 0;
+        Object rawQuizVariant = request.get("variant");
+        if (rawQuizVariant instanceof Number number) {
+            quizVariant = Math.max(0, Math.min(50, number.intValue()));
+        } else if (rawQuizVariant != null) {
+            try {
+                quizVariant = Math.max(0, Math.min(50, Integer.parseInt(rawQuizVariant.toString().trim())));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        try {
+            AiProxyService.AiJsonResult result =
+                    aiProxyService.generateGrammarQuiz(topic, level, languageProfile, quizVariant);
+            consumeAiTokens(userId, httpRequest, "grammar-quiz", result.totalTokens());
+            return ResponseEntity.ok(result.json());
+        } catch (Exception e) {
+            log.error("generateGrammarPracticeQuiz failed userId={} topic={}", userId, topic, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Grammar quiz generation failed."));
+        }
+    }
+
     @PostMapping("/writing/generate-topic")
     public ResponseEntity<Map<String, Object>> generateWritingTopic(@RequestBody Map<String, Object> request,
             @RequestHeader("X-User-Id") Long userId,

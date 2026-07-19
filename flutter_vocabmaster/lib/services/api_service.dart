@@ -1045,6 +1045,41 @@ class ApiService {
     );
   }
 
+  /// Gramer konusu için seviyeye uygun AI pratik quiz'i üretir.
+  Future<Map<String, dynamic>> chatbotGenerateGrammarQuiz({
+    required String topic,
+    required String level,
+    int variant = 0,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withAiRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/grammar/practice-quiz'),
+        headers: headers,
+        body: json.encode({
+          'topic': topic,
+          'level': level,
+          'variant': variant,
+          ..._learningLanguageProfile(),
+        }),
+      ),
+      feature: 'grammar_quiz_generate',
+      json: true,
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception(
+      'Gramer quiz üretimi başarısız: ${response.statusCode}',
+    );
+  }
+
   Future<Map<String, dynamic>> chatbotGenerateSpeakingTestQuestions({
     required String testType,
     required String part,

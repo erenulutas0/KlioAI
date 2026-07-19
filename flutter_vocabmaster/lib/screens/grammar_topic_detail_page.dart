@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/grammar_data.dart';
+import 'grammar_quiz_page.dart';
 
 class GrammarTopicDetailPage extends StatefulWidget {
   final GrammarTopic topic;
@@ -46,6 +47,24 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF111827),
+      floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('grammar-practice-quiz'),
+        backgroundColor: widget.topic.color,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GrammarQuizPage(topic: widget.topic),
+            ),
+          );
+        },
+        icon: const Icon(Icons.quiz_outlined, color: Colors.white),
+        label: Text(
+          _text('Pratik Yap', 'Practice'),
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: Stack(
         children: [
           Container(
@@ -435,17 +454,20 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 24, top: 4),
-            child: Text(
-              _isTurkish ? example.turkish : 'English usage example',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
+          // Çeviri satırı yalnızca TR kullanıcıya anlamlı; diğer dillerde
+          // her örnek altında tekrar eden dolgu metni göstermiyoruz.
+          if (_isTurkish)
+            Padding(
+              padding: const EdgeInsets.only(left: 24, top: 4),
+              child: Text(
+                example.turkish,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
-          ),
           if (_isTurkish && example.note != null)
             Padding(
               padding: const EdgeInsets.only(left: 24, top: 6),
