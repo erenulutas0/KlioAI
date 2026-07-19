@@ -36,11 +36,71 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
   final DailyPracticeProgressService _progressService =
       DailyPracticeProgressService();
 
+  // "Yeni pasaj" sayacı: 0 = günlük paylaşılan pasaj; her artış backend'de
+  // günün temasından farklı bir konu varyantına zorlar. Günlük pasaj tüm
+  // kullanıcılara aynı servis edildiği için bu buton olmadan sayfa bütün gün
+  // aynı metni gösteriyordu.
+  int _variant = 0;
+
   @override
   void initState() {
     super.initState();
     _loadPassage();
     _loadSavedProgress();
+  }
+
+  Future<void> _loadFreshPassage() async {
+    _variant += 1;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final result = await ApiService()
+          .chatbotGenerateReadingPassage(level: widget.level, variant: _variant);
+      if (mounted) {
+        _applyPassageResult(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+          setState(() {
+            _errorMessage = AiErrorMessageFormatter.forError(e);
+            _isLoading = false;
+          });
+          return;
+        }
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : 'Pasaj yüklenemedi: $e';
+        setState(() {
+          _errorMessage = msg;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _applyPassageResult(Map<String, dynamic> result) {
+    setState(() {
+      _title = result['title'] ?? 'Reading Passage';
+      _passage = result['text'] ?? '';
+      final questionsData = result['questions'] as List? ?? [];
+      _questions = questionsData
+          .map((q) => Question(
+                question: q['question'] ?? '',
+                options: List<String>.from(q['options'] ?? []),
+                correctAnswer: q['correctAnswer'] ?? '',
+                explanation: q['explanation'] ?? '',
+                correctAnswerQuote: q['correctAnswerQuote'] ?? '',
+              ))
+          .toList();
+      _selectedAnswers = {};
+      _checkedAnswers = {};
+      _showResults = false;
+      _score = 0;
+      _isLoading = false;
+    });
   }
 
   Future<void> _loadPassage() async {
@@ -474,6 +534,44 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 ),
               ),
             ),
+
+          if (_showResults) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8b5cf6), Color(0xFF6366f1)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ElevatedButton(
+                key: const ValueKey('new-reading-passage'),
+                onPressed: _loadFreshPassage,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.auto_awesome, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Yeni Pasaj Üret',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           if (_showResults) ...[
             const SizedBox(height: 12),

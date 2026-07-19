@@ -148,6 +148,15 @@ Be comprehensive - include ALL common meanings and word types for "%s".
     }
 
     public AiJsonResult generateReadingPassage(String level, LearningLanguageProfile profile) {
+        // Varsayılan: epoch-gününe göre rotasyon, varyant yok.
+        return generateReadingPassage(level, profile, (int) (System.currentTimeMillis() / 86_400_000L), 0);
+    }
+
+    // dayOfYear: günlük içerik için o günün rotasyon teması (PromptCatalog
+    // taksonomisi; seviye başına offset'li ki tüm seviyeler aynı gün aynı
+    // kategoriye düşmesin). variantSeed != 0: kullanıcı "yeni pasaj" istedi -
+    // aynı günün temasından farklı bir konu kombinasyonuna zorlar.
+    public AiJsonResult generateReadingPassage(String level, LearningLanguageProfile profile, int dayOfYear, int variantSeed) {
         Map<String, Map<String, String>> levelConfig = new HashMap<>();
         levelConfig.put("A1", Map.of(
                 "wordCount", "80-120",
@@ -201,6 +210,18 @@ Be comprehensive - include ALL common meanings and word types for "%s".
         String normalizedLevel = normalizeReadingLevel(level);
         Map<String, String> config = levelConfig.getOrDefault(normalizedLevel, levelConfig.get("B1"));
 
+        // Seviye başına offset: aynı gün A1 ile C1 farklı temalara düşsün.
+        int levelOffset = switch (normalizedLevel) {
+            case "A1" -> 0; case "A2" -> 3; case "B1" -> 7;
+            case "B2" -> 11; case "C1" -> 14; default -> 17;
+        };
+        String rotatingTheme = PromptCatalog.topicForDay(dayOfYear + levelOffset + variantSeed * 5);
+        String variantRule = variantSeed == 0
+                ? ""
+                : "\nVARIANT REQUEST #" + variantSeed
+                + ": The learner asked for a NEW passage. Pick a clearly different specific topic"
+                + " than a typical first passage on this theme; change the angle, setting, and examples.\n";
+
 String prompt = """
 %s
 
@@ -211,14 +232,16 @@ WORD COUNT: %s words (strictly within this range)
 SENTENCE STYLE: %s
 VOCABULARY: %s
 TOPIC CATEGORY: %s
+TODAY'S ROTATING THEME: %s (pick the specific topic from the intersection of this theme and the category above; if they clash, the theme wins)
 GRAMMAR FOCUS: %s
 QUESTION STYLE: %s
+%s
 DIFFERENTIATION RULE:
 - Passage must be clearly level-specific for %s and not reusable as another CEFR level.
 - Do not reuse generic "daily routine" style content for C1/C2.
 - C2 must contain denser abstract argumentation than C1.
 
-Topic: Choose a specific, interesting topic from the category above.
+Topic: Choose a specific, interesting topic as instructed above.
 Include 3 multiple choice questions (with 4 options and 1 correct answer).
 Return ONLY valid JSON. No markdown formatting, no extra text.
 
@@ -245,8 +268,10 @@ Format:
                 config.get("sentences"),
                 config.get("vocabulary"),
                 config.get("topics"),
+                rotatingTheme,
                 config.get("grammar"),
                 config.get("questionDifficulty"),
+                variantRule,
                 normalizedLevel
         );
 
@@ -287,16 +312,36 @@ Format:
             List<String> focusWords,
             LearningLanguageProfile profile
     ) {
+        return generatePronunciationTexts(level, focusWords, profile, 0);
+    }
+
+    // variantSeed != 0: kullanıcı "yeni metinler" istedi - günün temasından
+    // farklı bir kombinasyona zorlar (eski halinde aynı prompt + düşük temp
+    // tekrar çağrıda neredeyse aynı cümleleri döndürüyordu).
+    public AiJsonResult generatePronunciationTexts(
+            String level,
+            List<String> focusWords,
+            LearningLanguageProfile profile,
+            int variantSeed
+    ) {
         String normalizedLevel = normalizeReadingLevel(level);
         List<String> words = sanitizeFocusWords(focusWords);
         String wordList = words.isEmpty() ? "general English practice" : String.join(", ", words);
         String levelRule = switch (normalizedLevel) {
             case "A1" -> "6-9 words, very common vocabulary, present simple only";
             case "A2" -> "8-12 words, simple past/present, one basic connector";
+            case "B1" -> "10-16 words, natural everyday English, one subordinate clause allowed";
             case "B2" -> "14-22 words, natural clauses and one useful collocation";
-            case "C1", "C2" -> "16-26 words, fluent but still readable aloud";
+            case "C1" -> "16-24 words, fluent with an idiomatic phrase, still readable aloud";
+            case "C2" -> "18-28 words, sophisticated rhythm and low-frequency vocabulary, readable aloud";
             default -> "10-16 words, natural everyday English";
         };
+        int dayIndex = (int) (System.currentTimeMillis() / 86_400_000L);
+        String theme = PromptCatalog.topicForDay(dayIndex + variantSeed * 3);
+        String variantRule = variantSeed == 0
+                ? ""
+                : "\nVARIANT REQUEST #" + variantSeed
+                + ": The learner asked for NEW texts - use different situations and sentence shapes than before.\n";
 
         String prompt = """
 %s
@@ -306,7 +351,8 @@ Generate 3 short read-aloud pronunciation practice texts for %s learners.
 LEVEL: %s
 LEVEL RULE: %s
 FOCUS WORDS: %s
-
+TODAY'S THEME: %s (set the sentences in situations related to this theme)
+%s
 Rules:
 - Each text must be one natural English sentence.
 - If focus words are provided, each sentence must include at least one focus word naturally.
@@ -328,6 +374,8 @@ Return ONLY valid JSON:
                 normalizedLevel,
                 levelRule,
                 wordList,
+                theme,
+                variantRule,
                 normalizedLevel
         );
 
@@ -335,7 +383,7 @@ Return ONLY valid JSON:
                 "You write natural English read-aloud practice sentences. Return valid JSON only.",
                 prompt,
                 320,
-                0.55,
+                0.8,
                 "pronunciation-text-generate");
     }
 

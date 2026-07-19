@@ -597,8 +597,13 @@ class _WordSentencesModalState extends State<WordSentencesModal>
       );
     }
 
-    final RegExp regex =
-        RegExp(RegExp.escape(wordToHighlight), caseSensitive: false);
+    // Eşleşen kelimenin çekim eklerini de vurguya dahil et: "recover" hedefi
+    // "recovered/recovers/recovering" içinde geçiyorsa chip tüm kelimeyi
+    // kapsasın — "He [recover]ed" gibi ekin dışarıda kalması bozuk görünüyordu.
+    final RegExp regex = RegExp(
+      "[A-Za-z']*${RegExp.escape(wordToHighlight)}[A-Za-z']*",
+      caseSensitive: false,
+    );
     final Iterable<RegExpMatch> matches = regex.allMatches(sentence);
 
     if (matches.isEmpty) {

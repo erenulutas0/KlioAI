@@ -60,6 +60,9 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
   int _focusTextVariant = 0;
   int _providedTextVariant = 0;
   int _aiTextVariant = 0;
+  // Backend'e gönderilen tohum: her yeni AI metin isteğinde artar, böylece
+  // sunucu aynı gün içinde bile farklı tema/konu varyantı üretir.
+  int _aiRequestVariant = 0;
   bool _isPlayingModel = false;
   bool _isRecording = false;
   bool _isTranscribing = false;
@@ -199,23 +202,31 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
     return '${words.sublist(0, words.length - 1).join(', ')}, and ${words.last}';
   }
 
-  Future<void> _loadAiTextOptions() async {
+  Future<void> _loadAiTextOptions({bool fresh = false}) async {
     if (_isGeneratingText) return;
+    if (fresh) _aiRequestVariant++;
     setState(() => _isGeneratingText = true);
     final texts = await _chatbotService.generatePronunciationTexts(
       level: widget.level,
       focusWords: _cleanFocusWords(widget.focusWords),
+      variant: _aiRequestVariant,
     );
     if (!mounted) return;
     setState(() {
       _isGeneratingText = false;
-      _aiTextOptions = texts;
-      _aiTextVariant = 0;
-      if (texts.isNotEmpty &&
-          !_isRecording &&
-          !_isTranscribing &&
-          _report == null) {
-        _targetText = texts.first;
+      if (texts.isNotEmpty) {
+        _aiTextOptions = texts;
+        _aiTextVariant = 0;
+        if (!_isRecording && !_isTranscribing && _report == null) {
+          _targetText = texts.first;
+        }
+      } else if (fresh && _aiTextOptions.isNotEmpty) {
+        // Taze istek başarısız oldu — eldeki seti koru, baştan döndür.
+        _aiTextVariant = 0;
+        _targetText = _aiTextOptions.first;
+      } else {
+        _aiTextOptions = texts;
+        _aiTextVariant = 0;
       }
     });
   }
@@ -236,8 +247,16 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
       return;
     }
     if (_aiTextOptions.length > 1) {
+      final next = _aiTextVariant + 1;
+      if (next >= _aiTextOptions.length) {
+        // Eldeki AI metinlerinin hepsi görüldü — sunucudan yeni tema
+        // varyantıyla taze bir set iste (başarısızsa mevcut set döngüde kalır).
+        setState(() => _report = null);
+        _loadAiTextOptions(fresh: true);
+        return;
+      }
       setState(() {
-        _aiTextVariant++;
+        _aiTextVariant = next;
         _targetText = _aiTextOptions[_aiTextVariant % _aiTextOptions.length];
         _report = null;
       });

@@ -1014,6 +1014,7 @@ class ApiService {
   Future<Map<String, dynamic>> chatbotGeneratePronunciationTexts({
     required String level,
     List<String> focusWords = const [],
+    int variant = 0,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1023,6 +1024,7 @@ class ApiService {
         body: json.encode({
           'level': level,
           'focusWords': focusWords,
+          'variant': variant,
           ..._learningLanguageProfile(),
         }),
       ),
@@ -1224,6 +1226,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> chatbotGenerateReadingPassage({
     required String level,
+    int variant = 0,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1232,6 +1235,7 @@ class ApiService {
         headers: headers,
         body: json.encode({
           'level': level,
+          'variant': variant,
           ..._learningLanguageProfile(),
         }),
       ),

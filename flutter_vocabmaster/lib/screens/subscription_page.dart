@@ -251,7 +251,34 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       return null;
     }
     final text = end.toString().trim();
-    return text.isEmpty || text.toLowerCase() == 'null' ? null : text;
+    if (text.isEmpty || text.toLowerCase() == 'null') {
+      return null;
+    }
+    return _formatReadableDate(text);
+  }
+
+  static const List<String> _monthsTr = [
+    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+  ];
+  static const List<String> _monthsEn = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  /// Ham ISO timestamp'i ("2026-08-02T23:01:04.455742") kullanıcıya uygun,
+  /// yerelleştirilmiş bir tarihe çevirir ("2 Ağustos 2026" / "August 2, 2026").
+  /// Parse edilemezse ekranı bozmamak için ham metni aynen döndürür.
+  String _formatReadableDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      return raw;
+    }
+    final isTurkish = LocaleTextService.isTurkish;
+    if (isTurkish) {
+      return '${parsed.day} ${_monthsTr[parsed.month - 1]} ${parsed.year}';
+    }
+    return '${_monthsEn[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
 
   // Payment demo mode can be enabled only via build-time flag for test builds:

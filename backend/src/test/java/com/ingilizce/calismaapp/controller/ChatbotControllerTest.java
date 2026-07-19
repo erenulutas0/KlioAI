@@ -1176,7 +1176,7 @@ public class ChatbotControllerTest {
 
     @Test
     void generateSpeakingTestQuestionsReturnsOkWhenValid() throws Exception {
-        when(chatbotService.generateSpeakingTestQuestions(anyString()))
+        when(chatbotService.generateSpeakingTestQuestions(anyString(), any(LearningLanguageProfile.class), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(ai("{\"questions\":[\"Q1\",\"Q2\"]}"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/generate-questions")
@@ -1189,7 +1189,7 @@ public class ChatbotControllerTest {
 
     @Test
     void generateSpeakingTestQuestionsReturnsInternalServerErrorWhenInvalidJson() throws Exception {
-        when(chatbotService.generateSpeakingTestQuestions(anyString())).thenReturn(ai("not-json"));
+        when(chatbotService.generateSpeakingTestQuestions(anyString(), any(LearningLanguageProfile.class), org.mockito.ArgumentMatchers.anyInt())).thenReturn(ai("not-json"));
 
         mockMvc.perform(post("/api/chatbot/speaking-test/generate-questions")
                 .header("X-User-Id", "1")
@@ -1425,7 +1425,8 @@ public class ChatbotControllerTest {
         when(aiProxyService.generatePronunciationTexts(
                 eq("B1"),
                 argThat(words -> words.size() == 2 && words.contains("delay") && words.contains("focus")),
-                any(LearningLanguageProfile.class)))
+                any(LearningLanguageProfile.class),
+                org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new AiProxyService.AiJsonResult(
                         Map.of(
                                 "texts", List.of(

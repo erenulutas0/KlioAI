@@ -1733,7 +1733,12 @@ public class ChatbotController {
         try {
             String message = String.format("Generate %s Speaking test questions for %s. Return ONLY JSON.", testType,
                     part);
-            ChatbotService.AiCallResult llm = chatbotService.generateSpeakingTestQuestions(message);
+            // CEFR seviyesi + günlük tema rotasyonu: eski hali profilsiz ve
+            // rotasyonsuzdu, her oturumda neredeyse aynı sorular üretiyordu.
+            LearningLanguageProfile speakingProfile = languageProfileFrom(request);
+            int dayOfYear = java.time.LocalDate.now(java.time.ZoneOffset.UTC).getDayOfYear();
+            ChatbotService.AiCallResult llm =
+                    chatbotService.generateSpeakingTestQuestions(message, speakingProfile, dayOfYear);
             String response = llm.content();
             consumeAiTokens(userId, httpRequest, "speaking-generate", llm.totalTokens());
 
@@ -1959,8 +1964,22 @@ public class ChatbotController {
 
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
         LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        // "Yeni pasaj" akışı: istemci artan bir variant sayısı yollar; her
+        // varyant günün temasından farklı bir konu/kombinasyona zorlanır.
+        int variant = 0;
+        Object rawVariant = request.get("variant");
+        if (rawVariant instanceof Number number) {
+            variant = Math.max(0, Math.min(50, number.intValue()));
+        } else if (rawVariant != null) {
+            try {
+                variant = Math.max(0, Math.min(50, Integer.parseInt(rawVariant.toString().trim())));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        int dayOfYear = java.time.LocalDate.now(java.time.ZoneOffset.UTC).getDayOfYear();
         try {
-            AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(level, languageProfile);
+            AiProxyService.AiJsonResult result =
+                    aiProxyService.generateReadingPassage(level, languageProfile, dayOfYear, variant);
             consumeAiTokens(userId, httpRequest, "reading-generate", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {
@@ -1981,11 +2000,23 @@ public class ChatbotController {
         String level = request.get("level") != null ? request.get("level").toString() : "B1";
         List<String> focusWords = extractStringList(request.get("focusWords"));
         LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        int pronunciationVariant = 0;
+        Object rawPronunciationVariant = request.get("variant");
+        if (rawPronunciationVariant instanceof Number number) {
+            pronunciationVariant = Math.max(0, Math.min(50, number.intValue()));
+        } else if (rawPronunciationVariant != null) {
+            try {
+                pronunciationVariant = Math.max(0,
+                        Math.min(50, Integer.parseInt(rawPronunciationVariant.toString().trim())));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         try {
             AiProxyService.AiJsonResult result = aiProxyService.generatePronunciationTexts(
                     level,
                     focusWords,
-                    languageProfile);
+                    languageProfile,
+                    pronunciationVariant);
             consumeAiTokens(userId, httpRequest, "pronunciation-text-generate", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {

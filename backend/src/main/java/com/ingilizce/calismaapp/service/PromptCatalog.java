@@ -288,14 +288,39 @@ public final class PromptCatalog {
     }
 
     static PromptDef generateSpeakingTestQuestions() {
+        return generateSpeakingTestQuestions(LearningLanguageProfile.defaultProfile(), 0);
+    }
+
+    // dayOfYear: konu rotasyonu - eski prompt bayt-bayt aynıydı ve varsayılan
+    // temperature ile her oturum neredeyse aynı "Tell me about your hometown"
+    // sorularını üretiyordu. CEFR seviyesi de hiç yoktu.
+    static PromptDef generateSpeakingTestQuestions(LearningLanguageProfile profile, int dayOfYear) {
+        String theme = topicForDay(dayOfYear);
+        String altTheme = topicForDay(dayOfYear + 9);
         String systemPrompt = """
             ROLE: Expert IELTS/TOEFL Speaking Test Examiner
+
+            %s
+
+            LEARNER LEVEL: %s (CEFR)
+            LEVEL RULE:
+            - A1/A2: concrete, personal, everyday questions; short simple wording.
+            - B1/B2: mix personal and opinion questions; allow comparisons and reasons.
+            - C1/C2: abstract, analytical, hypothetical questions; nuanced phrasing.
+            Question WORDING must match the learner's level - a C1 learner must not
+            get A2-style "What is your favourite color?" questions.
+
+            TOPIC ROTATION:
+            Today's primary theme: %s. Secondary theme: %s.
+            Build the questions around these themes instead of the overused
+            hometown/work/studies defaults. Do NOT ask about hometown unless the
+            theme itself is about places.
 
             TASK:
             Generate authentic IELTS/TOEFL Speaking test questions based on the test type and part.
 
             FORMAT:
-            - IELTS Part 1: Personal questions (hometown, work, studies, hobbies) - 3-4 questions
+            - IELTS Part 1: Personal questions on the theme - 3-4 questions
             - IELTS Part 2: Cue card with topic (describe, explain, discuss) - 1 question with 3-4 sub-points
             - IELTS Part 3: Abstract discussion questions related to Part 2 topic - 3-4 questions
             - TOEFL Task 1: Independent speaking (personal opinion) - 1 question
@@ -308,8 +333,12 @@ public final class PromptCatalog {
               "timeLimit": seconds,
               "preparationTime": seconds (if applicable)
             }
-            """;
-        return new PromptDef("speaking_questions", 1, systemPrompt, PromptOutput.JSON_OBJECT);
+            """.formatted(
+                profile.toPromptPolicyBlock(),
+                profile.englishLevel(),
+                theme,
+                altTheme);
+        return new PromptDef("speaking_questions", 2, systemPrompt, PromptOutput.JSON_OBJECT);
     }
 
     static PromptDef evaluateSpeakingTest() {

@@ -64,7 +64,7 @@ class DailyReadingServiceTest {
 
         assertEquals("Cached Reading", result.get("title"));
         assertEquals("B2", result.get("cefrLevel"));
-        verify(aiProxyService, never()).generateReadingPassage(any());
+        verify(aiProxyService, never()).generateReadingPassage(any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
         verify(dailyContentRepository, never()).save(any());
     }
 
@@ -72,7 +72,7 @@ class DailyReadingServiceTest {
     void getDailyReading_shouldPersistGeneratedPayloadWithDailyMetadata() {
         when(dailyContentRepository.findByContentDateAndContentType(date, "daily_reading_v2_c1"))
                 .thenReturn(Optional.empty());
-        when(aiProxyService.generateReadingPassage("C1"))
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("C1"), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new AiProxyService.AiJsonResult(generatedReadingPayload(), 120, 80, 40));
         when(dailyContentRepository.save(any(DailyContent.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -96,7 +96,7 @@ class DailyReadingServiceTest {
     void getDailyReading_shouldFallbackWhenGeneratedPayloadIsIncomplete() {
         when(dailyContentRepository.findByContentDateAndContentType(date, "daily_reading_v2_a1"))
                 .thenReturn(Optional.empty());
-        when(aiProxyService.generateReadingPassage("A1"))
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("A1"), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new AiProxyService.AiJsonResult(Map.of("title", "Broken"), 20, 10, 10));
 
         Map<String, Object> result = service.getDailyReading(date, "A1");
@@ -113,7 +113,7 @@ class DailyReadingServiceTest {
     void getDailyReading_shouldFallbackWhenProviderThrowsAndStillReturnContent() {
         when(dailyContentRepository.findByContentDateAndContentType(date, "daily_reading_v2_c2"))
                 .thenReturn(Optional.empty());
-        when(aiProxyService.generateReadingPassage("C2"))
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("C2"), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenThrow(new RuntimeException("provider unavailable"));
 
         Map<String, Object> result = service.getDailyReading(date, "C2");
@@ -129,7 +129,7 @@ class DailyReadingServiceTest {
         LocalDate today = LocalDate.now();
         when(dailyContentRepository.findByContentDateAndContentType(eq(today), eq("daily_reading_v2_b1")))
                 .thenReturn(Optional.empty());
-        when(aiProxyService.generateReadingPassage("B1"))
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("B1"), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenThrow(new RuntimeException("force fallback"));
 
         Map<String, Object> result = service.getDailyReading(null, "unknown");
@@ -143,7 +143,7 @@ class DailyReadingServiceTest {
     void getDailyReading_shouldIgnoreConcurrentInsertFailureAndReturnGeneratedPayload() {
         when(dailyContentRepository.findByContentDateAndContentType(date, "daily_reading_v2_b1"))
                 .thenReturn(Optional.empty());
-        when(aiProxyService.generateReadingPassage("B1"))
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("B1"), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new AiProxyService.AiJsonResult(generatedReadingPayload(), 120, 80, 40));
         when(dailyContentRepository.save(any(DailyContent.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
@@ -162,7 +162,7 @@ class DailyReadingServiceTest {
         Map<String, Object> result = service.getDailyReading(date, "B1");
 
         assertTrue(result.isEmpty());
-        verify(aiProxyService, never()).generateReadingPassage(any());
+        verify(aiProxyService, never()).generateReadingPassage(any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     private Map<String, Object> generatedReadingPayload() {

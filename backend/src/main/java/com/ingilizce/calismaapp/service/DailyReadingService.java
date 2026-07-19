@@ -70,8 +70,12 @@ public class DailyReadingService {
     }
 
     private String generatePayload(LocalDate date, String level, String contentType) throws Exception {
+        // İçerik gününün dayOfYear'ı ile: günlük tema rotasyonu deterministik.
         AiProxyService.AiJsonResult generated = aiProxyService.generateReadingPassage(
-                level);
+                level,
+                com.ingilizce.calismaapp.service.LearningLanguageProfile.defaultProfile(),
+                date.getDayOfYear(),
+                0);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         if (generated != null && generated.json() != null) {

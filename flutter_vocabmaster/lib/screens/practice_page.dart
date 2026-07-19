@@ -3,6 +3,7 @@ import '../widgets/animated_background.dart';
 import '../widgets/info_dialog.dart';
 import '../models/word.dart';
 import '../services/global_state.dart';
+import '../services/learning_language_service.dart';
 import 'exam_selection_page.dart';
 import 'translation_practice_page.dart';
 import 'reading_practice_page.dart';
@@ -56,7 +57,8 @@ class _PracticePageState extends State<PracticePage>
 
   String _selectedMode = _modeTranslate;
   String _selectedSubMode = _subModeSelect;
-  String _selectedLevel = 'B1';
+  // Profildeki CEFR seviyesinden başlat: seçici her oturumda B1'e dönmesin.
+  String _selectedLevel = LearningLanguageService.englishLevel;
   String _selectedLength = _lengthMedium;
 
   // Word Selection State
