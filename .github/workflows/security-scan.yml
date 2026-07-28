@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
   security-events: write
+  # upload-sarif ozel repolarda calisma bilgisini okumak icin actions:read
+  # istiyor; olmayinca "Resource not accessible by integration" ile patliyor.
+  actions: read
 
 jobs:
   dependency-review:
@@ -41,6 +44,22 @@ jobs:
           version: v0.70.0
           cache: 'false'
 
+      # Bulgulari ONCE insan okunur tabloyla loga bas. Sadece SARIF uretilince
+      # bulgular dosyaya gidiyordu; SARIF yuklemesi de izin hatasiyla
+      # basarisiz olunca bu zorunlu kapi, neyi engelledigini hic gostermeden
+      # merge'u bloke ediyordu. Burada kapi yok (exit-code 0), sadece gorunurluk.
+      - name: Trivy findings (human readable)
+        run: >
+          trivy fs
+          --format table
+          --pkg-types os,library
+          --ignore-unfixed
+          --severity HIGH,CRITICAL
+          --exit-code 0
+          --skip-dirs backend/src/test
+          --skip-dirs backend/target
+          .
+
       - name: Run Trivy Vulnerability Scanner
         run: >
           trivy fs
@@ -54,8 +73,13 @@ jobs:
           --skip-dirs backend/target
           .
 
+      # Code scanning'e yukleme ozel repolarda GitHub Advanced Security
+      # istiyor (bkz. dependency-review notu). Yoksa bu adim patliyor ama
+      # asil kapi yukaridaki tarama - yukleme basarisizligi merge'u
+      # engellememeli, tablo zaten logda.
       - name: Upload Trivy SARIF
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
