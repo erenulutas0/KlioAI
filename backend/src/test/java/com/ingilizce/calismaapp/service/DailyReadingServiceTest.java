@@ -20,6 +20,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -106,7 +107,8 @@ class DailyReadingServiceTest {
         assertEquals("daily_reading_v2_a1", result.get("contentType"));
         assertTrue(((String) result.get("text")).contains("Tom wakes up"));
         assertEquals(3, assertInstanceOf(List.class, result.get("questions")).size());
-        verify(dailyContentRepository).save(any(DailyContent.class));
+        // Fallback icerik cache'lenmemeli - yoksa o gun kalici olarak zehirlenir.
+        verify(dailyContentRepository, never()).save(any(DailyContent.class));
     }
 
     @Test
@@ -121,6 +123,28 @@ class DailyReadingServiceTest {
         assertEquals(Boolean.TRUE, result.get("fallback"));
         assertEquals("C2", result.get("cefrLevel"));
         assertTrue(((String) result.get("text")).contains("Contemporary innovation policy"));
+        verify(dailyContentRepository, never()).save(any(DailyContent.class));
+    }
+
+    @Test
+    void getDailyReading_shouldRegenerateOnNextRequestAfterFallback() {
+        // Zehirlenme regresyonu: fallback donen bir gun cache'lenmediginden bir
+        // sonraki istek AI'i yeniden dener ve gercek icerigi yakalar.
+        when(dailyContentRepository.findByContentDateAndContentType(date, "daily_reading_v2_b1"))
+                .thenReturn(Optional.empty());
+        when(aiProxyService.generateReadingPassage(org.mockito.ArgumentMatchers.eq("B1"), any(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenThrow(new RuntimeException("transient provider failure"))
+                .thenReturn(new AiProxyService.AiJsonResult(generatedReadingPayload(), 120, 80, 40));
+        when(dailyContentRepository.save(any(DailyContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Map<String, Object> first = service.getDailyReading(date, "B1");
+        assertEquals(Boolean.TRUE, first.get("fallback"));
+
+        Map<String, Object> second = service.getDailyReading(date, "B1");
+        assertEquals("A Clear Decision", second.get("title"));
+        assertNull(second.get("fallback"));
         verify(dailyContentRepository).save(any(DailyContent.class));
     }
 

@@ -941,8 +941,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildProfileCard() {
     final displayName = _user?['displayName'] ?? _text('Kullanici', 'User');
-    final level = _user?['level'] ?? 1;
-    final totalXp = _user?['totalXp'] ?? 0;
+    // XP/seviye icin tek kaynak: appState.userStats'tan doldurulan _level/_totalXp.
+    // Onceden _user haritasindan okunuyordu ama oradaki anahtar 'xp' (Home da
+    // onu kullaniyor); 'totalXp' hep null donup 0'a dusuyor ve Profile, Home ile
+    // celisen bir seviye/XP gosteriyordu.
+    final level = _level;
+    final totalXp = _totalXp;
     // final currentStreak = _user?['currentStreak'] ?? 0; // Not used locally if using stats map
     // final wordsLearned = _user?['wordsLearned'] ?? 0;   // Not used locally
 

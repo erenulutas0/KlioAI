@@ -670,11 +670,16 @@ class _PracticePageState extends State<PracticePage>
                               variant: BackgroundVariant.secondary,
                               child: LayoutBuilder(
                                 builder: (context, tabConstraints) {
-                                  const visibleTabCount = 3;
+                                  // 3 sekme tam genisligi doldurunca satirin
+                                  // kaydirilabildigi anlasilmiyordu; Pronunciation,
+                                  // Word Galaxy ve Neural Game gibi modlar hic
+                                  // kesfedilmiyordu. 4. sekmenin ucu gorunsun diye
+                                  // tam sayi yerine kesirli bolen kullaniyoruz.
+                                  const visibleTabCount = 3.3;
                                   const tabGap = 8.0;
-                                  final tabWidth = (tabConstraints.maxWidth -
-                                          (visibleTabCount - 1) * tabGap) /
-                                      visibleTabCount;
+                                  final tabWidth =
+                                      (tabConstraints.maxWidth - 2 * tabGap) /
+                                          visibleTabCount;
                                   return SizedBox(
                                     height: 56,
                                     child: ClipRect(

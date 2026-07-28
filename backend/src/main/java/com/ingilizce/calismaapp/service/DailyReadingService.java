@@ -59,6 +59,15 @@ public class DailyReadingService {
                 payloadJson = toJsonString(fallbackPayload(normalizedDate, normalizedLevel, contentType));
             }
 
+            // Fallback icerigi ASLA cache'leme: tek bir gecici AI hatasi o gunu
+            // kalici olarak zehirliyor, sonraki her istek cache dalina dusup ayni
+            // sabit metni donduruyordu (yeniden deneme hic olmuyordu).
+            if (DailyContentFallbackSupport.isFallbackPayload(payloadJson, objectMapper)) {
+                log.warn("Skipping daily_content cache write for fallback payload date={} level={}",
+                        normalizedDate, normalizedLevel);
+                return decodePayload(payloadJson);
+            }
+
             try {
                 dailyContentRepository.save(new DailyContent(normalizedDate, contentType, payloadJson));
             } catch (DataIntegrityViolationException ignored) {

@@ -243,13 +243,14 @@ DIFFERENTIATION RULE:
 
 Topic: Choose a specific, interesting topic as instructed above.
 Include 3 multiple choice questions (with 4 options and 1 correct answer).
+"wordCount" must be the real number of words in "text" (a plain integer, not a placeholder).
 Return ONLY valid JSON. No markdown formatting, no extra text.
 
-Format:
+Format (the values below are illustrative - replace them, keep the shape):
 {
   "title": "Passage Title",
   "text": "Full passage text here...",
-  "wordCount": <actual word count as integer>,
+  "wordCount": 180,
   "questions": [
     {
       "question": "Question 1?",
@@ -276,7 +277,10 @@ Format:
         );
 
         String system = "You are a professional English exam preparation assistant. Generate content that EXACTLY matches the specified level constraints. Return strictly valid JSON with no markdown formatting.";
-        return callJson(system, prompt, 1400, 0.7, "reading-generate");
+        // C1/C2 pasajlari 340-430 kelime + 3 soru (sik, aciklama, alinti) istiyor;
+        // 1400 token bunun icin yetmiyordu ve yarim kalan JSON Groq'ta
+        // json_validate_failed (400) ile reddediliyordu.
+        return callJson(system, prompt, 3000, 0.7, "reading-generate");
     }
 
     private String normalizeReadingLevel(String level) {
@@ -472,10 +476,21 @@ TOPIC CATEGORY FOR TODAY: %s
 IMPORTANT: Avoid generic topics like "My Daily Routine" unless explicitly asked.
 Invent a specific, concrete topic within the category above - do not just restate the category name.
 
-Return JSON with:
-topic, description, level, wordCount.
-""".formatted(profile.toPromptPolicyBlock(), level, profile.targetLanguage(), wordCount, topicCategory);
-        return callJson("Return valid JSON only.", prompt, 450, 0.9, "writing-topic");
+Return ONLY valid JSON. No markdown formatting, no extra text.
+
+Format (values are illustrative - replace them, keep the shape):
+{
+  "topic": "Short topic title",
+  "description": "Two or three sentences explaining what the learner should write.",
+  "level": "%s",
+  "wordCount": "%s"
+}
+""".formatted(profile.toPromptPolicyBlock(), level, profile.targetLanguage(), wordCount, topicCategory,
+                level, wordCount);
+        // Acik sema + daha genis token butcesi: gpt-oss bir reasoning modeli ve
+        // dar butcede JSON'a sira gelmeden kesilip Groq'ta json_validate_failed
+        // (400) uretiyordu.
+        return callJson("Return valid JSON only.", prompt, 900, 0.9, "writing-topic");
     }
 
     public AiJsonResult evaluateWriting(String text, String level, Map<String, Object> topic) {

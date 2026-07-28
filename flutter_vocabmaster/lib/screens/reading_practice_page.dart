@@ -22,6 +22,12 @@ class ReadingPracticePage extends StatefulWidget {
 }
 
 class _ReadingPracticePageState extends State<ReadingPracticePage> {
+  // Bu sayfanin tum cerceve metinleri sabit Turkce'ydi: İngilizce arayuz
+  // kullanan biri İngilizce pasajin etrafinda Turkce basliklar goruyordu.
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -72,7 +78,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
         }
         final msg = e is ApiQuotaExceededException
             ? AiErrorMessageFormatter.forQuota(e)
-            : 'Pasaj yüklenemedi: $e';
+            : _text('Pasaj yüklenemedi: $e', 'Could not load passage: $e');
         setState(() {
           _errorMessage = msg;
           _isLoading = false;
@@ -146,7 +152,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
         }
         final msg = e is ApiQuotaExceededException
             ? AiErrorMessageFormatter.forQuota(e)
-            : 'Pasaj yüklenemedi: $e';
+            : _text('Pasaj yüklenemedi: $e', 'Could not load passage: $e');
         setState(() {
           _errorMessage = msg;
           _isLoading = false;
@@ -276,15 +282,15 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Okuma Pratiği',
+                Text(
+                  _text('Okuma Pratiği', 'Reading Practice'),
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Seviye: ${widget.level}',
+                  _text('Seviye: ${widget.level}', 'Level: ${widget.level}'),
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -301,13 +307,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: Color(0xFF0ea5e9)),
             SizedBox(height: 16),
-            Text('Okuma parçası hazırlanıyor...',
+            Text(_text('Okuma parçası hazırlanıyor...', 'Preparing your passage...'),
                 style: TextStyle(color: Colors.white70)),
           ],
         ),
@@ -397,7 +403,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               const Icon(Icons.quiz, color: Color(0xFF0ea5e9), size: 24),
               const SizedBox(width: 8),
               Text(
-                'Sorular (${_questions.length})',
+                _text('Sorular (${_questions.length})', 'Questions (${_questions.length})'),
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -443,9 +449,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 children: [
                   const Icon(Icons.check_circle, color: Color(0xFF10b981)),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Bu seviyeyi bugün tamamladınız. Cevaplarınızı tekrar inceleyebilirsiniz.',
+                      _text('Bu seviyeyi bugün tamamladınız. Cevaplarınızı tekrar inceleyebilirsiniz.',
+                          'You finished this level today. You can review your answers.'),
                       style: TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
@@ -490,8 +497,9 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 ),
                 child: Text(
                   _selectedAnswers.length == _questions.length
-                      ? 'Cevapları Kontrol Et'
-                      : 'Tüm soruları cevaplayın (${_selectedAnswers.length}/${_questions.length})',
+                      ? _text('Cevapları Kontrol Et', 'Check Answers')
+                      : _text('Tüm soruları cevaplayın (${_selectedAnswers.length}/${_questions.length})',
+                          'Answer all questions (${_selectedAnswers.length}/${_questions.length})'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -518,13 +526,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.refresh, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
-                      'Aynı Testi Tekrar Çöz',
+                      _text('Aynı Testi Tekrar Çöz', 'Retake This Test'),
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -555,13 +563,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.auto_awesome, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
-                      'Yeni Pasaj Üret',
+                      _text('Yeni Pasaj Üret', 'New Passage'),
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -578,8 +586,8 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.exit_to_app, color: Colors.white70),
-              label: const Text(
-                'Baska Seviye Sec',
+              label: Text(
+                _text('Baska Seviye Sec', 'Choose Another Level'),
                 style: TextStyle(color: Colors.white70),
               ),
               style: OutlinedButton.styleFrom(
@@ -738,12 +746,12 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.lightbulb, color: Color(0xFF8b5cf6), size: 18),
                       SizedBox(width: 8),
                       Text(
-                        'Açıklama',
+                        _text('Açıklama', 'Explanation'),
                         style: TextStyle(
                             color: Color(0xFF8b5cf6),
                             fontWeight: FontWeight.bold,

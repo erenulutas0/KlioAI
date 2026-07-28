@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -89,10 +90,25 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
         id: 'language', labelKey: 'language.label', icon: Icons.language),
   ];
 
+  // Gercek paket surumu: 'nav.version' sabit "KlioAI v1.0" yaziyordu ve
+  // surum yukseldikce guncellenmedigi icin destek/hata ayiklamada yaniltiyordu.
+  String? _appVersion;
+
   @override
   void initState() {
     super.initState();
     _initAnimationControllers();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = 'KlioAI v${info.version}');
+    } catch (_) {
+      // Surum okunamazsa yerellestirilmis varsayilan metin kullanilir.
+    }
   }
 
   void _initAnimationControllers() {
@@ -674,7 +690,7 @@ class _NavigationMenuPanelState extends State<NavigationMenuPanel>
                   ],
                 ).createShader(bounds),
                 child: Text(
-                  context.tr('nav.version'),
+                  _appVersion ?? context.tr('nav.version'),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

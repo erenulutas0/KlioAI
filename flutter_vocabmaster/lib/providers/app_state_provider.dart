@@ -10,6 +10,7 @@ import '../services/local_reminder_service.dart';
 import '../models/word.dart';
 import '../models/sentence_view_model.dart';
 import '../services/groq_service.dart';
+import '../services/locale_text_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Global App State Provider - Uygulama genelinde veriyi merkezi tutar
@@ -538,7 +539,9 @@ class AppStateProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _calculateWeeklyActivityFromWords(
       List<Word> words) {
     final now = DateTime.now();
-    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    final days = LocaleTextService.isTurkish
+        ? const ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+        : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
 
     final Map<String, int> dayCounts = {};
@@ -585,7 +588,9 @@ class AppStateProvider extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> _calculateWeeklyActivityFromPrefs(
       SharedPreferences prefs) async {
     final now = DateTime.now();
-    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    final days = LocaleTextService.isTurkish
+        ? const ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+        : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     // Bu haftanın başlangıcını bul (Pazartesi)
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -1801,7 +1806,9 @@ class AppStateProvider extends ChangeNotifier {
 
     if (_weeklyActivity.isEmpty) {
       // Haftalık aktivite listesi oluştur
-      final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      final days = LocaleTextService.isTurkish
+          ? const ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+          : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       _weeklyActivity = List.generate(
           7,
           (i) => <String, dynamic>{

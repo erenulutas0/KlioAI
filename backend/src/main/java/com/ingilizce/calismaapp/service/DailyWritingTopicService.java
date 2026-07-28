@@ -58,6 +58,13 @@ public class DailyWritingTopicService {
                 payloadJson = toJsonString(fallbackPayload(normalizedDate, normalizedLevel, contentType));
             }
 
+            // Fallback icerigi cache'leme - bkz. DailyContentFallbackSupport.
+            if (DailyContentFallbackSupport.isFallbackPayload(payloadJson, objectMapper)) {
+                log.warn("Skipping daily_content cache write for fallback payload date={} level={}",
+                        normalizedDate, normalizedLevel);
+                return normalizePayload(decodePayload(payloadJson), normalizedDate, normalizedLevel, contentType);
+            }
+
             try {
                 dailyContentRepository.save(new DailyContent(normalizedDate, contentType, payloadJson));
             } catch (DataIntegrityViolationException ignored) {
