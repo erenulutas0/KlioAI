@@ -78,6 +78,10 @@ public class DailyExamPackService {
             }
 
             Map<String, Object> payload;
+            // Uretim tamamen basarisiz oldu mu? Payload'daki "fallback" bayragi
+            // burada ayirt edici degil - kismen tamamlanan (top-up) paketlerde de
+            // true olabiliyor ve onlari cache'lemek dogru.
+            boolean generationFailed = false;
             if (groqApiKey != null && !groqApiKey.isBlank()) {
                 try {
                     payload = generateDailyExamPackPayload(normalized, normalizedExam);
@@ -85,6 +89,7 @@ public class DailyExamPackService {
                     log.warn("Daily exam pack generation failed date={} exam={}: {}",
                             normalized, normalizedExam, e.toString());
                     payload = fallbackPayload(normalized, normalizedExam);
+                    generationFailed = true;
                 }
             } else {
                 log.info("Groq API key not configured; daily exam pack will use fallback data");
@@ -92,6 +97,14 @@ public class DailyExamPackService {
             }
 
             String payloadJson = toJsonString(payload);
+
+            // Gecici AI hatasinin sonucunu cache'lemek o gunu kalici zehirler:
+            // sonraki her istek cache dalina duser ve gercek icerik hic uretilmez.
+            if (generationFailed) {
+                log.warn("Skipping daily_content cache write after generation failure date={} exam={}",
+                        normalized, normalizedExam);
+                return payload;
+            }
 
             try {
                 dailyContentRepository.save(new DailyContent(normalized, contentType, payloadJson));

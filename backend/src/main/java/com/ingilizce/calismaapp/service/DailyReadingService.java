@@ -59,6 +59,15 @@ public class DailyReadingService {
                 payloadJson = toJsonString(fallbackPayload(normalizedDate, normalizedLevel, contentType));
             }
 
+            // Fallback icerigi ASLA cache'leme: tek bir gecici AI hatasi o gunu
+            // kalici olarak zehirliyor, sonraki her istek cache dalina dusup ayni
+            // sabit metni donduruyordu (yeniden deneme hic olmuyordu).
+            if (DailyContentFallbackSupport.isFallbackPayload(payloadJson, objectMapper)) {
+                log.warn("Skipping daily_content cache write for fallback payload date={} level={}",
+                        normalizedDate, normalizedLevel);
+                return decodePayload(payloadJson);
+            }
+
             try {
                 dailyContentRepository.save(new DailyContent(normalizedDate, contentType, payloadJson));
             } catch (DataIntegrityViolationException ignored) {
@@ -70,8 +79,12 @@ public class DailyReadingService {
     }
 
     private String generatePayload(LocalDate date, String level, String contentType) throws Exception {
+        // İçerik gününün dayOfYear'ı ile: günlük tema rotasyonu deterministik.
         AiProxyService.AiJsonResult generated = aiProxyService.generateReadingPassage(
-                level);
+                level,
+                com.ingilizce.calismaapp.service.LearningLanguageProfile.defaultProfile(),
+                date.getDayOfYear(),
+                0);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         if (generated != null && generated.json() != null) {

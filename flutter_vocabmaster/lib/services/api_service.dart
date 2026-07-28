@@ -1014,6 +1014,7 @@ class ApiService {
   Future<Map<String, dynamic>> chatbotGeneratePronunciationTexts({
     required String level,
     List<String> focusWords = const [],
+    int variant = 0,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1023,6 +1024,7 @@ class ApiService {
         body: json.encode({
           'level': level,
           'focusWords': focusWords,
+          'variant': variant,
           ..._learningLanguageProfile(),
         }),
       ),
@@ -1040,6 +1042,41 @@ class ApiService {
     }
     throw Exception(
       'Telaffuz metni üretimi başarısız: ${response.statusCode}',
+    );
+  }
+
+  /// Gramer konusu için seviyeye uygun AI pratik quiz'i üretir.
+  Future<Map<String, dynamic>> chatbotGenerateGrammarQuiz({
+    required String topic,
+    required String level,
+    int variant = 0,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withAiRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/grammar/practice-quiz'),
+        headers: headers,
+        body: json.encode({
+          'topic': topic,
+          'level': level,
+          'variant': variant,
+          ..._learningLanguageProfile(),
+        }),
+      ),
+      feature: 'grammar_quiz_generate',
+      json: true,
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    if (response.statusCode == 429) {
+      throw _quotaFromResponse(response);
+    }
+    if (response.statusCode == 403) {
+      throw _upgradeFromResponse(response);
+    }
+    throw Exception(
+      'Gramer quiz üretimi başarısız: ${response.statusCode}',
     );
   }
 
@@ -1224,6 +1261,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> chatbotGenerateReadingPassage({
     required String level,
+    int variant = 0,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1232,6 +1270,7 @@ class ApiService {
         headers: headers,
         body: json.encode({
           'level': level,
+          'variant': variant,
           ..._learningLanguageProfile(),
         }),
       ),

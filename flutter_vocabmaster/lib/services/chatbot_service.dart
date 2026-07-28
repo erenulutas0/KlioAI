@@ -122,11 +122,13 @@ class ChatbotService {
   Future<List<String>> generatePronunciationTexts({
     required String level,
     List<String> focusWords = const [],
+    int variant = 0,
   }) async {
     try {
       final result = await _api.chatbotGeneratePronunciationTexts(
         level: level,
         focusWords: focusWords,
+        variant: variant,
       );
       final texts = result['texts'];
       if (texts is! List) return const [];

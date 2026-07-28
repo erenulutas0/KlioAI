@@ -22,6 +22,12 @@ class ReadingPracticePage extends StatefulWidget {
 }
 
 class _ReadingPracticePageState extends State<ReadingPracticePage> {
+  // Bu sayfanin tum cerceve metinleri sabit Turkce'ydi: İngilizce arayuz
+  // kullanan biri İngilizce pasajin etrafinda Turkce basliklar goruyordu.
+  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
+
+  String _text(String tr, String en) => _isTurkish ? tr : en;
+
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -36,11 +42,71 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
   final DailyPracticeProgressService _progressService =
       DailyPracticeProgressService();
 
+  // "Yeni pasaj" sayacı: 0 = günlük paylaşılan pasaj; her artış backend'de
+  // günün temasından farklı bir konu varyantına zorlar. Günlük pasaj tüm
+  // kullanıcılara aynı servis edildiği için bu buton olmadan sayfa bütün gün
+  // aynı metni gösteriyordu.
+  int _variant = 0;
+
   @override
   void initState() {
     super.initState();
     _loadPassage();
     _loadSavedProgress();
+  }
+
+  Future<void> _loadFreshPassage() async {
+    _variant += 1;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final result = await ApiService()
+          .chatbotGenerateReadingPassage(level: widget.level, variant: _variant);
+      if (mounted) {
+        _applyPassageResult(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
+          setState(() {
+            _errorMessage = AiErrorMessageFormatter.forError(e);
+            _isLoading = false;
+          });
+          return;
+        }
+        final msg = e is ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forQuota(e)
+            : _text('Pasaj yüklenemedi: $e', 'Could not load passage: $e');
+        setState(() {
+          _errorMessage = msg;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _applyPassageResult(Map<String, dynamic> result) {
+    setState(() {
+      _title = result['title'] ?? 'Reading Passage';
+      _passage = result['text'] ?? '';
+      final questionsData = result['questions'] as List? ?? [];
+      _questions = questionsData
+          .map((q) => Question(
+                question: q['question'] ?? '',
+                options: List<String>.from(q['options'] ?? []),
+                correctAnswer: q['correctAnswer'] ?? '',
+                explanation: q['explanation'] ?? '',
+                correctAnswerQuote: q['correctAnswerQuote'] ?? '',
+              ))
+          .toList();
+      _selectedAnswers = {};
+      _checkedAnswers = {};
+      _showResults = false;
+      _score = 0;
+      _isLoading = false;
+    });
   }
 
   Future<void> _loadPassage() async {
@@ -86,7 +152,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
         }
         final msg = e is ApiQuotaExceededException
             ? AiErrorMessageFormatter.forQuota(e)
-            : 'Pasaj yüklenemedi: $e';
+            : _text('Pasaj yüklenemedi: $e', 'Could not load passage: $e');
         setState(() {
           _errorMessage = msg;
           _isLoading = false;
@@ -216,15 +282,15 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Okuma Pratiği',
+                Text(
+                  _text('Okuma Pratiği', 'Reading Practice'),
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Seviye: ${widget.level}',
+                  _text('Seviye: ${widget.level}', 'Level: ${widget.level}'),
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -241,13 +307,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: Color(0xFF0ea5e9)),
             SizedBox(height: 16),
-            Text('Okuma parçası hazırlanıyor...',
+            Text(_text('Okuma parçası hazırlanıyor...', 'Preparing your passage...'),
                 style: TextStyle(color: Colors.white70)),
           ],
         ),
@@ -337,7 +403,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               const Icon(Icons.quiz, color: Color(0xFF0ea5e9), size: 24),
               const SizedBox(width: 8),
               Text(
-                'Sorular (${_questions.length})',
+                _text('Sorular (${_questions.length})', 'Questions (${_questions.length})'),
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -383,9 +449,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 children: [
                   const Icon(Icons.check_circle, color: Color(0xFF10b981)),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Bu seviyeyi bugün tamamladınız. Cevaplarınızı tekrar inceleyebilirsiniz.',
+                      _text('Bu seviyeyi bugün tamamladınız. Cevaplarınızı tekrar inceleyebilirsiniz.',
+                          'You finished this level today. You can review your answers.'),
                       style: TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
@@ -430,8 +497,9 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                 ),
                 child: Text(
                   _selectedAnswers.length == _questions.length
-                      ? 'Cevapları Kontrol Et'
-                      : 'Tüm soruları cevaplayın (${_selectedAnswers.length}/${_questions.length})',
+                      ? _text('Cevapları Kontrol Et', 'Check Answers')
+                      : _text('Tüm soruları cevaplayın (${_selectedAnswers.length}/${_questions.length})',
+                          'Answer all questions (${_selectedAnswers.length}/${_questions.length})'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -458,13 +526,13 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.refresh, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
-                      'Aynı Testi Tekrar Çöz',
+                      _text('Aynı Testi Tekrar Çöz', 'Retake This Test'),
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -477,11 +545,49 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
 
           if (_showResults) ...[
             const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8b5cf6), Color(0xFF6366f1)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ElevatedButton(
+                key: const ValueKey('new-reading-passage'),
+                onPressed: _loadFreshPassage,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.auto_awesome, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      _text('Yeni Pasaj Üret', 'New Passage'),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          if (_showResults) ...[
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.exit_to_app, color: Colors.white70),
-              label: const Text(
-                'Baska Seviye Sec',
+              label: Text(
+                _text('Baska Seviye Sec', 'Choose Another Level'),
                 style: TextStyle(color: Colors.white70),
               ),
               style: OutlinedButton.styleFrom(
@@ -640,12 +746,12 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.lightbulb, color: Color(0xFF8b5cf6), size: 18),
                       SizedBox(width: 8),
                       Text(
-                        'Açıklama',
+                        _text('Açıklama', 'Explanation'),
                         style: TextStyle(
                             color: Color(0xFF8b5cf6),
                             fontWeight: FontWeight.bold,

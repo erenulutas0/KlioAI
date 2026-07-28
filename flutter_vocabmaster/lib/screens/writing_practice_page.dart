@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
 import '../services/ai_paywall_handler.dart';
 import '../services/daily_practice_progress_service.dart';
+import '../services/learning_language_service.dart';
 import '../services/xp_manager.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
@@ -21,7 +22,8 @@ class WritingPracticePage extends StatefulWidget {
 
 class _WritingPracticePageState extends State<WritingPracticePage> {
   String _step = 'setup'; // 'setup', 'writing', 'evaluation'
-  String _selectedLevel = 'B1';
+  // Profildeki CEFR seviyesinden başlat: seçici her oturumda B1'e dönmesin.
+  String _selectedLevel = LearningLanguageService.englishLevel;
   String _userText = '';
   int _wordCountActual = 0;
   bool _isLoading = false;

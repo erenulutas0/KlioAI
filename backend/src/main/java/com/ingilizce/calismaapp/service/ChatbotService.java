@@ -110,7 +110,16 @@ public class ChatbotService {
    * IELTS/TOEFL Speaking test soruları üretme servisi
    */
   public AiCallResult generateSpeakingTestQuestions(String message) {
-    PromptCatalog.PromptDef def = PromptCatalog.generateSpeakingTestQuestions();
+    return generateSpeakingTestQuestions(
+        message,
+        LearningLanguageProfile.defaultProfile(),
+        (int) (System.currentTimeMillis() / 86_400_000L));
+  }
+
+  public AiCallResult generateSpeakingTestQuestions(
+      String message, LearningLanguageProfile profile, int dayOfYear) {
+    PromptCatalog.PromptDef def =
+        PromptCatalog.generateSpeakingTestQuestions(profile, dayOfYear);
     return callGroq(def, "Generate " + message + ". Return ONLY JSON.");
   }
 

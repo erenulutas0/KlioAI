@@ -104,7 +104,8 @@ class DailyWritingTopicServiceTest {
         assertEquals("60-90", result.get("wordCount"));
         assertEquals("daily_writing_v1_a2", result.get("contentType"));
         assertTrue(((String) result.get("topic")).contains("memorable trip"));
-        verify(dailyContentRepository).save(any(DailyContent.class));
+        // Fallback icerik cache'lenmemeli - yoksa o gun kalici olarak zehirlenir.
+        verify(dailyContentRepository, never()).save(any(DailyContent.class));
     }
 
     @Test
@@ -119,7 +120,7 @@ class DailyWritingTopicServiceTest {
         assertEquals(Boolean.TRUE, result.get("fallback"));
         assertEquals("C2", result.get("cefrLevel"));
         assertTrue(((String) result.get("topic")).contains("technological progress"));
-        verify(dailyContentRepository).save(any(DailyContent.class));
+        verify(dailyContentRepository, never()).save(any(DailyContent.class));
     }
 
     @Test

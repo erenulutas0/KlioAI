@@ -93,3 +93,10 @@ premortem_analysis.md
 # Personal thesis/dissertation materials (kept local, not in repo)
 docs/dissertation/
 build-analyzer-machine.txt
+
+# UI review screenshots (local only - never commit device screenshots)
+ui-review/
+
+# Stray Maven repo created when -Dmaven.repo.local backslashes are eaten by Git Bash
+backend/Userspc.m2-repo/
+scripts/_tour.ps1

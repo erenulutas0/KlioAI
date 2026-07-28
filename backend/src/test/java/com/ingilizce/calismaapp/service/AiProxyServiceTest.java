@@ -190,7 +190,7 @@ class AiProxyServiceTest {
         assertTrue(result.json().get("texts") instanceof List<?>);
 
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
-        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(320), eq(0.55),
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(320), eq(0.8),
                 nullable(String.class));
         String prompt = messagesCaptor.getValue().get(1).get("content");
         assertTrue(prompt.contains("Source/native language: Spanish"));
