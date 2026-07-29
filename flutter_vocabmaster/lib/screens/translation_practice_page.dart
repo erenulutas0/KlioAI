@@ -84,8 +84,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       if (!mounted) return;
       if (words.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Henüz kelime listeniz boş.'),
+          SnackBar(
+              content: Text(_t(context, 'Henüz kelime listeniz boş.',
+                  'Your word list is empty.')),
               backgroundColor: Colors.red),
         );
         return;
@@ -97,8 +98,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       wordToUse = _selectedWord?.englishWord ?? _wordController.text.trim();
       if (wordToUse.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Lütfen bir kelime seçin veya yazın'),
+          SnackBar(
+              content: Text(_t(context, 'Lütfen bir kelime seçin veya yazın',
+                  'Please pick or type a word')),
               backgroundColor: Colors.red),
         );
         return;
@@ -232,7 +234,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       if (!mounted) return;
       final msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : 'Kontrol hatası: $e';
+          : _t(context, 'Kontrol hatası: $e', 'Check failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
@@ -295,6 +297,12 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       _ => language,
     };
   }
+
+  /// The screen already localized a couple of strings this way but left most
+  /// of its copy hardcoded Turkish, so an English session read as a mix of the
+  /// two ("Çeviri Yönü" sitting next to a "Mixed" chip).
+  String _t(BuildContext context, String tr, String en) =>
+      context.l10n.locale.languageCode == 'tr' ? tr : en;
 
   String _directionLabel(BuildContext context, String direction) {
     final profile = context.watch<LearningLanguageProvider>();
@@ -393,9 +401,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
           const SizedBox(width: 8),
-          const Text(
-            'Çevirme Pratiği',
-            style: TextStyle(
+          Text(
+            _t(context, 'Çevirme Pratiği', 'Translation Practice'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -416,21 +424,22 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
           border:
               Border.all(color: const Color(0xFF8b5cf6).withValues(alpha: 0.3)),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.shuffle, color: Color(0xFF8b5cf6), size: 32),
-            SizedBox(height: 12),
+            const Icon(Icons.shuffle, color: Color(0xFF8b5cf6), size: 32),
+            const SizedBox(height: 12),
             Text(
-              'Karışık Mod',
-              style: TextStyle(
+              _t(context, 'Karışık Mod', 'Mixed Mode'),
+              style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
-              'Rastgele 5 kelime seçilecek',
-              style: TextStyle(color: Colors.white54, fontSize: 13),
+              _t(context, 'Rastgele 5 kelime seçilecek',
+                  '5 random words will be picked'),
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
           ],
         ),
@@ -481,7 +490,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
               controller: _wordController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Kelime yazın...',
+                hintText: _t(context, 'Kelime yazın...', 'Type a word...'),
                 hintStyle:
                     TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                 filled: true,
@@ -507,9 +516,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Çeviri Yönü',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+          Text(
+            _t(context, 'Çeviri Yönü', 'Translation Direction'),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 12),
           Row(
@@ -586,28 +595,31 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         showBorder: false,
         padding: const EdgeInsets.symmetric(vertical: 18),
         child: _isGenerating
-            ? const Row(
+            ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   ),
-                  SizedBox(width: 12),
-                  Text('Owen cümle üretiyor...',
-                      style: TextStyle(color: Colors.white)),
+                  const SizedBox(width: 12),
+                  Text(
+                    _t(context, 'Owen cümle üretiyor...',
+                        'Owen is writing sentences...'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.auto_awesome, color: Colors.white),
-                  SizedBox(width: 8),
+                  const Icon(Icons.auto_awesome, color: Colors.white),
+                  const SizedBox(width: 8),
                   Text(
-                    'Cümle Üret',
-                    style: TextStyle(
+                    _t(context, 'Cümle Üret', 'Generate Sentences'),
+                    style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 16),
@@ -624,7 +636,8 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         const Icon(Icons.format_list_numbered, color: Colors.white70, size: 20),
         const SizedBox(width: 8),
         Text(
-          'Cümleler (${_generatedSentences.length})',
+          _t(context, 'Cümleler (${_generatedSentences.length})',
+              'Sentences (${_generatedSentences.length})'),
           style: const TextStyle(
               color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
@@ -770,7 +783,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        result.isCorrect! ? 'Doğru!' : 'Yanlış',
+                        result.isCorrect!
+                            ? _t(context, 'Doğru!', 'Correct!')
+                            : _t(context, 'Yanlış', 'Incorrect'),
                         style: TextStyle(
                           color: resultColor,
                           fontWeight: FontWeight.bold,
@@ -790,7 +805,9 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                       !result.isCorrect!) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Doğru çeviri: ${result.correctTranslation}',
+                      _t(context,
+                          'Doğru çeviri: ${result.correctTranslation}',
+                          'Correct translation: ${result.correctTranslation}'),
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 13),

@@ -65,23 +65,47 @@ class LevelAndLengthSection extends StatelessWidget {
                 final level = levels[index];
                 final isSelected = selectedLevel == level;
 
+                // accent/secondary varyant farki bazi temalarda (ozellikle
+                // turuncu) neredeyse ayirt edilemiyordu: kullanici hangi
+                // seviyede pratik yaptigini goremiyordu. Secili cipe belirgin
+                // bir cerceve + onay ikonu ekliyoruz - temadan bagimsiz calisir.
                 return GestureDetector(
                   onTap: () => onLevelChanged(level),
-                  child: ModernCard(
-                    borderRadius: BorderRadius.circular(16),
-                    variant: isSelected
-                        ? BackgroundVariant.accent
-                        : BackgroundVariant.secondary,
-                    showGlow: isSelected,
-                    padding: EdgeInsets.zero,
-                    child: Center(
-                      child: Text(
-                        level,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontSize: 16,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w600,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: isSelected
+                          ? Border.all(color: Colors.white, width: 2)
+                          : null,
+                    ),
+                    child: ModernCard(
+                      borderRadius: BorderRadius.circular(16),
+                      variant: isSelected
+                          ? BackgroundVariant.accent
+                          : BackgroundVariant.secondary,
+                      showGlow: isSelected,
+                      padding: EdgeInsets.zero,
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (isSelected) ...[
+                              const Icon(Icons.check_circle,
+                                  color: Colors.white, size: 15),
+                              const SizedBox(width: 5),
+                            ],
+                            Text(
+                              level,
+                              style: TextStyle(
+                                color:
+                                    isSelected ? Colors.white : Colors.white70,
+                                fontSize: 16,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

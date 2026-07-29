@@ -26,12 +26,13 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
   String _text(String tr, String en) => _isTurkish ? tr : en;
 
   String _englishOverview(GrammarSubtopic subtopic) {
-    final formula = subtopic.formula.trim();
+    // formula alani kisa bir formul degil, cok satirli ve Turkce bir blok
+    // (emoji + "3. tekil sahis kurallari" gibi). Onu bir Ingilizce cumlenin
+    // icine gomunce Ingilizce kullaniciya okunamaz bir duvar cikiyordu.
+    // Formul zaten hemen asagida kendi FORMULA bolumunde gosteriliyor.
     final title = subtopic.title.trim();
-    if (formula.isEmpty) {
-      return '$title is an English grammar pattern. Review the notes and examples below to understand how it works in context.';
-    }
-    return '$title is an English grammar pattern. Use the formula "$formula" as your guide and study the examples below to see how it works in real sentences.';
+    return '$title is an English grammar pattern. '
+        'Check the formula below, then study the examples to see how it works in real sentences.';
   }
 
   @override

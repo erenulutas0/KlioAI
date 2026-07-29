@@ -14,9 +14,13 @@ class ReviewModeSelectorPage extends StatelessWidget {
   const ReviewModeSelectorPage({
     super.key,
     this.focusedWord,
+    this.dueOnly = false,
   });
 
   final Word? focusedWord;
+
+  /// Restrict Classic Review to words the SRS scheduler says are due.
+  final bool dueOnly;
 
   bool _isTurkish(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'tr';
@@ -133,8 +137,10 @@ class ReviewModeSelectorPage extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              RepeatPage(initialWordId: focusedWord?.id),
+                          builder: (_) => RepeatPage(
+                            initialWordId: focusedWord?.id,
+                            dueOnly: dueOnly,
+                          ),
                         ),
                       );
                     },

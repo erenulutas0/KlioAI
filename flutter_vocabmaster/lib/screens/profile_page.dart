@@ -1266,7 +1266,12 @@ class _ProfilePageState extends State<ProfilePage> {
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '$totalXp / $nextLevelXp',
+                      // Etiket, hemen altindaki cubukla ayni olcegi kullanmali:
+                      // cubuk seviye-ici ilerlemeyi (xpProgress/xpNeeded) ciziyordu
+                      // ama etiket mutlak degeri (260/500) yaziyordu - cubuk %4
+                      // dolu gorunurken etiket %52 diyordu. Home da seviye-ici
+                      // olcegi kullaniyor, artik ucu da ayni.
+                      '$xpProgress / $xpNeeded',
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),

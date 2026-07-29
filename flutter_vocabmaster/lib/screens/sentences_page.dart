@@ -524,15 +524,32 @@ class _SentenceCardState extends State<SentenceCard> {
     return Color.lerp(from, to, amount) ?? from;
   }
 
+  /// Locates the target word in the sentence, inflection included.
+  ///
+  /// This used to be a plain `indexOf`, which found the stem inside an
+  /// inflected form and then boxed exactly `word.length` characters — so
+  /// "He recovered quickly" rendered as "He [recover] ed quickly", with the
+  /// suffix stranded outside the chip. Matching a whole word token keeps the
+  /// inflection inside the highlight, and the leading `\b` also stops the
+  /// stem from matching inside an unrelated word (no "[cat]" in "concatenate").
+  ({int start, int end})? _findWordSpan(String sentence, String word) {
+    final trimmed = word.trim();
+    if (trimmed.isEmpty) return null;
+    final match = RegExp(
+      '\\b${RegExp.escape(trimmed)}\\w*',
+      caseSensitive: false,
+    ).firstMatch(sentence);
+    return match == null ? null : (start: match.start, end: match.end);
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedTheme = _currentTheme(listen: true);
     final wordText = widget.vm.word?.englishWord ?? '';
     final sentenceText = widget.vm.sentence;
-    final lowerSentence = sentenceText.toLowerCase();
-    final lowerWord = wordText.toLowerCase();
-    final highlightIndex =
-        wordText.isNotEmpty ? lowerSentence.indexOf(lowerWord) : -1;
+    final highlight = _findWordSpan(sentenceText, wordText);
+    final highlightIndex = highlight?.start ?? -1;
+    final highlightEnd = highlight?.end ?? -1;
 
     final spans = <InlineSpan>[];
     if (highlightIndex != -1) {
@@ -567,10 +584,7 @@ class _SentenceCardState extends State<SentenceCard> {
               ],
             ),
             child: Text(
-              sentenceText.substring(
-                highlightIndex,
-                highlightIndex + wordText.length,
-              ),
+              sentenceText.substring(highlightIndex, highlightEnd),
               style: TextStyle(
                 color:
                     Color.lerp(selectedTheme.colors.accent, Colors.white, 0.2),
@@ -582,10 +596,10 @@ class _SentenceCardState extends State<SentenceCard> {
         ),
       );
 
-      if (highlightIndex + wordText.length < sentenceText.length) {
+      if (highlightEnd < sentenceText.length) {
         spans.add(
           TextSpan(
-            text: sentenceText.substring(highlightIndex + wordText.length),
+            text: sentenceText.substring(highlightEnd),
             style:
                 const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
           ),
