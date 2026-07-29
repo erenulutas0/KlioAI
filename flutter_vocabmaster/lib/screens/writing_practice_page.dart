@@ -672,12 +672,21 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _text('Ayni Konuyu Tekrar Coz', 'Retry Same Topic'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  // Unconstrained, this label overflowed its half of the row
+                  // and was hard-cut at the card edge ("Retry Same Topi").
+                  // It is the longer of the two labels in both languages, so
+                  // scale it down to fit rather than ellipsize a two-word tail.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _text('Ayni Konuyu Tekrar Coz', 'Retry Same Topic'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
