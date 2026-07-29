@@ -384,7 +384,11 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              // Neredeyse saydam bir yuzeydi ve animasyonlu arka plandaki
+              // parlak daireler metnin arkasindan gecip okumayi zorlastiriyordu
+              // - ozellikle bir OKUMA egzersizinde kabul edilemez. Pasaj artik
+              // opak bir yuzeyde duruyor.
+              color: const Color(0xFF0F172A).withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
