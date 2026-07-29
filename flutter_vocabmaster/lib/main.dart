@@ -344,6 +344,15 @@ class _MainScreenState extends State<MainScreen> {
           MaterialPageRoute(builder: (_) => const ReviewModeSelectorPage()),
         );
         break;
+      // Entered from the home "N words due" card: the session must contain
+      // exactly those N words, not the whole deck.
+      case 'repeat_due':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ReviewModeSelectorPage(dueOnly: true),
+          ),
+        );
+        break;
       case 'dictionary':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const DictionaryPage()),

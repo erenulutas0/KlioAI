@@ -12,6 +12,7 @@ import '../widgets/modern_background.dart';
 import '../providers/app_state_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/in_app_review_service.dart';
+import '../services/locale_text_service.dart';
 import '../services/xp_manager.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
@@ -19,9 +20,18 @@ import '../theme/theme_provider.dart';
 import '../widgets/session_summary_sheet.dart';
 
 class RepeatPage extends StatefulWidget {
-  const RepeatPage({super.key, this.initialWordId, this.apiService});
+  const RepeatPage({
+    super.key,
+    this.initialWordId,
+    this.apiService,
+    this.dueOnly = false,
+  });
 
   final int? initialWordId;
+
+  /// When true, only words whose SRS `nextReviewDate` has arrived are loaded,
+  /// so a session opened from the home "N words due" card really holds N cards.
+  final bool dueOnly;
 
   /// Test seam; production always uses the real [ApiService].
   final ApiService? apiService;
@@ -135,9 +145,30 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     _startStaggeredAnimations();
   }
 
+  /// Words the SM-2 scheduler has brought up for today. Falls back to the full
+  /// deck when nothing is due (or the backend omits `nextReviewDate`), so the
+  /// screen is never mysteriously empty.
+  List<Word> _selectDueWords(List<Word> all) {
+    final endOfToday = DateTime.now().copyWith(
+      hour: 23,
+      minute: 59,
+      second: 59,
+      millisecond: 999,
+      microsecond: 999,
+    );
+    final due = all
+        .where((word) =>
+            word.nextReviewDate != null &&
+            !word.nextReviewDate!.isAfter(endOfToday))
+        .toList();
+    return due.isEmpty ? all : due;
+  }
+
   Future<void> _loadWords() async {
     try {
-      final loadedWords = await _apiService.getAllWords();
+      final allWords = await _apiService.getAllWords();
+      final loadedWords =
+          widget.dueOnly ? _selectDueWords(allWords) : allWords;
       if (mounted) {
         final initialIndex = widget.initialWordId == null
             ? 0
@@ -154,7 +185,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e')),
+          SnackBar(
+            content: Text(LocaleTextService.pick('Hata: $e', 'Error: $e')),
+          ),
         );
       }
     }
@@ -239,9 +272,12 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     _registerSessionAction(xpEarned: XPActionTypes.reviewComplete.xpAmount);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Öğrenildi olarak işaretlendi! (+5 XP)'),
-          duration: Duration(milliseconds: 800)),
+      SnackBar(
+          content: Text(LocaleTextService.pick(
+            'Öğrenildi olarak işaretlendi! (+5 XP)',
+            'Marked as learned! (+5 XP)',
+          )),
+          duration: const Duration(milliseconds: 800)),
     );
     _handleNext();
   }
@@ -295,15 +331,18 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Henüz hiç kelime yok.\nSözlükten kelime ekleyin!',
+              Text(
+                LocaleTextService.pick(
+                  'Henüz hiç kelime yok.\nSözlükten kelime ekleyin!',
+                  'No words yet.\nAdd some from the dictionary!',
+                ),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Geri Dön'),
+                child: Text(LocaleTextService.pick('Geri Dön', 'Go Back')),
               ),
             ],
           ),
@@ -427,9 +466,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
               // Title
               Column(
                 children: [
-                  const Text(
-                    'Tekrar',
-                    style: TextStyle(
+                  Text(
+                    LocaleTextService.pick('Tekrar', 'Review'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -471,7 +510,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
               _buildStatsPill(
                 0,
                 icon: Icons.auto_awesome,
-                label: 'Progress: ${(progress * 100).toInt()}%',
+                label: LocaleTextService.pick(
+                  'İlerleme: ${(progress * 100).toInt()}%',
+                  'Progress: ${(progress * 100).toInt()}%',
+                ),
                 gradient: [
                   theme.colors.accent,
                   theme.colors.primary,
@@ -481,7 +523,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
               _buildStatsPill(
                 1,
                 icon: Icons.bolt,
-                label: '$remaining kaldı',
+                label: LocaleTextService.pick(
+                  '$remaining kaldı',
+                  '$remaining left',
+                ),
                 gradient: [
                   _mix(theme.colors.primary, theme.colors.accent, 0.45),
                   _mix(theme.colors.accent, Colors.white, 0.15),
@@ -680,62 +725,57 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                             ),
                           ),
 
-                          // Word Display (Variable Size) - Scrollable
+                          // Word, meaning and example share one scroll area.
+                          // They used to sit in separate Expanded(flex:) slots,
+                          // which clipped a wrapped meaning mid-line and hid the
+                          // revealed translation below the example box's fold.
                           Expanded(
-                            flex: 3,
-                            child: Center(
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      card.englishWord,
-                                      style: TextStyle(
-                                        fontSize:
-                                            _getWordFontSize(card.englishWord),
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                        foreground: Paint()
-                                          ..shader = LinearGradient(
-                                            colors: [
-                                              _mix(theme.colors.accent,
-                                                  Colors.white, 0.2),
-                                              theme.colors.primaryLight,
-                                              _mix(theme.colors.primary,
-                                                  theme.colors.accent, 0.45),
-                                            ],
-                                          ).createShader(const Rect.fromLTWH(
-                                              0, 0, 300, 70)),
-                                      ),
-                                      textAlign: TextAlign.center,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    card.englishWord,
+                                    style: TextStyle(
+                                      fontSize:
+                                          _getWordFontSize(card.englishWord),
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
+                                      foreground: Paint()
+                                        ..shader = LinearGradient(
+                                          colors: [
+                                            _mix(theme.colors.accent,
+                                                Colors.white, 0.2),
+                                            theme.colors.primaryLight,
+                                            _mix(theme.colors.primary,
+                                                theme.colors.accent, 0.45),
+                                          ],
+                                        ).createShader(const Rect.fromLTWH(
+                                            0, 0, 300, 70)),
                                     ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      card.turkishMeaning,
-                                      style: TextStyle(
-                                        color: const Color(0xFFE0F2FE)
-                                            .withValues(alpha: 0.8),
-                                        fontSize: _getMeaningFontSize(
-                                            card.turkishMeaning),
-                                      ),
-                                      textAlign: TextAlign.center,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    card.turkishMeaning,
+                                    style: TextStyle(
+                                      color: const Color(0xFFE0F2FE)
+                                          .withValues(alpha: 0.8),
+                                      fontSize: _getMeaningFontSize(
+                                          card.turkishMeaning),
                                     ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (card.sentences.isNotEmpty) ...[
+                                    const SizedBox(height: 20),
+                                    _buildExampleBox(card),
                                   ],
-                                ),
+                                  const SizedBox(height: 8),
+                                ],
                               ),
                             ),
                           ),
-
-                          // Example Box (Flexible & Scrollable)
-                          if (card.sentences.isNotEmpty)
-                            Expanded(
-                              flex: 2,
-                              child: Center(
-                                child: _buildExampleBox(card),
-                              ),
-                            )
-                          else
-                            const Spacer(flex: 2),
 
                           const SizedBox(height: 16),
 
@@ -799,71 +839,57 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     final theme = _theme(listen: true);
     final example = card.sentences.isNotEmpty
         ? card.sentences.first.sentence
-        : 'No example sentence';
+        : LocaleTextService.pick('Örnek cümle yok', 'No example sentence');
     final exampleTr = card.sentences.isNotEmpty
         ? card.sentences.first.translation
-        : 'Çeviri yok';
+        : LocaleTextService.pick('Çeviri yok', 'No translation');
 
     return ModernCard(
       padding: const EdgeInsets.all(16),
       borderRadius: BorderRadius.circular(16),
       variant: BackgroundVariant.primary,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight:
-                    constraints.maxHeight > 0 ? constraints.maxHeight : 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '"$example"',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: example.length > 80 ? 12 : 14,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (_showTranslation) ...[
+            const SizedBox(height: 8),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
+            const SizedBox(height: 8),
+            Text(
+              exampleTr,
+              style: TextStyle(
+                color: theme.colors.accent.withValues(alpha: 0.85),
+                fontSize: exampleTr.length > 80 ? 12 : 13,
               ),
-              child: IntrinsicHeight(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '"$example"',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: example.length > 80 ? 12 : 14,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (_showTranslation) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.1)),
-                      const SizedBox(height: 8),
-                      Text(
-                        exampleTr,
-                        style: TextStyle(
-                          color: theme.colors.accent.withValues(alpha: 0.85),
-                          fontSize: exampleTr.length > 80 ? 12 : 13,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => setState(() => _showTranslation = true),
-                        child: Text(
-                          'Çeviri görmek için dokunun',
-                          style: TextStyle(
-                            color: theme.colors.accent,
-                            fontSize: 12,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+              textAlign: TextAlign.center,
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => setState(() => _showTranslation = true),
+              child: Text(
+                LocaleTextService.pick(
+                  'Çeviri görmek için dokunun',
+                  'Tap to see the translation',
+                ),
+                style: TextStyle(
+                  color: theme.colors.accent,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
                 ),
               ),
             ),
-          );
-        },
+          ],
+        ],
       ),
     );
   }
@@ -874,7 +900,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Bu kelime ne kadar kolaydı?',
+          LocaleTextService.pick(
+            'Bu kelime ne kadar kolaydı?',
+            'How easy was this word?',
+          ),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
             fontSize: 12,
@@ -885,7 +914,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           children: [
             _buildSrsGradeButton(
               key: const ValueKey('srs-grade-hard'),
-              label: 'Zor',
+              label: LocaleTextService.pick('Zor', 'Hard'),
               icon: Icons.replay_rounded,
               color: const Color(0xFFF87171),
               quality: 2,
@@ -893,7 +922,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
             const SizedBox(width: 10),
             _buildSrsGradeButton(
               key: const ValueKey('srs-grade-good'),
-              label: 'İyi',
+              label: LocaleTextService.pick('İyi', 'Good'),
               icon: Icons.check_rounded,
               color: theme.colors.accent,
               quality: 4,
@@ -901,7 +930,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
             const SizedBox(width: 10),
             _buildSrsGradeButton(
               key: const ValueKey('srs-grade-easy'),
-              label: 'Kolay',
+              label: LocaleTextService.pick('Kolay', 'Easy'),
               icon: Icons.done_all_rounded,
               color: const Color(0xFF34D399),
               quality: 5,
@@ -984,10 +1013,13 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Flexible(
+                    Flexible(
                       child: Text(
-                        'Favorilere Ekle',
-                        style: TextStyle(
+                        LocaleTextService.pick(
+                          'Favorilere Ekle',
+                          'Add to Favorites',
+                        ),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -1033,10 +1065,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Flexible(
+                    Flexible(
                       child: Text(
-                        'Öğrendim',
-                        style: TextStyle(
+                        LocaleTextService.pick('Öğrendim', 'I Learned It'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -1080,10 +1112,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                     border:
                         Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
-                      'Önceki',
-                      style: TextStyle(
+                      LocaleTextService.pick('Önceki', 'Previous'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1121,10 +1153,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
-                      'Sonraki',
-                      style: TextStyle(
+                      LocaleTextService.pick('Sonraki', 'Next'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

@@ -474,7 +474,7 @@ class _HomePageState extends State<HomePage>
                                 const SizedBox(height: 16),
                                 DueReviewCard(
                                   dueCount: _dueReviewCount,
-                                  onTap: () => widget.onNavigate('repeat'),
+                                  onTap: () => widget.onNavigate('repeat_due'),
                                 ),
                               ],
                               const SizedBox(height: 24),
