@@ -156,7 +156,23 @@ public class DailyWordsService {
                 "content", prompt
         ));
 
-        String content = aiCompletionProvider.chatCompletion(messages, false, resolveModelForScope("daily-words-generate"));
+        // An explicit completion budget is required, not optional: GroqService only
+        // sends max_tokens when it is non-null, so this call used to run on the
+        // provider default. gpt-oss is a reasoning model and spends part of that
+        // budget thinking, which left the five-entry "words" array truncated
+        // mid-element -- the 2026-07-30 00:05 run died on
+        // "JsonEOFException: expected close marker for Array" at column 2276, and
+        // Groq reported json_validate_failed with "max completion tokens reached
+        // before generating a valid document". Sized like reading-generate (3000),
+        // whose payload is comparable.
+        AiCompletionProvider.CompletionResult completion =
+                aiCompletionProvider.chatCompletionWithUsage(
+                        messages,
+                        false,
+                        3000,
+                        null,
+                        resolveModelForScope("daily-words-generate"));
+        String content = completion != null ? completion.content() : null;
         if (content == null || content.isBlank()) {
             throw new IllegalStateException("AI provider returned empty content");
         }
