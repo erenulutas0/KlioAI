@@ -133,6 +133,10 @@ public class DailyWordsService {
                 - difficulty (String - Easy, Medium, or Hard)
 
                 Return only valid JSON. No markdown.
+                Return it MINIFIED: one single line, no newlines, no indentation,
+                no spaces between tokens. Pretty-printed output wastes the
+                completion budget on whitespace and gets the array truncated
+                before the fifth word is finished.
                 """.formatted(
                 profile.toPromptPolicyBlock(),
                 profile.targetLanguage(),
@@ -163,13 +167,19 @@ public class DailyWordsService {
         // mid-element -- the 2026-07-30 00:05 run died on
         // "JsonEOFException: expected close marker for Array" at column 2276, and
         // Groq reported json_validate_failed with "max completion tokens reached
-        // before generating a valid document". Sized like reading-generate (3000),
-        // whose payload is comparable.
+        // before generating a valid document".
+        //
+        // 3000 was measured live and still truncated -- it reached line 86 of a
+        // pretty-printed payload instead of dying at column 2276, so the budget
+        // was doing its job but the model spends it on whitespace. The prompt now
+        // demands minified JSON, and the cap is generous on top of that. max_tokens
+        // is a ceiling rather than a reservation, so headroom costs nothing when
+        // the response is short.
         AiCompletionProvider.CompletionResult completion =
                 aiCompletionProvider.chatCompletionWithUsage(
                         messages,
                         false,
-                        3000,
+                        6000,
                         null,
                         resolveModelForScope("daily-words-generate"));
         String content = completion != null ? completion.content() : null;
