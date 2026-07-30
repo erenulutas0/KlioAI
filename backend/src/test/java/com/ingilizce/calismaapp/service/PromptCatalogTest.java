@@ -23,6 +23,40 @@ class PromptCatalogTest {
         assertTrue(promptDef.output() == PromptCatalog.PromptOutput.TEXT);
     }
 
+    /// Guards the three rules added after live output produced
+    /// "Maya noticed evaluate during the trip." (dictionary form dropped into a
+    /// noun slot), "Please recover your answer a little more." (grammatical but
+    /// meaningless collocation) and "Could all affect our decision today?"
+    /// (subject deleted to satisfy the no-pronoun-start preference).
+    @Test
+    void generateSentences_ShouldDemandInflectionCollocationAndGrammaticality() {
+        String prompt = PromptCatalog.generateSentences().systemPrompt();
+
+        assertTrue(prompt.contains("Inflect the target word so the sentence is grammatical"));
+        assertTrue(prompt.contains("Never drop the bare dictionary form"));
+        assertTrue(prompt.contains("collocate naturally"));
+        assertTrue(prompt.contains("grammatical but meaningless"));
+        assertTrue(prompt.contains("needs a subject and a finite verb"));
+        assertTrue(prompt.contains("GRAMMAR AND MEANING OUTRANK EVERY STYLE PREFERENCE"));
+        assertTrue(prompt.contains("FINAL CHECK before returning"));
+    }
+
+    /// The pronoun-start constraint used to sit under HARD RULES, where it
+    /// competed with grammaticality and won -- producing subjectless questions.
+    /// It must stay a preference.
+    @Test
+    void generateSentences_ShouldKeepPronounStartRuleAsPreferenceNotHardRule() {
+        String prompt = PromptCatalog.generateSentences().systemPrompt();
+
+        int hardRules = prompt.indexOf("HARD RULES:");
+        int stylePreferences = prompt.indexOf("STYLE PREFERENCES");
+        int pronounRule = prompt.indexOf("no more than one item starts with I/he/she/they");
+
+        assertTrue(hardRules >= 0);
+        assertTrue(stylePreferences > hardRules);
+        assertTrue(pronounRule > stylePreferences);
+    }
+
     @Test
     void grammarPatternSetFor_ShouldReturnFiveConcretePatterns() {
         var patterns = PromptCatalog.grammarPatternSetFor("determine", 42L, false);

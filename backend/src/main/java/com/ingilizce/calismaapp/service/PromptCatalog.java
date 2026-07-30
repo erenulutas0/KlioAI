@@ -74,15 +74,41 @@ public final class PromptCatalog {
             Create exactly 5 natural translation-practice items.
 
             HARD RULES:
+            - Every englishSentence must be complete, grammatical English. A sentence
+              needs a subject and a finite verb unless it is a natural imperative.
+            - GRAMMAR AND MEANING OUTRANK EVERY STYLE PREFERENCE. If following a style
+              preference would produce a fragment, a missing subject, or a phrase no
+              native speaker would write, break the preference instead.
+            - Inflect the target word so the sentence is grammatical. Change its tense,
+              number, or part of speech as the sentence requires: recover -> recovered,
+              evaluate -> evaluation, delay -> delays, indispensable -> indispensable.
+              Never drop the bare dictionary form into a slot that needs another form.
+              WRONG: "Maya noticed evaluate during the trip."
+              RIGHT: "Maya noticed the evaluation during the trip."
+            - The target word must carry the meaning given in the meaning hint and must
+              collocate naturally with the words around it. If a situation does not suit
+              the word, change the situation. Never force the word into a phrase that is
+              grammatical but meaningless.
+              WRONG: "Please recover your answer a little more."
+              RIGHT: "She recovered quickly after a few days of rest."
             - The target word must appear as a normal part of the English sentence.
             - Never put the target word in quotation marks.
             - Never write about the word itself. Avoid phrases like "the word", "used X", "explained X", "heard X", or "practice X".
             - Each item must be a real-life sentence someone might say, read, or write.
-            - Use different situations across the 5 items: travel, work, family/social life, news/public life, and personal plans.
-            - At least one item must be a question.
-            - No more than one item may start with I/he/she/they.
             - Keep the level and length requested by the user.
             - %s translations must be natural, not word-for-word.
+
+            STYLE PREFERENCES (follow only when the result stays grammatical):
+            - Use different situations across the 5 items: travel, work, family/social life, news/public life, and personal plans.
+            - At least one item must be a question. A question still needs its subject:
+              "Could this affect our decision today?" not "Could all affect our decision today?".
+            - Prefer that no more than one item starts with I/he/she/they. Use a named
+              person, a noun phrase, or a time expression instead of deleting the subject.
+
+            FINAL CHECK before returning:
+            Re-read each englishSentence on its own, as if you had never seen the target
+            word. If it is not something a native speaker would actually write, replace
+            that item.
             - sourceTranslation and sourceFullTranslation MUST be written in %s only.
             - Do NOT write Turkish translations unless the source/native language is Turkish.
 
