@@ -26,6 +26,11 @@ import java.util.stream.Collectors;
 public class DailyWordsService {
 
     private static final Logger log = LoggerFactory.getLogger(DailyWordsService.class);
+    /// Completion cap for the five-word payload. Raised twice from the provider
+    /// default after live truncations; the accompanying usage log exists so the
+    /// next change to this number comes from a measurement.
+    private static final int DAILY_WORDS_MAX_TOKENS = 6000;
+
     private static final String CONTENT_TYPE = "daily_words_v3";
     private static final String PREVIOUS_CONTENT_TYPE = "daily_words_v2";
     private static final String LEGACY_CONTENT_TYPE = "daily_words_v1";
@@ -179,10 +184,21 @@ public class DailyWordsService {
                 aiCompletionProvider.chatCompletionWithUsage(
                         messages,
                         false,
-                        6000,
+                        DAILY_WORDS_MAX_TOKENS,
                         null,
                         resolveModelForScope("daily-words-generate"));
         String content = completion != null ? completion.content() : null;
+        if (completion != null) {
+            // Two budget guesses in a row still truncated the array, and nothing
+            // logged what the model actually spent. Record it so the cap can be
+            // set from a measurement instead of another guess; completionTokens
+            // landing on the cap is the signal that the cap is what cut it off.
+            log.info("Daily words generation usage: completionTokens={} promptTokens={} cap={} contentChars={}",
+                    completion.completionTokens(),
+                    completion.promptTokens(),
+                    DAILY_WORDS_MAX_TOKENS,
+                    content == null ? 0 : content.length());
+        }
         if (content == null || content.isBlank()) {
             throw new IllegalStateException("AI provider returned empty content");
         }
