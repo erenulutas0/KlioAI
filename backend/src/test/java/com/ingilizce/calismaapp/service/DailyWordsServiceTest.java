@@ -63,8 +63,9 @@ class DailyWordsServiceTest {
                         date.minusDays(1),
                         "daily_words_v1",
                         "{\"words\":[{\"word\":\"resilient\"}]}")));
-        when(aiCompletionProvider.chatCompletion(any(), anyBoolean(), isNull()))
-                .thenReturn("""
+        when(aiCompletionProvider.chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), isNull()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("""
                         {"words":[
                           {"id":1,"word":"route","pronunciation":"/ru:t/","translation":"rota","meanings":[{"translation":"rota","sense":"way to a place","exampleSentence":"Which route is faster?","exampleTranslation":"Hangi rota daha hızlı?"},{"translation":"güzergah","sense":"planned path","exampleSentence":"The bus route changed.","exampleTranslation":"Otobüs güzergahı değişti."}],"partOfSpeech":"Noun","definition":"A way to a place.","exampleSentence":"Which route is faster?","exampleTranslation":"Hangi rota daha hızlı?","synonyms":["path"],"difficulty":"Easy"},
                           {"id":2,"word":"navigate","pronunciation":"/navigeit/","translation":"yolunu bulmak","meanings":[{"translation":"yolunu bulmak","sense":"find the way","exampleSentence":"We navigated the city.","exampleTranslation":"Şehirde yolumuzu bulduk."},{"translation":"idare etmek","sense":"handle a difficult situation","exampleSentence":"She navigated the meeting well.","exampleTranslation":"Toplantıyı iyi idare etti."}],"partOfSpeech":"Verb","definition":"To find the way.","exampleSentence":"We navigated the city.","exampleTranslation":"Şehirde yolumuzu bulduk.","synonyms":["guide"],"difficulty":"Medium"},
@@ -72,13 +73,19 @@ class DailyWordsServiceTest {
                           {"id":4,"word":"accessible","pronunciation":"/aksesibıl/","translation":"erişilebilir","meanings":[{"translation":"erişilebilir","sense":"easy to reach","exampleSentence":"The station is accessible.","exampleTranslation":"İstasyona erişilebilir."},{"translation":"anlaşılır","sense":"easy to understand","exampleSentence":"Her talk was accessible.","exampleTranslation":"Konuşması anlaşılırdı."}],"partOfSpeech":"Adjective","definition":"Easy to reach.","exampleSentence":"The station is accessible.","exampleTranslation":"İstasyona erişilebilir.","synonyms":["reachable"],"difficulty":"Medium"},
                           {"id":5,"word":"commute","pronunciation":"/kəmyu:t/","translation":"işe gidip gelmek","meanings":[{"translation":"işe gidip gelmek","sense":"travel to work","exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidip geliyorsun?"},{"translation":"yolculuk","sense":"regular trip to work","exampleSentence":"Her commute takes an hour.","exampleTranslation":"İşe gidiş yolculuğu bir saat sürüyor."}],"partOfSpeech":"Verb","definition":"Travel to work.","exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidip geliyorsun?","synonyms":["travel"],"difficulty":"Hard"}
                         ]}
-                        """);
+                        """, 0, 0, 0));
 
         List<Map<String, Object>> words = dailyWordsService.getDailyWords(date);
 
         assertEquals(5, words.size());
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
-        verify(aiCompletionProvider).chatCompletion(messagesCaptor.capture(), eq(false), isNull());
+        ArgumentCaptor<Integer> maxTokensCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(aiCompletionProvider).chatCompletionWithUsage(
+                messagesCaptor.capture(), eq(false), maxTokensCaptor.capture(), any(), isNull());
+        // An explicit budget must reach the provider. GroqService drops max_tokens
+        // when it is null, and the provider default truncated the words array
+        // mid-element on the 2026-07-30 00:05 run.
+        assertTrue(maxTokensCaptor.getValue() != null && maxTokensCaptor.getValue() >= 2000);
         String userPrompt = messagesCaptor.getValue().get(1).get("content");
         assertTrue(userPrompt.contains("TODAY'S TOPIC CATEGORY"));
         assertTrue(userPrompt.contains("EXCLUDE recently used words: [resilient]"));
@@ -104,7 +111,8 @@ class DailyWordsServiceTest {
 
         assertEquals(2, words.size());
         assertEquals("cached", words.get(0).get("word"));
-        verify(aiCompletionProvider, never()).chatCompletion(any(), anyBoolean(), any());
+        verify(aiCompletionProvider, never()).chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), any());
         verify(dailyContentRepository, never()).save(any(DailyContent.class));
     }
 
@@ -117,7 +125,8 @@ class DailyWordsServiceTest {
         List<Map<String, Object>> words = dailyWordsService.getDailyWords(date);
 
         assertTrue(words.isEmpty());
-        verify(aiCompletionProvider, never()).chatCompletion(any(), anyBoolean(), any());
+        verify(aiCompletionProvider, never()).chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -145,7 +154,8 @@ class DailyWordsServiceTest {
         assertTrue(firstWords.contains("device"));
         assertTrue(firstWords.contains("deadline"));
         assertTrue(firstWords.contains("habit"));
-        verify(aiCompletionProvider, never()).chatCompletion(any(), anyBoolean(), any());
+        verify(aiCompletionProvider, never()).chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), any());
         verify(dailyContentRepository, never()).save(any(DailyContent.class));
     }
 
@@ -157,8 +167,10 @@ class DailyWordsServiceTest {
         when(dailyContentRepository.findByContentTypeAndContentDateBetweenOrderByContentDateDesc(
                 any(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(aiCompletionProvider.chatCompletion(any(), anyBoolean(), isNull()))
-                .thenReturn("{\"words\":[{\"word\":\"only-one\"}]}");
+        when(aiCompletionProvider.chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), isNull()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(
+                        "{\"words\":[{\"word\":\"only-one\"}]}", 0, 0, 0));
 
         List<Map<String, Object>> words = dailyWordsService.getDailyWords(date);
 
@@ -180,8 +192,9 @@ class DailyWordsServiceTest {
         when(dailyContentRepository.findByContentTypeAndContentDateBetweenOrderByContentDateDesc(
                 eq("daily_words_v1"), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(aiCompletionProvider.chatCompletion(any(), anyBoolean(), isNull()))
-                .thenReturn("""
+        when(aiCompletionProvider.chatCompletionWithUsage(
+                any(), anyBoolean(), any(), any(), isNull()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("""
                         text before
                         {"words":[
                           {"id":1,"word":"privacy","pronunciation":"/p/","translation":"gizlilik","meanings":[{"translation":"gizlilik","sense":"personal data","exampleSentence":"Privacy matters.","exampleTranslation":"Gizlilik önemlidir."},{"translation":"mahremiyet","sense":"private life","exampleSentence":"Respect privacy.","exampleTranslation":"Mahremiyete saygı duy."}],"partOfSpeech":"Noun","definition":"Private information.","exampleSentence":"Privacy matters.","exampleTranslation":"Gizlilik önemlidir.","synonyms":["confidentiality"],"difficulty":"Easy"},
@@ -191,7 +204,7 @@ class DailyWordsServiceTest {
                           {"id":5,"word":"shortcut","pronunciation":"/s/","translation":"kısayol","meanings":[{"translation":"kısayol","sense":"quick way","exampleSentence":"Use a shortcut.","exampleTranslation":"Kısayol kullan."},{"translation":"kısa yol","sense":"faster route","exampleSentence":"This shortcut helps.","exampleTranslation":"Bu kısa yol yardımcı olur."}],"partOfSpeech":"Noun","definition":"A quicker way.","exampleSentence":"Use a shortcut.","exampleTranslation":"Kısayol kullan.","synonyms":["quick route"],"difficulty":"Hard"}
                         ]}
                         trailing text
-                        """);
+                        """, 0, 0, 0));
 
         List<Map<String, Object>> words = dailyWordsService.getDailyWords(date);
 
