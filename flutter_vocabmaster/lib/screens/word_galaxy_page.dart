@@ -88,10 +88,16 @@ String? _reviewStatusBadgeLabel(Word word, bool isTurkish) {
   return null;
 }
 
+/// English needs the singular after 1; the badges used to read "1 sentences"
+/// and "1 reviews". Turkish is unaffected -- a noun after a numeral does not
+/// take the plural suffix, so "1 cumle" and "3 cumle" are both already right.
+String _enCount(int count, String singular) =>
+    '$count ${count == 1 ? singular : '${singular}s'}';
+
 String _reviewCountBadgeLabel(Word word, bool isTurkish) {
   return isTurkish
       ? '${word.reviewCount} tekrar'
-      : '${word.reviewCount} reviews';
+      : _enCount(word.reviewCount, 'review');
 }
 
 String? _nextReviewDetailLabel(Word word, bool isTurkish) {
@@ -1120,7 +1126,7 @@ class _WordGalaxyNodeCard extends StatelessWidget {
                     _TinyBadge(
                       label: isTurkish
                           ? '${word.sentences.length} cumle'
-                          : '${word.sentences.length} sentences',
+                          : _enCount(word.sentences.length, 'sentence'),
                     ),
                     if (dueLabel != null)
                       _TinyBadge(label: dueLabel)
@@ -1748,7 +1754,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                   _TinyBadge(
                     label: _isTurkish
                         ? '${_sentences.length} cumle'
-                        : '${_sentences.length} sentences',
+                        : _enCount(_sentences.length, 'sentence'),
                   ),
                   if (_word.reviewCount > 0)
                     _TinyBadge(
