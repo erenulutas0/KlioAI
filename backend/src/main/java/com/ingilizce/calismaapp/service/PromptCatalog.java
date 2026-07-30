@@ -97,6 +97,8 @@ public final class PromptCatalog {
             - Each item must be a real-life sentence someone might say, read, or write.
             - Keep the level and length requested by the user.
             - %s translations must be natural, not word-for-word.
+            - sourceTranslation and sourceFullTranslation MUST be written in %s only.
+            - Do NOT write Turkish translations unless the source/native language is Turkish.
 
             STYLE PREFERENCES (follow only when the result stays grammatical):
             - Use different situations across the 5 items: travel, work, family/social life, news/public life, and personal plans.
@@ -109,8 +111,6 @@ public final class PromptCatalog {
             Re-read each englishSentence on its own, as if you had never seen the target
             word. If it is not something a native speaker would actually write, replace
             that item.
-            - sourceTranslation and sourceFullTranslation MUST be written in %s only.
-            - Do NOT write Turkish translations unless the source/native language is Turkish.
 
             OUTPUT FORMAT:
             Return only this minified JSON shape:
