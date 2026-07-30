@@ -258,7 +258,11 @@ public class ChatbotController {
         String normalizedWord = String.join(", ", targetWords).toLowerCase(Locale.ROOT);
         Map<String, String> targetWordMeanings = targetWordMeanings(userId, targetWords, languageProfile);
         List<String> grammarPatterns = PromptCatalog.grammarPatternSetFor(normalizedWord + ":" + direction, userId, fresh);
-        String promptVersion = "v6";
+        // v7: the sentence prompt gained inflection, collocation and grammaticality
+        // rules. This version token is part of the cache key, so it must be bumped
+        // alongside the prompt -- otherwise every already-cached word keeps serving
+        // the old, broken sentences and the fix looks like it did nothing.
+        String promptVersion = "v7";
         // Separate cache per user? Or global? Sentences are knowledge, so global is
         // fine.
         String cacheKey = CACHE_KEY_PREFIX + promptVersion + ":" + languageCachePart(languageProfile) + ":" + normalizedWord + ":"
