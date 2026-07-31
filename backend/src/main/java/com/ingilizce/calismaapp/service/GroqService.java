@@ -281,6 +281,21 @@ public class GroqService {
                     Map message = (Map) choice.get("message");
                     String content = (String) message.get("content");
 
+                    // Diagnostic: callers have been receiving empty content on 200 OK
+                    // responses and silently falling back to canned output. The models in
+                    // use are reasoning models, which may place their output somewhere
+                    // other than "content". Record the shape of the reply before deciding
+                    // whether the extraction above is reading the wrong field.
+                    if (content == null || content.isBlank()) {
+                        Object reasoning = message.get("reasoning");
+                        logger.warn(
+                                "Groq returned no content. finishReason={} messageKeys={} reasoningChars={} model={}",
+                                choice.get("finish_reason"),
+                                message.keySet(),
+                                reasoning instanceof String s ? s.length() : -1,
+                                requestBody.get("model"));
+                    }
+
                     int promptTokens = 0;
                     int completionTokens = 0;
                     int totalTokens = 0;
