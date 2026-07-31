@@ -91,6 +91,23 @@ class AiPaywallHandler {
     return false;
   }
 
+  /// Decides whether a 401 means "you need to pay" rather than "your session ended".
+  ///
+  /// The default is deliberately "session problem". Sending a paying subscriber to the
+  /// subscription page because their token expired is far more damaging than missing an
+  /// upsell, so this only returns true on a positive billing signal.
+  ///
+  /// Two rules used to break that: a bare `unauthorized` was classed as a paywall, and
+  /// Spring's entry point returns exactly `{"error":"Unauthorized"}` with no reason for an
+  /// expired JWT — so every expired session opened the subscription page. The other was
+  /// `text.contains('ai')`, which matches those two letters anywhere: fail, email,
+  /// available, again, domain, maintenance.
+  @visibleForTesting
+  static bool shouldOpenSubscriptionForUnauthorized(
+    ApiUnauthorizedException error,
+  ) =>
+      _shouldOpenSubscriptionForUnauthorized(error);
+
   static bool _shouldOpenSubscriptionForUnauthorized(
     ApiUnauthorizedException error,
   ) {
@@ -100,7 +117,9 @@ class AiPaywallHandler {
         text.contains('session') ||
         text.contains('token') ||
         text.contains('giris') ||
-        text.contains('login')) {
+        text.contains('login') ||
+        text.contains('expired') ||
+        text.contains('suresi')) {
       return false;
     }
 
@@ -108,9 +127,11 @@ class AiPaywallHandler {
         text.contains('subscription') ||
         text.contains('premium') ||
         text.contains('upgrade') ||
-        text.contains('ai') ||
-        text.contains('yetkisiz') ||
-        text.trim() == 'unauthorized' ||
-        text.trim().endsWith(' unauthorized');
+        text.contains('quota') ||
+        text.contains('kota') ||
+        text.contains('entitlement') ||
+        text.contains('ai-') ||
+        text.contains('ai_') ||
+        text.contains('yetkisiz');
   }
 }

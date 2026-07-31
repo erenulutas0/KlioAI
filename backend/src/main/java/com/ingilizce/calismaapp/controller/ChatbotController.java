@@ -3,6 +3,7 @@ package com.ingilizce.calismaapp.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.dto.PracticeSentence;
+import com.ingilizce.calismaapp.service.DailyContentFallbackSupport;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.LearningLanguageProfile;
 import com.ingilizce.calismaapp.service.PromptCatalog;
@@ -1313,6 +1314,24 @@ public class ChatbotController {
         }
     }
 
+    /// Caches a dictionary answer, but never a stand-in one.
+    ///
+    /// The four dictionary endpoints wrote whatever came back straight to Redis for
+    /// {@code dictionaryCacheTtlSeconds} (a day). When the AI call failed, the stand-in
+    /// payload — "Anlam gecici olarak getirilemedi" — was cached under the same key, and
+    /// because later requests hit the cache the word was never retried: one transient
+    /// failure broke that word for every user for 24 hours.
+    ///
+    /// DailyContentFallbackSupport was written for exactly this and is already used by the
+    /// daily-content services; the dictionary path simply never called it.
+    private void storeDictionaryResponse(String cacheKey, Map<String, Object> payload) {
+        if (DailyContentFallbackSupport.isFallbackPayload(payload)) {
+            log.warn("Skipping dictionary cache write for fallback payload key={}", cacheKey);
+            return;
+        }
+        storeMapToCache(cacheKey, payload, dictionaryCacheTtlSeconds);
+    }
+
     private void storeMapToCache(String cacheKey, Map<String, Object> payload, long ttlSeconds) {
         if (redisTemplate == null || cacheKey == null || cacheKey.isBlank() || payload == null || payload.isEmpty()) {
             return;
@@ -1832,7 +1851,7 @@ public class ChatbotController {
             Map<String, Object> response = result.json() != null
                     ? result.json()
                     : Map.of("word", word.trim(), "meanings", List.of());
-            storeMapToCache(cacheKey, response, dictionaryCacheTtlSeconds);
+            storeDictionaryResponse(cacheKey, response);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("dictionaryLookup failed userId={} word={}", userId, word, e);
@@ -1868,7 +1887,7 @@ public class ChatbotController {
             Map<String, Object> response = result.json() != null
                     ? result.json()
                     : Map.of("word", word.trim(), "meanings", List.of());
-            storeMapToCache(cacheKey, response, dictionaryCacheTtlSeconds);
+            storeDictionaryResponse(cacheKey, response);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("dictionaryLookupDetailed failed userId={} word={}", userId, word, e);
@@ -1906,7 +1925,7 @@ public class ChatbotController {
             Map<String, Object> response = result.json() != null
                     ? result.json()
                     : Map.of("definition", "");
-            storeMapToCache(cacheKey, response, dictionaryCacheTtlSeconds);
+            storeDictionaryResponse(cacheKey, response);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("dictionaryExplain failed userId={} word={}", userId, word, e);
@@ -1949,7 +1968,7 @@ public class ChatbotController {
             Map<String, Object> response = result.json() != null
                     ? result.json()
                     : Map.of("sentence", "");
-            storeMapToCache(cacheKey, response, dictionaryCacheTtlSeconds);
+            storeDictionaryResponse(cacheKey, response);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("dictionaryGenerateSpecificSentence failed userId={} word={}", userId, word, e);

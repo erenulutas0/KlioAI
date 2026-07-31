@@ -31,7 +31,14 @@ class EvaluationData {
   final String coherence;
   final String overall;
   final String contextRelevance;
-  
+
+  /// True when the backend could not evaluate the writing and answered with its stand-in
+  /// payload. That payload carries score 0, which is not a judgement of the learner's text
+  /// — it is the absence of one. The flag was already being sent and simply never read, so
+  /// a transient AI failure wrote a permanent zero into the user's writing history and
+  /// showed it to them as "your score out of 100".
+  final bool isFallback;
+
   EvaluationData({
     required this.score,
     required this.strengths,
@@ -41,10 +48,12 @@ class EvaluationData {
     required this.coherence,
     required this.overall,
     required this.contextRelevance,
+    this.isFallback = false,
   });
 
   factory EvaluationData.fromJson(Map<String, dynamic> json) {
     return EvaluationData(
+      isFallback: json['fallback'] == true,
       score: json['score'] ?? 0,
       strengths: List<String>.from(json['strengths'] ?? []),
       improvements: List<String>.from(json['improvements'] ?? []),

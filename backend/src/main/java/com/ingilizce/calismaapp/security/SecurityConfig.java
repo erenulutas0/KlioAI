@@ -62,8 +62,17 @@ public class SecurityConfig {
                                 }
                                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                // The reason is load-bearing, not decoration. Without it the
+                                // body is just {"error":"Unauthorized"}, and the client has
+                                // nothing to distinguish an expired session from a billing
+                                // refusal -- it used to read that bare string as a paywall
+                                // and send the user, paying subscribers included, to the
+                                // subscription page instead of the login screen.
                                 response.getWriter().write(objectMapper.writeValueAsString(
-                                        Map.of("error", "Unauthorized", "success", false)));
+                                        Map.of(
+                                                "error", "Unauthorized",
+                                                "reason", "session-expired",
+                                                "success", false)));
                             } else {
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
                                         .commence(request, response, authException);

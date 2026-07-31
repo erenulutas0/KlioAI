@@ -749,6 +749,23 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
     try {
       final evaluation =
           await GroqService.evaluateWriting(_userText, _selectedLevel, _topic!);
+
+      // The backend answers an evaluation it could not perform with a stand-in payload
+      // scoring 0. Recording that would put a permanent zero on text the learner actually
+      // wrote, and paying XP for it would reward a failure. Treat it as the error it is
+      // and let them retry with the text still in the field.
+      if (evaluation.isFallback) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_text(
+            'Degerlendirme su an yapilamadi. Yazin duruyor, tekrar deneyebilirsin.',
+            'The evaluation could not be made right now. Your text is safe — try again.',
+          )),
+        ));
+        return;
+      }
+
       await _progressService.saveWritingResult(
         level: _selectedLevel,
         topic: _topic?.topic ?? '',
