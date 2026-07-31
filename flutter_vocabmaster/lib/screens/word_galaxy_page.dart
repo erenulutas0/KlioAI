@@ -15,6 +15,75 @@ import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
 import '../widgets/word_sentences_modal.dart';
 
+/// How many cards sit in each ring, innermost first.
+const List<int> galaxyRingCounts = <int>[6, 8, 10];
+
+/// Where the rings go, and how big a canvas is needed to hold them.
+///
+/// Extracted from the page because it is pure geometry and the page's own version of it
+/// was wrong in a way nobody could see without running the app: rings sat at fixed radii
+/// while card size varied, so cards overlapped each other and the focus card until neither
+/// could be read. Out here the no-overlap property can actually be asserted.
+class GalaxyRingLayout {
+  const GalaxyRingLayout({required this.ringRadii, required this.canvasSize});
+
+  final List<double> ringRadii;
+  final Size canvasSize;
+
+  static const double focusNodeSize = 180;
+
+  /// Rings are ellipses, not circles — a node at the top of a ring only reaches 0.72 of
+  /// the radius. Clearance has to be computed along that axis, where the gap is tightest.
+  static const double verticalSquash = 0.72;
+
+  static const double nodeGutter = 18;
+  static const Size minCanvasSize = Size(1080, 820);
+
+  /// Places each ring far enough out that its widest card clears everything inside it,
+  /// then sizes the canvas to contain the result.
+  ///
+  /// The canvas is deliberately an output. It lives inside an InteractiveViewer that the
+  /// user pans and zooms, so there is no reason to force the content into a fixed box —
+  /// and no way to, either: 18 cards of ~165px do not fit in three squashed rings inside
+  /// 1080x820 whichever constant you move.
+  static GalaxyRingLayout solve({
+    required List<double> nodeSizes,
+    required List<int> ringCounts,
+  }) {
+    final radii = <double>[];
+    // The outer edge of whatever is already placed, measured on the squashed axis.
+    var innerEdge = focusNodeSize / 2;
+    var cursor = 0;
+
+    for (var ring = 0; ring < ringCounts.length && cursor < nodeSizes.length; ring++) {
+      final itemsInRing = math.min(ringCounts[ring], nodeSizes.length - cursor);
+      final widest = nodeSizes
+          .sublist(cursor, cursor + itemsInRing)
+          .reduce((a, b) => a > b ? a : b);
+      // Dividing by the squash turns "gap needed on screen" into "radius needed".
+      final needed = (innerEdge + (widest / 2) + nodeGutter) / verticalSquash;
+      final radius = math.max(180.0 + (ring * 140), needed);
+      radii.add(radius);
+      innerEdge = (radius * verticalSquash) + (widest / 2);
+      cursor += itemsInRing;
+    }
+
+    final outermost = radii.isEmpty ? 0.0 : radii.last;
+    final widest =
+        nodeSizes.isEmpty ? focusNodeSize : nodeSizes.reduce((a, b) => a > b ? a : b);
+    final halfWidth = outermost + (widest / 2) + nodeGutter;
+    final halfHeight = (outermost * verticalSquash) + (widest / 2) + nodeGutter;
+
+    return GalaxyRingLayout(
+      ringRadii: radii,
+      canvasSize: Size(
+        math.max(minCanvasSize.width, halfWidth * 2),
+        math.max(minCanvasSize.height, halfHeight * 2),
+      ),
+    );
+  }
+}
+
 class WordGalaxyPage extends StatefulWidget {
   const WordGalaxyPage({super.key, this.initialWordId});
 
@@ -118,7 +187,9 @@ String? _nextReviewDetailLabel(Word word, bool isTurkish) {
 
 class _WordGalaxyPageState extends State<WordGalaxyPage> {
   static const String _presetStorageKey = 'word_galaxy_background_preset';
-  static const Size _canvasSize = Size(1080, 820);
+  /// Sized by [GalaxyRingLayout] each time the nodes are rebuilt, so the canvas holds the
+  /// rings rather than the rings being squeezed into the canvas.
+  Size _canvasSize = GalaxyRingLayout.minCanvasSize;
 
   final TransformationController _transformationController =
       TransformationController();
@@ -372,43 +443,52 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
 
     final visibleWords = rankedWords.take(18).toList();
 
+    // The old `urgency * 48` inward pull is deliberately gone. Its intent — overdue words
+    // nearer the middle — is already served by the ranking above, which fills the inner
+    // rings first by due date, and urgency still drives card size below. As a radius
+    // adjustment it did nothing but break the spacing it was drawn into.
+    //
+    // Sizes first: a radius cannot be chosen before it is known what has to fit at it.
+    final sizes = visibleWords
+        .map((entry) => (104 +
+                math.min(entry.word.sentences.length, 4) * 6 +
+                (18 * entry.score) +
+                (entry.urgency * 14) +
+                (math.min(entry.word.reviewCount, 6) * 1.5))
+            .toDouble())
+        .toList();
+
+    final plan = GalaxyRingLayout.solve(nodeSizes: sizes, ringCounts: galaxyRingCounts);
+    final ringRadii = plan.ringRadii;
+    _canvasSize = plan.canvasSize;
+
     final nodes = <_GalaxyNode>[
       _GalaxyNode(
         word: focusWord,
         center: Offset(_canvasSize.width / 2, _canvasSize.height / 2),
-        size: 180,
+        size: GalaxyRingLayout.focusNodeSize,
         isFocus: true,
         relatedness: 1,
         ringIndex: 0,
       ),
     ];
 
-    final ringCounts = <int>[6, 8, 10];
     var index = 0;
     for (var ring = 0;
-        ring < ringCounts.length && index < visibleWords.length;
+        ring < ringRadii.length && index < visibleWords.length;
         ring++) {
-      final baseRadius = 180.0 + (ring * 140);
-      final count = ringCounts[ring];
+      final count = galaxyRingCounts[ring];
       final itemsInRing = math.min(count, visibleWords.length - index);
+      final radius = ringRadii[ring];
       for (var slot = 0; slot < itemsInRing; slot++) {
         final entry = visibleWords[index];
         final word = entry.word;
         final angle = (-math.pi / 2) + ((2 * math.pi * slot) / itemsInRing);
-        final radiusPull = entry.urgency * 48;
-        final radius = math.max(140.0, baseRadius - radiusPull);
         final center = Offset(
           (_canvasSize.width / 2) + (math.cos(angle) * radius),
-          (_canvasSize.height / 2) + (math.sin(angle) * radius * 0.72),
+          (_canvasSize.height / 2) + (math.sin(angle) * radius * GalaxyRingLayout.verticalSquash),
         );
-        final emphasis = 18 * entry.score;
-        final reviewBoost =
-            (entry.urgency * 14) + (math.min(word.reviewCount, 6) * 1.5);
-        final size = (104 +
-                math.min(word.sentences.length, 4) * 6 +
-                emphasis +
-                reviewBoost)
-            .toDouble();
+        final size = sizes[index];
         nodes.add(_GalaxyNode(
           word: word,
           center: center,
