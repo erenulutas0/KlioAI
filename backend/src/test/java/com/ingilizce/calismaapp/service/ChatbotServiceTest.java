@@ -113,7 +113,8 @@ class ChatbotServiceTest {
 
         chatbotService.chat("hi");
 
-        verify(aiCompletionProvider).chatCompletionWithUsage(anyList(), eq(false), eq(260), any(),
+        // 260 of answer room plus the reasoning allowance; see REASONING_TOKEN_ALLOWANCE.
+        verify(aiCompletionProvider).chatCompletionWithUsage(anyList(), eq(false), eq(260 + 1600), any(),
                 eq("llama-3.3-70b-versatile"));
     }
 

@@ -16,6 +16,23 @@ import java.util.Objects;
 public class ChatbotService {
 
   private static final Logger logger = LoggerFactory.getLogger(ChatbotService.class);
+
+  /// Headroom every completion budget below has to carry.
+  ///
+  /// The configured models (openai/gpt-oss-120b and -20b) are reasoning models: they spend
+  /// part of the completion budget thinking, and that thinking never reaches the caller,
+  /// which only reads message.content. The budgets here were sized for a non-reasoning
+  /// model and never revisited.
+  ///
+  /// Measured on 2026-07-31: a generate_sentences call capped at 900 came back
+  /// finish_reason=length with 4013 characters of reasoning and an EMPTY content field.
+  /// The practice screen then fell through to ChatbotController's five hardcoded template
+  /// sentences ("Maya noticed evaluate during the trip.") and showed them to the learner as
+  /// if the model had written them.
+  ///
+  /// max_tokens is a ceiling, not a reservation, so the allowance is free on calls that
+  /// answer briefly.
+  private static final int REASONING_TOKEN_ALLOWANCE = 1600;
   private final AiCompletionProvider aiCompletionProvider;
   private final ObjectMapper objectMapper;
   @Autowired(required = false)
@@ -99,7 +116,8 @@ public class ChatbotService {
     List<Map<String, String>> history = conversationSessionService != null
         ? conversationSessionService.recentMessages(userId)
         : List.of();
-    AiCallResult result = callGroqText(systemPrompt, history, message, 260, "speaking-chat");
+    AiCallResult result = callGroqText(
+        systemPrompt, history, message, 260 + REASONING_TOKEN_ALLOWANCE, "speaking-chat");
     if (conversationSessionService != null && result.content() != null && !result.content().isBlank()) {
       conversationSessionService.recordTurn(userId, message, result.content());
     }
@@ -151,22 +169,28 @@ public class ChatbotService {
     logger.info("Prompt {} v{}", def.id(), def.version());
     boolean jsonMode = def.output() == PromptCatalog.PromptOutput.JSON_OBJECT;
 
+    // Each budget is "room for the answer" + REASONING_TOKEN_ALLOWANCE. Only
+    // generate_sentences is backed by a measurement; the others carry the same allowance
+    // because they run on the same reasoning models and were sized the same way. The
+    // "Groq returned no content" warning in GroqService will name any that still fall short.
     Integer maxTokens = null;
     String scope = "chat";
     if ("chat_buddy".equals(def.id())) {
-      maxTokens = 220;
+      maxTokens = 220 + REASONING_TOKEN_ALLOWANCE;
       scope = "chat";
     } else if ("generate_sentences".equals(def.id())) {
-      maxTokens = 900;
+      // Answer room raised too: five items with five fields each, and the measured
+      // daily-words payload of comparable size needed about 1000 tokens of content.
+      maxTokens = 1400 + REASONING_TOKEN_ALLOWANCE;
       scope = "generate-sentences";
     } else if ("check_translation_tr".equals(def.id()) || "check_translation_en".equals(def.id())) {
-      maxTokens = 500;
+      maxTokens = 500 + REASONING_TOKEN_ALLOWANCE;
       scope = "check-translation";
     } else if ("speaking_questions".equals(def.id())) {
-      maxTokens = 600;
+      maxTokens = 600 + REASONING_TOKEN_ALLOWANCE;
       scope = "speaking-generate";
     } else if ("speaking_evaluation".equals(def.id())) {
-      maxTokens = 900;
+      maxTokens = 900 + REASONING_TOKEN_ALLOWANCE;
       scope = "speaking-evaluate";
     }
 

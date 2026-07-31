@@ -190,7 +190,10 @@ class AiProxyServiceTest {
         assertTrue(result.json().get("texts") instanceof List<?>);
 
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
-        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(320), eq(0.8),
+        // 320 of answer room plus the 1600-token reasoning allowance callJson adds, because
+        // the gpt-oss models spend part of the completion budget thinking before emitting
+        // any content at all.
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(320 + 1600), eq(0.8),
                 nullable(String.class));
         String prompt = messagesCaptor.getValue().get(1).get("content");
         assertTrue(prompt.contains("Source/native language: Spanish"));
@@ -290,7 +293,7 @@ class AiProxyServiceTest {
         assertEquals("grammar", meta.get("category"));
 
         ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
-        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(4000), eq(0.85),
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(4000 + 1600), eq(0.85),
                 nullable(String.class));
         String prompt = messagesCaptor.getValue().get(1).get("content");
         assertTrue(prompt.contains("YDS/YÖKDİL Sınav Simülasyonu (10 Soru)."));

@@ -23,6 +23,26 @@ import java.util.regex.Pattern;
 public class AiProxyService {
 
     private static final Logger logger = LoggerFactory.getLogger(AiProxyService.class);
+
+    /// Room the reasoning models need before they emit any content at all.
+    ///
+    /// The scopes below were sized as "how long should the answer be", which is correct for
+    /// an ordinary chat model. openai/gpt-oss-* are reasoning models and spend a slice of
+    /// the same completion budget thinking; that slice never reaches the caller, which only
+    /// reads message.content. Measured on 2026-07-31 on the sibling generate_sentences call:
+    /// a 900-token cap ended at finish_reason=length after 4013 characters of reasoning,
+    /// with content empty.
+    ///
+    /// The smallest scopes here are the most exposed: dictionary-explain asked for 120
+    /// tokens and dictionary-specific-sentence for 200, which reasoning alone would consume.
+    private static final int REASONING_TOKEN_ALLOWANCE = 1600;
+
+    private static Integer withReasoningAllowance(Integer answerTokens) {
+        if (answerTokens == null || answerTokens <= 0) {
+            return answerTokens;
+        }
+        return answerTokens + REASONING_TOKEN_ALLOWANCE;
+    }
     private final AiCompletionProvider aiCompletionProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
     @Autowired(required = false)
@@ -648,10 +668,13 @@ JSON ÇIKTI FORMATI:
         messages.add(Map.of("role", "system", "content", systemPrompt));
         messages.add(Map.of("role", "user", "content", userPrompt));
 
+        // The allowance is added here rather than at each call site so a new scope cannot
+        // be added without it. Callers keep passing the size of the ANSWER they expect;
+        // the thinking the reasoning model does on top is this method's problem.
         AiCompletionProvider.CompletionResult completion = aiCompletionProvider.chatCompletionWithUsage(
                 messages,
                 true,
-                maxTokens,
+                withReasoningAllowance(maxTokens),
                 temperature,
                 resolveModelForScope(scope));
         String raw = completion != null ? completion.content() : null;
