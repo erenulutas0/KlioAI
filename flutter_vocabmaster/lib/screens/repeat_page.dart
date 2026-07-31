@@ -257,15 +257,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
       debugPrint('Classic review SRS submit failed (offline?): $e');
     }
     if (!mounted) return;
-    // SRS notlama bugüne kadar hiç XP/streak vermiyordu - yalnızca manuel
-    // "öğrenildi" butonu veriyordu. Not vermek de bir tekrar tamamlamadır;
-    // addXPForAction ayrıca streak'i işler (creditLearningActivity).
-    // Bilinçli olarak await edilmiyor: kart akışı XP alt sistemine (prefs/DB)
-    // takılmamalı - kazanç toast'u zaten global dinleyiciden gelir.
-    unawaited(context.read<AppStateProvider>().addXPForAction(
-          XPActionTypes.reviewComplete,
-          source: 'SRS Tekrar',
-        ));
+    // The XP and streak credit for a graded review now lives in
+    // AppStateProvider.submitWordReview, so that Word Galaxy — which called the same
+    // provider method but awarded nothing — is rewarded identically. Awarding again here
+    // would pay twice for one review.
     _registerSessionAction(xpEarned: XPActionTypes.reviewComplete.xpAmount);
     setState(() => _isSubmittingSrsGrade = false);
     _handleNext();

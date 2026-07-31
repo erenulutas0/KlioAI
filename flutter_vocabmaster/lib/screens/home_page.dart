@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 // Add Word model
 import '../widgets/animated_background.dart';
 import '../services/api_service.dart';
+import '../services/xp_manager.dart';
 import '../services/user_data_service.dart';
 import '../services/social_service.dart';
 import '../widgets/due_review_card.dart';
@@ -362,21 +363,12 @@ class _HomePageState extends State<HomePage>
     super.dispose();
   }
 
-  /// Level için minimum XP değerini döndürür
-  int _getLevelMinXP(int level) {
-    if (level <= 1) return 0;
-    if (level == 2) return 100;
-    if (level == 3) return 250;
-    if (level == 4) return 500;
-    if (level == 5) return 1000;
-    if (level == 6) return 2000;
-    if (level == 7) return 3500;
-    if (level == 8) return 5500;
-    if (level == 9) return 8000;
-    if (level == 10) return 11000;
-    // 10. seviyeden sonra her 5000 XP
-    return 15000 + ((level - 11) * 5000);
-  }
+  /// Level için minimum XP değeri.
+  ///
+  /// This was a third hand-written copy of the level ladder. Three copies of the same
+  /// table is three chances to disagree, and two of them already did — a user past 15000
+  /// XP was shown a negative "XP to next level". Read the one in XPManager instead.
+  int _getLevelMinXP(int level) => XPManager().xpForLevel(level);
 
   Future<void> _loadOnlineUsers() async {
     try {

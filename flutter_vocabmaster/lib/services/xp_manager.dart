@@ -574,20 +574,32 @@ class XPManager {
   }
 
   /// Seviye hesapla
-  int calculateLevel(int totalXP) {
-    if (totalXP < 100) return 1;
-    if (totalXP < 250) return 2;
-    if (totalXP < 500) return 3;
-    if (totalXP < 1000) return 4;
-    if (totalXP < 2000) return 5;
-    if (totalXP < 3500) return 6;
-    if (totalXP < 5500) return 7;
-    if (totalXP < 8000) return 8;
-    if (totalXP < 11000) return 9;
-    if (totalXP < 15000) return 10;
+  /// Cumulative XP needed to reach each level; index 0 is level 1.
+  ///
+  /// Both directions of the level maths are derived from this one list. They used to be two
+  /// hand-written ladders that disagreed past the end of the table: calculateLevel counted
+  /// 15000 XP as level 10 while xpForLevel said level 11 began there, so a user on 16000 XP
+  /// was told they needed **-1000 XP** for the next level and their progress bar stuck at
+  /// 100%. Only the most committed users ever got far enough to see it.
+  static const List<int> _levelThresholds = <int>[
+    0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 15000,
+  ];
 
-    // 10. seviyeden sonra her 5000 XP = 1 seviye
-    return 10 + ((totalXP - 15000) ~/ 5000);
+  /// Past the table every level costs the same again.
+  static const int _xpPerLevelBeyondTable = 5000;
+
+  int calculateLevel(int totalXP) {
+    for (var index = _levelThresholds.length - 1; index >= 0; index--) {
+      if (totalXP < _levelThresholds[index]) {
+        continue;
+      }
+      if (index == _levelThresholds.length - 1) {
+        return _levelThresholds.length +
+            ((totalXP - _levelThresholds[index]) ~/ _xpPerLevelBeyondTable);
+      }
+      return index + 1;
+    }
+    return 1;
   }
 
   /// Sonraki seviye için gereken XP
@@ -608,22 +620,18 @@ class XPManager {
     return xpInCurrentLevel / xpNeededForLevel;
   }
 
-  int _getXPForLevel(int level) {
+  /// Cumulative XP needed to reach [level]. The inverse of [calculateLevel]; both read the
+  /// same ladder so they cannot drift apart again.
+  int xpForLevel(int level) {
     if (level <= 1) return 0;
-    if (level == 2) return 100;
-    if (level == 3) return 250;
-    if (level == 4) return 500;
-    if (level == 5) return 1000;
-    if (level == 6) return 2000;
-    if (level == 7) return 3500;
-    if (level == 8) return 5500;
-    if (level == 9) return 8000;
-    if (level == 10) return 11000;
-    if (level == 11) return 15000;
-
-    // 11. seviyeden sonra her seviye +5000 XP
-    return 15000 + ((level - 11) * 5000);
+    if (level <= _levelThresholds.length) {
+      return _levelThresholds[level - 1];
+    }
+    return _levelThresholds.last +
+        ((level - _levelThresholds.length) * _xpPerLevelBeyondTable);
   }
+
+  int _getXPForLevel(int level) => xpForLevel(level);
 
   /// Günlük XP kaydı
   Future<void> _recordDailyXP(XPActionType action) async {

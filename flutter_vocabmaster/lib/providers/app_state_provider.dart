@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import '../services/offline_sync_service.dart';
 import '../services/auth_service.dart';
@@ -815,6 +816,22 @@ class AppStateProvider extends ChangeNotifier {
           );
         }).toList();
       }
+
+      // Reward the review here rather than in each screen. Classic Review awarded XP after
+      // grading; Word Galaxy did not — and because addXPForAction is what credits the
+      // streak (creditLearningActivity), a learner who reviewed fifty words in Galaxy
+      // finished the day with no XP and a broken streak, punished for using the screen the
+      // app leads with. One caller, one behaviour.
+      //
+      // The transaction id scopes the reward to one word per day: reviewing the same word
+      // repeatedly is practice, not a new achievement, and without an id XPManager has no
+      // way to de-duplicate at all.
+      final today = DateTime.now().toIso8601String().split('T').first;
+      unawaited(addXPForAction(
+        XPActionTypes.reviewComplete,
+        source: 'SRS Tekrar',
+        transactionId: 'srs_review_${wordId}_$today',
+      ));
 
       await _loadUserData();
       notifyListeners();
