@@ -783,6 +783,46 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// Word Galaxy ve benzeri akislardan SRS review submit et.
+  /// The word today's recall reminder should ask about.
+  ///
+  /// Picks the one whose review is most overdue, so the notification lands on whatever the
+  /// scheduler already considers most at risk of being forgotten. Falls back to the
+  /// soonest-due word, then to the newest one, so a learner who is completely up to date
+  /// still gets something.
+  ///
+  /// Note there is no "favourite" to prefer here: the heart button in Classic Review only
+  /// animates, it stores nothing. If favourites become real, they belong at the front of
+  /// this list.
+  Word? wordForRecallReminder() {
+    if (_allWords.isEmpty) return null;
+
+    final scheduled = _allWords.where((w) => w.nextReviewDate != null).toList()
+      ..sort((a, b) => a.nextReviewDate!.compareTo(b.nextReviewDate!));
+    if (scheduled.isNotEmpty) {
+      return scheduled.first;
+    }
+    return _allWords.last;
+  }
+
+  /// Re-arms the daily word recall notification with a freshly chosen word.
+  ///
+  /// Local notifications carry their text with them, so the word has to be picked when the
+  /// notification is scheduled rather than when it fires. Re-arming on each session keeps
+  /// it from asking about the same word forever.
+  Future<void> refreshWordRecallReminder() async {
+    try {
+      final word = wordForRecallReminder();
+      if (word == null) return;
+      await LocalReminderService().scheduleWordRecallReminder(
+        word: word.englishWord,
+        isTurkish: LocaleTextService.isTurkish,
+        wordId: word.id.toString(),
+      );
+    } catch (e) {
+      debugPrint('Word recall reminder scheduling skipped: $e');
+    }
+  }
+
   Future<Word?> submitWordReview({
     required int wordId,
     required int quality,
@@ -1776,6 +1816,7 @@ class AppStateProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Streak reminder scheduling skipped: $e');
     }
+    unawaited(refreshWordRecallReminder());
 
     _userStats['streak'] = currentStreak;
 

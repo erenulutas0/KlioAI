@@ -26,6 +26,11 @@ void main() {
             streakGuardSubtitle: 'One reminder before your streak is at risk.',
             streakGuardEnabled: true,
             onStreakGuardChanged: (_) {},
+            wordRecallTitle: 'Word recall',
+            wordRecallSubtitle:
+                'Once a day, asks you about a word whose review is overdue.',
+            wordRecallEnabled: true,
+            onWordRecallChanged: (_) {},
             dailyWordsTitle: 'Daily words and updates',
             dailyWordsSubtitle: 'New daily content and updates.',
             dailyWordsEnabled: false,
@@ -69,6 +74,11 @@ void main() {
           streakGuardSubtitle: 'One reminder before your streak is at risk.',
           streakGuardEnabled: true,
           onStreakGuardChanged: (_) {},
+          wordRecallTitle: 'Word recall',
+          wordRecallSubtitle:
+              'Once a day, asks you about a word whose review is overdue.',
+          wordRecallEnabled: true,
+          onWordRecallChanged: (_) {},
           dailyWordsTitle: 'Daily words and updates',
           dailyWordsSubtitle: 'New daily content and updates.',
           dailyWordsEnabled: false,

@@ -61,6 +61,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // State for notification settings
   bool _dailyReminderNotifications = false;
   bool _streakGuardNotifications = true;
+  bool _wordRecallNotifications = true;
   bool _dailyWordsNotifications = false;
   bool _subscriptionAlertNotifications = true;
   bool _socialNotifications = true;
@@ -204,6 +205,22 @@ class _ProfilePageState extends State<ProfilePage> {
       if (appliedDaily != requestedDaily) {
         setStateDialog(() => _dailyReminderNotifications = appliedDaily);
         setState(() => _dailyReminderNotifications = appliedDaily);
+      }
+
+      // These switches were only ever sent to the backend for push. Locally every
+      // scheduler read the daily-reminder flag, so turning off streak or subscription
+      // reminders here changed nothing about what actually arrived on the phone. Store
+      // them where the schedulers look.
+      try {
+        await _localReminderService.setReminderEnabled(
+            LocalReminderService.streakGuardKey, _streakGuardNotifications);
+        await _localReminderService.setReminderEnabled(
+            LocalReminderService.subscriptionAlertKey,
+            _subscriptionAlertNotifications);
+        await _localReminderService.setReminderEnabled(
+            LocalReminderService.wordRecallKey, _wordRecallNotifications);
+      } catch (e) {
+        debugPrint('Local reminder switches not stored: $e');
       }
 
       final saved = await _apiService.updateNotificationPreferences({
@@ -2083,6 +2100,18 @@ class _ProfilePageState extends State<ProfilePage> {
           onStreakGuardChanged: (v) {
             setStateDialog(() => _streakGuardNotifications = v);
             setState(() => _streakGuardNotifications = v);
+            _saveNotificationPreferences(setStateDialog);
+          },
+          wordRecallTitle:
+              _text('Kelime hatırlatması', 'Word recall'),
+          wordRecallSubtitle: _text(
+            'Günde bir kez, tekrarı gecikmiş bir kelimeni sorar.',
+            'Once a day, asks you about a word whose review is overdue.',
+          ),
+          wordRecallEnabled: _wordRecallNotifications,
+          onWordRecallChanged: (v) {
+            setStateDialog(() => _wordRecallNotifications = v);
+            setState(() => _wordRecallNotifications = v);
             _saveNotificationPreferences(setStateDialog);
           },
           dailyWordsTitle: _text(

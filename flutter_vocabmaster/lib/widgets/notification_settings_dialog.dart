@@ -15,6 +15,10 @@ class NotificationSettingsDialog extends StatelessWidget {
     required this.streakGuardSubtitle,
     required this.streakGuardEnabled,
     required this.onStreakGuardChanged,
+    required this.wordRecallTitle,
+    required this.wordRecallSubtitle,
+    required this.wordRecallEnabled,
+    required this.onWordRecallChanged,
     required this.dailyWordsTitle,
     required this.dailyWordsSubtitle,
     required this.dailyWordsEnabled,
@@ -41,6 +45,10 @@ class NotificationSettingsDialog extends StatelessWidget {
   final String streakGuardSubtitle;
   final bool streakGuardEnabled;
   final ValueChanged<bool> onStreakGuardChanged;
+  final String wordRecallTitle;
+  final String wordRecallSubtitle;
+  final bool wordRecallEnabled;
+  final ValueChanged<bool> onWordRecallChanged;
   final String dailyWordsTitle;
   final String dailyWordsSubtitle;
   final bool dailyWordsEnabled;
@@ -118,6 +126,16 @@ class NotificationSettingsDialog extends StatelessWidget {
                 subtitle: streakGuardSubtitle,
                 value: streakGuardEnabled,
                 onChanged: onStreakGuardChanged,
+                enabled: !saving,
+              ),
+              const SizedBox(height: 12),
+              _NotificationSwitchTile(
+                key: const ValueKey('notification-word-recall-switch'),
+                theme: theme,
+                title: wordRecallTitle,
+                subtitle: wordRecallSubtitle,
+                value: wordRecallEnabled,
+                onChanged: onWordRecallChanged,
                 enabled: !saving,
               ),
               const SizedBox(height: 12),

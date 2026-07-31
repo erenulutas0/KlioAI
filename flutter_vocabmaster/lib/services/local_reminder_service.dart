@@ -14,6 +14,19 @@ import 'analytics_service.dart';
 
 class LocalReminderService {
   static const String dailyReminderKey = 'notifications:daily_reminder_enabled';
+
+  /// Each reminder answers to its own switch.
+  ///
+  /// The settings screen has always shown separate toggles for streak and subscription
+  /// reminders, and sent all of them to the backend for push — but locally every scheduler
+  /// checked [dailyReminderKey]. Turning off streak reminders in settings did nothing to
+  /// the streak reminder actually arriving on the phone, which is the difference between
+  /// a reminder and being pestered.
+  static const String streakGuardKey = 'notifications:streak_guard_enabled';
+  static const String subscriptionAlertKey =
+      'notifications:subscription_alert_enabled';
+  static const String wordRecallKey = 'notifications:word_recall_enabled';
+
   static const String lastOpenedPayloadKey =
       'notifications:last_opened_payload';
   static const String lastOpenedAtKey = 'notifications:last_opened_at';
@@ -21,6 +34,7 @@ class LocalReminderService {
   static const int _dailyReminderId = 31001;
   static const int _streakGuardReminderId = 31002;
   static const int _trialExpiryReminderId = 31003;
+  static const int _wordRecallReminderId = 31004;
   static const int _remoteNotificationBaseId = 32000;
   static const int _dailyReminderHour = 20;
   static const int _dailyReminderMinute = 0;
@@ -28,6 +42,13 @@ class LocalReminderService {
   static const int _streakGuardMinute = 30;
   static const int _trialReminderHour = 10;
   static const int _trialReminderMinute = 0;
+
+  /// Deliberately in the middle of the day, well away from the 20:00 practice nudge and
+  /// the 20:30 streak guard. Three notifications inside half an hour is how a reminder
+  /// turns into nagging; spreading them means a user who has all three on still only hears
+  /// from the app twice in an evening.
+  static const int _wordRecallHour = 13;
+  static const int _wordRecallMinute = 30;
   static const String _channelId = 'daily_learning_reminders';
   static const String _channelName = 'Daily learning reminders';
   static const String _channelDescription =
@@ -104,6 +125,34 @@ class LocalReminderService {
     // gerçek kapı zaten OS bildirim izni (Android 13+ istemi). Kullanıcının
     // ayarlardan verdiği açık "kapat" kararı (stored false) her zaman korunur.
     return prefs.getBool(dailyReminderKey) ?? true;
+  }
+
+  /// Reads one of the per-reminder switches.
+  ///
+  /// Defaults to on, matching [isDailyReminderEnabled]: the real gate is the OS permission
+  /// prompt, and an explicit "off" stored by the user is always honoured.
+  Future<bool> _isEnabled(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(key) ?? true;
+  }
+
+  Future<bool> isStreakGuardEnabled() => _isEnabled(streakGuardKey);
+
+  Future<bool> isSubscriptionAlertEnabled() => _isEnabled(subscriptionAlertKey);
+
+  Future<bool> isWordRecallEnabled() => _isEnabled(wordRecallKey);
+
+  /// Stores a per-reminder switch and cancels anything already scheduled when it goes off.
+  /// Turning one off has to take effect on the notification already sitting in the OS
+  /// queue, not just on the next one that would have been scheduled.
+  Future<void> setReminderEnabled(String key, bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, enabled);
+    if (!enabled) {
+      if (key == streakGuardKey) await cancelStreakGuardReminder();
+      if (key == subscriptionAlertKey) await cancelTrialExpiryReminder();
+      if (key == wordRecallKey) await cancelWordRecallReminder();
+    }
   }
 
   Future<bool> setDailyReminderEnabled(bool enabled) async {
@@ -183,7 +232,9 @@ class LocalReminderService {
 
   Future<void> scheduleStreakGuardReminder() async {
     await initialize();
-    if (!await isDailyReminderEnabled()) {
+    // Its own switch, not the daily one. These were the same check, so the streak toggle
+    // in settings had no effect on the streak reminder.
+    if (!await isStreakGuardEnabled()) {
       await cancelStreakGuardReminder();
       return;
     }
@@ -220,7 +271,7 @@ class LocalReminderService {
     int? daysRemaining,
   }) async {
     await initialize();
-    if (!await isDailyReminderEnabled() ||
+    if (!await isSubscriptionAlertEnabled() ||
         !trialActive ||
         daysRemaining == null ||
         daysRemaining <= 0) {
@@ -239,6 +290,73 @@ class LocalReminderService {
           UILocalNotificationDateInterpretation.absoluteTime,
       payload: 'trial_expiring',
     );
+  }
+
+  /// A daily nudge about one specific word, rather than a generic "come practise".
+  ///
+  /// Naming the word is the point: "What did *elaborate* mean?" is itself a retrieval
+  /// attempt, so the notification does a little teaching even if it is never tapped. A
+  /// generic reminder cannot do that.
+  ///
+  /// [word] is chosen by the caller, which knows the vocabulary; this service only knows
+  /// how to schedule. [isTurkish] picks the copy language.
+  ///
+  /// One per day, at [_wordRecallHour], and only if the user has left the switch on.
+  Future<void> scheduleWordRecallReminder({
+    required String word,
+    required bool isTurkish,
+    String? wordId,
+  }) async {
+    await initialize();
+    if (!await isWordRecallEnabled() || word.trim().isEmpty) {
+      await cancelWordRecallReminder();
+      return;
+    }
+
+    final trimmed = word.trim();
+    // Two phrasings, alternating by day so the notification does not read like a form
+    // letter. Both ask for recall rather than announcing something.
+    final askMeaning = DateTime.now().day.isEven;
+    final title = isTurkish ? 'Bunu hatirliyor musun?' : 'Do you remember this one?';
+    final body = askMeaning
+        ? (isTurkish
+            ? '"$trimmed" ne demekti? Hatirlayip kontrol et.'
+            : 'What did "$trimmed" mean? Try to recall, then check.')
+        : (isTurkish
+            ? '"$trimmed" kelimesini bir kez tekrar edelim mi?'
+            : 'Shall we run through "$trimmed" once?');
+
+    await _notifications.zonedSchedule(
+      _wordRecallReminderId,
+      title,
+      body,
+      _nextWordRecallTime(),
+      _notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: wordId == null ? 'word_recall' : 'word_recall:$wordId',
+    );
+  }
+
+  tz.TZDateTime _nextWordRecallTime() {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      _wordRecallHour,
+      _wordRecallMinute,
+    );
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    return scheduled;
+  }
+
+  Future<void> cancelWordRecallReminder() async {
+    await _notifications.cancel(_wordRecallReminderId);
   }
 
   Future<void> cancelDailyReminder() async {
