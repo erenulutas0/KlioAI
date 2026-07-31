@@ -1,4 +1,16 @@
 
+/// Returns [value] only when it is a positive number, otherwise [fallback].
+///
+/// Written for `time_limit_minutes`: the backend's stand-in exam payload sends 0, and a
+/// plain `?? 180` accepts it because 0 is not null. That produced a timer of zero seconds
+/// which ended the exam immediately, on an exam that had no questions in it either.
+int _positiveOr(dynamic value, int fallback) {
+  if (value is num && value > 0) {
+    return value.toInt();
+  }
+  return fallback;
+}
+
 class ExamBundle {
   final ExamMeta meta;
   final List<ExamSection> sections;
@@ -41,7 +53,10 @@ class ExamMeta {
       track: json['track'],
       userLevelCefr: json['user_level_cefr'],
       targetScoreBand: json['target_score_band'],
-      timeLimitMinutes: json['time_limit_minutes'] ?? 180,
+      // `??` only catches null. The backend's stand-in exam payload sends 0, which slipped
+      // through and became a zero-length timer that ended the exam a second after it
+      // started. Treat a non-positive limit as missing.
+      timeLimitMinutes: _positiveOr(json['time_limit_minutes'], 180),
       totalQuestions: json['total_questions'] ?? 0,
     );
   }

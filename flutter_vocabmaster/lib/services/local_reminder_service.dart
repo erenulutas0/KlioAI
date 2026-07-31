@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -37,6 +38,25 @@ class LocalReminderService {
 
   static bool _initialized = false;
 
+  /// Points the scheduler at the timezone the phone is actually in.
+  ///
+  /// Every reminder used to be scheduled in Europe/Istanbul regardless of where the user
+  /// was, so a "20:00 study reminder" arrived at 22:00 in Jakarta and 18:00 in Berlin. The
+  /// device zone is what the user set their day by, so it is what the schedule must follow.
+  ///
+  /// Falls back to Istanbul rather than UTC if the lookup fails: for the existing user base
+  /// that is the closest guess, and it keeps the previous behaviour rather than shifting
+  /// everyone's reminders by three hours on a lookup error.
+  Future<void> _useDeviceTimeZone() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      debugPrint('Device timezone lookup failed, keeping Europe/Istanbul: $e');
+      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+    }
+  }
+
   Future<void> initialize() async {
     if (_initialized) {
       return;
@@ -44,7 +64,7 @@ class LocalReminderService {
 
     try {
       tz.initializeTimeZones();
-      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+      await _useDeviceTimeZone();
 
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');

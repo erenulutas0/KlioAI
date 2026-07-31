@@ -23,7 +23,9 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
   final Map<String, String> _answers = {};
 
   int _currentIndex = 0;
-  late Timer _timer;
+  // Nullable rather than late: an exam with no questions never starts a timer, and a late
+  // field would throw on cancel in dispose().
+  Timer? _timer;
   late int _remainingSeconds;
 
   @override
@@ -31,7 +33,12 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
     super.initState();
     _flattenItems();
     _remainingSeconds = widget.examBundle.meta.timeLimitMinutes * 60;
-    _startTimer();
+    // An exam with no questions cannot be sat. Starting the countdown anyway walked the
+    // user straight into a results screen scored out of nothing, which is where the "NaN"
+    // came from. Leave the timer unstarted and let build() show the empty state instead.
+    if (_allItems.isNotEmpty) {
+      _startTimer();
+    }
   }
 
   void _flattenItems() {
@@ -54,13 +61,19 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
   }
 
   void _finishExam() {
-    _timer.cancel();
+    _timer?.cancel();
     // Sınav bitişi bugüne kadar hiç XP/streak vermiyordu: examComplete action
     // tanımlıydı ama hiçbir ekrandan çağrılmıyordu. addXPForAction aynı
     // zamanda streak'i de işler (creditLearningActivity).
+    // Without a transactionId XPManager cannot de-duplicate, so the same exam could be
+    // finished repeatedly for the same reward. Scoped per exam, mode and day: sitting a
+    // given exam again the same day is practice, not a second achievement.
+    final meta = widget.examBundle.meta;
+    final today = DateTime.now().toIso8601String().split('T').first;
     unawaited(context.read<AppStateProvider>().addXPForAction(
           XPActionTypes.examComplete,
           source: 'Sınav Simülasyonu',
+          transactionId: 'exam_${meta.exam}_${meta.mode}_$today',
         ));
     Navigator.pushReplacement(
       context,
@@ -77,7 +90,7 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -115,8 +128,44 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
   @override
   Widget build(BuildContext context) {
     if (_allItems.isEmpty) {
-      return const Scaffold(
-          body: Center(child: Text("Hata: Soru bulunamadı.")));
+      // Was a bare centred string with no app bar and no back action, so a user who
+      // reached it — which the stand-in exam payload made possible — was stuck on a dead
+      // screen and had to kill the app.
+      final isTurkish = Localizations.localeOf(context).languageCode == 'tr';
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white70, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  isTurkish
+                      ? 'Bu sinav su an hazirlanamadi. Lutfen tekrar dene.'
+                      : 'This exam could not be prepared right now. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: Text(isTurkish ? 'Geri Don' : 'Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     final currentItem = _allItems[_currentIndex];

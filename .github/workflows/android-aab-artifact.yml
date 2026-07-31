@@ -103,9 +103,44 @@ jobs:
 
           chmod 600 flutter_vocabmaster/android/key.properties flutter_vocabmaster/android/app/upload-keystore.jks
 
+      # Play refuses a versionCode it has already seen, and the code in pubspec.yaml does
+      # not move on its own -- every build from an unchanged tree carried the same number,
+      # so a forgotten bump was only discovered after a ~50 minute build, at upload.
+      #
+      # The run number is monotonic per workflow, so it can never collide or go backwards.
+      # The offset lifts it clear of the codes already published by hand (the highest was
+      # 334); without it the first automated build would have gone backwards and Play would
+      # have refused that instead.
+      #
+      # Only the build number is overridden. The version NAME still comes from pubspec.yaml,
+      # so the human-meaningful part of the version stays under your control and in git.
+      - name: Resolve version code
+        id: versioncode
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 400 ))
+          echo "value=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Build number for this run: $BUILD_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build Release AAB
         working-directory: flutter_vocabmaster
-        run: flutter build appbundle --release --dart-define=BACKEND_URL="${{ inputs.backend_url }}"
+        run: |
+          flutter build appbundle --release \
+            --build-number=${{ steps.versioncode.outputs.value }} \
+            --dart-define=BACKEND_URL="${{ inputs.backend_url }}"
+
+      # Records which commit produced which versionCode, so the mapping is not lost just
+      # because the number is no longer written in the repository.
+      - name: Record build identity
+        run: |
+          {
+            echo "### Build identity"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| versionCode | ${{ steps.versioncode.outputs.value }} |"
+            echo "| commit | ${{ github.sha }} |"
+            echo "| version name | $(grep '^version:' flutter_vocabmaster/pubspec.yaml | sed 's/version: //' | cut -d+ -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Release Checklist
         shell: pwsh

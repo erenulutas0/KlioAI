@@ -47,7 +47,11 @@ class ExamResultPage extends StatelessWidget {
     int incorrectCount = totalQuestions - correctCount - blankCount;
     // YDS score is typically Correct * 1.25 (since 80 questions = 100 points)
     // But for general purpose let's just do percentage or normalized score
-    double rawScore = (correctCount / totalQuestions) * 100;
+    //
+    // The guard is not theoretical: an exam bundle with no questions divides 0 by 0, and
+    // in Dart that is NaN, which reached the screen literally as the text "NaN".
+    double rawScore =
+        totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
 
     return Scaffold(
       body: Stack(
