@@ -484,6 +484,14 @@ class NeuralGameBloc extends Bloc<NeuralGameEvent, NeuralGameState> {
         .toList(growable: false);
   }
 
+  /// The curated associations for a centre word, or empty if it has none.
+  ///
+  /// Exposed so tests can submit a word that genuinely belongs to the set the game drew,
+  /// rather than one that only passed because the old gate accepted anything pronounceable.
+  @visibleForTesting
+  static List<String> softAssociationsFor(String centerWord) =>
+      _softAssociations[centerWord.trim().toLowerCase()] ?? const <String>[];
+
   _WordMatch? _matchLooseAssociation({
     required WordSet wordSet,
     required String normalizedInput,
@@ -504,15 +512,28 @@ class NeuralGameBloc extends Bloc<NeuralGameEvent, NeuralGameState> {
       final isCenterSoftMatch = centerSoft.contains(candidate) ||
           centerSoft.contains(stemCandidate) ||
           centerSoft.any((w) => _isNearMatch(w, candidate));
-      final isNatural = _looksLikeNaturalWord(candidate);
-      if (!isCenterSoftMatch && !isNatural) {
+
+      // Only a curated association counts.
+      //
+      // This used to fall back to _looksLikeNaturalWord, which asked whether the input was
+      // three or more letters, lowercase, contained a vowel and had no tripled letter.
+      // "blorp" satisfies all four, so it was accepted against TRAVEL as an "open link" and
+      // scored — the app telling the learner that blorp is an English word related to
+      // travel. Neither existence nor relatedness was ever checked; the one skill the mode
+      // claims to exercise was not being measured at all.
+      //
+      // There is no source here that can judge an arbitrary pair, so the honest scope is
+      // the curated lists. That makes this a closed-set retrieval task — name the words you
+      // know that connect to this one — which is a better vocabulary exercise than the open
+      // prompt was pretending to be.
+      if (!isCenterSoftMatch) {
         continue;
       }
 
       return _WordMatch(
         canonicalWord: 'soft:$candidate',
         displayWord: candidate,
-        subtitle: isCenterSoftMatch ? 'strong link' : 'open link',
+        subtitle: 'strong link',
         isLooseAssociation: true,
       );
     }
@@ -550,24 +571,10 @@ class NeuralGameBloc extends Bloc<NeuralGameEvent, NeuralGameState> {
     return accepted;
   }
 
-  bool _looksLikeNaturalWord(String token) {
-    if (token.length < 3) {
-      return false;
-    }
-    if (_stopWords.contains(token)) {
-      return false;
-    }
-    if (!RegExp(r'^[a-z]+$').hasMatch(token)) {
-      return false;
-    }
-    if (!RegExp(r'[aeiou]').hasMatch(token)) {
-      return false;
-    }
-    if (RegExp(r'(.)\1\1').hasMatch(token)) {
-      return false;
-    }
-    return true;
-  }
+  // _looksLikeNaturalWord was deleted rather than left unused. It asked whether a string
+  // was three or more lowercase letters with a vowel and no tripled letter, and its answer
+  // was treated as "this is a real English word related to the prompt" — which it never
+  // established. Keeping it around would invite it back.
 
   String _stemToken(String value) {
     var token = value.trim();

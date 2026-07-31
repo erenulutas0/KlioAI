@@ -455,6 +455,16 @@ class XPManager {
 
       await _localDb.deductXp(amount);
 
+      // Remember that this XP was deliberately spent.
+      //
+      // ensureMinimumTotalXP re-derives a floor from the user's content (words x10,
+      // sentences x5, ...) and lifts the total back up to it. Without a record of
+      // spending, that floor silently refunded every purchase: a learner with enough
+      // words bought a streak freeze for 500 XP and had the 500 restored on the next
+      // load, while a learner with little content genuinely paid. The one place XP can
+      // be spent worked backwards, punishing exactly the users who had earned the most.
+      await _recordSpentXp(amount);
+
       // Günlük kayıt güncelle (eksiye düşebilir)
       final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now().toIso8601String().split('T')[0];
@@ -519,7 +529,28 @@ class XPManager {
 
   /// Reconcile local total XP upward when existing learning content proves the
   /// user has earned at least [minimumXp].
+  static const String _spentXpKey = 'total_xp_spent';
+
+  /// Running total of XP the user has deliberately spent.
+  Future<int> spentXp() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_spentXpKey) ?? 0;
+  }
+
+  Future<void> _recordSpentXp(int amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_spentXpKey, (prefs.getInt(_spentXpKey) ?? 0) + amount);
+  }
+
+  /// Raises the total to [minimumXp], less whatever has been spent.
+  ///
+  /// The floor exists to repair totals that drifted below what the user's content says
+  /// they earned. Spending is not drift — it is the user choosing to convert XP into
+  /// something — so it has to be subtracted before the comparison, or the floor hands the
+  /// XP straight back and nothing can ever cost anything.
   Future<int> ensureMinimumTotalXP(int minimumXp) async {
+    if (minimumXp <= 0) return 0;
+    minimumXp -= await spentXp();
     if (minimumXp <= 0) return 0;
 
     try {

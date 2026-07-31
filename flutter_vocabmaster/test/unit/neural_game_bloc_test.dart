@@ -87,15 +87,27 @@ void main() {
     expect(state.isError, isFalse);
   });
 
-  test('related mode accepts loose association words', () async {
+  test('related mode accepts a curated association of the drawn word', () async {
+    // This test used to submit "plane abroad" against whatever word set the game happened
+    // to draw and expect it to score. It passed for the wrong reason: "plane" belongs to
+    // the TRAVEL associations only, and the acceptance it relied on was the old
+    // "looks like a word" fallback, which would have taken "blorp" just as happily. The
+    // assertion was really encoding the bug.
+    //
+    // Draw first, then submit an association that genuinely belongs to the drawn centre.
     final bloc = NeuralGameBloc();
     addTearDown(bloc.close);
 
-    await startGame(bloc);
+    final started = await startGame(bloc);
+    final association = NeuralGameBloc.softAssociationsFor(
+      started.currentWordSet.centerWord,
+    );
+    expect(association, isNotEmpty,
+        reason: 'every word set needs curated associations to be playable');
 
     bloc.add(
-      const SubmitWordEvent(
-        word: 'plane abroad',
+      SubmitWordEvent(
+        word: association.first,
         playAreaSize: playAreaSize,
         centerPosition: centerPosition,
       ),
