@@ -7,9 +7,11 @@ import com.ingilizce.calismaapp.repository.WordRepository;
 import com.ingilizce.calismaapp.repository.SentenceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -47,12 +49,67 @@ class WordServiceTest {
     @Mock
     private ProgressService progressService;
 
+    /// Real instance, not a mock: the point of the test below is that saveWord actually
+    /// puts a schedule on the word, and a mock would happily record the call while leaving
+    /// next_review_date null - which is the exact bug being fixed.
+    @Spy
+    private SRSService srsService = new SRSService();
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(wordRepository.findByUserIdAndEnglishWord(anyLong(), anyString()))
                 .thenReturn(Optional.empty());
         when(sentenceRepository.findByWordIdIn(anyList())).thenReturn(List.of());
+    }
+
+    @Test
+    void saveWord_ShouldScheduleTheWordForReview() {
+        // A new word used to be persisted with next_review_date null. The due query is
+        // "next_review_date <= today", which NULL never satisfies, so the word could not
+        // surface for review -- and a word only received a schedule by being reviewed.
+        // Production had 18 of 20 words stranded that way before this was fixed.
+        Word newWord = new Word();
+        newWord.setUserId(100L);
+        newWord.setEnglishWord("Serendipity");
+        newWord.setTurkishMeaning("Mutlu Tesaduf");
+        newWord.setLearnedDate(LocalDate.now());
+
+        ArgumentCaptor<Word> persisted = ArgumentCaptor.forClass(Word.class);
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        wordService.saveWord(newWord);
+
+        verify(wordRepository).save(persisted.capture());
+        Word stored = persisted.getValue();
+        assertNotNull(stored.getNextReviewDate(), "a new word must reach the scheduler");
+        assertFalse(stored.getNextReviewDate().isBefore(LocalDate.now()),
+                "the first review must not be scheduled in the past");
+        assertEquals(0, stored.getReviewCount());
+        assertEquals(2.5, stored.getEaseFactor());
+    }
+
+    @Test
+    void saveWord_ShouldNotRescheduleAnExistingWord() {
+        // Editing a word must not reset its SM-2 progress back to a fresh interval.
+        LocalDate alreadyScheduled = LocalDate.now().plusDays(30);
+        Word existing = new Word();
+        existing.setId(7L);
+        existing.setUserId(100L);
+        existing.setEnglishWord("Serendipity");
+        existing.setNextReviewDate(alreadyScheduled);
+        existing.setReviewCount(4);
+        existing.setEaseFactor(2.9);
+
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        wordService.saveWord(existing);
+
+        ArgumentCaptor<Word> persisted = ArgumentCaptor.forClass(Word.class);
+        verify(wordRepository).save(persisted.capture());
+        assertEquals(alreadyScheduled, persisted.getValue().getNextReviewDate());
+        assertEquals(4, persisted.getValue().getReviewCount());
+        assertEquals(2.9, persisted.getValue().getEaseFactor());
     }
 
     @Test

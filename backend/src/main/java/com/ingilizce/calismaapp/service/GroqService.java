@@ -261,6 +261,19 @@ public class GroqService {
                 requestBody.put("max_tokens", maxTokens);
             }
 
+            // Raising max_tokens does NOT stop these models running out of budget: measured
+            // 2026-07-31 on generate_sentences, a 900-token cap produced 4013 characters of
+            // reasoning and empty content, and raising the cap to 3000 produced 12879
+            // characters of reasoning and still empty content. The thinking expands to fill
+            // whatever it is given. Capping the effort is the lever that actually exists.
+            //
+            // Every call here is a utility call - produce five sentences, look up a word,
+            // grade a translation - so "low" is the right setting. Groq documents
+            // reasoning_effort as low|medium|high for the gpt-oss family.
+            if (isReasoningModel(selectedModel)) {
+                requestBody.put("reasoning_effort", "low");
+            }
+
             if (jsonResponse) {
                 Map<String, String> responseFormat = new HashMap<>();
                 responseFormat.put("type", "json_object");
@@ -396,6 +409,13 @@ public class GroqService {
                 || body.contains("response_format")
                 || body.contains("failed_generation")
                 || body.contains("schema");
+    }
+
+    /// Only the gpt-oss family on Groq accepts reasoning_effort; sending it to an ordinary
+    /// chat model would be rejected, so the check is on the model actually selected rather
+    /// than on a global flag.
+    private static boolean isReasoningModel(String model) {
+        return model != null && model.toLowerCase(Locale.ROOT).contains("gpt-oss");
     }
 
     private List<Map<String, String>> withJsonOutputHint(List<Map<String, String>> messages) {

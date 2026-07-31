@@ -40,6 +40,9 @@ public class WordService {
     @Autowired
     private ActivityPublisher activityPublisher;
 
+    @Autowired
+    private SRSService srsService;
+
     public List<Word> getAllWords(Long userId) {
         List<Word> words = wordRepository.findByUserId(userId);
         hydrateSentencesForWords(words);
@@ -86,6 +89,17 @@ public class WordService {
             if (existing.isPresent()) {
                 return hydrateSentences(existing.get());
             }
+        }
+
+        if (isNew) {
+            // Without this the word is stored with next_review_date NULL, and the due query
+            // (findByUserIdAndNextReviewDateLessThanEqual) can never match it because NULL
+            // fails <= in SQL. A word therefore only entered the scheduler once it had
+            // already been reviewed -- which it could not be, because it never became due.
+            // Measured on production before this fix: 18 of 20 stored words had no
+            // schedule, and the only two that did were reviewed through the generic
+            // "review everything" screen.
+            srsService.initializeWordForSRS(word);
         }
 
         Word savedWord = wordRepository.save(word);
