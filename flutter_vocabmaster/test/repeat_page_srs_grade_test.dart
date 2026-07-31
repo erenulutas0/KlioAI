@@ -46,6 +46,18 @@ Word _word(int id, String english) => Word(
       difficulty: 'easy',
     );
 
+/// The card hides the meaning until asked, and the grade buttons are inert until it is
+/// shown — grading with the answer on screen would record reading speed as an SM-2 ease
+/// factor. Every grading test therefore has to reveal first, exactly as a learner does.
+Future<void> _revealMeaning(WidgetTester tester) async {
+  final reveal = find.byKey(const ValueKey('reveal-meaning'));
+  expect(reveal, findsOneWidget,
+      reason: 'the meaning must start hidden so recall can be attempted');
+  await tester.tap(reveal.first, warnIfMissed: false);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
 Future<void> _pumpRepeatPage(
   WidgetTester tester,
   _FakeAppStateProvider appState,
@@ -85,6 +97,44 @@ void main() {
     );
   });
 
+  testWidgets('the meaning is hidden until asked for', (tester) async {
+    final appState = _FakeAppStateProvider();
+    await _pumpRepeatPage(tester, appState, [_word(41, 'resilient')]);
+
+    expect(find.text('resilient'), findsOneWidget,
+        reason: 'the prompt side of the card is always visible');
+    expect(find.text('anlam-41'), findsNothing,
+        reason: 'the answer must not be on screen before recall is attempted');
+
+    await _revealMeaning(tester);
+
+    expect(find.text('anlam-41'), findsOneWidget);
+  });
+
+  testWidgets('grading is inert until the meaning is revealed', (tester) async {
+    // This is the whole point of the gate: a grade given with the answer visible
+    // describes reading speed, and that number becomes the SM-2 ease factor and the
+    // next interval.
+    final appState = _FakeAppStateProvider();
+    await _pumpRepeatPage(tester, appState, [_word(51, 'resilient'), _word(52, 'insight')]);
+
+    await tester.tap(find.byKey(const ValueKey('srs-grade-good')).first,
+        warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(appState.submitCalls, 0, reason: 'no grade may reach SM-2 before the reveal');
+    expect(find.text('resilient'), findsOneWidget, reason: 'the card must not advance');
+
+    await _revealMeaning(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('srs-grade-good')));
+    await tester.tap(find.byKey(const ValueKey('srs-grade-good')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(appState.submitCalls, 1);
+  });
+
   testWidgets('grade buttons submit SM-2 quality and advance the card',
       (tester) async {
     final appState = _FakeAppStateProvider();
@@ -97,6 +147,7 @@ void main() {
     expect(find.text('resilient'), findsOneWidget);
     expect(find.byKey(const ValueKey('srs-grade-good')), findsOneWidget);
 
+    await _revealMeaning(tester);
     await tester.ensureVisible(find.byKey(const ValueKey('srs-grade-good')));
     await tester.tap(find.byKey(const ValueKey('srs-grade-good')));
     await tester.pump();
@@ -118,6 +169,7 @@ void main() {
       [_word(21, 'delay'), _word(22, 'focus')],
     );
 
+    await _revealMeaning(tester);
     await tester.tap(
       find.byKey(const ValueKey('srs-grade-hard')).first,
       warnIfMissed: false,
@@ -129,6 +181,7 @@ void main() {
     expect(appState.lastQuality, 2);
     expect(appState.lastWordId, 21);
 
+    await _revealMeaning(tester);
     await tester.tap(
       find.byKey(const ValueKey('srs-grade-easy')).first,
       warnIfMissed: false,
@@ -149,6 +202,7 @@ void main() {
       [_word(31, 'alpha'), _word(32, 'beta')],
     );
 
+    await _revealMeaning(tester);
     await tester.ensureVisible(find.byKey(const ValueKey('srs-grade-good')));
     await tester.tap(find.byKey(const ValueKey('srs-grade-good')));
     await tester.pump();

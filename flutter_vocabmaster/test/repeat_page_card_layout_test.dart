@@ -98,6 +98,12 @@ void main() {
       (tester) async {
     await _pumpCard(tester);
 
+    // The meaning is hidden until the learner asks for it, so that grading measures
+    // recall rather than reading speed. Reveal it before checking how it lays out.
+    await tester.tap(find.byKey(const ValueKey('reveal-meaning')), warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
     final meaning = find.text(_longMeaning);
     expect(meaning, findsOneWidget);
 

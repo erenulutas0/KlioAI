@@ -44,6 +44,15 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
   // State
   int _currentIndex = 0;
   bool _showTranslation = false;
+
+  /// Whether the learner has asked to see the meaning of the current card.
+  ///
+  /// The meaning used to sit next to the word unconditionally, so the card asked "how easy
+  /// was this word?" with the answer already on screen. Whatever the learner then pressed
+  /// described how quickly they could read, not whether they could recall — and that
+  /// grade is what feeds easeFactor and the next interval in SM-2. Retrieval has to be
+  /// attempted before it can be graded, so the grade buttons stay locked until this flips.
+  bool _meaningRevealed = false;
   List<Word> words = [];
   bool isLoading = true;
   late final ApiService _apiService = widget.apiService ?? ApiService();
@@ -213,6 +222,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     setState(() {
       _currentIndex = (_currentIndex + 1) % words.length;
       _showTranslation = false;
+      _meaningRevealed = false;
     });
   }
 
@@ -221,6 +231,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     setState(() {
       _currentIndex = (_currentIndex - 1 + words.length) % words.length;
       _showTranslation = false;
+      _meaningRevealed = false;
     });
   }
 
@@ -757,16 +768,19 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                     textAlign: TextAlign.center,
                                   ),
                                   const SizedBox(height: 16),
-                                  Text(
-                                    card.turkishMeaning,
-                                    style: TextStyle(
-                                      color: const Color(0xFFE0F2FE)
-                                          .withValues(alpha: 0.8),
-                                      fontSize: _getMeaningFontSize(
-                                          card.turkishMeaning),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                                  if (_meaningRevealed)
+                                    Text(
+                                      card.turkishMeaning,
+                                      style: TextStyle(
+                                        color: const Color(0xFFE0F2FE)
+                                            .withValues(alpha: 0.8),
+                                        fontSize: _getMeaningFontSize(
+                                            card.turkishMeaning),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    )
+                                  else
+                                    _buildRevealMeaningButton(),
                                   if (card.sentences.isNotEmpty) ...[
                                     const SizedBox(height: 20),
                                     _buildExampleBox(card),
@@ -894,22 +908,64 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildRevealMeaningButton() {
+    final theme = _theme(listen: true);
+    return TextButton.icon(
+      key: const ValueKey('reveal-meaning'),
+      onPressed: () => setState(() => _meaningRevealed = true),
+      icon: Icon(Icons.visibility_outlined, color: theme.colors.accent, size: 20),
+      label: Text(
+        LocaleTextService.pick('Anlamı göster', 'Show meaning'),
+        style: TextStyle(
+          color: theme.colors.accent,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+    );
+  }
+
   Widget _buildSrsGradeButtons() {
     final theme = _theme(listen: true);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          LocaleTextService.pick(
-            'Bu kelime ne kadar kolaydı?',
-            'How easy was this word?',
-          ),
+          _meaningRevealed
+              ? LocaleTextService.pick(
+                  'Bu kelime ne kadar kolaydı?',
+                  'How easy was this word?',
+                )
+              : LocaleTextService.pick(
+                  'Önce hatırlamayı dene, sonra anlamı göster',
+                  'Try to recall it first, then show the meaning',
+                ),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
             fontSize: 12,
           ),
         ),
         const SizedBox(height: 8),
+        // Grading before the answer is revealed would record how fast the learner can
+        // read, not what they remembered, and that number becomes the SM-2 ease factor.
+        Opacity(
+          opacity: _meaningRevealed ? 1 : 0.35,
+          child: IgnorePointer(
+            ignoring: !_meaningRevealed,
+            child: _buildSrsGradeRow(theme),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSrsGradeRow(AppThemeConfig theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Row(
           children: [
             _buildSrsGradeButton(
