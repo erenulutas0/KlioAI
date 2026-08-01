@@ -4,6 +4,7 @@ import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import com.ingilizce.calismaapp.service.PushNotificationService;
+import com.ingilizce.calismaapp.service.SupportTicketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import com.ingilizce.calismaapp.repository.WordRepository;
@@ -52,6 +54,9 @@ public class AdminController {
 
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
+
+    @Autowired
+    private SupportTicketService supportTicketService;
 
     @PostMapping("/reset-data")
     public String resetData() {
@@ -256,6 +261,30 @@ public class AdminController {
         }
 
         Map<String, Object> response = new HashMap<>(pushNotificationService.getPushStatus());
+        response.put("success", true);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * The feedback inbox.
+     *
+     * <p>{@code GET /api/admin/feedback?type=CONTENT_REPORT&days=30&limit=100}
+     *
+     * <p>Reports have been collectable for a while and readable by nobody: they went into a
+     * table, and until seven days later when they were deleted, that was the end of them.
+     * This is the other half. Default filter is CONTENT_REPORT because that is the report
+     * type that says something the instrumentation cannot — a request can return 200 with a
+     * sentence in it that means nothing.
+     */
+    @GetMapping("/feedback")
+    public ResponseEntity<Map<String, Object>> feedbackInbox(
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(defaultValue = "100") int limit) {
+        ResponseEntity<Map<String, Object>> authz = requireAdmin();
+        if (authz != null) return authz;
+
+        Map<String, Object> response = new HashMap<>(supportTicketService.inbox(type, days, limit));
         response.put("success", true);
         return ResponseEntity.ok(response);
     }

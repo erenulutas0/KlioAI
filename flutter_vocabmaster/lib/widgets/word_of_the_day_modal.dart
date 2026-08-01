@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import 'report_content_button.dart';
 
 class WordOfTheDayModal extends StatefulWidget {
   final Map<String, dynamic> wordData;
@@ -139,6 +140,28 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
             '')
         .toString()
         .trim();
+  }
+
+  /// The whole generated entry, flattened, for a content report.
+  ///
+  /// A report saying only "wrong" against the word `evaluate` is not actionable — the word
+  /// is not what is wrong, one of the pieces generated around it is. Sending the entry as
+  /// the learner saw it means the bad piece is in the report whichever step they were on.
+  String _reportableContent() {
+    final parts = <String>[
+      _wordText(),
+      _translationText(),
+      (widget.wordData['definition'] ?? '').toString().trim(),
+      _exampleSentenceText(),
+      _exampleTranslationText(),
+      for (final meaning in _meanings())
+        [
+          (meaning['sense'] ?? '').toString().trim(),
+          (meaning['translation'] ?? '').toString().trim(),
+          (meaning['exampleSentence'] ?? '').toString().trim(),
+        ].where((part) => part.isNotEmpty).join(' — '),
+    ];
+    return parts.where((part) => part.isNotEmpty).join('\n');
   }
 
   Future<void> _addToWords(
@@ -313,7 +336,24 @@ class _WordOfTheDayModalState extends State<WordOfTheDayModal>
         children: [
           Row(
             children: [
-              const SizedBox(width: 32), // spacer for centering title
+              // Occupies the 32px that used to be a bare spacer for centering the title, so
+              // the report button costs no layout and the title stays optically centred.
+              // One button in the header covers every step of the modal — the definition,
+              // the meanings and the example all come from the same generated payload, and
+              // a learner who spots a wrong one should not have to find the right step to
+              // say so.
+              SizedBox(
+                width: 32,
+                child: ReportContentButton(
+                  content: _reportableContent(),
+                  surface: 'daily_words',
+                  contentKind: 'dictionary_entry',
+                  extra: {
+                    'word': widget.wordData['word']?.toString() ?? '',
+                    'difficulty': widget.wordData['difficulty']?.toString() ?? '',
+                  },
+                ),
+              ),
               Expanded(
                 child: Text(
                   context.tr('wotd.title'),

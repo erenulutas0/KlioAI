@@ -17,6 +17,7 @@ import '../services/xp_manager.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_catalog.dart';
 import '../theme/theme_provider.dart';
+import '../widgets/feedback_prompt_sheet.dart';
 import '../widgets/session_summary_sheet.dart';
 
 class RepeatPage extends StatefulWidget {
@@ -90,13 +91,24 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
       _sessionActions = 0;
       _sessionXp = 0;
       // Kart geçiş animasyonuyla çakışmaması için bir frame sonra göster.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        SessionSummarySheet.show(
+        // A finished review session counts as a completed practice. It did not before:
+        // only "mark as learned" incremented the counter, so somebody who graded their
+        // way through every card — the main way this screen is used — was invisible to
+        // anything keyed off completions.
+        await InAppReviewService().recordPracticeCompletion();
+        if (!mounted) return;
+        await SessionSummarySheet.show(
           context,
           xpEarned: xpForSheet,
           itemsCompleted: itemsForSheet,
         );
+        if (!mounted) return;
+        // After the summary, not instead of it: the question lands on somebody who has
+        // just finished something, which is when they have an opinion and are least
+        // annoyed to be asked.
+        await FeedbackPromptSheet.maybeShow(context);
       });
     }
   }
@@ -298,8 +310,10 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     await appState.addXPForAction(XPActionTypes.reviewComplete,
         source: 'Tekrar');
     await AnalyticsService.logPracticeCompleted(type: 'classic_review');
-    await InAppReviewService().recordPracticeCompletion();
     if (!mounted) return;
+    // The completion is counted when the session ends, in _registerSessionAction, not once
+    // per word. Marking three words learned in one sitting is one practice, not three, and
+    // counting it as three made "after 3 completions" mean "after 3 taps".
     _registerSessionAction(xpEarned: XPActionTypes.reviewComplete.xpAmount);
 
     ScaffoldMessenger.of(context).showSnackBar(

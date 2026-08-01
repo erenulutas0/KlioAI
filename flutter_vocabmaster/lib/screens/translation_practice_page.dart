@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/modern_card.dart';
+import '../widgets/report_content_button.dart';
 import '../widgets/modern_background.dart';
 import '../models/word.dart';
 import '../providers/app_state_provider.dart';
@@ -783,6 +784,20 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                   style:
                       const TextStyle(color: Color(0xFF0ea5e9), fontSize: 11),
                 ),
+              ),
+              const Spacer(),
+              // Sits on the generated sentence itself. This is the surface where bad output
+              // reaches a learner as if it were teaching material, and where the
+              // instrumentation is blindest: the request returns 200 whether the sentence is
+              // good English or not.
+              ReportContentButton(
+                content: _generatedSentences[index],
+                surface: 'translation_practice',
+                contentKind: 'practice_sentence',
+                extra: {
+                  'targetWord': _wordForSentence(index)?.englishWord ?? '',
+                  'direction': direction,
+                },
               ),
             ],
           ),

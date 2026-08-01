@@ -8,6 +8,8 @@ import '../services/ai_paywall_handler.dart';
 import '../services/daily_practice_progress_service.dart';
 import '../providers/app_state_provider.dart';
 import '../services/xp_manager.dart';
+import '../widgets/feedback_prompt_sheet.dart';
+import '../widgets/report_content_button.dart';
 
 class ReadingPracticePage extends StatefulWidget {
   final String level;
@@ -236,6 +238,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
         await appState.addXP(10, reason: 'Mükemmel Okuma Skoru');
       }
     }
+
+    if (mounted) {
+      await FeedbackPromptSheet.maybeShow(context);
+    }
   }
 
   void _retryCurrentPassage() {
@@ -392,10 +398,32 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
-            child: Text(
-              _passage,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 15, height: 1.8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _passage,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 15, height: 1.8),
+                ),
+                // Sits under the passage rather than over it: at the top it would compete
+                // with the text on a screen whose whole job is reading. The C1 passages in
+                // particular have come back empty or truncated before, and the only way we
+                // found out was by looking; a reader who hits one should be able to say so.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ReportContentButton(
+                    content: _passage,
+                    surface: 'reading_practice',
+                    contentKind: 'passage',
+                    extra: {
+                      'level': widget.level,
+                      'title': _title,
+                      'variant': _variant,
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -654,6 +682,20 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
                       fontSize: 15,
                       fontWeight: FontWeight.w500),
                 ),
+              ),
+              // Reported separately from the passage: a comprehension question can be
+              // unanswerable from a passage that is itself fine, and the two failures need
+              // different fixes.
+              ReportContentButton(
+                content: question.question,
+                surface: 'reading_practice',
+                contentKind: 'comprehension_question',
+                extra: {
+                  'level': widget.level,
+                  'title': _title,
+                  'options': question.options.join(' | '),
+                  'correctAnswer': question.correctAnswer,
+                },
               ),
             ],
           ),

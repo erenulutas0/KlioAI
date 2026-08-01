@@ -39,6 +39,7 @@ class SupportTicketService {
     required String title,
     required String message,
     required String locale,
+    Map<String, dynamic>? context,
   }) async {
     final apiUrl = await AppConfig.apiBaseUrl;
     final response = await http.post(
@@ -49,6 +50,7 @@ class SupportTicketService {
         'title': title,
         'message': message,
         'locale': locale,
+        if (context != null) 'context': jsonEncode(context),
       }),
     );
     final decoded = _decode(response);

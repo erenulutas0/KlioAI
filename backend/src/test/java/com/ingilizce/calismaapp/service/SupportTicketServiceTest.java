@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -126,7 +127,7 @@ class SupportTicketServiceTest {
     }
 
     @Test
-    void listTickets_shouldCleanupExpiredAndReturnRemainingLimit() {
+    void listTickets_shouldReturnLiveTicketsAndRemainingLimitWithoutDeletingAnything() {
         SupportTicket first = ticket(21L, 42L, SupportTicket.TicketType.REQUEST, "First", "Message one");
         SupportTicket second = ticket(22L, 42L, SupportTicket.TicketType.COMPLAINT, "Second", "Message two");
         when(supportTicketRepository.findByUserIdOrderByCreatedAtDesc(42L))
@@ -142,7 +143,9 @@ class SupportTicketServiceTest {
         assertEquals(2, tickets.size());
         assertEquals("REQUEST", ((Map<?, ?>) tickets.get(0)).get("type"));
         assertEquals("COMPLAINT", ((Map<?, ?>) tickets.get(1)).get("type"));
-        verify(supportTicketRepository).deleteByExpiresAtBefore(any(LocalDateTime.class));
+        // Reading a support inbox is not a reason to destroy its contents. Expiry now only
+        // hides a ticket from the sender's list; see SupportTicketRetentionTest.
+        verify(supportTicketRepository, never()).deleteByExpiresAtBefore(any(LocalDateTime.class));
     }
 
     private SupportTicket ticket(Long id,
@@ -159,7 +162,10 @@ class SupportTicketServiceTest {
         ticket.setMessage(message);
         ticket.setLocale("en");
         ticket.setStatus(SupportTicket.TicketStatus.OPEN);
-        ticket.setExpiresAt(LocalDateTime.of(2026, 7, 12, 12, 0));
+        // Relative, not a fixed date. A hardcoded expiry silently turns every ticket in this
+        // fixture into an expired one once the wall clock passes it, and the test then fails
+        // for a reason that has nothing to do with the code under test.
+        ticket.setExpiresAt(LocalDateTime.now().plusDays(7));
         return ticket;
     }
 }

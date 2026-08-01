@@ -9,6 +9,7 @@ import '../services/ai_paywall_handler.dart';
 import '../services/daily_practice_progress_service.dart';
 import '../services/learning_language_service.dart';
 import '../services/xp_manager.dart';
+import '../widgets/feedback_prompt_sheet.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../widgets/animated_background.dart';
@@ -795,6 +796,9 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           _step = 'evaluation';
           _isLoading = false;
         });
+      }
+      if (mounted) {
+        await FeedbackPromptSheet.maybeShow(context);
       }
     } catch (e) {
       if (!mounted) return;

@@ -9,6 +9,7 @@ import '../services/ai_error_message_formatter.dart';
 import '../services/ai_paywall_handler.dart';
 import '../services/learning_language_service.dart';
 import '../services/xp_manager.dart';
+import '../widgets/report_content_button.dart';
 
 /// Gramer konusu için AI üretimli 5 soruluk pratik quiz ekranı.
 /// Sorular kullanıcının profil CEFR seviyesine göre üretilir; her "Yeni Quiz"
@@ -342,14 +343,36 @@ class _GrammarQuizPageState extends State<GrammarQuizPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${index + 1}. ${question.question}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              height: 1.5,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  '${index + 1}. ${question.question}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              // These questions are now built around the learner's own vocabulary, which
+              // means the model is being asked to fit a specific word into a specific tense.
+              // When that does not work it produces a grammatical-looking sentence that
+              // teaches the wrong thing, and nothing in the response says so.
+              ReportContentButton(
+                content: question.question,
+                surface: 'grammar_quiz',
+                contentKind: 'quiz_question',
+                extra: {
+                  'topic': widget.topic.id,
+                  'correctAnswer': question.correctAnswer,
+                  'options': question.options.join(' | '),
+                  if (question.targetWord.isNotEmpty) 'targetWord': question.targetWord,
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           ...question.options.map((option) {

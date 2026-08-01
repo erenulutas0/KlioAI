@@ -53,6 +53,7 @@ class PushTokenService {
 
       final initialMessage = await _messaging!.getInitialMessage();
       if (initialMessage != null) {
+        await _noteIfServerDailyReminder(initialMessage);
         await LocalReminderService.handleNotificationOpened(
           source: 'fcm_launch',
           payload: _routePayload(initialMessage),
@@ -60,6 +61,10 @@ class PushTokenService {
       }
 
       FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        // Also counted here, not just on the foreground path: a reminder aimed at 20:00 is
+        // most often delivered while the app is closed, so the tap is the only evidence the
+        // app gets that the server reached this device.
+        unawaited(_noteIfServerDailyReminder(message));
         unawaited(
           LocalReminderService.handleNotificationOpened(
             source: 'fcm_tap',
@@ -99,11 +104,32 @@ class PushTokenService {
         message.data['body']?.toString() ??
         'A KlioAI notification is ready.';
 
+    await _noteIfServerDailyReminder(message);
     await LocalReminderService().showRemoteNotification(
       title: title,
       body: body,
       payload: _routePayload(message),
     );
+  }
+
+  /// Tells the local scheduler that the server is covering the evening reminder.
+  ///
+  /// Both channels aim at 20:00 in the learner's own time, and the server's version is the
+  /// better one — it is built when it is sent, so it can count the words actually due and
+  /// stay silent for somebody who already practised. The local schedule steps aside once it
+  /// sees one of these arrive, and takes the job back if they stop coming.
+  static Future<void> _noteIfServerDailyReminder(RemoteMessage message) async {
+    if (message.data['type']?.toString() != 'daily_reminder') {
+      return;
+    }
+    try {
+      await LocalReminderService.noteServerReminderDelivered();
+    } catch (e) {
+      // A bookkeeping failure must not swallow the notification itself. The worst case is
+      // that the local reminder keeps running alongside, which is the behaviour we already
+      // had.
+      debugPrint('Could not record server reminder delivery: $e');
+    }
   }
 
   Future<void> refreshTokenRegistration() async {
