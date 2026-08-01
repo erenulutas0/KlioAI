@@ -328,6 +328,28 @@ Format (the values below are illustrative - replace them, keep the shape):
             LearningLanguageProfile profile,
             int variantSeed
     ) {
+        return generateGrammarQuiz(topic, level, profile, variantSeed, java.util.List.of());
+    }
+
+    /**
+     * As above, but builds the questions around words the learner is already studying.
+     *
+     * <p>A generic tense drill teaches a rule in isolation. Drilling the same rule on the
+     * learner's own vocabulary exercises two things at once, and — because the question then
+     * has an identifiable target word — lets a right or wrong answer reach the review
+     * scheduler instead of vanishing into a quiz score.
+     *
+     * <p>The vocabulary is a request, not a constraint: if a word cannot carry the grammar
+     * point naturally, the model is told to leave it out rather than force it. Forcing was
+     * how the practice sentences ended up as "Maya noticed evaluate during the trip".
+     */
+    public AiJsonResult generateGrammarQuiz(
+            String topic,
+            String level,
+            LearningLanguageProfile profile,
+            int variantSeed,
+            java.util.List<String> vocabulary
+    ) {
         String normalizedLevel = normalizeReadingLevel(level);
         String levelRule = switch (normalizedLevel) {
             case "A1", "A2" -> "Use short everyday sentences (max 10 words), basic vocabulary, single-gap questions only.";
@@ -339,6 +361,23 @@ Format (the values below are illustrative - replace them, keep the shape):
                 ? ""
                 : "\nVARIANT REQUEST #" + variantSeed
                 + ": The learner already did a quiz on this topic. Use clearly different sentences, contexts and tested sub-rules.\n";
+
+        // A word that cannot carry the grammar point naturally must be dropped, not bent to
+        // fit. Bending is exactly how the practice sentences became "Maya noticed evaluate
+        // during the trip" -- grammatical shape with the target jammed into the wrong slot.
+        String vocabularyRule = vocabulary == null || vocabulary.isEmpty()
+                ? ""
+                : """
+
+LEARNER'S OWN VOCABULARY: %s
+- Build each question around one of these words where it fits the grammar point naturally.
+- The word belongs in the sentence, not in the answer options, unless the word itself is
+  what the question tests.
+- Inflect it as the sentence requires; do not force the dictionary form in.
+- If a word cannot carry this grammar point naturally, leave it out and use a neutral word.
+  A forced sentence teaches the learner a mistake.
+- Set "targetWord" to the exact vocabulary word the question was built on, or "" if none.
+""".formatted(String.join(", ", vocabulary));
 
         String prompt = """
 %s
@@ -356,6 +395,7 @@ REQUIREMENTS:
 - "explanation" must state why the correct option is right AND why the closest distractor is wrong, written in the learner's feedback language per the policy above.
 - Do not repeat the same tested sub-rule twice.
 
+%s
 Return ONLY valid JSON. No markdown formatting, no extra text.
 
 Format:
@@ -366,7 +406,8 @@ Format:
       "question": "Sentence with ---- gap.",
       "options": ["option1", "option2", "option3", "option4"],
       "correctAnswer": "option1",
-      "explanation": "Why it is correct and why the closest distractor is wrong."
+      "explanation": "Why it is correct and why the closest distractor is wrong.",
+      "targetWord": "the learner word this question is built around, or an empty string"
     }
   ]
 }
@@ -377,6 +418,7 @@ Format:
                 topic,
                 levelRule,
                 variantRule,
+                vocabularyRule,
                 topic
         );
 

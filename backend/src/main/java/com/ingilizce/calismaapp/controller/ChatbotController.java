@@ -1324,6 +1324,34 @@ public class ChatbotController {
     ///
     /// DailyContentFallbackSupport was written for exactly this and is already used by the
     /// daily-content services; the dictionary path simply never called it.
+    /// Words to build a grammar quiz around, most in need of review first.
+    ///
+    /// Ordering by due date rather than taking a random sample means the drill reinforces
+    /// whatever the scheduler already considers closest to being forgotten, so the grammar
+    /// practice does double duty instead of competing with the review queue for the
+    /// learner's time.
+    ///
+    /// Capped at eight: a longer list makes the model spread itself thin across words rather
+    /// than choosing the ones that suit the grammar point, and it is only ever a suggestion.
+    /// An empty list is fine — the quiz then generates as it always did.
+    private List<String> grammarQuizVocabulary(Long userId) {
+        try {
+            return wordService.getAllWords(userId).stream()
+                    .filter(w -> w.getEnglishWord() != null && !w.getEnglishWord().isBlank())
+                    .sorted(Comparator.comparing(
+                            Word::getNextReviewDate,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .limit(8)
+                    .map(w -> w.getEnglishWord().trim())
+                    .toList();
+        } catch (Exception e) {
+            // Never fail a quiz because the vocabulary lookup did; a generic quiz is a far
+            // better outcome than no quiz.
+            log.warn("Grammar quiz vocabulary lookup failed userId={}: {}", userId, e.toString());
+            return List.of();
+        }
+    }
+
     private void storeDictionaryResponse(String cacheKey, Map<String, Object> payload) {
         if (DailyContentFallbackSupport.isFallbackPayload(payload)) {
             log.warn("Skipping dictionary cache write for fallback payload key={}", cacheKey);
@@ -2076,8 +2104,13 @@ public class ChatbotController {
             }
         }
         try {
+            // Drill the rule on words this learner is actually studying. A generic tense
+            // quiz teaches the rule in isolation; the same rule over their own vocabulary
+            // exercises both, and gives the answer an identifiable word so it can reach the
+            // review scheduler instead of only moving a quiz score.
+            List<String> vocabulary = grammarQuizVocabulary(userId);
             AiProxyService.AiJsonResult result =
-                    aiProxyService.generateGrammarQuiz(topic, level, languageProfile, quizVariant);
+                    aiProxyService.generateGrammarQuiz(topic, level, languageProfile, quizVariant, vocabulary);
             consumeAiTokens(userId, httpRequest, "grammar-quiz", result.totalTokens());
             return ResponseEntity.ok(result.json());
         } catch (Exception e) {

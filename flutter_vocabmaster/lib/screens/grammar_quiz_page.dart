@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/grammar_data.dart';
+import '../models/word.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
@@ -64,6 +65,7 @@ class _GrammarQuizPageState extends State<GrammarQuizPage> {
                     (q['options'] as List? ?? []).map((o) => o.toString())),
                 correctAnswer: (q['correctAnswer'] ?? '').toString(),
                 explanation: (q['explanation'] ?? '').toString(),
+                targetWord: (q['targetWord'] ?? '').toString().trim(),
               ))
           .where((q) =>
               q.question.isNotEmpty &&
@@ -124,6 +126,57 @@ class _GrammarQuizPageState extends State<GrammarQuizPage> {
       source: _text('Gramer Quiz', 'Grammar Quiz'),
       transactionId: 'grammar_quiz_${widget.topic.id}_$dayKey',
     );
+    await _recordAnswersAsReviews(appState);
+  }
+
+  /// Feeds the answers to the review scheduler, one per question that was built on a word
+  /// the learner is studying.
+  ///
+  /// A grammar question over the learner's own vocabulary is evidence about two things at
+  /// once: whether they know the rule, and whether they still know the word. The second was
+  /// being thrown away — the quiz produced a score and nothing else. Now a tense drill on
+  /// "recover" moves that word's schedule just as a flashcard would.
+  ///
+  /// Only questions carrying a targetWord count. When the model could not fit any of the
+  /// learner's words to the grammar point it returns an empty one, and a question about a
+  /// neutral word says nothing about this learner's vocabulary.
+  Future<void> _recordAnswersAsReviews(AppStateProvider appState) async {
+    final words = appState.allWords;
+    if (words.isEmpty) return;
+
+    for (var i = 0; i < _questions.length; i++) {
+      final target = _questions[i].targetWord;
+      if (target.isEmpty) continue;
+
+      // The model was asked to inflect the word to fit the sentence, so match on the stem
+      // rather than expecting the exact stored form back.
+      final normalized = target.toLowerCase();
+      Word? match;
+      for (final word in words) {
+        final stored = word.englishWord.trim().toLowerCase();
+        if (stored.isEmpty) continue;
+        if (stored == normalized ||
+            normalized.startsWith(stored) ||
+            stored.startsWith(normalized)) {
+          match = word;
+          break;
+        }
+      }
+      if (match == null) continue;
+
+      final wasCorrect = _selectedAnswers[i] == _questions[i].correctAnswer;
+      try {
+        await appState.submitWordReview(
+          wordId: match.id,
+          // Same scale as translation practice: a correct answer is solid but untimed, so
+          // 4 rather than 5; a wrong one is a lapse without erasing the word's history.
+          quality: wasCorrect ? 4 : 2,
+          source: 'grammar_practice',
+        );
+      } catch (e) {
+        debugPrint('Grammar review not recorded for ${match.englishWord}: $e');
+      }
+    }
   }
 
   @override
@@ -364,10 +417,19 @@ class _QuizQuestion {
   final String correctAnswer;
   final String explanation;
 
+  /// The learner's own vocabulary word this question was built around, if any.
+  ///
+  /// This is what turns a grammar answer into evidence about a specific word. Empty when
+  /// the model could not fit any of the learner's words to the grammar point naturally —
+  /// which is the correct outcome, since forcing one in produces a sentence that teaches a
+  /// mistake.
+  final String targetWord;
+
   const _QuizQuestion({
     required this.question,
     required this.options,
     required this.correctAnswer,
     required this.explanation,
+    this.targetWord = '',
   });
 }
