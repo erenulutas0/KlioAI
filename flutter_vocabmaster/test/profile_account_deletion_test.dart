@@ -15,6 +15,7 @@ class _FakeSupportTicketService extends SupportTicketService {
   String? lastTitle;
   String? lastMessage;
   String? lastLocale;
+  Map<String, dynamic>? lastContext;
   int callCount = 0;
   Object? throwOnCreate;
 
@@ -24,12 +25,14 @@ class _FakeSupportTicketService extends SupportTicketService {
     required String title,
     required String message,
     required String locale,
+    Map<String, dynamic>? context,
   }) async {
     callCount += 1;
     lastType = type;
     lastTitle = title;
     lastMessage = message;
     lastLocale = locale;
+    lastContext = context;
     if (throwOnCreate != null) {
       throw throwOnCreate!;
     }

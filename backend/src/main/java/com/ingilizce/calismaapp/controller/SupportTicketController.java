@@ -40,7 +40,8 @@ public class SupportTicketController {
                     payload.get("type"),
                     title,
                     message,
-                    payload.get("locale"));
+                    payload.get("locale"),
+                    payload.get("context"));
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalStateException ex) {
             if ("DAILY_LIMIT_REACHED".equals(ex.getMessage())) {

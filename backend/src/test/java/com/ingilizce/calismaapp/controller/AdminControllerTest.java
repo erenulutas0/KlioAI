@@ -11,6 +11,9 @@ import com.ingilizce.calismaapp.service.AiRateLimitService;
 import com.ingilizce.calismaapp.service.AiProviderMetricsService;
 import com.ingilizce.calismaapp.service.AiTokenQuotaService;
 import com.ingilizce.calismaapp.service.PushNotificationService;
+import com.ingilizce.calismaapp.service.SupportTicketService;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,7 +22,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -67,6 +73,42 @@ class AdminControllerTest {
 
     @MockBean
     private PushNotificationService pushNotificationService;
+
+    @MockBean
+    private SupportTicketService supportTicketService;
+
+    @Test
+    void feedbackInbox_ShouldReturnReportsForAdmin() throws Exception {
+        // The reports were collectable before this endpoint and readable by nobody. A learner
+        // saying "this generated sentence is nonsense" is the one signal no dashboard can
+        // produce, and it was going into a table with no way out.
+        when(currentUserContext.shouldEnforceAuthz()).thenReturn(true);
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(true);
+        when(supportTicketService.inbox("CONTENT_REPORT", 30, 100)).thenReturn(Map.of(
+                "tickets", List.of(Map.of("id", 3, "message", "bu cümle saçma")),
+                "count", 1,
+                "countByType", Map.of("CONTENT_REPORT", 1L)));
+
+        mockMvc.perform(get("/api/admin/feedback")
+                        .param("type", "CONTENT_REPORT")
+                        .param("days", "30")
+                        .param("limit", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.tickets[0].message").value("bu cümle saçma"));
+    }
+
+    @Test
+    void feedbackInbox_ShouldReturnForbidden_WhenAdminRoleMissing() throws Exception {
+        when(currentUserContext.shouldEnforceAuthz()).thenReturn(true);
+        when(currentUserContext.hasRole("ADMIN")).thenReturn(false);
+
+        mockMvc.perform(get("/api/admin/feedback"))
+                .andExpect(status().isForbidden());
+
+        verify(supportTicketService, never()).inbox(any(), anyInt(), anyInt());
+    }
 
     @Test
     void resetData_ShouldDeleteRepositoriesAndReturnSuccessMessage() throws Exception {
