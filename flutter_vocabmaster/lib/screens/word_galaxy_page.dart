@@ -191,6 +191,10 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
   /// rings rather than the rings being squeezed into the canvas.
   Size _canvasSize = GalaxyRingLayout.minCanvasSize;
 
+  /// Shared by the InteractiveViewer and the opening fit, so the view can never start at a
+  /// zoom the viewer would refuse to hold.
+  static const double _minCanvasScale = 0.55;
+
   final TransformationController _transformationController =
       TransformationController();
   WordGalaxyBackgroundPreset _preset = WordGalaxyBackgroundPreset.galaxy;
@@ -277,7 +281,37 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
     });
   }
 
+  /// Scale that brings the whole canvas into view.
+  ///
+  /// The canvas is now sized to whatever the rings need rather than fixed at 1080x820, so
+  /// opening at 1:1 drops the user into the middle of a graph they cannot see the shape of.
+  /// Fit it instead, clamped to the viewer's own minimum so this can never zoom out further
+  /// than the InteractiveViewer allows.
+  double _fitScaleFor(Size viewportSize) {
+    if (_canvasSize.width <= 0 || _canvasSize.height <= 0) return 1;
+    final scale = math.min(
+      viewportSize.width / _canvasSize.width,
+      viewportSize.height / _canvasSize.height,
+    );
+    return scale.clamp(_minCanvasScale, 1.0);
+  }
+
   void _centerCanvasInViewport(Size viewportSize) {
+    final scale = _fitScaleFor(viewportSize);
+    if (scale < 1.0) {
+      final scaledWidth = _canvasSize.width * scale;
+      final scaledHeight = _canvasSize.height * scale;
+      _transformationController.value = Matrix4.identity()
+        ..translateByDouble(
+          (viewportSize.width - scaledWidth) / 2,
+          (viewportSize.height - scaledHeight) / 2,
+          0,
+          1,
+        )
+        ..scaleByDouble(scale, scale, 1, 1);
+      return;
+    }
+
     final dx = (viewportSize.width - _canvasSize.width) / 2;
     final dy = (viewportSize.height - _canvasSize.height) / 2;
     _transformationController.value = Matrix4.identity()
@@ -816,7 +850,7 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                       panEnabled: true,
                                       scaleEnabled: true,
                                       clipBehavior: Clip.none,
-                                      minScale: 0.55,
+                                      minScale: _minCanvasScale,
                                       maxScale: 1.8,
                                       boundaryMargin: const EdgeInsets.all(280),
                                       child: SizedBox(
