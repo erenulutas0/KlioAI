@@ -16,6 +16,35 @@ import '../services/ai_paywall_handler.dart';
 import '../services/analytics_service.dart';
 import '../services/xp_manager.dart';
 
+/// Which of [practiceWords] a generated sentence is actually drilling.
+///
+/// In mixed mode the backend is asked to rotate one target word per sentence, so lining the
+/// sentence index up with the word index would usually work — but "usually" is not a
+/// property worth writing scheduling data on. If the model reorders, skips or merges a word,
+/// index alignment silently credits the wrong word, and a wrong SRS grade is worse than no
+/// grade: it moves a word the learner never saw.
+///
+/// Matching on the text is checkable against what the learner actually read. The suffix
+/// allowance means an inflected form still counts ("recovered" for "recover"), and the
+/// leading word boundary stops a short word matching inside a longer one ("cat" must not
+/// match "concatenate").
+///
+/// Returns null when nothing matches and the round has more than one candidate — guessing
+/// there would be worse than staying quiet.
+@visibleForTesting
+Word? wordDrilledBySentence(String sentence, List<Word> practiceWords) {
+  final haystack = sentence.toLowerCase();
+  for (final word in practiceWords) {
+    final target = word.englishWord.trim().toLowerCase();
+    if (target.isEmpty) continue;
+    if (RegExp('\\b${RegExp.escape(target)}\\w*').hasMatch(haystack)) {
+      return word;
+    }
+  }
+  // A single-word round is unambiguous even if the model dropped the target entirely.
+  return practiceWords.length == 1 ? practiceWords.first : null;
+}
+
 class TranslationPracticePage extends StatefulWidget {
   final Word? selectedWord;
   final List<String> selectedLevels;
@@ -56,6 +85,19 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
 
   Word? _selectedWord;
 
+  /// The vocabulary this round is drilling, with ids intact.
+  ///
+  /// Translating a sentence is production, not recognition — it is stronger evidence about
+  /// memory than a flashcard grade. That evidence used to be spent entirely on XP and then
+  /// discarded; the scheduler never heard about it. Holding the Word objects here is what
+  /// lets each judgement reach the review log.
+  List<Word> _practiceWords = [];
+
+  Word? _wordForSentence(int index) {
+    if (index < 0 || index >= _generatedSentences.length) return null;
+    return wordDrilledBySentence(_generatedSentences[index], _practiceWords);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -92,9 +134,14 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         return;
       }
       words.shuffle();
-      final selectedWords = words.take(5).map((w) => w.englishWord).toList();
-      wordToUse = selectedWords.join(', ');
+      final selected = words.take(5).toList();
+      // Keep the Word objects, not just their text. Their ids are what let a correct or
+      // incorrect translation reach the review scheduler; joining them into a string here
+      // is what previously threw that away.
+      _practiceWords = selected;
+      wordToUse = selected.map((w) => w.englishWord).join(', ');
     } else {
+      _practiceWords = _selectedWord == null ? const [] : [_selectedWord!];
       wordToUse = _selectedWord?.englishWord ?? _wordController.text.trim();
       if (wordToUse.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -223,6 +270,7 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
               resultData['correctTranslation'] ?? '';
           _translationResults[index].isChecking = false;
         });
+        await _recordTranslationAsReview(index);
         await _maybeAwardTranslationXp();
       }
     } catch (e) {
@@ -238,6 +286,40 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  /// Feeds a checked translation into the review scheduler.
+  ///
+  /// The check already decides whether the learner produced the word correctly, which is a
+  /// harder test than the flashcard screen sets: recognising a meaning is not the same as
+  /// generating it in a sentence. Until now that decision only moved an XP counter, so a
+  /// learner could translate a word correctly ten days running while the scheduler still
+  /// believed it was due.
+  ///
+  /// Grades are deliberately conservative. Correct maps to 4 rather than 5 because nothing
+  /// here measures hesitation, and 5 should mean effortless. Incorrect maps to 2, which the
+  /// backend counts as a lapse (`quality < 3`) and which shortens the interval without
+  /// resetting the word's whole history.
+  Future<void> _recordTranslationAsReview(int index) async {
+    final result = _translationResults[index];
+    final isCorrect = result.isCorrect;
+    if (isCorrect == null) return;
+
+    // A word typed by hand that is not in the user's vocabulary has nothing to schedule.
+    final word = _wordForSentence(index);
+    if (word == null) return;
+
+    try {
+      await context.read<AppStateProvider>().submitWordReview(
+            wordId: word.id,
+            quality: isCorrect ? 4 : 2,
+            source: 'translation_practice',
+          );
+    } catch (e) {
+      // The learner has already seen their result; a scheduler write failing must not
+      // surface as an error on top of it.
+      debugPrint('Translation review not recorded for word ${word.id}: $e');
     }
   }
 
