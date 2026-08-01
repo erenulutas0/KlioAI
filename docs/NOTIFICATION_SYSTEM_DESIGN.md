@@ -269,8 +269,23 @@ APP_PUSH_FIREBASE_ENABLED=true
 APP_PUSH_FIREBASE_SERVICE_ACCOUNT_FILE=/run/secrets/firebase-admin-service-account.json
 APP_PUSH_DAILY_REMINDERS_ENABLED=false
 APP_PUSH_DAILY_REMINDERS_ZONE=Europe/Istanbul
-APP_PUSH_DAILY_REMINDERS_CRON=0 30 19 * * *
+# Hourly wake-up. This is NOT the delivery time.
+APP_PUSH_DAILY_REMINDERS_CRON=0 0 * * * *
+# The delivery time, in each learner's own timezone.
+APP_PUSH_DAILY_REMINDERS_LOCAL_HOUR=20
 ```
+
+The cron and the delivery time are now two different things, and confusing them silences
+the whole channel. The scheduler wakes every hour and releases each device only when it is
+`LOCAL_HOUR` in that device's own timezone — which is what lets one schedule serve learners
+in more than one country. Setting `CRON` back to a single daily hour means no device is ever
+checked at its own hour, and nobody is reminded at all.
+
+Delivery is also earned rather than automatic. `DailyReminderPlanner` drops anyone who
+already practised today, anyone with nothing actually due, and anyone dormant for more than
+two weeks (those get one attempt a week, on Mondays). A run that sends nothing is normal —
+23 hours in 24 it is nobody's evening — so the log records skips by reason, which is the
+only way to tell a quiet evening from a broken pipeline.
 
 Docker mount:
 

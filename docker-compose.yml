@@ -122,7 +122,10 @@ services:
       APP_PUSH_FIREBASE_SERVICE_ACCOUNT_FILE: /run/secrets/firebase-admin-service-account.json
       APP_PUSH_DAILY_REMINDERS_ENABLED: ${APP_PUSH_DAILY_REMINDERS_ENABLED:-false}
       APP_PUSH_DAILY_REMINDERS_ZONE: ${APP_PUSH_DAILY_REMINDERS_ZONE:-Europe/Istanbul}
-      APP_PUSH_DAILY_REMINDERS_CRON: ${APP_PUSH_DAILY_REMINDERS_CRON:-0 30 19 * * *}
+      # Hourly wake-up, not the delivery time: each device is released on its own local
+      # reminder hour. A single daily cron hour matches nobody and reminds nobody.
+      APP_PUSH_DAILY_REMINDERS_CRON: ${APP_PUSH_DAILY_REMINDERS_CRON:-0 0 * * * *}
+      APP_PUSH_DAILY_REMINDERS_LOCAL_HOUR: ${APP_PUSH_DAILY_REMINDERS_LOCAL_HOUR:-20}
       # Keep secure defaults in compose; relax only via explicit local override if needed.
       APP_SECURITY_JWT_ENFORCE_AUTH: ${APP_SECURITY_JWT_ENFORCE_AUTH:-true}
       # Required: set APP_SECURITY_JWT_SECRET in your .env (not committed) to start the backend.
