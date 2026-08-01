@@ -49,6 +49,15 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     // SRS Queries - User Scoped
     List<Word> findByUserIdAndNextReviewDateLessThanEqual(Long userId, LocalDate date);
 
+    /**
+     * How many words are due, without loading them.
+     *
+     * <p>Used by the daily reminder, which needs the number to put in the message and
+     * nothing else. Fetching every due row per user per night to call {@code size()} on it
+     * would be a lot of object graph for one integer.
+     */
+    long countByUserIdAndNextReviewDateLessThanEqual(Long userId, LocalDate date);
+
     // Legacy SRS
     List<Word> findByNextReviewDateLessThanEqual(LocalDate date);
 

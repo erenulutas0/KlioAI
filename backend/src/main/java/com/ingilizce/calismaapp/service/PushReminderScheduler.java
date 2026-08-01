@@ -22,8 +22,16 @@ public class PushReminderScheduler {
         this.pushNotificationService = pushNotificationService;
     }
 
+    /**
+     * Hourly, on the hour.
+     *
+     * <p>It used to be a single 17:00 UTC cron, which is one evening — someone else's. Waking
+     * every hour and letting each device through when it is that device's own local reminder
+     * hour is what makes one schedule serve every timezone. The run is cheap when it is
+     * nobody's hour: the planner rejects on the clock before any query is made.
+     */
     @Scheduled(
-            cron = "${app.push.daily-reminders.cron:0 0 17 * * *}",
+            cron = "${app.push.daily-reminders.cron:0 0 * * * *}",
             zone = "${app.push.daily-reminders.zone:UTC}")
     public void sendDailyReminder() {
         if (!properties.getDailyReminders().isEnabled()) {

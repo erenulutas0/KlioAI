@@ -11,6 +11,7 @@ import '../screens/notifications_page.dart';
 import '../screens/practice_page.dart';
 import '../widgets/theme_side_tab.dart';
 import 'analytics_service.dart';
+import 'locale_text_service.dart';
 
 class LocalReminderService {
   static const String dailyReminderKey = 'notifications:daily_reminder_enabled';
@@ -26,6 +27,15 @@ class LocalReminderService {
   static const String subscriptionAlertKey =
       'notifications:subscription_alert_enabled';
   static const String wordRecallKey = 'notifications:word_recall_enabled';
+
+  /// When the server's daily reminder last actually arrived on this device.
+  static const String _serverReminderSeenAtKey =
+      'notifications:server_reminder_seen_at';
+
+  /// How long one delivered server reminder is taken as proof the server owns the slot.
+  /// Long enough to cover a missed evening, short enough that a broken push pipeline hands
+  /// the job back before the learner notices the silence.
+  static const Duration _serverReminderTrustWindow = Duration(days: 3);
 
   static const String lastOpenedPayloadKey =
       'notifications:last_opened_payload';
@@ -214,12 +224,61 @@ class LocalReminderService {
     }
   }
 
+  /// Records that the server's own daily reminder reached this device.
+  ///
+  /// See [scheduleDailyReminder] for why this matters.
+  static Future<void> noteServerReminderDelivered() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _serverReminderSeenAtKey, DateTime.now().toIso8601String());
+  }
+
+  /// Whether the server has delivered a daily reminder recently enough to own the slot.
+  static Future<bool> _serverIsDeliveringReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_serverReminderSeenAtKey);
+    if (raw == null || raw.isEmpty) {
+      return false;
+    }
+    final seenAt = DateTime.tryParse(raw);
+    if (seenAt == null) {
+      return false;
+    }
+    return DateTime.now().difference(seenAt) < _serverReminderTrustWindow;
+  }
+
+  /// The offline fallback for the evening reminder — not the primary one.
+  ///
+  /// This fires from a schedule set days in advance, so its text is frozen at the moment it
+  /// is armed. It cannot say how many words are actually due tonight and it cannot know
+  /// whether the learner practised this afternoon, because neither of those was true yet
+  /// when it was scheduled. The server reminder can: it decides at send time, counts the
+  /// words that are really waiting, and stays quiet for somebody who has already studied.
+  ///
+  /// So when the server is demonstrably doing that job, this one gets out of the way — both
+  /// were aimed at 20:00 local and would otherwise arrive together, saying roughly the same
+  /// thing twice. The test is "has a server reminder actually arrived recently", not "is
+  /// push configured": configuration can claim a delivery that never happens, and standing
+  /// down for a channel that is silent would leave the learner with no reminder at all. If
+  /// the server stops, this resumes on its own within [_serverReminderTrustWindow].
   Future<void> scheduleDailyReminder() async {
     await initialize();
+
+    if (await _serverIsDeliveringReminders()) {
+      await _notifications.cancel(_dailyReminderId);
+      return;
+    }
+
     await _notifications.zonedSchedule(
       _dailyReminderId,
       'KlioAI',
-      'A quick practice session is ready for today.',
+      // The old copy was one hardcoded English sentence sent to an audience learning
+      // English *from Turkish*. Being unable to read your own reminder is a strange way
+      // to be reminded.
+      LocaleTextService.pick(
+        'Bugünün pratiği seni bekliyor.',
+        'A quick practice session is ready for today.',
+      ),
       _nextReminderTime(),
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -255,8 +314,11 @@ class LocalReminderService {
 
     await _notifications.zonedSchedule(
       _streakGuardReminderId,
-      'Keep your streak alive',
-      'A short KlioAI practice today keeps your $streak-day streak safe.',
+      LocaleTextService.pick('Serini kaybetme', 'Keep your streak alive'),
+      LocaleTextService.pick(
+        'Kısa bir pratik $streak günlük serini korur.',
+        'A short KlioAI practice today keeps your $streak-day streak safe.',
+      ),
       scheduled,
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -281,8 +343,14 @@ class LocalReminderService {
 
     await _notifications.zonedSchedule(
       _trialExpiryReminderId,
-      'Your KlioAI trial is ending soon',
-      'You have $daysRemaining day${daysRemaining == 1 ? '' : 's'} left to use AI practice without interruption.',
+      LocaleTextService.pick(
+        'Deneme sürenin sonuna yaklaşıyorsun',
+        'Your KlioAI trial is ending soon',
+      ),
+      LocaleTextService.pick(
+        'AI pratiğini kesintisiz kullanmak için $daysRemaining günün kaldı.',
+        'You have $daysRemaining day${daysRemaining == 1 ? '' : 's'} left to use AI practice without interruption.',
+      ),
       _trialExpiryReminderTime(daysRemaining),
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

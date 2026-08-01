@@ -23,6 +23,17 @@ public interface ReviewEventRepository extends JpaRepository<ReviewEvent, Long> 
     long countByUserId(Long userId);
 
     /**
+     * When this learner last graded anything, across every feature, or null if never.
+     *
+     * <p>This is the "has this person studied recently" signal the daily reminder needs, and
+     * it exists only because grading is logged here centrally rather than per-feature: a
+     * word graded in Word Galaxy counts exactly as much as one graded in classic review,
+     * which is what a learner would expect and what a per-screen counter would get wrong.
+     */
+    @Query("SELECT MAX(e.createdAt) FROM ReviewEvent e WHERE e.userId = :userId")
+    Instant findLastEventAt(@Param("userId") Long userId);
+
+    /**
      * Grades in a window, used for retention reporting.
      *
      * <p>Ordered ascending because every consumer so far walks time forwards.
