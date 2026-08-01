@@ -46,6 +46,19 @@ public class SRSController {
      *         "quality": 4
      *         }
      */
+    /** A malformed timing value is dropped rather than failing the review it accompanies. */
+    private static Integer parseOptionalInt(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            int parsed = Integer.parseInt(value.toString().trim());
+            return parsed >= 0 ? parsed : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     @PostMapping("/submit-review")
     public ResponseEntity<Word> submitReview(@RequestHeader("X-User-Id") Long userId,
             @RequestBody Map<String, Object> request) {
@@ -53,7 +66,15 @@ public class SRSController {
             Long wordId = Long.valueOf(request.get("wordId").toString());
             int quality = Integer.parseInt(request.get("quality").toString());
 
-            Word updatedWord = srsService.submitReview(userId, wordId, quality);
+            // Optional, and optional on purpose: an older client that sends neither still
+            // logs a usable row. Refusing the review because it did not name its surface
+            // would trade the learner's progress for a tidier analytics column.
+            String source = request.get("source") == null
+                    ? null
+                    : request.get("source").toString();
+            Integer responseMs = parseOptionalInt(request.get("responseMs"));
+
+            Word updatedWord = srsService.submitReview(userId, wordId, quality, source, responseMs);
             return ResponseEntity.ok(updatedWord);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();

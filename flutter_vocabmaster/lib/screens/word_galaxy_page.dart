@@ -1766,6 +1766,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
     final updatedWord = await context.read<AppStateProvider>().submitWordReview(
           wordId: _word.id,
           quality: quality,
+          source: 'word_galaxy',
         );
 
     if (!mounted) {

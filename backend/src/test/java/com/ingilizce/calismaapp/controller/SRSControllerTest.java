@@ -14,8 +14,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -59,7 +61,10 @@ public class SRSControllerTest {
 
     @Test
     void testEvaluateWord() throws Exception {
-        when(srsService.submitReview(USER_ID, 1L, 4)).thenReturn(new Word());
+        // The controller now passes the originating screen and the answer time through to
+        // the review log, so the five-argument overload is the one actually called.
+        when(srsService.submitReview(eq(USER_ID), eq(1L), eq(4), any(), any()))
+                .thenReturn(new Word());
 
         mockMvc.perform(post("/api/srs/submit-review")
                 .header(USER_ID_HEADER, USER_ID)
@@ -70,7 +75,8 @@ public class SRSControllerTest {
 
     @Test
     void testEvaluateWord_ShouldReturnBadRequest_WhenInputIsInvalid() throws Exception {
-        when(srsService.submitReview(anyLong(), anyLong(), anyInt())).thenThrow(new IllegalArgumentException("invalid"));
+        when(srsService.submitReview(anyLong(), anyLong(), anyInt(), any(), any()))
+                .thenThrow(new IllegalArgumentException("invalid"));
 
         mockMvc.perform(post("/api/srs/submit-review")
                 .header(USER_ID_HEADER, USER_ID)
@@ -81,7 +87,8 @@ public class SRSControllerTest {
 
     @Test
     void testEvaluateWord_ShouldReturnInternalServerError_WhenServiceFails() throws Exception {
-        when(srsService.submitReview(anyLong(), anyLong(), anyInt())).thenThrow(new RuntimeException("unexpected"));
+        when(srsService.submitReview(anyLong(), anyLong(), anyInt(), any(), any()))
+                .thenThrow(new RuntimeException("unexpected"));
 
         mockMvc.perform(post("/api/srs/submit-review")
                 .header(USER_ID_HEADER, USER_ID)

@@ -467,9 +467,17 @@ class ApiService {
     }
   }
 
+  /// Submits a graded recall attempt.
+  ///
+  /// [source] names the screen the grade came from and [responseMs] how long the learner
+  /// took. Both are logged server-side as an append-only review event, which is what makes
+  /// a per-learner scheduler, confusable-pair detection and a real forgetting curve
+  /// possible — none of which can be derived from the word's current state alone.
   Future<Word> submitWordReview({
     required int wordId,
     required int quality,
+    String? source,
+    int? responseMs,
   }) async {
     try {
       final url = await baseUrl;
@@ -480,6 +488,8 @@ class ApiService {
           body: json.encode({
             'wordId': wordId,
             'quality': quality,
+            if (source != null) 'source': source,
+            if (responseMs != null) 'responseMs': responseMs,
           }),
         ),
         json: true,

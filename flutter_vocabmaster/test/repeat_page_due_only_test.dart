@@ -23,6 +23,8 @@ class _FakeAppStateProvider extends AppStateProvider {
   Future<Word?> submitWordReview({
     required int wordId,
     required int quality,
+    String? source,
+    int? responseMs,
   }) async =>
       null;
 }

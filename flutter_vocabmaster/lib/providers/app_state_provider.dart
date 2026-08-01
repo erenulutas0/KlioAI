@@ -826,11 +826,15 @@ class AppStateProvider extends ChangeNotifier {
   Future<Word?> submitWordReview({
     required int wordId,
     required int quality,
+    String? source,
+    int? responseMs,
   }) async {
     try {
       final updatedWord = await _apiService.submitWordReview(
         wordId: wordId,
         quality: quality,
+        source: source,
+        responseMs: responseMs,
       );
 
       await _localDb.saveWord(updatedWord);

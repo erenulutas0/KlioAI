@@ -1,6 +1,9 @@
 package com.ingilizce.calismaapp.service;
 
+import com.ingilizce.calismaapp.entity.ReviewEvent;
+import com.ingilizce.calismaapp.entity.ReviewSource;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.repository.ReviewEventRepository;
 import com.ingilizce.calismaapp.repository.WordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,11 @@ public class SRSService {
 
     @Autowired
     private ProgressService progressService;
+
+    /// Optional so existing unit tests that construct this service directly keep working;
+    /// a null repository simply means the observation is not recorded.
+    @Autowired(required = false)
+    private ReviewEventRepository reviewEventRepository;
 
     // SM-2 Algorithm Constants
     private static final double MIN_EASE_FACTOR = 1.3;
@@ -63,6 +71,19 @@ public class SRSService {
      */
     @Transactional
     public Word submitReview(Long userId, Long wordId, int quality) {
+        return submitReview(userId, wordId, quality, ReviewSource.UNSPECIFIED, null);
+    }
+
+    /**
+     * As {@link #submitReview(Long, Long, int)}, but records which surface produced the
+     * grade and how long the learner took.
+     *
+     * <p>The source matters because the point of the log is to accept evidence from anywhere
+     * the app judges an answer, not only from the flashcard screen. A tense drill and a
+     * translation check are both statements about memory.
+     */
+    @Transactional
+    public Word submitReview(Long userId, Long wordId, int quality, String source, Integer responseMs) {
         validateUserId(userId);
         if (quality < 0 || quality > 5) {
             throw new IllegalArgumentException("Quality must be between 0 and 5");
@@ -77,6 +98,13 @@ public class SRSService {
         if (word.getReviewCount() == null || word.getReviewCount() == 0) {
             initializeWordForSRS(word);
         }
+
+        // Capture the scheduler's state before this grade changes it. Read here, not later:
+        // everything below overwrites the word in place, and once overwritten the previous
+        // interval and ease are unrecoverable -- which is exactly why no history existed.
+        final Double easeBefore = word.getEaseFactor();
+        final Integer repetitionBefore = word.getReviewCount();
+        final Integer intervalBefore = intervalBetween(word.getLastReviewDate(), word.getNextReviewDate());
 
         // Update review count
         int reviewCount = word.getReviewCount() + 1;
@@ -100,6 +128,18 @@ public class SRSService {
                 word.getEnglishWord(), reviewCount, easeFactor, interval, nextReviewDate);
 
         Word savedWord = wordRepository.save(word);
+
+        recordReviewEvent(
+                userId,
+                wordId,
+                source,
+                quality,
+                intervalBefore,
+                interval,
+                easeBefore,
+                easeFactor,
+                repetitionBefore,
+                responseMs);
 
         // Award XP based on quality
         int xpEarned = 0;
@@ -173,6 +213,58 @@ public class SRSService {
      * 
      * @param word The new word
      */
+    /**
+     * The interval the word was last scheduled at, derived from the two dates the scheduler
+     * already keeps. Null before a word has been reviewed at least once, which is honest --
+     * there was no previous interval.
+     */
+    private Integer intervalBetween(LocalDate lastReview, LocalDate nextReview) {
+        if (lastReview == null || nextReview == null) {
+            return null;
+        }
+        long days = java.time.temporal.ChronoUnit.DAYS.between(lastReview, nextReview);
+        return days < 0 ? null : (int) days;
+    }
+
+    /**
+     * Appends the log row.
+     *
+     * <p>Failures are swallowed on purpose. A learner grading a card must never see an error
+     * because an analytics write failed, and the review itself is already committed by this
+     * point. A missing row costs one observation; a thrown exception here would cost the
+     * user's actual progress.
+     */
+    private void recordReviewEvent(
+            Long userId,
+            Long wordId,
+            String source,
+            int grade,
+            Integer intervalBefore,
+            Integer intervalAfter,
+            Double easeBefore,
+            Double easeAfter,
+            Integer repetitionBefore,
+            Integer responseMs) {
+        if (reviewEventRepository == null) {
+            return;
+        }
+        try {
+            reviewEventRepository.save(new ReviewEvent(
+                    userId,
+                    wordId,
+                    source == null || source.isBlank() ? ReviewSource.UNSPECIFIED : source,
+                    grade,
+                    intervalBefore,
+                    intervalAfter,
+                    easeBefore,
+                    easeAfter,
+                    repetitionBefore,
+                    responseMs));
+        } catch (Exception e) {
+            logger.warn("Review event not recorded for word {}: {}", wordId, e.toString());
+        }
+    }
+
     public void initializeWordForSRS(Word word) {
         if (word.getNextReviewDate() == null) {
             word.setNextReviewDate(LocalDate.now().plusDays(INITIAL_INTERVAL));

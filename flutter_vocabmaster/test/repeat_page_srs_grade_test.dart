@@ -21,16 +21,22 @@ class _FakeAppStateProvider extends AppStateProvider {
   int submitCalls = 0;
   int? lastWordId;
   int? lastQuality;
+  String? lastSource;
+  int? lastResponseMs;
   bool throwOnSubmit = false;
 
   @override
   Future<Word?> submitWordReview({
     required int wordId,
     required int quality,
+    String? source,
+    int? responseMs,
   }) async {
     submitCalls++;
     lastWordId = wordId;
     lastQuality = quality;
+    lastSource = source;
+    lastResponseMs = responseMs;
     if (throwOnSubmit) {
       throw Exception('offline');
     }
@@ -158,6 +164,27 @@ void main() {
     expect(appState.lastQuality, 4);
     // Advanced to the next card.
     expect(find.text('insight'), findsOneWidget);
+  });
+
+  testWidgets('a grade reports which screen produced it and how long it took',
+      (tester) async {
+    // Without the source every row in the review log reads "unspecified", and the whole
+    // point of the log is to accept evidence from any surface that judges an answer.
+    // Response time is the other half: a word recalled instantly and one dragged up after
+    // ten seconds are not equally known, though both are graded "Good".
+    final appState = _FakeAppStateProvider();
+    await _pumpRepeatPage(tester, appState, [_word(61, 'resilient'), _word(62, 'insight')]);
+
+    await _revealMeaning(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('srs-grade-good')));
+    await tester.tap(find.byKey(const ValueKey('srs-grade-good')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(appState.lastSource, 'classic_review');
+    expect(appState.lastResponseMs, isNotNull,
+        reason: 'the card was on screen, so the attempt has a duration');
+    expect(appState.lastResponseMs, greaterThan(0));
   });
 
   testWidgets('hard and easy grades map to SM-2 qualities 2 and 5',

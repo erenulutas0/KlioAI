@@ -45,6 +45,23 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _showTranslation = false;
 
+  /// When the current card was first shown, used to time the recall attempt.
+  ///
+  /// Response time is one of the strongest signals a scheduler can use — a word recalled
+  /// instantly and one dragged up after ten seconds are not equally known, though both are
+  /// graded "Good". Measured from the card appearing rather than from the reveal, because
+  /// the retrieval attempt starts when the learner first sees the word.
+  DateTime? _cardShownAt;
+
+  int? _millisSinceCardShown() {
+    final shown = _cardShownAt;
+    if (shown == null) return null;
+    final elapsed = DateTime.now().difference(shown).inMilliseconds;
+    // A card left open overnight says nothing about recall; drop it rather than poison the
+    // data with an outlier.
+    return elapsed > 0 && elapsed < 120000 ? elapsed : null;
+  }
+
   /// Whether the learner has asked to see the meaning of the current card.
   ///
   /// The meaning used to sit next to the word unconditionally, so the card asked "how easy
@@ -186,6 +203,9 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
           words = loadedWords;
           _currentIndex = initialIndex >= 0 ? initialIndex : 0;
           isLoading = false;
+          // The first card is shown here, not via _handleNext, so it needs its own stamp
+          // or the opening card of every session would report no timing at all.
+          _cardShownAt = DateTime.now();
         });
       }
     } catch (e) {
@@ -223,6 +243,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
       _currentIndex = (_currentIndex + 1) % words.length;
       _showTranslation = false;
       _meaningRevealed = false;
+      _cardShownAt = DateTime.now();
     });
   }
 
@@ -232,6 +253,7 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
       _currentIndex = (_currentIndex - 1 + words.length) % words.length;
       _showTranslation = false;
       _meaningRevealed = false;
+      _cardShownAt = DateTime.now();
     });
   }
 
@@ -250,9 +272,12 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     final word = words[_currentIndex];
     setState(() => _isSubmittingSrsGrade = true);
     try {
-      await context
-          .read<AppStateProvider>()
-          .submitWordReview(wordId: word.id, quality: quality);
+      await context.read<AppStateProvider>().submitWordReview(
+            wordId: word.id,
+            quality: quality,
+            source: 'classic_review',
+            responseMs: _millisSinceCardShown(),
+          );
     } catch (e) {
       debugPrint('Classic review SRS submit failed (offline?): $e');
     }
