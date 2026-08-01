@@ -26,7 +26,18 @@ public class SupportTicket {
          * reported every one of those calls a success. A metric can say the request
          * returned 200; only a person can say the sentence was nonsense.
          */
-        CONTENT_REPORT
+        CONTENT_REPORT,
+
+        /**
+         * An answer to the app asking how it is going, unprompted by any problem.
+         *
+         * <p>Distinct from CONTENT_REPORT, which is somebody reacting to one bad sentence in
+         * front of them. This is the wider question -- is the app teaching you anything --
+         * and it only exists because we ask it. Nobody opens a support form to say "it is
+         * fine but the sentences feel repetitive", and that is exactly the kind of thing
+         * worth knowing before the reviews arrive.
+         */
+        FEEDBACK
     }
 
     public enum TicketStatus {

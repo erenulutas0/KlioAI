@@ -8,6 +8,7 @@ import '../services/ai_paywall_handler.dart';
 import '../services/daily_practice_progress_service.dart';
 import '../providers/app_state_provider.dart';
 import '../services/xp_manager.dart';
+import '../widgets/feedback_prompt_sheet.dart';
 import '../widgets/report_content_button.dart';
 
 class ReadingPracticePage extends StatefulWidget {
@@ -236,6 +237,10 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
       if (correct == _questions.length && _questions.isNotEmpty) {
         await appState.addXP(10, reason: 'Mükemmel Okuma Skoru');
       }
+    }
+
+    if (mounted) {
+      await FeedbackPromptSheet.maybeShow(context);
     }
   }
 
