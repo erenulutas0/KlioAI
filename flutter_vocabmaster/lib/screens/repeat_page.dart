@@ -116,7 +116,6 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
   // Button states
   bool _previousPressed = false;
   bool _nextPressed = false;
-  bool _favoritePressed = false;
   bool _learnPressed = false;
   bool _isCardPressed = false;
 
@@ -1078,53 +1077,6 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
     final theme = _theme(listen: true);
     return Row(
       children: [
-        Expanded(
-          child: GestureDetector(
-            onTapDown: (_) => setState(() => _favoritePressed = true),
-            onTapUp: (_) => setState(() => _favoritePressed = false),
-            onTapCancel: () => setState(() => _favoritePressed = false),
-            child: AnimatedScale(
-              scale: _favoritePressed ? 0.98 : 1.0,
-              duration: const Duration(milliseconds: 100),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: const Color(0xFFEC4899).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _favoritePressed ? Icons.favorite : Icons.favorite_border,
-                      color: const Color(0xFFEC4899),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        LocaleTextService.pick(
-                          'Favorilere Ekle',
-                          'Add to Favorites',
-                        ),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
         Expanded(
           child: GestureDetector(
             onTapDown: (_) => setState(() => _learnPressed = true),

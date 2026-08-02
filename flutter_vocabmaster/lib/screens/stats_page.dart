@@ -11,6 +11,7 @@ import '../main.dart'; // Import MainScreen
 import '../screens/profile_page.dart';
 import '../screens/chat_list_page.dart';
 import '../screens/quick_dictionary_page.dart';
+import '../screens/review_mode_selector_page.dart';
 import '../screens/social_feed_page.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
@@ -119,7 +120,13 @@ class _StatsPageState extends State<StatsPage> {
             Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const QuickDictionaryPage()));
           } else if (id == 'repeat') {
-            Navigator.of(context).pushNamed('/review');
+            // Was pushNamed('/review'), and nothing in the app registers that route --
+            // MaterialApp is configured with `home:` only, no `routes:` and no
+            // `onGenerateRoute:` -- so tapping Review in this menu threw "Could not find a
+            // generator for route" instead of navigating. Every other entry in this same
+            // menu pushes a MaterialPageRoute; this one was the exception.
+            Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ReviewModeSelectorPage()));
           } else if (id == 'profile-settings') {
             Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const ProfilePage()));
