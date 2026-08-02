@@ -21,6 +21,7 @@ public class AiProviderMetricsService {
                                  long requestCount,
                                  long successCount,
                                  long errorCount,
+                                 long emptyCount,
                                  long promptTokens,
                                  long completionTokens,
                                  long totalTokens) {
@@ -30,6 +31,7 @@ public class AiProviderMetricsService {
                            long requestCount,
                            long successCount,
                            long errorCount,
+                           long emptyCount,
                            long promptTokens,
                            long completionTokens,
                            long totalTokens,
@@ -60,6 +62,28 @@ public class AiProviderMetricsService {
         incrementCounter("ai.provider.request.total", normalizedProvider, normalizedModel, "success", 1);
     }
 
+    /**
+     * The call completed and returned nothing usable.
+     *
+     * <p>This is neither a success nor an error, and collapsing it into either one is how a
+     * broken generator hides. It was counted as a success: the provider metric read 100%
+     * healthy for three months while the app served hardcoded template sentences, because
+     * the HTTP request had in fact worked -- it just came back empty, and the caller quietly
+     * substituted a fallback. Nothing anywhere said so.
+     *
+     * <p>An error means the provider failed and we know it. Empty means the provider
+     * answered and the learner still got nothing, which is the more dangerous of the two
+     * precisely because it looks fine.
+     */
+    public void recordEmpty(String provider, String model) {
+        String normalizedProvider = normalize(provider, "unknown");
+        String normalizedModel = normalize(model, "default");
+        MutableMetric metric = metricFor(normalizedProvider, normalizedModel);
+        metric.requestCount.incrementAndGet();
+        metric.emptyCount.incrementAndGet();
+        incrementCounter("ai.provider.request.total", normalizedProvider, normalizedModel, "empty", 1);
+    }
+
     public void recordError(String provider, String model) {
         String normalizedProvider = normalize(provider, "unknown");
         String normalizedModel = normalize(model, "default");
@@ -80,6 +104,7 @@ public class AiProviderMetricsService {
         long requestCount = providerMetrics.stream().mapToLong(ProviderMetric::requestCount).sum();
         long successCount = providerMetrics.stream().mapToLong(ProviderMetric::successCount).sum();
         long errorCount = providerMetrics.stream().mapToLong(ProviderMetric::errorCount).sum();
+        long emptyCount = providerMetrics.stream().mapToLong(ProviderMetric::emptyCount).sum();
         long promptTokens = providerMetrics.stream().mapToLong(ProviderMetric::promptTokens).sum();
         long completionTokens = providerMetrics.stream().mapToLong(ProviderMetric::completionTokens).sum();
         long totalTokens = providerMetrics.stream().mapToLong(ProviderMetric::totalTokens).sum();
@@ -89,6 +114,7 @@ public class AiProviderMetricsService {
                 requestCount,
                 successCount,
                 errorCount,
+                emptyCount,
                 promptTokens,
                 completionTokens,
                 totalTokens,
@@ -122,6 +148,7 @@ public class AiProviderMetricsService {
         private final AtomicLong requestCount = new AtomicLong();
         private final AtomicLong successCount = new AtomicLong();
         private final AtomicLong errorCount = new AtomicLong();
+        private final AtomicLong emptyCount = new AtomicLong();
         private final AtomicLong promptTokens = new AtomicLong();
         private final AtomicLong completionTokens = new AtomicLong();
         private final AtomicLong totalTokens = new AtomicLong();
@@ -140,6 +167,7 @@ public class AiProviderMetricsService {
                     requestCount.get(),
                     successCount.get(),
                     errorCount.get(),
+                    emptyCount.get(),
                     promptTokens.get(),
                     completionTokens.get(),
                     totalTokens.get());

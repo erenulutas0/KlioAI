@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,7 +56,33 @@ class GroqAiCompletionProviderTest {
 
         assertNull(result.content());
         assertEquals(0, result.totalTokens());
-        verify(metricsService).recordSuccess("groq", null, result);
+        // Used to be recordSuccess. A provider that hands back nothing has not succeeded at
+        // the thing the learner asked for, and counting it as a success is what let three
+        // months of hardcoded fallback sentences look like a healthy pipeline.
+        verify(metricsService).recordEmpty("groq", null);
+        verify(metricsService, never()).recordSuccess(any(), any(), any());
+    }
+
+    @Test
+    void contentThatArrivesBlankIsAlsoAnEmptyGeneration() {
+        // The more common shape of the same failure: a well-formed response whose content
+        // field is an empty string. Downstream it becomes a fallback template, and to
+        // anyone reading the metrics it used to be indistinguishable from working.
+        GroqService groqService = mock(GroqService.class);
+        AiProviderMetricsService metricsService = mock(AiProviderMetricsService.class);
+        when(groqService.chatCompletionWithUsage(any(), eq(false), eq(null), eq(null), eq(null)))
+                .thenReturn(new GroqService.ChatCompletionResult("   ", 120, 0, 120));
+
+        GroqAiCompletionProvider provider = new GroqAiCompletionProvider(groqService, metricsService);
+        provider.chatCompletionWithUsage(
+                List.of(Map.of("role", "user", "content", "hello")),
+                false,
+                null,
+                null,
+                null);
+
+        verify(metricsService).recordEmpty("groq", null);
+        verify(metricsService, never()).recordSuccess(any(), any(), any());
     }
 
     @Test

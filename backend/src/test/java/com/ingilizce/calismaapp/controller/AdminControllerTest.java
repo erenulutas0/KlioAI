@@ -254,9 +254,10 @@ class AdminControllerTest {
         when(aiProviderMetricsService.snapshot())
                 .thenReturn(new AiProviderMetricsService.Snapshot(
                         "2026-05-03",
-                        2,
+                        3,
                         1,
                         1,
+                        1, // emptyCount: answered, but with nothing the learner could use
                         100,
                         50,
                         150,
@@ -264,7 +265,8 @@ class AdminControllerTest {
                                 "2026-05-03",
                                 "groq",
                                 "llama-3.3-70b-versatile",
-                                2,
+                                3,
+                                1,
                                 1,
                                 1,
                                 100,

@@ -62,6 +62,48 @@ class AiProviderMetricsServiceTest {
     }
 
     @Test
+    void anEmptyGenerationIsCountedAsNeitherSuccessNorError() {
+        // This is the number that was missing for three months. The provider answered, the
+        // request was fine, and the learner got a hardcoded template sentence — so the
+        // dashboard showed 100% success while the product was broken. Folding "answered
+        // with nothing" into either column makes that state unobservable, which is exactly
+        // how it survived so long.
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        AiProviderMetricsService service = new AiProviderMetricsService(meterRegistry);
+
+        service.recordSuccess("groq", "gpt-oss-120b",
+                new AiCompletionProvider.CompletionResult("real content", 10, 5, 15));
+        service.recordEmpty("groq", "gpt-oss-120b");
+
+        AiProviderMetricsService.Snapshot snapshot = service.snapshot();
+
+        assertEquals(2, snapshot.requestCount());
+        assertEquals(1, snapshot.successCount(), "an empty generation must not inflate success");
+        assertEquals(0, snapshot.errorCount(), "nor is it an error — the call worked");
+        assertEquals(1, snapshot.emptyCount());
+
+        assertEquals(1.0, meterRegistry.find("ai.provider.request.total")
+                .tag("provider", "groq")
+                .tag("model", "gpt-oss-120b")
+                .tag("outcome", "empty")
+                .counter()
+                .count());
+    }
+
+    @Test
+    void recordEmpty_shouldUseFallbackLabelsAndWorkWithoutMeterRegistry() {
+        AiProviderMetricsService service = new AiProviderMetricsService(null);
+
+        service.recordEmpty(null, "  ");
+
+        AiProviderMetricsService.Snapshot snapshot = service.snapshot();
+
+        assertEquals(1, snapshot.emptyCount());
+        assertEquals("unknown", snapshot.providers().get(0).provider());
+        assertEquals("default", snapshot.providers().get(0).model());
+    }
+
+    @Test
     void snapshot_shouldSortProviderMetricsByProviderThenModel() {
         AiProviderMetricsService service = new AiProviderMetricsService(null);
 
