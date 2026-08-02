@@ -203,4 +203,63 @@ class DevicePushTokenServiceTest {
         verify(repository, never()).save(any());
         assertThrows(IllegalArgumentException.class, () -> service.disableToken(7L, " "));
     }
+
+    @Test
+    void turningRemindersOnInSettingsReachesTheDeviceRows() {
+        // The bug this pins: updatePreferences wrote only to notification_preferences, while
+        // the sender queried device_push_tokens. The token column is written at registration
+        // only, and registration is skipped when the token, day and app version are all
+        // unchanged — so switching reminders on left the sender's view untouched. In
+        // production that showed up as considered=0 on every hourly run, for days, with no
+        // error anywhere: the switch was on, the preference said true, and nothing was sent.
+        DevicePushTokenRepository repository = mock(DevicePushTokenRepository.class);
+        NotificationPreferenceRepository preferenceRepository = mock(NotificationPreferenceRepository.class);
+
+        DevicePushToken stale = new DevicePushToken();
+        stale.setUserId(4L);
+        stale.setToken("token-abc");
+        stale.setEnabled(true);
+        stale.setDailyRemindersEnabled(false);
+
+        when(preferenceRepository.findByUserId(4L)).thenReturn(Optional.empty());
+        when(preferenceRepository.save(any(NotificationPreference.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findByUserId(4L)).thenReturn(java.util.List.of(stale));
+        when(repository.save(any(DevicePushToken.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DevicePushTokenService service = new DevicePushTokenService(repository, preferenceRepository);
+        service.updatePreferences(4L, Map.of("dailyRemindersEnabled", true));
+
+        ArgumentCaptor<DevicePushToken> captor = ArgumentCaptor.forClass(DevicePushToken.class);
+        verify(repository).save(captor.capture());
+        assertTrue(captor.getValue().isDailyRemindersEnabled(),
+                "the copy the sender reads has to follow the choice the user made");
+    }
+
+    @Test
+    void turningRemindersOffAlsoReachesTheDeviceRows() {
+        DevicePushTokenRepository repository = mock(DevicePushTokenRepository.class);
+        NotificationPreferenceRepository preferenceRepository = mock(NotificationPreferenceRepository.class);
+
+        DevicePushToken on = new DevicePushToken();
+        on.setUserId(4L);
+        on.setToken("token-abc");
+        on.setEnabled(true);
+        on.setDailyRemindersEnabled(true);
+
+        when(preferenceRepository.findByUserId(4L)).thenReturn(Optional.empty());
+        when(preferenceRepository.save(any(NotificationPreference.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.findByUserId(4L)).thenReturn(java.util.List.of(on));
+        when(repository.save(any(DevicePushToken.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DevicePushTokenService service = new DevicePushTokenService(repository, preferenceRepository);
+        service.updatePreferences(4L, Map.of("dailyRemindersEnabled", false));
+
+        ArgumentCaptor<DevicePushToken> captor = ArgumentCaptor.forClass(DevicePushToken.class);
+        verify(repository).save(captor.capture());
+        assertFalse(captor.getValue().isDailyRemindersEnabled());
+    }
 }

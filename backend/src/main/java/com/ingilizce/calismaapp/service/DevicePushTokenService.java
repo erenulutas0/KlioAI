@@ -5,6 +5,7 @@ import com.ingilizce.calismaapp.entity.NotificationPreference;
 import com.ingilizce.calismaapp.repository.DevicePushTokenRepository;
 import com.ingilizce.calismaapp.repository.NotificationPreferenceRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -118,7 +119,31 @@ public class DevicePushTokenService {
         }
 
         NotificationPreference saved = preferenceRepository.save(preference);
+        syncDailyRemindersOntoTokens(userId, saved.isDailyRemindersEnabled());
         return preferencePayload(saved);
+    }
+
+    /**
+     * Copies the daily-reminder choice onto the user's device rows.
+     *
+     * <p>{@code device_push_tokens.daily_reminders_enabled} duplicates a flag that really
+     * lives on the preference, and it was only ever written when a device registered —
+     * which is skipped when the token, day and app version are unchanged. So this update
+     * used to leave it untouched: someone could switch reminders on, watch the switch stay
+     * on, and get nothing, because the sender read the stale copy.
+     *
+     * <p>Delivery no longer decides anything from this column (see
+     * {@code findRemindableTokens}), but it is returned by the API and read while debugging,
+     * and a duplicate that quietly disagrees with the original is worse than no duplicate.
+     */
+    private void syncDailyRemindersOntoTokens(Long userId, boolean enabled) {
+        List<DevicePushToken> tokens = repository.findByUserId(userId);
+        for (DevicePushToken token : tokens) {
+            if (token.isDailyRemindersEnabled() != enabled) {
+                token.setDailyRemindersEnabled(enabled);
+                repository.save(token);
+            }
+        }
     }
 
     private NotificationPreference defaultPreference(Long userId) {

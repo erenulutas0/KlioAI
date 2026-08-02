@@ -79,8 +79,7 @@ public class PushNotificationService {
     public Map<String, Object> sendDailyReminderToActiveDevices() {
         PushNotificationProperties.DailyReminders reminder = properties.getDailyReminders();
         int limit = Math.max(1, Math.min(reminder.getMaxTokensPerRun(), 500));
-        List<DevicePushToken> tokens =
-                tokenRepository.findByEnabledTrueAndDailyRemindersEnabledTrue(PageRequest.of(0, limit));
+        List<DevicePushToken> tokens = tokenRepository.findRemindableTokens(PageRequest.of(0, limit));
 
         Instant now = Instant.now();
         int targetLocalHour = reminder.getLocalHour();

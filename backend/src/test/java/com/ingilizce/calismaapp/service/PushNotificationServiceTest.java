@@ -60,7 +60,7 @@ class PushNotificationServiceTest {
         f.service().sendDailyReminderToActiveDevices();
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(f.repository).findByEnabledTrueAndDailyRemindersEnabledTrue(pageableCaptor.capture());
+        verify(f.repository).findRemindableTokens(pageableCaptor.capture());
         assertEquals(500, pageableCaptor.getValue().getPageSize());
 
         ArgumentCaptor<NotificationDeliveryLog> logCaptor =
@@ -86,7 +86,7 @@ class PushNotificationServiceTest {
 
         assertEquals(0, response.get("considered"));
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(f.repository).findByEnabledTrueAndDailyRemindersEnabledTrue(pageableCaptor.capture());
+        verify(f.repository).findRemindableTokens(pageableCaptor.capture());
         assertEquals(1, pageableCaptor.getValue().getPageSize());
         verify(f.deliveryLogRepository, never()).save(any());
     }
@@ -162,12 +162,12 @@ class PushNotificationServiceTest {
             token.setDailyRemindersEnabled(true);
             token.setTimezone("UTC");
             token.setLocale("tr");
-            when(repository.findByEnabledTrueAndDailyRemindersEnabledTrue(any(Pageable.class)))
+            when(repository.findRemindableTokens(any(Pageable.class)))
                     .thenReturn(List.of(token));
         }
 
         Fixture noTokens() {
-            when(repository.findByEnabledTrueAndDailyRemindersEnabledTrue(any(Pageable.class)))
+            when(repository.findRemindableTokens(any(Pageable.class)))
                     .thenReturn(List.of());
             return this;
         }
