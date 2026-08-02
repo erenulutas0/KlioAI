@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -182,7 +183,7 @@ class PushTokenService {
       deviceId: deviceId,
       appVersion: appVersion,
       locale: PlatformDispatcher.instance.locale.toLanguageTag(),
-      timezone: DateTime.now().timeZoneName,
+      timezone: await _ianaTimezone(),
       dailyRemindersEnabled: dailyRemindersEnabled,
     );
 
@@ -190,6 +191,32 @@ class PushTokenService {
     await prefs.setString(_lastRegisteredDayKey, today);
     await prefs.setString(_lastRegisteredAppVersionKey, appVersion);
     await AnalyticsService.logPushTokenRegistered(platform: platform);
+  }
+
+  /// The device's IANA zone id, e.g. `Europe/Istanbul`.
+  ///
+  /// This used to send `DateTime.now().timeZoneName`, which is an abbreviation, not an
+  /// identifier — `GMT+03:00` on Android, `CEST` in Berlin in August, `+03` elsewhere. The
+  /// backend resolves this with `ZoneId.of()` to decide when it is evening for this
+  /// learner, and `ZoneId.of("CEST")` throws. The failure is silent and one-directional:
+  /// every unparseable zone falls back to Istanbul, so the whole point of storing a
+  /// per-device timezone quietly evaporates for exactly the learners who are not in Turkey.
+  ///
+  /// Worse, the abbreviation changes across a DST boundary while the zone does not, so a
+  /// value that happened to parse in winter can stop parsing in summer.
+  static Future<String> _ianaTimezone() async {
+    try {
+      final timezone = await FlutterTimezone.getLocalTimezone();
+      final identifier = timezone.identifier.trim();
+      if (identifier.isNotEmpty) {
+        return identifier;
+      }
+    } catch (e) {
+      debugPrint('Local timezone lookup failed: $e');
+    }
+    // The backend applies the same fallback, but sending it explicitly means a stored row
+    // says what was actually known rather than looking like a real reading.
+    return 'Europe/Istanbul';
   }
 
   String _platformName() {

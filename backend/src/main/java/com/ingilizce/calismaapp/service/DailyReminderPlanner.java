@@ -119,6 +119,30 @@ public final class DailyReminderPlanner {
         }
     }
 
+    /**
+     * Whether a stored zone was usable, as opposed to quietly replaced by the fallback.
+     *
+     * <p>The fallback is one-directional and silent: an unparseable zone becomes Istanbul,
+     * which looks correct for the Turkish audience and hides the failure completely for
+     * everyone else. The client was for a while sending {@code DateTime.now().timeZoneName}
+     * — an abbreviation like {@code CEST}, not an identifier — and {@code ZoneId.of("CEST")}
+     * throws. Nothing in the delivery path would ever have said so.
+     *
+     * <p>The caller counts these per run so a bad client value shows up in the logs as a
+     * number instead of being absorbed.
+     */
+    static boolean isResolvableZone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return false;
+        }
+        try {
+            ZoneId.of(timezone.trim());
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     static boolean isTurkish(String locale) {
         // Default to Turkish rather than English: the audience is Turkish speakers, so an
         // unknown locale is far more likely to be one of them than not, and the old default

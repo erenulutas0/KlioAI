@@ -87,6 +87,7 @@ public class PushNotificationService {
         Map<Long, Long> dueByUser = new HashMap<>();
         Map<Long, Optional<Instant>> lastReviewByUser = new HashMap<>();
         Map<String, Integer> skipped = new LinkedHashMap<>();
+        Map<String, Integer> unusableZones = new LinkedHashMap<>();
 
         int sent = 0;
         int failed = 0;
@@ -97,6 +98,16 @@ public class PushNotificationService {
             if (userId == null || userId <= 0) {
                 skipped.merge("no-user", 1, Integer::sum);
                 continue;
+            }
+
+            // Counted, not acted on: the reminder still goes out on the fallback zone. This
+            // exists so that a client sending something ZoneId cannot parse shows up as a
+            // number in the log rather than being silently absorbed into "everyone is in
+            // Istanbul", which is indistinguishable from working correctly here.
+            if (token.getTimezone() != null
+                    && !token.getTimezone().isBlank()
+                    && !DailyReminderPlanner.isResolvableZone(token.getTimezone())) {
+                unusableZones.merge(token.getTimezone(), 1, Integer::sum);
             }
 
             // The cheap check first. Twenty-three runs in twenty-four are the wrong local
@@ -137,6 +148,10 @@ public class PushNotificationService {
 
         logger.info("Daily reminder run: considered={} sent={} failed={} skipped={}",
                 considered, sent, failed, skipped);
+        if (!unusableZones.isEmpty()) {
+            logger.warn("Device timezones that ZoneId could not parse, defaulted to "
+                    + "Europe/Istanbul: {}", unusableZones);
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
@@ -144,6 +159,7 @@ public class PushNotificationService {
         response.put("sent", sent);
         response.put("failed", failed);
         response.put("skipped", skipped);
+        response.put("unusableZones", unusableZones);
         response.put("targetLocalHour", targetLocalHour);
         return response;
     }

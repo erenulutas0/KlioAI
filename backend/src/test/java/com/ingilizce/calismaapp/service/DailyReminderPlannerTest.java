@@ -197,4 +197,18 @@ class DailyReminderPlannerTest {
 
         assertFalse(decision.send(), "23:00 local is not the evening reminder hour");
     }
+
+    @Test
+    void anAbbreviationIsNotAnIdentifier() {
+        // The client was sending DateTime.now().timeZoneName, which is an abbreviation:
+        // "GMT+03:00" on Android, "CEST" in Berlin in August. Offsets happen to parse;
+        // names do not, and the fallback then quietly relocates that learner to Istanbul.
+        assertTrue(DailyReminderPlanner.isResolvableZone("Europe/Berlin"));
+        assertTrue(DailyReminderPlanner.isResolvableZone("GMT+03:00"));
+
+        assertFalse(DailyReminderPlanner.isResolvableZone("CEST"));
+        assertFalse(DailyReminderPlanner.isResolvableZone("TRT"));
+        assertFalse(DailyReminderPlanner.isResolvableZone(null));
+        assertFalse(DailyReminderPlanner.isResolvableZone("  "));
+    }
 }
