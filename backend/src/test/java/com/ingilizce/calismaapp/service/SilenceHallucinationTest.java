@@ -98,4 +98,21 @@ class SilenceHallucinationTest {
         assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of()));
         assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(null));
     }
+
+    @Test
+    void theAbsenceOfSegmentsIsSaidOutLoud() {
+        // The whole check sat inert for a release because the API was only asked for word
+        // timestamps, which makes it drop `segments` — and `segments` is where
+        // no_speech_prob lives. The code declined to guess, which was right, and said
+        // nothing, which was not: a silent no-op reads exactly like a working filter.
+        assertTrue(GroqSpeechToTextService.describeConfidence(null)
+                .contains("no segments"));
+        assertTrue(GroqSpeechToTextService.describeConfidence(java.util.List.of())
+                .contains("empty"));
+
+        String described = GroqSpeechToTextService.describeConfidence(java.util.List.of(
+                java.util.Map.of("no_speech_prob", 0.94, "avg_logprob", -1.7)));
+        assertTrue(described.contains("0.94"), described);
+        assertTrue(described.contains("-1.7"), described);
+    }
 }

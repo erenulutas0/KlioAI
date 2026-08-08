@@ -98,6 +98,12 @@ public class GroqSpeechToTextService {
             // Aynı fiyat, aynı gecikme sınıfı; "json" yalnızca text döndürüyordu.
             body.add("response_format", "verbose_json");
             body.add("timestamp_granularities[]", "word");
+            // Both, not just word. Asking for word timestamps alone makes the API drop the
+            // `segments` array, and `segments` is the only place no_speech_prob and
+            // avg_logprob appear — the two numbers the silence check depends on. Without
+            // this the check received nothing, correctly declined to guess, and passed every
+            // hallucinated transcript straight through while looking like it was working.
+            body.add("timestamp_granularities[]", "segment");
             if (prompt != null && !prompt.isBlank()) {
                 body.add("prompt", prompt.trim());
             }
@@ -116,6 +122,12 @@ public class GroqSpeechToTextService {
                     new TypeReference<Map<String, Object>>() {
                     });
             String text = payload.get("text") == null ? "" : payload.get("text").toString().trim();
+            // Logged every time, not only on a discard. The silence check spent a whole
+            // release doing nothing because `segments` was absent from the response and the
+            // code — correctly — refuses to guess from missing data. Silently declining to
+            // act is indistinguishable from acting correctly, so the inputs to the decision
+            // have to be visible.
+            log.info("Speech confidence: {}", describeConfidence(payload.get("segments")));
             if (segmentsLookLikeSilence(payload.get("segments"))) {
                 log.info("Discarding transcript: model reports no speech. text='{}'", text);
                 text = "";
@@ -181,6 +193,24 @@ public class GroqSpeechToTextService {
 
     private static Double asDouble(Object raw) {
         return raw instanceof Number number ? number.doubleValue() : null;
+    }
+
+    /** One log line saying what the silence check actually had to work with. */
+    static String describeConfidence(Object rawSegments) {
+        if (!(rawSegments instanceof List<?> segments)) {
+            return "no segments in response";
+        }
+        if (segments.isEmpty()) {
+            return "segments empty";
+        }
+        StringBuilder sb = new StringBuilder(segments.size() + " segment(s)");
+        for (Object entry : segments) {
+            if (entry instanceof Map<?, ?> segment) {
+                sb.append(" [noSpeech=").append(segment.get("no_speech_prob"))
+                        .append(" avgLogprob=").append(segment.get("avg_logprob")).append(']');
+            }
+        }
+        return sb.toString();
     }
 
     /**
