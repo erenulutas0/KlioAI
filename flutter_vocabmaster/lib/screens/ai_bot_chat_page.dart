@@ -422,6 +422,10 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         userMessage,
         scenario: _activeScenario,
         scenarioContext: _activeScenarioContext,
+        // The header, the avatar and the voice all say who this is. Until now the model
+        // was the only one not told, so it introduced itself as whoever the backend's
+        // daily rotation had picked — "Hey! It's Amy, not Ryan" in a chat headed Ryan.
+        speakerName: _selectedVoice?.name,
       );
 
       if (mounted) {

@@ -112,7 +112,18 @@ public class ChatbotService {
    */
   public AiCallResult chat(String message, String scenario, String scenarioContext, Long userId,
       LearningLanguageProfile profile) {
-    String systemPrompt = buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile);
+    return chat(message, scenario, scenarioContext, userId, profile, null);
+  }
+
+  /**
+   * @param speakerName the voice the learner picked on the speaking screen, so the reply
+   *                    comes from the person whose name and face are on the screen rather
+   *                    than from an unrelated daily rotation. Null keeps the old behaviour.
+   */
+  public AiCallResult chat(String message, String scenario, String scenarioContext, Long userId,
+      LearningLanguageProfile profile, String speakerName) {
+    String systemPrompt =
+        buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile, speakerName);
     List<Map<String, String>> history = conversationSessionService != null
         ? conversationSessionService.recentMessages(userId)
         : List.of();
@@ -283,11 +294,46 @@ public class ChatbotService {
               + "- Enjoys discussing books, films, and future technology"));
 
   private Persona selectPersona(Long userId) {
-    // Stable per user per day: the partner keeps one identity for the whole day
-    // instead of flipping personality mid-conversation, and rotates across days.
-    long userSeed = userId != null ? userId : 0L;
-    int index = Math.floorMod(Objects.hash(userSeed, LocalDate.now()), PERSONA_BANK.size());
-    return PERSONA_BANK.get(index);
+    return selectPersona(userId, null);
+  }
+
+  /**
+   * The partner the learner is actually looking at.
+   *
+   * <p>The speaking screen lets you pick a voice — avatar, accent, name in the header — and
+   * that choice used to reach the text-to-speech and nothing else. The chat identity came
+   * from this daily rotation, which never saw it. So with Ryan selected the header said
+   * Ryan, the audio was Ryan, and the first reply was "Hey! It's Amy, not Ryan". Two
+   * independent naming systems, and the learner sees both at once.
+   *
+   * <p>When a speaker is chosen the persona is now stable for that speaker rather than for
+   * the day: the same name should be the same character every time, otherwise picking Ryan
+   * on Tuesday and Ryan on Friday gets two different people. If the bank already has someone
+   * by that name — Amy does — that one is used as written, personality and all. Otherwise a
+   * personality is drawn deterministically and renamed, which keeps the traits varied
+   * without ever contradicting what is on screen.
+   *
+   * <p>With no speaker chosen this is the original daily rotation, unchanged.
+   */
+  private Persona selectPersona(Long userId, String speakerName) {
+    if (speakerName == null || speakerName.isBlank()) {
+      // Stable per user per day: the partner keeps one identity for the whole day
+      // instead of flipping personality mid-conversation, and rotates across days.
+      long userSeed = userId != null ? userId : 0L;
+      int index = Math.floorMod(Objects.hash(userSeed, LocalDate.now()), PERSONA_BANK.size());
+      return PERSONA_BANK.get(index);
+    }
+
+    String trimmed = speakerName.trim();
+    String key = trimmed.toLowerCase(java.util.Locale.ROOT);
+    for (Persona persona : PERSONA_BANK) {
+      if (persona.id().equals(key)) {
+        return persona;
+      }
+    }
+
+    Persona borrowed = PERSONA_BANK.get(Math.floorMod(key.hashCode(), PERSONA_BANK.size()));
+    return new Persona(key, trimmed, borrowed.description(), borrowed.traits());
   }
 
   private enum ConversationPhase {
@@ -353,7 +399,7 @@ public class ChatbotService {
           "Give at most one tiny correction note after responding to the meaning."));
 
   private String buildChatSystemPrompt(String userMessage, String scenario, String scenarioContext, Long userId,
-      LearningLanguageProfile profile) {
+      LearningLanguageProfile profile, String speakerName) {
     String safeScenarioContext = sanitizeScenarioContext(scenarioContext);
     String contextStr = !safeScenarioContext.isEmpty()
         ? "LEARNER-SUPPLIED SCENE FACTS: " + safeScenarioContext
@@ -458,7 +504,7 @@ EXAMPLE RESPONSES:
     }
 
     // Default: normal chat mode with a stable daily persona and conversation phases.
-    Persona persona = selectPersona(userId);
+    Persona persona = selectPersona(userId, speakerName);
     ConversationMode mode = selectConversationMode(userMessage);
     ConversationPhase phase = phaseFor(conversationSessionService != null
         ? conversationSessionService.sessionMessageCount(userId)

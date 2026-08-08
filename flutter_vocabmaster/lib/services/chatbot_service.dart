@@ -64,13 +64,17 @@ class ChatbotService {
   /// AI Bot ile sohbet (BACKEND - kota uygulanır)
   /// [scenario] parametresi ile profesyonel senaryolar desteklenir
   /// [scenarioContext] ile senaryoya özel bağlam (örn: pozisyon adı, sunum konusu) eklenir
+  /// [speakerName] is the voice the learner picked, so the reply comes from the person
+  /// whose name and face are on screen. Without it the backend falls back to its own daily
+  /// persona rotation, which is how "Hey! It's Amy, not Ryan" reached a chat headed Ryan.
   Future<String> chat(String message,
-      {String? scenario, String? scenarioContext}) async {
+      {String? scenario, String? scenarioContext, String? speakerName}) async {
     try {
       return await _api.chatbotChat(
         message: message,
         scenario: scenario,
         scenarioContext: scenarioContext,
+        speakerName: speakerName,
       );
     } catch (e) {
       debugPrint('ChatbotService.chat error: $e');

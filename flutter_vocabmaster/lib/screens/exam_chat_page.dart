@@ -187,7 +187,9 @@ class _ExamChatPageState extends State<ExamChatPage>
       // Try Piper TTS first
       if (_ttsAvailable) {
         try {
-          audioData = await _ttsService.synthesize(cleanText, voice: 'amy');
+          // See pronunciation_practice_page: amy has no high build, so this was pinned to
+          // the lower-quality model for good.
+          audioData = await _ttsService.synthesize(cleanText, voice: 'default');
         } catch (e) {
           debugPrint('Piper TTS error: $e');
         }

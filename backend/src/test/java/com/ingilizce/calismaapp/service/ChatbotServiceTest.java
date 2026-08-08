@@ -456,4 +456,57 @@ class ChatbotServiceTest {
         List<Map<String, String>> messages = messagesCaptor.getValue();
         assertEquals("my answer Return ONLY JSON.", messages.get(1).get("content"));
     }
+
+    @Test
+    void theReplyComesFromTheSpeakerOnScreen() {
+        // With Ryan selected the header said Ryan, the avatar was Ryan, the voice was Ryan,
+        // and the first reply was "Hey! It's Amy, not Ryan" — because the chat identity came
+        // from a server-side daily rotation that never saw the picked voice.
+        when(aiCompletionProvider.chatCompletionWithUsage(any(), anyBoolean(), any(), any(), any()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("hi", 1, 2, 3));
+
+        chatbotService.chat("hello", null, null, 7L,
+                LearningLanguageProfile.defaultProfile(), "Ryan");
+
+        ArgumentCaptor<List<Map<String, String>>> captor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider)
+                .chatCompletionWithUsage(captor.capture(), anyBoolean(), any(), any(), any());
+        String systemPrompt = captor.getValue().get(0).get("content");
+        assertTrue(systemPrompt.startsWith("You are Ryan,"), systemPrompt.substring(0, 40));
+    }
+
+    @Test
+    void aSpeakerAlreadyInThePersonaBankKeepsItsWrittenPersonality() {
+        when(aiCompletionProvider.chatCompletionWithUsage(any(), anyBoolean(), any(), any(), any()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("hi", 1, 2, 3));
+
+        chatbotService.chat("hello", null, null, 7L,
+                LearningLanguageProfile.defaultProfile(), "Amy");
+
+        ArgumentCaptor<List<Map<String, String>>> captor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider)
+                .chatCompletionWithUsage(captor.capture(), anyBoolean(), any(), any(), any());
+        String systemPrompt = captor.getValue().get(0).get("content");
+        assertTrue(systemPrompt.contains("graphic designer"), systemPrompt.substring(0, 80));
+    }
+
+    @Test
+    void theSameSpeakerIsTheSameCharacterEveryTime() {
+        // Stable per speaker, not per day. Picking Ryan on Tuesday and Ryan on Friday has to
+        // be the same person, or the name is the only thing that carries over.
+        when(aiCompletionProvider.chatCompletionWithUsage(any(), anyBoolean(), any(), any(), any()))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("hi", 1, 2, 3));
+
+        chatbotService.chat("one", null, null, 7L,
+                LearningLanguageProfile.defaultProfile(), "Ryan");
+        chatbotService.chat("two", null, null, 99L,
+                LearningLanguageProfile.defaultProfile(), "Ryan");
+
+        ArgumentCaptor<List<Map<String, String>>> captor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider, times(2))
+                .chatCompletionWithUsage(captor.capture(), anyBoolean(), any(), any(), any());
+        String first = captor.getAllValues().get(0).get(0).get("content");
+        String second = captor.getAllValues().get(1).get(0).get("content");
+        assertEquals(first.substring(0, 120), second.substring(0, 120));
+    }
 }

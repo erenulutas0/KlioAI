@@ -152,7 +152,7 @@ public class ChatbotControllerTest {
 
     @Test
     void chatReturnsOkWhenValid() throws Exception {
-        when(chatbotService.chat("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile()))
+        when(chatbotService.chat("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile(), null))
                 .thenReturn(ai("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -171,7 +171,8 @@ public class ChatbotControllerTest {
 
     @Test
     void chatPassesLanguageProfileFromRequestBody() throws Exception {
-        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class)))
+        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+                nullable(String.class)))
                 .thenReturn(ai("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -193,7 +194,8 @@ public class ChatbotControllerTest {
                 argThat((LearningLanguageProfile profile) ->
                         "Spanish".equals(profile.sourceLanguage())
                                 && "A2".equals(profile.englishLevel())
-                                && "Travel".equals(profile.learningGoal())));
+                                && "Travel".equals(profile.learningGoal())),
+                nullable(String.class));
     }
 
     @Test
@@ -224,7 +226,7 @@ public class ChatbotControllerTest {
     @Test
     void chatReturnsInternalServerErrorWhenServiceThrows() throws Exception {
         when(chatbotService.chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                any(LearningLanguageProfile.class)))
+                any(LearningLanguageProfile.class), nullable(String.class)))
                 .thenThrow(new RuntimeException("downstream"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -1516,5 +1518,27 @@ public class ChatbotControllerTest {
     private static ChatbotService.AiCallResult ai(String content) {
         // Token values are not asserted in these controller tests.
         return new ChatbotService.AiCallResult(content, 123, 100, 23);
+    }
+
+    @Test
+    void chatForwardsTheSelectedSpeakerToTheService() {
+        // Without this the model is the only party on the screen that does not know who it
+        // is supposed to be, and introduces itself as whoever the daily rotation picked.
+        try {
+            when(chatbotService.chat(anyString(), any(), any(), anyLong(),
+                    any(LearningLanguageProfile.class), nullable(String.class)))
+                    .thenReturn(ai("Hi there!"));
+
+            mockMvc.perform(post("/api/chatbot/chat")
+                    .header("X-User-Id", "1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"message\":\"Hello\",\"speakerName\":\"Ryan\"}"))
+                    .andExpect(status().isOk());
+
+            verify(chatbotService).chat(eq("Hello"), any(), any(), eq(1L),
+                    any(LearningLanguageProfile.class), eq("Ryan"));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

@@ -334,7 +334,11 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
     required String failedMessage,
   }) async {
     try {
-      final audio = await _ttsService.synthesize(text, voice: 'amy');
+      // 'default' rather than 'amy': the server picks its best installed build, and amy is
+      // one of the voices with no high-quality model published — so pinning it here meant
+      // this screen could never use one. Pronunciation practice is the last place to
+      // settle for the lower-fidelity voice.
+      final audio = await _ttsService.synthesize(text, voice: 'default');
       if (audio == null || audio.isEmpty) {
         _showSnack(unavailableMessage);
         return;

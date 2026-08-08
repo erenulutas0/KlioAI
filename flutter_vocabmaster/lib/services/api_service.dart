@@ -952,6 +952,7 @@ class ApiService {
     required String message,
     String? scenario,
     String? scenarioContext,
+    String? speakerName,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -960,6 +961,8 @@ class ApiService {
         headers: headers,
         body: json.encode({
           'message': message,
+          if (speakerName != null && speakerName.isNotEmpty)
+            'speakerName': speakerName,
           if (scenario != null) 'scenario': scenario,
           if (scenarioContext != null) 'scenarioContext': scenarioContext,
           ..._learningLanguageProfile(),
