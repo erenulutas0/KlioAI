@@ -116,6 +116,10 @@ public class GroqSpeechToTextService {
                     new TypeReference<Map<String, Object>>() {
                     });
             String text = payload.get("text") == null ? "" : payload.get("text").toString().trim();
+            if (isHallucinatedSilence(text)) {
+                log.info("Discarding hallucinated transcript for silent audio: '{}'", text);
+                text = "";
+            }
             Double durationSeconds = parseDuration(payload.get("duration"));
             List<WordTiming> words = parseWordTimings(payload.get("words"));
             return new TranscriptionResult(text, model, durationSeconds, words);
@@ -127,6 +131,58 @@ public class GroqSpeechToTextService {
             throw new RuntimeException("Groq speech transcription failed", e);
         }
     }
+
+    /**
+     * Whisper credits a subtitling company when it is handed silence.
+     *
+     * <p>Given near-silent audio the model does not return nothing — it returns fluent,
+     * confident text copied from the subtitle files it was trained on. A four-second
+     * recording of an empty room produced: "English learning conversation. Transcribe or the
+     * stream of language can be seen in general. Transcription by CastingWords. You can
+     * still explain your presence in learning..."
+     *
+     * <p>In this app that transcript is auto-sent the moment it arrives. So a learner who
+     * taps the microphone and hesitates has words put in their mouth, watches the tutor
+     * answer a question they never asked, and pays for it out of their daily token budget.
+     * For somebody learning the language, being unable to tell "the app misheard me" from
+     * "I said something wrong" is the worst possible failure here.
+     *
+     * <p>These strings are artefacts of Whisper's training data, not of anything the learner
+     * did, so they are matched literally. The list is deliberately narrow: a false positive
+     * would silently drop real speech, which is the mistake we are trying to avoid, so
+     * anything not clearly boilerplate is passed through.
+     */
+    static boolean isHallucinatedSilence(String text) {
+        if (text == null || text.isBlank()) {
+            return true;
+        }
+        String normalized = text.toLowerCase(Locale.ROOT);
+        for (String marker : SILENCE_HALLUCINATION_MARKERS) {
+            if (normalized.contains(marker)) {
+                return true;
+            }
+        }
+        // A transcript with no letters at all — "...", "[Music]", stray punctuation — is not
+        // speech either.
+        return normalized.chars().noneMatch(Character::isLetter);
+    }
+
+    private static final List<String> SILENCE_HALLUCINATION_MARKERS = List.of(
+            "castingwords",
+            "amara.org",
+            "subtitles by",
+            "subtitled by",
+            "subtitles provided by",
+            "transcription by",
+            "transcript by",
+            "thanks for watching",
+            "thank you for watching",
+            "please subscribe",
+            "www.",
+            "[music]",
+            "[applause]",
+            "[silence]",
+            "altyazı m.k.");
 
     private Double parseDuration(Object raw) {
         if (raw instanceof Number number) {

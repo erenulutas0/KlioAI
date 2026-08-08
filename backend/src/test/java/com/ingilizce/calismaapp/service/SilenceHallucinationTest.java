@@ -1,0 +1,63 @@
+package com.ingilizce.calismaapp.service;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Whisper does not return nothing when it hears nothing.
+ *
+ * <p>Handed a four-second recording of an empty room, it returned: "English learning
+ * conversation. Transcribe or the stream of language can be seen in general. Transcription
+ * by CastingWords. You can still explain your presence in learning..." — fluent, confident,
+ * and entirely invented from the subtitle files in its training data.
+ *
+ * <p>The speaking screen auto-sends the transcript the moment it arrives, so a learner who
+ * taps the microphone and hesitates gets words put in their mouth, watches the tutor answer
+ * a question they never asked, and pays for it from their daily token budget. Somebody
+ * learning the language cannot tell "the app misheard me" from "I said it wrong", which
+ * makes this a worse failure here than in most places.
+ */
+class SilenceHallucinationTest {
+
+    @Test
+    void theTranscriptSilenceActuallyProduced() {
+        // Captured from a real recording of a quiet room on a physical device.
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence(
+                "English learning conversation. Transcribe or the stream of language can be "
+                        + "seen in general. Transcription by CastingWords You can still explain "
+                        + "your presence in learning but also if you like to explain your "
+                        + "business Thank you."));
+    }
+
+    @Test
+    void theUsualSubtitleBoilerplateIsRejected() {
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("Subtitles by the Amara.org community"));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("Thanks for watching!"));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("Please subscribe to the channel"));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("[Music]"));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("Altyazı M.K."));
+    }
+
+    @Test
+    void nothingAndPunctuationAreNotSpeech() {
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence(null));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("   "));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("..."));
+        assertTrue(GroqSpeechToTextService.isHallucinatedSilence("?!"));
+    }
+
+    @Test
+    void realSpeechIsLeftAlone() {
+        // The list stays narrow on purpose. A false positive silently deletes something the
+        // learner actually said, which is the failure this exists to prevent — so anything
+        // that is not unmistakably boilerplate has to pass through.
+        assertFalse(GroqSpeechToTextService.isHallucinatedSilence("Hello, my name is Eren."));
+        assertFalse(GroqSpeechToTextService.isHallucinatedSilence(
+                "I usually spend my weekends watching films with my family."));
+        assertFalse(GroqSpeechToTextService.isHallucinatedSilence("Thank you."));
+        assertFalse(GroqSpeechToTextService.isHallucinatedSilence(
+                "I want to talk about my business trip to London."));
+    }
+}
