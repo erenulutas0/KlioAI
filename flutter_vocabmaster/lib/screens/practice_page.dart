@@ -1077,11 +1077,19 @@ class _PracticePageState extends State<PracticePage>
                             ),
                           ),
                           const SizedBox(width: 6),
+                          // Fixed green, not the theme accent. A small coloured circle beside
+                          // a feature name is read as a status light by everyone, and on the
+                          // warm themes the accent is red — so this card showed a red dot
+                          // directly beside the words "Ready for English speaking practice",
+                          // contradicting itself. The sibling chat card has always used a
+                          // fixed green for the same decoration; matching it stops the two
+                          // cards from appearing to report different availability when
+                          // neither of them reports anything at all.
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
-                              color: _currentTheme().colors.accent,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4ADE80),
                               shape: BoxShape.circle,
                             ),
                           ),
