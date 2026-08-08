@@ -60,4 +60,42 @@ class SilenceHallucinationTest {
         assertFalse(GroqSpeechToTextService.isHallucinatedSilence(
                 "I want to talk about my business trip to London."));
     }
+
+    @Test
+    void theModelsOwnConfidenceCatchesWhatWordingCannot() {
+        // The marker list caught the subtitle boilerplate, and the very next recording of
+        // the same silent room came back as "Thank you." — also a common Whisper silence
+        // output, and also something a learner might genuinely say. No wording separates
+        // those two. no_speech_prob does.
+        assertTrue(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of(
+                java.util.Map.of("no_speech_prob", 0.94, "avg_logprob", -1.7))));
+    }
+
+    @Test
+    void aQuietButRealAttemptSurvives() {
+        // Both thresholds have to trip. High no-speech probability on its own fires on
+        // quiet speech; a poor log-probability on its own fires on a strong accent — which
+        // is most of this app's audience.
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of(
+                java.util.Map.of("no_speech_prob", 0.91, "avg_logprob", -0.4))));
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of(
+                java.util.Map.of("no_speech_prob", 0.10, "avg_logprob", -1.9))));
+    }
+
+    @Test
+    void oneRealSegmentKeepsTheWholeTranscript() {
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of(
+                java.util.Map.of("no_speech_prob", 0.95, "avg_logprob", -1.8),
+                java.util.Map.of("no_speech_prob", 0.02, "avg_logprob", -0.3))));
+    }
+
+    @Test
+    void missingConfidenceFieldsAreNotTreatedAsSilence() {
+        // Absent data is not evidence of silence. Deleting a learner's words because the
+        // provider changed its response shape would be the worse failure.
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of(
+                java.util.Map.of("text", "hello"))));
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(java.util.List.of()));
+        assertFalse(GroqSpeechToTextService.segmentsLookLikeSilence(null));
+    }
 }

@@ -116,7 +116,10 @@ public class GroqSpeechToTextService {
                     new TypeReference<Map<String, Object>>() {
                     });
             String text = payload.get("text") == null ? "" : payload.get("text").toString().trim();
-            if (isHallucinatedSilence(text)) {
+            if (segmentsLookLikeSilence(payload.get("segments"))) {
+                log.info("Discarding transcript: model reports no speech. text='{}'", text);
+                text = "";
+            } else if (isHallucinatedSilence(text)) {
                 log.info("Discarding hallucinated transcript for silent audio: '{}'", text);
                 text = "";
             }
@@ -130,6 +133,54 @@ public class GroqSpeechToTextService {
             log.warn("Groq speech transcription failed: {}", e.getMessage());
             throw new RuntimeException("Groq speech transcription failed", e);
         }
+    }
+
+    /** OpenAI's own decoding defaults for "this segment contains no speech". */
+    static final double NO_SPEECH_PROB_THRESHOLD = 0.6;
+    static final double AVG_LOGPROB_THRESHOLD = -1.0;
+
+    /**
+     * Asks the model whether it actually heard anything, instead of guessing from the words.
+     *
+     * <p>{@code verbose_json} returns a {@code no_speech_prob} and an {@code avg_logprob}
+     * per segment — Whisper's own confidence that the audio was silence, and how sure it was
+     * of the text it produced anyway. Both thresholds must trip together, which is the
+     * combination OpenAI's reference decoder uses: high no-speech probability alone can fire
+     * on quiet but real speech, and low log-probability alone fires on unusual accents.
+     * Requiring both is what keeps a learner's genuine attempt from being deleted.
+     *
+     * <p>This exists because string matching was not enough. The marker list below caught the
+     * subtitle boilerplate, and then the very next recording of the same silent room came
+     * back as "Thank you." — which is also one of Whisper's most common silence outputs, and
+     * is also something a learner plainly might say. There is no wording that separates
+     * those two cases. The model's own confidence does.
+     */
+    static boolean segmentsLookLikeSilence(Object rawSegments) {
+        if (!(rawSegments instanceof List<?> segments) || segments.isEmpty()) {
+            return false;
+        }
+        for (Object entry : segments) {
+            if (!(entry instanceof Map<?, ?> segment)) {
+                return false;
+            }
+            Double noSpeech = asDouble(segment.get("no_speech_prob"));
+            Double avgLogprob = asDouble(segment.get("avg_logprob"));
+            if (noSpeech == null || avgLogprob == null) {
+                // Older or partial responses: fall through to the marker list rather than
+                // guessing from missing data.
+                return false;
+            }
+            boolean silent = noSpeech > NO_SPEECH_PROB_THRESHOLD && avgLogprob < AVG_LOGPROB_THRESHOLD;
+            if (!silent) {
+                // One segment with real speech is enough to keep the whole transcript.
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Double asDouble(Object raw) {
+        return raw instanceof Number number ? number.doubleValue() : null;
     }
 
     /**
