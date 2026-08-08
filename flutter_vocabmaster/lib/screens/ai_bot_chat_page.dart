@@ -1339,12 +1339,20 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         return;
       }
       if (!mounted) return;
-      final message = e is ApiAiServiceException
-          ? AiErrorMessageFormatter.forError(e)
-          : _text(
-              'Ses yazıya cevrilemedi. Lutfen tekrar dene.',
-              'Could not transcribe speech. Please try again.',
-            );
+      // forError already knows quota and upgrade errors and says so; the old code only
+      // asked it about ApiAiServiceException, and ApiQuotaExceededException is not one of
+      // those. So running out of daily tokens was reported as "Could not transcribe
+      // speech" — the learner is told the microphone failed when in fact their AI quota
+      // is spent, which sends them to re-record instead of to the thing that would fix it.
+      // The chat bubble on the same screen reported the same block correctly, so one
+      // outage produced two different stories.
+      final message = AiErrorMessageFormatter.forError(
+        e,
+        fallback: _text(
+          'Ses yazıya cevrilemedi. Lutfen tekrar dene.',
+          'Could not transcribe speech. Please try again.',
+        ),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
