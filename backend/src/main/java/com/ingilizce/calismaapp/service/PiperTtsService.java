@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
@@ -45,8 +46,12 @@ public class PiperTtsService {
     @Value("${app.tts.cache-dir:}")
     private String configuredCacheDir;
 
-    @Value("${app.tts.cache-max-entries:512}")
-    private int cacheMaxEntries = 512;
+    // 512 was far too small for a vocabulary app: the working set is the whole word list
+    // plus its example sentences, and every eviction is a word that has to be re-synthesised
+    // the next time somebody taps it. A cached WAV is a few tens of KB, so 20,000 entries is
+    // well under a gigabyte -- cheap next to re-running Piper for words that never change.
+    @Value("${app.tts.cache-max-entries:20000}")
+    private int cacheMaxEntries = 20000;
 
     // --- KRİTİK DEĞİŞİKLİK BURADA ---
     // Modelleri Türkçe karakter sorunu olmaması için C:\piper klasöründen okuyoruz.
@@ -55,14 +60,31 @@ public class PiperTtsService {
             ? "C:\\piper"
             : "/piper";
 
-    // Modellerin dosya isimleri (C:\piper klasöründe olmalı)
-    private static final String MODEL_LESSAC = "en_US-lessac-medium.onnx";
-    private static final String MODEL_AMY = "en_US-amy-medium.onnx";
-    private static final String MODEL_ALAN = "en_GB-alan-medium.onnx";
-    // Yeni eklenen modeller
-    private static final String MODEL_RYAN = "en_US-ryan-medium.onnx";
-    private static final String MODEL_JENNY = "en_GB-jenny_dioco-medium.onnx";
-    private static final String MODEL_CORI = "en_GB-cori-medium.onnx";
+    // Model dosyaları, kalite sırasına göre (C:\piper klasöründe olmalı).
+    //
+    // Each voice lists its builds best-first. Every voice here was running at `-medium`,
+    // which is the middle of Piper's four tiers (x_low, low, medium, high) -- so "Piper
+    // sounds robotic" was partly a verdict on a model that was never Piper's best. A
+    // learner mimics whatever pronunciation this produces, which makes it the wrong place
+    // to leave quality on the table.
+    //
+    // Only some voices have a `high` build published; amy, alan and jenny do not, so those
+    // stay at medium rather than pointing at a file that will never exist. Verified against
+    // huggingface.co/rhasspy/piper-voices.
+    //
+    // The list is a preference order, not a requirement: a missing file falls through to
+    // the next entry for THE SAME voice. That means this can ship before the .onnx files
+    // are on the server -- nothing breaks, and each voice upgrades itself the moment its
+    // high build is dropped in.
+    private static final List<String> MODELS_LESSAC =
+            List.of("en_US-lessac-high.onnx", "en_US-lessac-medium.onnx");
+    private static final List<String> MODELS_RYAN =
+            List.of("en_US-ryan-high.onnx", "en_US-ryan-medium.onnx");
+    private static final List<String> MODELS_CORI =
+            List.of("en_GB-cori-high.onnx", "en_GB-cori-medium.onnx");
+    private static final List<String> MODELS_AMY = List.of("en_US-amy-medium.onnx");
+    private static final List<String> MODELS_ALAN = List.of("en_GB-alan-medium.onnx");
+    private static final List<String> MODELS_JENNY = List.of("en_GB-jenny_dioco-medium.onnx");
 
     /**
      * Generate speech audio from text using Piper TTS
@@ -208,7 +230,9 @@ public class PiperTtsService {
     protected byte[] readCachedAudio(Path cacheFile) {
         try {
             if (Files.isRegularFile(cacheFile)) {
-                return Files.readAllBytes(cacheFile);
+                byte[] audio = Files.readAllBytes(cacheFile);
+                touchForRecency(cacheFile);
+                return audio;
             }
         } catch (IOException e) {
             log.debug("Piper TTS cache read failed for {}: {}", cacheFile, e.toString());
@@ -226,6 +250,24 @@ public class PiperTtsService {
             evictCacheIfNeeded(cacheFile.getParent());
         } catch (IOException e) {
             log.debug("Piper TTS cache write failed for {}: {}", cacheFile, e.toString());
+        }
+    }
+
+    /**
+     * Marks a cache entry as just-used, so eviction can order by last read.
+     *
+     * <p>{@link #evictCacheIfNeeded} sorts by last-modified time, which without this is the
+     * time the file was written and never changes again — so eviction was really by age,
+     * not by use. In a vocabulary app that is backwards: a common word heard every single
+     * day would be deleted before a one-off generated sentence written yesterday, and then
+     * re-synthesised from scratch. Touching on read turns the same eviction into a real LRU.
+     */
+    private void touchForRecency(Path cacheFile) {
+        try {
+            Files.setLastModifiedTime(cacheFile, java.nio.file.attribute.FileTime.from(Instant.now()));
+        } catch (IOException e) {
+            // Losing the recency hint only costs cache efficiency, never correctness.
+            log.debug("Piper TTS cache touch failed for {}: {}", cacheFile, e.toString());
         }
     }
 
@@ -252,19 +294,25 @@ public class PiperTtsService {
      */
     protected String getModelFile(String voice) {
         String normalizedVoice = normalizeVoice(voice);
-        Map<String, String> voiceModels = getVoiceModelMap();
+        Map<String, List<String>> voiceModels = getVoiceModelMap();
 
-        String requestedModel = voiceModels.getOrDefault(normalizedVoice, getDefaultModelName());
-        String requestedPath = getModelBaseDir() + File.separator + requestedModel;
-        if (pathExists(requestedPath)) {
-            log.debug("Selected model path (SAFE): {}", requestedPath);
-            return requestedPath;
+        // Best available build of the voice that was actually asked for. Dropping to a
+        // lower tier of the same speaker is a quality change; dropping to the default is a
+        // different person reading to the learner mid-session, which is worse.
+        List<String> requestedModels =
+                voiceModels.getOrDefault(normalizedVoice, List.of(getDefaultModelName()));
+        for (String candidate : requestedModels) {
+            String candidatePath = getModelBaseDir() + File.separator + candidate;
+            if (pathExists(candidatePath)) {
+                log.debug("Selected model path (SAFE): {}", candidatePath);
+                return candidatePath;
+            }
         }
 
         if (!voiceModels.containsKey(normalizedVoice)) {
             log.warn("Unknown voice requested: {}, falling back to default model", voice);
         } else {
-            log.warn("Requested voice model not found: {}", requestedPath);
+            log.warn("No model file present for voice {} (tried {})", normalizedVoice, requestedModels);
         }
 
         String defaultPath = getModelBaseDir() + File.separator + getDefaultModelName();
@@ -359,7 +407,7 @@ public class PiperTtsService {
     }
 
     public String[] getSupportedVoices() {
-        Map<String, String> voiceModels = getVoiceModelMap();
+        Map<String, List<String>> voiceModels = getVoiceModelMap();
         Set<String> supported = new LinkedHashSet<>();
 
         String defaultPath = getModelBaseDir() + File.separator + getDefaultModelName();
@@ -367,15 +415,18 @@ public class PiperTtsService {
             supported.add("default");
         }
 
-        for (Map.Entry<String, String> entry : voiceModels.entrySet()) {
+        for (Map.Entry<String, List<String>> entry : voiceModels.entrySet()) {
             String voice = entry.getKey();
             if ("default".equals(voice)) {
                 continue;
             }
 
-            String modelPath = getModelBaseDir() + File.separator + entry.getValue();
-            if (pathExists(modelPath)) {
-                supported.add(voice);
+            // Offered if any build of it is installed, whatever the tier.
+            for (String modelName : entry.getValue()) {
+                if (pathExists(getModelBaseDir() + File.separator + modelName)) {
+                    supported.add(voice);
+                    break;
+                }
             }
         }
 
@@ -399,25 +450,29 @@ public class PiperTtsService {
 
     private String getDefaultModelName() {
         if (configuredDefaultModel == null || configuredDefaultModel.trim().isEmpty()) {
-            return MODEL_AMY;
+            // lessac rather than amy: this is the voice a learner hears unless they pick
+            // one, so it should be the best build available, and amy has no high build.
+            return MODELS_LESSAC.get(0);
         }
         return configuredDefaultModel.trim();
     }
 
-    private Map<String, String> getVoiceModelMap() {
-        Map<String, String> voiceModels = new LinkedHashMap<>();
-        voiceModels.put("default", getDefaultModelName());
-        voiceModels.put("amy", MODEL_AMY);
-        voiceModels.put("alan", MODEL_ALAN);
-        voiceModels.put("lessac", MODEL_LESSAC);
-        voiceModels.put("ryan", MODEL_RYAN);
-        voiceModels.put("jenny", MODEL_JENNY);
-        voiceModels.put("cori", MODEL_CORI);
+    /** Voice name to its model builds, best quality first. */
+    private Map<String, List<String>> getVoiceModelMap() {
+        Map<String, List<String>> voiceModels = new LinkedHashMap<>();
+        voiceModels.put("default", List.of(getDefaultModelName()));
+        voiceModels.put("amy", MODELS_AMY);
+        voiceModels.put("alan", MODELS_ALAN);
+        voiceModels.put("lessac", MODELS_LESSAC);
+        voiceModels.put("ryan", MODELS_RYAN);
+        voiceModels.put("jenny", MODELS_JENNY);
+        voiceModels.put("cori", MODELS_CORI);
         return voiceModels;
     }
 
     private String resolveFirstAvailableModelPath() {
-        Set<String> modelNames = new LinkedHashSet<>(getVoiceModelMap().values());
+        Set<String> modelNames = new LinkedHashSet<>();
+        getVoiceModelMap().values().forEach(modelNames::addAll);
         for (String modelName : modelNames) {
             String modelPath = getModelBaseDir() + File.separator + modelName;
             if (pathExists(modelPath)) {

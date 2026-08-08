@@ -68,6 +68,8 @@ services:
     volumes:
       # Mount Piper voice models from host (override PIPER_MODEL_HOST_PATH on non-Windows hosts)
       - ${PIPER_MODEL_HOST_PATH:-C:/piper}:/piper:ro
+      # Survives container recreation; otherwise every deploy re-synthesises every word.
+      - tts_cache:/var/cache/piper-tts
       # Google Play service-account JSON mount (override host path via .env).
       - ${APP_SUBSCRIPTION_GOOGLE_PLAY_SERVICE_ACCOUNT_HOST_PATH:-./backend/config/google-play-service-account.placeholder.json}:/run/secrets/google-play-service-account.json:ro
       # Firebase Admin service-account JSON mount for FCM push delivery (disabled by default).
@@ -117,7 +119,8 @@ services:
       
       # Piper TTS (binary is installed in backend image; /piper contains mounted voice models)
       PIPER_TTS_PATH: ${PIPER_TTS_PATH:-/opt/piper/piper}
-      PIPER_TTS_DEFAULT_MODEL: ${PIPER_TTS_DEFAULT_MODEL:-en_US-amy-medium.onnx}
+      PIPER_TTS_DEFAULT_MODEL: ${PIPER_TTS_DEFAULT_MODEL:-en_US-lessac-high.onnx}
+      APP_TTS_CACHE_DIR: ${APP_TTS_CACHE_DIR:-/var/cache/piper-tts}
       APP_PUSH_FIREBASE_ENABLED: ${APP_PUSH_FIREBASE_ENABLED:-false}
       APP_PUSH_FIREBASE_SERVICE_ACCOUNT_FILE: /run/secrets/firebase-admin-service-account.json
       APP_PUSH_DAILY_REMINDERS_ENABLED: ${APP_PUSH_DAILY_REMINDERS_ENABLED:-false}
@@ -194,6 +197,8 @@ volumes:
   redis_data:
     driver: local
   redis_security_data:
+    driver: local
+  tts_cache:
     driver: local
 
 networks:

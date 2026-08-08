@@ -519,4 +519,47 @@ class PiperTtsServiceTest {
             return super.isWindows();
         }
     }
+
+    @Test
+    void aVoicePrefersItsHighBuildAndFallsBackToItsOwnMediumOne() {
+        // Every voice shipped at `-medium`, the middle of Piper's four tiers, which is a
+        // large part of why the output sounded synthetic. The high builds are drop-in.
+        //
+        // The fallback matters as much as the preference: if the high file is not on the
+        // server yet, the learner must get lessac-medium, not the default voice. Dropping a
+        // tier is a quality change; dropping to a different speaker mid-session is someone
+        // else reading to them. It is also what lets this ship before the files are copied.
+        java.util.Set<String> present = new java.util.HashSet<>();
+        PiperTtsService service = new PiperTtsService() {
+            @Override
+            protected boolean pathExists(String path) {
+                return present.stream().anyMatch(path::endsWith);
+            }
+        };
+
+        present.add("en_US-lessac-high.onnx");
+        present.add("en_US-lessac-medium.onnx");
+        assertTrue(service.getModelFile("lessac").endsWith("en_US-lessac-high.onnx"));
+
+        present.remove("en_US-lessac-high.onnx");
+        assertTrue(service.getModelFile("lessac").endsWith("en_US-lessac-medium.onnx"),
+                "a missing high build must not silently change which person is speaking");
+    }
+
+    @Test
+    void voicesWithoutAHighBuildStayOnMedium() {
+        // amy, alan and jenny have no high build published. Listing one would point at a
+        // file that will never exist and send every request down the fallback path.
+        java.util.Set<String> present = new java.util.HashSet<>(java.util.List.of(
+                "en_US-amy-medium.onnx", "en_GB-alan-medium.onnx"));
+        PiperTtsService service = new PiperTtsService() {
+            @Override
+            protected boolean pathExists(String path) {
+                return present.stream().anyMatch(path::endsWith);
+            }
+        };
+
+        assertTrue(service.getModelFile("amy").endsWith("en_US-amy-medium.onnx"));
+        assertTrue(service.getModelFile("alan").endsWith("en_GB-alan-medium.onnx"));
+    }
 }
