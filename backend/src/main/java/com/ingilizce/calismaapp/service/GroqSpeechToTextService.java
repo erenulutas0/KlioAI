@@ -57,7 +57,30 @@ public class GroqSpeechToTextService {
     @Value("${groq.speech.language:en}")
     private String language;
 
-    @Value("${groq.speech.prompt:English learning conversation. Transcribe the learner's English speech exactly.}")
+    /**
+     * Empty by default, and it must stay that way unless someone has a very specific reason.
+     *
+     * <p>This used to default to "English learning conversation. Transcribe the learner's
+     * English speech exactly." It reads like an instruction. Whisper's {@code prompt} is not
+     * an instruction — it is prepended as *prior transcript text*, context the model assumes
+     * it has already produced. So when the audio contains nothing to transcribe, the model
+     * does the only sensible thing with a half-finished paragraph: it continues it.
+     *
+     * <p>The first hallucination captured on a device began, verbatim: "English learning
+     * conversation. Transcribe or the stream of language can be seen in general.
+     * Transcription by CastingWords..." — the prompt's own opening words, carried on into
+     * invented subtitle boilerplate. This setting was not failing to prevent the
+     * hallucination. It was writing the first half of it.
+     *
+     * <p>It also explains the reading that made no sense: {@code no_speech_prob = 0.0} on a
+     * recording of an empty room. The model was not guessing at speech it could not hear, it
+     * was confidently continuing text it had been handed, and it is right to be confident
+     * about that. Two attempts at this bug were built on trusting that number.
+     *
+     * <p>A Whisper prompt is for vocabulary and spelling hints — proper nouns, product
+     * names. Prose belongs nowhere near it.
+     */
+    @Value("${groq.speech.prompt:}")
     private String prompt;
 
     private final RestTemplate restTemplate;
@@ -165,7 +188,14 @@ public class GroqSpeechToTextService {
      * subtitle boilerplate, and then the very next recording of the same silent room came
      * back as "Thank you." — which is also one of Whisper's most common silence outputs, and
      * is also something a learner plainly might say. There is no wording that separates
-     * those two cases. The model's own confidence does.
+     * those two cases.
+     *
+     * <p>A backstop, not the fix. Measured on a real recording of an empty room, this model
+     * reported {@code no_speech_prob = 0.0} — total confidence that speech was present. The
+     * cause was the priming prompt (see the {@code prompt} field): the model was continuing
+     * text it had been given rather than inventing speech, and it was right to be sure about
+     * that. With the prompt removed the hallucination is gone at source; this check stays for
+     * genuinely empty audio, but nothing should be built on the assumption that it fires.
      */
     static boolean segmentsLookLikeSilence(Object rawSegments) {
         if (!(rawSegments instanceof List<?> segments) || segments.isEmpty()) {
