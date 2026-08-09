@@ -803,12 +803,12 @@ class _RepeatPageState extends State<RepeatPage> with TickerProviderStateMixin {
                                   const SizedBox(height: 16),
                                   if (_meaningRevealed)
                                     Text(
-                                      card.turkishMeaning,
+                                      card.displayMeaning,
                                       style: TextStyle(
                                         color: const Color(0xFFE0F2FE)
                                             .withValues(alpha: 0.8),
                                         fontSize: _getMeaningFontSize(
-                                            card.turkishMeaning),
+                                            card.displayMeaning),
                                       ),
                                       textAlign: TextAlign.center,
                                     )

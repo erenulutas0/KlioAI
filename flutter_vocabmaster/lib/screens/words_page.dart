@@ -872,7 +872,7 @@ class _WordsPageState extends State<WordsPage> {
                 children: [
                   Row(
                     children: [
-                      if (word.turkishMeaning.startsWith('⭐'))
+                      if (word.isFromDailyWords)
                         const Padding(
                           padding: EdgeInsets.only(right: 8),
                           child:
@@ -903,7 +903,7 @@ class _WordsPageState extends State<WordsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    word.turkishMeaning.replaceAll('?', '').trim(),
+                    word.displayMeaning,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 15,

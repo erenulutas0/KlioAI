@@ -3,6 +3,23 @@ class Word {
   final String englishWord;
   final String turkishMeaning;
   String get sourceMeaning => turkishMeaning;
+
+  /// Was this word added from Daily Words?
+  ///
+  /// That fact is stored by prefixing the translation itself with a star, so the meaning
+  /// field carries both the meaning and where it came from. Every screen that shows a
+  /// translation therefore has to know to strip it, and the review card — the screen a
+  /// learner sees most — did not: a word added from Daily Words was displayed as
+  /// "⭐ içgörü", star and all.
+  ///
+  /// Reading it here means no caller has to remember. [displayMeaning] is what belongs on
+  /// screen and in anything read aloud; this flag is what belongs behind a star icon.
+  bool get isFromDailyWords =>
+      turkishMeaning.contains('⭐') || turkishMeaning.contains('★');
+
+  /// The translation with the provenance marker removed, safe to show or speak.
+  String get displayMeaning =>
+      turkishMeaning.replaceAll('⭐', '').replaceAll('★', '').trim();
   final DateTime learnedDate;
   final String? notes;
   final String difficulty;

@@ -1224,7 +1224,7 @@ class _WordGalaxyNodeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  word.turkishMeaning.replaceAll('⭐', '').trim(),
+                  word.displayMeaning,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1400,7 +1400,7 @@ class _WordQuickActionSheet extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                word.turkishMeaning.replaceAll('⭐', '').trim(),
+                word.displayMeaning,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 16),
@@ -1857,7 +1857,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                _word.turkishMeaning.replaceAll('⭐', '').trim(),
+                _word.displayMeaning,
                 style: const TextStyle(color: Colors.white70, fontSize: 15),
               ),
               const SizedBox(height: 14),

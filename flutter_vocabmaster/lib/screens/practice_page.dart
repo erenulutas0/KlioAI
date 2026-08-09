@@ -1531,10 +1531,7 @@ class _PracticePageState extends State<PracticePage>
                 itemBuilder: (context, index) {
                   final word = _filteredWords[index];
                   final isSelected = _selectedWordIds.contains(word.id);
-                  final displayMeaning = word.turkishMeaning
-                      .replaceAll('★', '')
-                      .replaceAll('⭐', '')
-                      .trim();
+                  final displayMeaning = word.displayMeaning;
                   return InkWell(
                     onTap: () => _toggleWordSelection(word.id),
                     borderRadius: BorderRadius.circular(14),
@@ -1903,13 +1900,8 @@ class _PracticePageState extends State<PracticePage>
                             final word = _filteredWords[index];
                             final isSelected =
                                 _selectedWordIds.contains(word.id);
-                            final bool hasStar =
-                                word.turkishMeaning.contains('★') ||
-                                    word.turkishMeaning.contains('⭐');
-                            final String displayMeaning = word.turkishMeaning
-                                .replaceAll('★', '')
-                                .replaceAll('⭐', '')
-                                .trim();
+                            final bool hasStar = word.isFromDailyWords;
+                            final String displayMeaning = word.displayMeaning;
 
                             return GestureDetector(
                               onTap: () => _toggleWordSelection(word.id),
