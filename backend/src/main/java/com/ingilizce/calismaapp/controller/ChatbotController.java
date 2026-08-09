@@ -1691,8 +1691,13 @@ public class ChatbotController {
             @RequestParam("audio") MultipartFile audio,
             @RequestParam(value = "durationMs", required = false) Long durationMs,
             @RequestParam(value = "locale", required = false) String locale,
+            // What the microphone measured, for tuning the client-side silence gate from
+            // real recordings instead of from guesses. Optional: older clients omit it.
+            @RequestParam(value = "peakDb", required = false) Double peakDb,
+            @RequestParam(value = "rangeDb", required = false) Double rangeDb,
             @RequestHeader("X-User-Id") Long userId,
             HttpServletRequest httpRequest) {
+        log.info("Speech upload: durationMs={} peakDb={} rangeDb={}", durationMs, peakDb, rangeDb);
         ResponseEntity<Map<String, Object>> accessLimit = enforceAiAccess(userId, httpRequest, "speech-transcribe");
         if (accessLimit != null) {
             return accessLimit;

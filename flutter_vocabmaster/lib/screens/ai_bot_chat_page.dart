@@ -78,17 +78,25 @@ class _AIBotChatPageState extends State<AIBotChatPage>
   Timer? _recordingMaxTimer;
   Timer? _amplitudeTimer;
 
-  /// Loudest sample seen during the current recording, in dBFS (0 is full scale).
+  /// Loudest and quietest samples seen during the current recording, in dBFS.
   double _peakAmplitudeDb = -160.0;
+  double _floorAmplitudeDb = 0.0;
 
-  /// Below this, the microphone heard a room rather than a person.
+  /// Speech is dynamic; a room is not.
   ///
-  /// Speech into a phone held normally peaks well above -30 dBFS; an empty room sits far
-  /// below. -40 leaves a wide margin so a quiet speaker, or someone at arm's length, is
-  /// never mistaken for silence — the cost of sending one silent clip is a wasted request,
-  /// while the cost of dropping one real sentence is a learner who thinks the app ignored
-  /// them.
-  static const double _silenceFloorDb = -40.0;
+  /// The first version of this gate compared the peak against a fixed -40 dBFS and did
+  /// nothing, because the test room was not quiet — a phone on a desk beside a running
+  /// computer picks up enough steady noise to clear any absolute threshold loose enough to
+  /// be safe for a softly-spoken learner. Level cannot separate "noisy room" from "someone
+  /// talking"; the two overlap.
+  ///
+  /// Dynamic range can. Between a vowel and the pause after it, speech swings tens of
+  /// decibels. Steady noise — a fan, traffic, a laptop — stays flat whatever its level. So
+  /// the question is not "was it loud" but "did anything happen".
+  ///
+  /// 12 dB is deliberately far below what speech produces, because a false positive here
+  /// deletes something a learner actually said.
+  static const double _speechDynamicRangeDb = 12.0;
   String _speakingSessionXpId =
       'speaking_chat_${DateTime.now().millisecondsSinceEpoch}';
   bool _speakingSessionXpAwarded = false;
@@ -1277,6 +1285,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       // empty room without uploading anything. 200ms is well under the length of a syllable,
       // so nothing audible slips between samples.
       _peakAmplitudeDb = -160.0;
+      _floorAmplitudeDb = 0.0;
       _amplitudeTimer?.cancel();
       _amplitudeTimer =
           Timer.periodic(const Duration(milliseconds: 200), (_) async {
@@ -1286,11 +1295,15 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           if (amplitude.current > _peakAmplitudeDb) {
             _peakAmplitudeDb = amplitude.current;
           }
+          if (amplitude.current < _floorAmplitudeDb) {
+            _floorAmplitudeDb = amplitude.current;
+          }
         } catch (_) {
-          // If the platform will not report amplitude, leave the peak where it is; an
-          // unmeasurable recording is sent rather than dropped, because refusing to send
-          // real speech is the worse mistake.
+          // If the platform will not report amplitude, make the range look like speech so
+          // the clip is sent: refusing to transcribe something a learner really said is the
+          // worse mistake, and the server-side checks still apply.
           _peakAmplitudeDb = 0;
+          _floorAmplitudeDb = -160.0;
         }
       });
     } catch (e) {
@@ -1314,6 +1327,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     final startedAt = _recordingStartedAt;
     String? path = _recordingPath;
     final peakDb = _peakAmplitudeDb;
+    final rangeDb = _peakAmplitudeDb - _floorAmplitudeDb;
     _recordingMaxTimer?.cancel();
     _amplitudeTimer?.cancel();
     try {
@@ -1348,8 +1362,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     // downstream of the real question, which is whether there was any sound at all. That is
     // measurable here, before anything is uploaded: peak amplitude while recording. Speech
     // is loud, so this cannot delete a genuine attempt; silence never crosses the floor.
-    if (path != null && peakDb <= _silenceFloorDb) {
-      debugPrint('Skipping upload: peak amplitude ${peakDb.toStringAsFixed(1)} dBFS');
+    if (path != null && rangeDb < _speechDynamicRangeDb) {
+      debugPrint('Skipping upload: peak=${peakDb.toStringAsFixed(1)} '
+          'range=${rangeDb.toStringAsFixed(1)} dB');
       try {
         await File(path).delete();
       } catch (_) {
@@ -1385,6 +1400,8 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         audioPath: path,
         durationMs: durationMs,
         locale: _speechLocaleId,
+        peakDb: peakDb,
+        rangeDb: rangeDb,
       );
 
       if (!mounted) return;

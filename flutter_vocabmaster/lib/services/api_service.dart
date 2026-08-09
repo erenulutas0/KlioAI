@@ -991,6 +991,8 @@ class ApiService {
     required String audioPath,
     required int durationMs,
     String locale = 'en_US',
+    double? peakDb,
+    double? rangeDb,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1002,6 +1004,11 @@ class ApiService {
         request.headers.addAll(headers);
         request.fields['durationMs'] = durationMs.toString();
         request.fields['locale'] = locale;
+        // Diagnostic, not a control. The client-side silence gate has been tuned twice from
+        // guesswork; sending what the microphone actually measured means the next threshold
+        // comes from recordings real learners made, in the rooms they were sitting in.
+        if (peakDb != null) request.fields['peakDb'] = peakDb.toStringAsFixed(1);
+        if (rangeDb != null) request.fields['rangeDb'] = rangeDb.toStringAsFixed(1);
         request.files.add(await http.MultipartFile.fromPath(
           'audio',
           audioPath,

@@ -87,11 +87,15 @@ class ChatbotService {
     required String audioPath,
     required int durationMs,
     String locale = 'en_US',
+    double? peakDb,
+    double? rangeDb,
   }) async {
     final detailed = await transcribeSpeechDetailed(
       audioPath: audioPath,
       durationMs: durationMs,
       locale: locale,
+      peakDb: peakDb,
+      rangeDb: rangeDb,
     );
     return detailed.text;
   }
@@ -103,12 +107,16 @@ class ChatbotService {
     required String audioPath,
     required int durationMs,
     String locale = 'en_US',
+    double? peakDb,
+    double? rangeDb,
   }) async {
     try {
       final result = await _api.chatbotTranscribeSpeech(
         audioPath: audioPath,
         durationMs: durationMs,
         locale: locale,
+        peakDb: peakDb,
+        rangeDb: rangeDb,
       );
       final measured = result['measuredDurationMs'];
       return SpeechTranscription(
