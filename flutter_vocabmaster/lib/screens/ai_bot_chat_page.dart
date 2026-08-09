@@ -76,6 +76,19 @@ class _AIBotChatPageState extends State<AIBotChatPage>
   DateTime? _recordingStartedAt;
   String? _recordingPath;
   Timer? _recordingMaxTimer;
+  Timer? _amplitudeTimer;
+
+  /// Loudest sample seen during the current recording, in dBFS (0 is full scale).
+  double _peakAmplitudeDb = -160.0;
+
+  /// Below this, the microphone heard a room rather than a person.
+  ///
+  /// Speech into a phone held normally peaks well above -30 dBFS; an empty room sits far
+  /// below. -40 leaves a wide margin so a quiet speaker, or someone at arm's length, is
+  /// never mistaken for silence — the cost of sending one silent clip is a wasted request,
+  /// while the cost of dropping one real sentence is a learner who thinks the app ignored
+  /// them.
+  static const double _silenceFloorDb = -40.0;
   String _speakingSessionXpId =
       'speaking_chat_${DateTime.now().millisecondsSinceEpoch}';
   bool _speakingSessionXpAwarded = false;
@@ -283,6 +296,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     // Disable wakelock when leaving
     WakelockPlus.disable();
     _recordingMaxTimer?.cancel();
+    _amplitudeTimer?.cancel();
     _audioRecorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
@@ -318,6 +332,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
     if (_isListening) {
       final pathToDelete = _recordingPath;
       _recordingMaxTimer?.cancel();
+      _amplitudeTimer?.cancel();
       await _audioRecorder.stop();
       if (mounted) {
         setState(() {
@@ -1257,6 +1272,27 @@ class _AIBotChatPageState extends State<AIBotChatPage>
           _stopAndSend(manual: false);
         }
       });
+
+      // Track the loudest moment of the recording so _stopAndSend can tell speech from an
+      // empty room without uploading anything. 200ms is well under the length of a syllable,
+      // so nothing audible slips between samples.
+      _peakAmplitudeDb = -160.0;
+      _amplitudeTimer?.cancel();
+      _amplitudeTimer =
+          Timer.periodic(const Duration(milliseconds: 200), (_) async {
+        if (!_isListening) return;
+        try {
+          final amplitude = await _audioRecorder.getAmplitude();
+          if (amplitude.current > _peakAmplitudeDb) {
+            _peakAmplitudeDb = amplitude.current;
+          }
+        } catch (_) {
+          // If the platform will not report amplitude, leave the peak where it is; an
+          // unmeasurable recording is sent rather than dropped, because refusing to send
+          // real speech is the worse mistake.
+          _peakAmplitudeDb = 0;
+        }
+      });
     } catch (e) {
       debugPrint('Audio recording start error: $e');
       if (mounted) {
@@ -1277,7 +1313,9 @@ class _AIBotChatPageState extends State<AIBotChatPage>
 
     final startedAt = _recordingStartedAt;
     String? path = _recordingPath;
+    final peakDb = _peakAmplitudeDb;
     _recordingMaxTimer?.cancel();
+    _amplitudeTimer?.cancel();
     try {
       path = await _audioRecorder.stop() ?? path;
     } catch (e) {
@@ -1296,6 +1334,38 @@ class _AIBotChatPageState extends State<AIBotChatPage>
       _recordingStartedAt = null;
       if (manual) _continuousListening = false;
     });
+
+    // Never heard anything, so never ask what was said.
+    //
+    // Whisper does not return nothing for silence — it returns text. The elaborate version
+    // came from a priming prompt we were sending and is gone, but a quiet room still
+    // produces the odd stray word, and this screen auto-sends whatever arrives. A learner
+    // who taps the microphone and hesitates then watches the tutor answer something they
+    // never said, and pays for it out of their daily tokens.
+    //
+    // Every previous attempt at this filtered the model's output — the wording, then its
+    // confidence, then a confidence field the response did not contain. All of them were
+    // downstream of the real question, which is whether there was any sound at all. That is
+    // measurable here, before anything is uploaded: peak amplitude while recording. Speech
+    // is loud, so this cannot delete a genuine attempt; silence never crosses the floor.
+    if (path != null && peakDb <= _silenceFloorDb) {
+      debugPrint('Skipping upload: peak amplitude ${peakDb.toStringAsFixed(1)} dBFS');
+      try {
+        await File(path).delete();
+      } catch (_) {
+        // A leftover temp file is not worth reporting.
+      }
+      if (mounted) {
+        setState(() => _isTranscribingSpeech = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_text('Konusma algilanamadi, tekrar dene.',
+                'No speech was detected. Try again.')),
+          ),
+        );
+      }
+      return;
+    }
 
     if (path == null || path.trim().isEmpty) {
       if (mounted) {
