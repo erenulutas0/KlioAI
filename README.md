@@ -6,9 +6,12 @@ Most vocabulary apps hand you a fixed word list. KlioAI is built the other way r
 collect the words you meet, and every other feature — spaced review, example sentences,
 grammar drills, speaking practice — is generated from *your* list.
 
-Live on Google Play · Flutter client, Spring Boot backend · Turkish → English
+Flutter client · Spring Boot backend · Turkish → English
 
-[**Google Play**](https://play.google.com/store/apps/details?id=com.VocabMaster)
+<a href="https://play.google.com/store/apps/details?id=com.VocabMaster">
+  <img alt="Get it on Google Play" height="60"
+       src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png">
+</a>
 
 ---
 
