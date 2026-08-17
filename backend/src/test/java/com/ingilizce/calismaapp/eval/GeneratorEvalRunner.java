@@ -13,7 +13,9 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +51,22 @@ import static org.junit.jupiter.api.Assertions.fail;
 @SpringBootTest
 @Tag("eval")
 @EnabledIfEnvironmentVariable(named = "GROQ_API_KEY", matches = "^(?!dummy).+")
+// src/test/resources/application.properties pins groq.api.url to http://mock-url and the
+// key to mock-key, and being on the test classpath it wins over the main configuration.
+// Without these three lines the eval would boot with a real key in the environment, send
+// every request to a URL that does not exist, and report all four generators as broken.
+// The same shape as the bugs this harness is for: one fact in two places, read path stale.
+// The circuit breaker is right for the app and wrong here. It opens after five failures,
+// which in production protects learners from a provider outage, but in an eval it means the
+// sixth case onward is never tested and reports "circuit is open" instead. One sick
+// generator would be indistinguishable from seven. Each case has to be judged on its own,
+// so the breaker is raised out of the way for this run only.
+@TestPropertySource(properties = {
+        "groq.api.key=${GROQ_API_KEY}",
+        "groq.api.url=https://api.groq.com/openai/v1/chat/completions",
+        "groq.api.model=openai/gpt-oss-120b",
+        "groq.resilience.failure-threshold=1000"
+})
 class GeneratorEvalRunner {
 
     private static final Logger log = LoggerFactory.getLogger(GeneratorEvalRunner.class);
@@ -58,6 +76,9 @@ class GeneratorEvalRunner {
     private static final List<String> GOLDEN_WORDS = List.of("mitigate", "insight", "resilient", "delay");
     private static final List<String> GOLDEN_TOPICS = List.of("present perfect", "past simple", "conditionals");
     private static final List<String> GOLDEN_LEVELS = List.of("A2", "B1", "C1");
+
+    /** Read back rather than assumed: see the note on the property override above. */
+    @Value("${groq.api.url}") private String resolvedApiUrl;
 
     @Autowired private ChatbotService chatbotService;
     @Autowired private AiProxyService aiProxyService;
@@ -69,6 +90,13 @@ class GeneratorEvalRunner {
 
     @Test
     void everyGeneratorProducesSomethingUsable() throws Exception {
+        // Fail loudly rather than spend a run discovering it: an eval aimed at a mock proves
+        // nothing, and the answer would look like "every generator is broken".
+        if (resolvedApiUrl == null || resolvedApiUrl.contains("mock")) {
+            fail("The eval is pointed at " + resolvedApiUrl + ", not the real provider. "
+                    + "Check the @TestPropertySource overrides against src/test/resources/application.properties.");
+        }
+
         LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
 
         for (String word : GOLDEN_WORDS) {
