@@ -15,6 +15,8 @@
 	<description>English Learning App Backend</description>
 	<properties>
 		<java.version>17</java.version>
+		<!-- JUnit tags kept out of `mvn test`; see the surefire plugin below. -->
+		<excluded.test.groups>eval</excluded.test.groups>
 		<testcontainers.version>1.21.3</testcontainers.version>
 		<docker.api.version>1.44</docker.api.version>
 		<postgresql.version>42.7.12</postgresql.version>
@@ -184,6 +186,18 @@
 					<systemPropertyVariables>
 						<api.version>${docker.api.version}</api.version>
 					</systemPropertyVariables>
+					<!--
+						The eval calls the real AI provider: it costs tokens, needs a live key and
+						is non-deterministic, so it must never run as part of `mvn test`. It is
+						excluded by default and run deliberately:
+
+							mvn test -Dtest=GeneratorEvalRunner -Dexcluded.test.groups=
+
+						A property rather than a literal because a hardcoded <excludedGroups>
+						beats -Dgroups on the command line, so there would be no way to ask for
+						the eval at all.
+					-->
+					<excludedGroups>${excluded.test.groups}</excludedGroups>
 				</configuration>
 			</plugin>
 		</plugins>

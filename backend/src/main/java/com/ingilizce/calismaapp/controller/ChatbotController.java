@@ -6,6 +6,7 @@ import com.ingilizce.calismaapp.dto.PracticeSentence;
 import com.ingilizce.calismaapp.service.DailyContentFallbackSupport;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.LearningLanguageProfile;
+import com.ingilizce.calismaapp.service.PracticeSentencePrompt;
 import com.ingilizce.calismaapp.service.PromptCatalog;
 import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
@@ -282,79 +283,21 @@ public class ChatbotController {
                 allSentences = cachedSentences.get();
                 cached = true;
             } else {
-                StringBuilder levelLengthInfo = new StringBuilder();
-                levelLengthInfo.append("Return EXACTLY 5 natural translation-practice sentences inside a JSON object with key 'sentences'.\n");
-                if (targetWords.size() == 1) {
-                    levelLengthInfo.append("Target word: ").append(targetWords.get(0)).append("\n");
-                    appendMeaningHint(levelLengthInfo, targetWords.get(0), targetWordMeanings);
-                    levelLengthInfo.append("Every English sentence must use this target word naturally, without quotation marks.\n");
-                } else {
-                    levelLengthInfo.append("Target words: ").append(String.join(", ", targetWords)).append("\n");
-                    appendMeaningHints(levelLengthInfo, targetWords, targetWordMeanings);
-                    levelLengthInfo.append(
-                            "Multi-word mode: use exactly ONE target word per sentence, rotate through the target words, and NEVER treat the comma-separated list as one phrase.\n");
-                    levelLengthInfo.append("Target words must appear naturally, without quotation marks.\n");
-                }
-                levelLengthInfo.append("Practice direction: ").append(direction).append("\n");
-                if (isSourceToTargetDirection(direction) || direction.equals("MIXED")) {
-                    levelLengthInfo.append(
-                            "For source-to-English practice, think of the source-language sentence first, then provide the natural English equivalent. Avoid awkward literal translation.\n");
-                }
-                levelLengthInfo.append("Requested level/length combinations:\n");
-                for (String level : levels) {
-                    for (String length : lengths) {
-                        levelLengthInfo.append(String.format("- Level: %s, Length: %s\n", level, length));
-                    }
-                }
-                levelLengthInfo.append(
-                        "Distribute the 5 sentences across these combinations as evenly as possible.\n");
-                levelLengthInfo.append("Soft grammar pattern slots, use when natural:\n");
-                for (int i = 0; i < grammarPatterns.size(); i++) {
-                    levelLengthInfo.append(String.format("- Sentence %d: %s\n", i + 1, grammarPatterns.get(i)));
-                }
-                levelLengthInfo.append("Use these real-life context slots exactly once:\n");
-                levelLengthInfo.append("- travel, transport, or appointment\n");
-                levelLengthInfo.append("- work, school, or planning\n");
-                levelLengthInfo.append("- family, friend, or daily life\n");
-                levelLengthInfo.append("- news, public service, or community\n");
-                levelLengthInfo.append("- personal decision, problem, or opinion\n");
-                levelLengthInfo.append(
-                        "Avoid generic textbook frames and avoid paraphrasing the same idea with tiny wording changes.\n");
-                levelLengthInfo.append(
-                        "If the word has multiple natural senses/collocations, cover more than one.\n");
-                levelLengthInfo.append(
-                        "Do NOT write meta sentences about the target word itself. Forbidden frames: \"the word ...\", \"used ... to describe\", \"explained ...\", \"heard ...\", \"practice ...\", \"remember ...\".\n");
-                levelLengthInfo.append(
-                        "Do not start more than one sentence with a personal pronoun. At least one sentence must be a question.\n");
                 List<String> recentStarters = sentenceStarterTrackingService != null
                         ? sentenceStarterTrackingService.recentStarters(userId)
                         : List.of();
-                if (!recentStarters.isEmpty()) {
-                    levelLengthInfo.append("This learner has recently seen sentences starting with: ")
-                            .append(String.join(", ", recentStarters))
-                            .append(". Avoid starting any new sentence with these same words.\n");
-                }
-                levelLengthInfo.append("Prefer natural, idiomatic ")
-                        .append(languageProfile.sourceLanguage())
-                        .append(" phrasing that a native speaker would actually write; avoid literal, translated-sounding wording.\n");
-                if (isTurkishSource(languageProfile)) {
-                    levelLengthInfo.append(
-                            "Think in Turkish first for the full-sentence translation, not as a word-for-word translation of the English sentence.\n");
-                } else {
-                    levelLengthInfo.append("All source-language translations must be in ")
-                            .append(languageProfile.sourceLanguage())
-                            .append(". Do not output Turkish translations for this request.\n");
-                }
-                levelLengthInfo.append(
-                        "Lengths must be meaningfully different: short=4-8 words, medium=9-15 words, long=16+ words.\n");
-                levelLengthInfo.append("Good example for target word 'delay': The flight was delayed by heavy rain.\n");
-                levelLengthInfo.append("Bad example for target word 'delay': A short news article used \"delay\" to describe the problem.");
-                if (fresh) {
-                    levelLengthInfo.append("\nGenerate a fresh new set. Avoid reusing common previous examples.");
-                    levelLengthInfo.append("\nvariationSeed=").append(System.currentTimeMillis());
-                }
 
-                String message = levelLengthInfo.toString();
+                String message = PracticeSentencePrompt.build(new PracticeSentencePrompt.Inputs(
+                        targetWords,
+                        targetWordMeanings,
+                        direction,
+                        levels,
+                        lengths,
+                        grammarPatterns,
+                        recentStarters,
+                        languageProfile,
+                        fresh,
+                        System.currentTimeMillis()));
 
                 try {
                     ChatbotService.AiCallResult llm = chatbotService.generateSentences(message, languageProfile);
@@ -740,26 +683,6 @@ public class ChatbotController {
         }
         java.util.regex.Matcher matcher = STARTER_WORD_PATTERN.matcher(sentence.trim());
         return matcher.find() ? matcher.group(1) : null;
-    }
-
-    private void appendMeaningHint(StringBuilder prompt, String targetWord, Map<String, String> meanings) {
-        String meaning = meaningFor(targetWord, meanings);
-        if (!meaning.isBlank()) {
-            prompt.append("Known learner meaning: ").append(meaning).append("\n");
-        }
-    }
-
-    private void appendMeaningHints(StringBuilder prompt, List<String> targetWords, Map<String, String> meanings) {
-        List<String> hints = targetWords.stream()
-                .map(word -> {
-                    String meaning = meaningFor(word, meanings);
-                    return meaning.isBlank() ? "" : word + " = " + meaning;
-                })
-                .filter(value -> !value.isBlank())
-                .toList();
-        if (!hints.isEmpty()) {
-            prompt.append("Known learner meanings: ").append(String.join("; ", hints)).append("\n");
-        }
     }
 
     private String meaningFor(String targetWord, Map<String, String> meanings) {

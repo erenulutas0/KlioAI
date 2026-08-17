@@ -95,7 +95,14 @@ public class DailyWordsService {
         }
     }
 
-    private String generateDailyWordsPayload(LocalDate date) throws Exception {
+    /**
+     * Exposed so the offline eval can exercise the real generation path.
+     *
+     * <p>An eval that reimplements the prompt tests the eval. This is the same method the
+     * nightly job calls, so a regression it catches is a regression learners would have
+     * seen.
+     */
+    public String generateDailyWordsPayload(LocalDate date) throws Exception {
         LearningLanguageProfile profile = LearningLanguageProfile.defaultProfile();
         String topicCategory = PromptCatalog.topicForDay(date.getDayOfYear());
         Set<String> excludeWords = recentDailyWords(date.minusDays(30), date.minusDays(1));
