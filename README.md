@@ -74,7 +74,10 @@ device.
 its own local evening, and only if there is something genuinely due and the learner has not
 already practised that day.
 
-Tests: 924 backend, 320 client.
+Tests: 944 backend, 320 client. Generated content has its own harness: mechanical checks
+run in the ordinary suite against payloads captured from real production failures, and a
+manually triggered workflow puts the four generators through a golden set of live calls
+before a prompt change ships.
 
 ---
 
@@ -115,6 +118,12 @@ The shape repeats: one fact stored in two places, and the read path holding the 
 None of these failed loudly. Each needed either production data or a phone in hand, which is
 why the app now logs the *inputs* to its decisions and not only their outcomes, and why
 learners can flag bad generated content in one tap from any screen that shows it.
+
+The fallback-sentence failure is also why the prompts are no longer built inline inside
+request handlers. The practice-sentence prompt is now a pure function with its exact output
+pinned by a test, so changing it is a visible diff rather than a line that slips through in
+an unrelated commit — and the eval calls that same function, because an eval that writes its
+own prompt only proves the eval works.
 
 ---
 
@@ -165,5 +174,6 @@ storage and that release builds bundle no provider secrets.
 ## Status
 
 Published on Google Play and under active development. The current focus is retention and
-content quality: an offline evaluation harness for the AI generators, and closing the loop
-between what learners report and what gets fixed.
+content quality: closing the loop between what learners report and what gets fixed, and
+extending the generator eval from mechanical checks — is this output usable — to judged
+ones, which is the part that needs a second model or a person.

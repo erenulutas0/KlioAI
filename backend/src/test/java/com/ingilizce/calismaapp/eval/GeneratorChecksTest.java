@@ -1,0 +1,212 @@
+package com.ingilizce.calismaapp.eval;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * The checks, run against the payloads that actually reached production.
+ *
+ * <p>An eval that has never caught anything is a claim, not a safety net. Every failing case
+ * below is a real one: the template sentences that shipped for three months, the empty C1
+ * passage, a grammar question whose correct answer was not among its options. If a check
+ * cannot catch the thing it was written for, this file fails and says so — and none of it
+ * costs a token, so it runs in the ordinary suite alongside everything else.
+ *
+ * <p>The passing cases matter as much. A check that fires on good output gets ignored within
+ * a week, and an ignored eval is worse than none because it looks like coverage.
+ */
+class GeneratorChecksTest {
+
+    // ---------------------------------------------------------------- sentences
+
+    @Test
+    void theTemplateSentencesThatShippedForThreeMonthsAreCaught() {
+        // Served to learners as model output while the metrics read 100% healthy.
+        Map<String, Object> payload = Map.of("sentences", List.of(
+                Map.of("englishSentence", "Maya noticed evaluate during the trip.",
+                        "turkishSentence", "Maya gezide değerlendirmeyi fark etti.")));
+
+        List<String> failures = GeneratorChecks.sentenceFailures(payload, "evaluate", "B1");
+
+        assertFalse(failures.isEmpty());
+        assertTrue(failures.toString().contains("known fallback template"), failures.toString());
+    }
+
+    @Test
+    void aSentenceMissingItsOwnWordIsCaught() {
+        // The one thing a per-word generator must not get wrong.
+        Map<String, Object> payload = Map.of("sentences", List.of(
+                Map.of("englishSentence", "She finished the report before lunch.",
+                        "turkishSentence", "Raporu öğle yemeğinden önce bitirdi.")));
+
+        List<String> failures = GeneratorChecks.sentenceFailures(payload, "mitigate", "B1");
+
+        assertTrue(failures.toString().contains("does not contain the target word"), failures.toString());
+    }
+
+    @Test
+    void anEmptyGenerationIsCaught() {
+        assertFalse(GeneratorChecks.sentenceFailures(Map.of("sentences", List.of()), "insight", "B1").isEmpty());
+        assertFalse(GeneratorChecks.sentenceFailures(null, "insight", "B1").isEmpty());
+    }
+
+    @Test
+    void ordinaryInflectionIsNotAFailure() {
+        // "evaluate" has to match "evaluated". A check that fails correct output is worse
+        // than no check, because people stop reading it.
+        Map<String, Object> payload = Map.of("sentences", List.of(
+                Map.of("englishSentence", "The team evaluated three suppliers last week.",
+                        "turkishSentence", "Ekip geçen hafta üç tedarikçiyi değerlendirdi.")));
+
+        assertEquals(List.of(), GeneratorChecks.sentenceFailures(payload, "evaluate", "B1"));
+    }
+
+    @Test
+    void aWordIsNotFoundInsideAnUnrelatedWord() {
+        // "all" must not match "usually", or the check passes on nonsense.
+        assertFalse(GeneratorChecks.containsWordStem("She usually walks to work.", "all"));
+        assertTrue(GeneratorChecks.containsWordStem("All of them arrived.", "all"));
+    }
+
+    // ---------------------------------------------------------------- grammar quiz
+
+    @Test
+    void aQuestionWhoseAnswerIsNotOfferedIsCaught() {
+        // Unanswerable by construction: the learner cannot pick what is not there.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "By the time we arrived, they ___ dinner.",
+                "options", List.of("finish", "finishes", "are finishing"),
+                "correctAnswer", "had finished")));
+
+        List<String> failures = GeneratorChecks.grammarQuizFailures(payload, List.of(), "B2");
+
+        assertTrue(failures.toString().contains("not among the options"), failures.toString());
+    }
+
+    @Test
+    void aClaimedTargetWordThatIsNotInTheQuestionIsCaught() {
+        // targetWord is what lets the answer reach the review scheduler. If it is a lie,
+        // the learner gets credit for a word the question never asked about.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "She ___ to the office every morning.",
+                "options", List.of("walk", "walks"),
+                "correctAnswer", "walks",
+                "targetWord", "mitigate")));
+
+        List<String> failures = GeneratorChecks.grammarQuizFailures(payload, List.of("mitigate"), "B1");
+
+        assertTrue(failures.toString().contains("does not contain it"), failures.toString());
+    }
+
+    @Test
+    void aWellFormedQuizPasses() {
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "The new policy will mitigate most of the risk.",
+                "options", List.of("mitigate", "mitigates", "mitigating"),
+                "correctAnswer", "mitigate",
+                "targetWord", "mitigate")));
+
+        assertEquals(List.of(), GeneratorChecks.grammarQuizFailures(payload, List.of("mitigate"), "B1"));
+    }
+
+    // ---------------------------------------------------------------- daily words
+
+    @Test
+    void anExampleSentenceWithoutItsWordIsCaught() {
+        List<Map<String, Object>> words = List.of(Map.of(
+                "word", "resilient",
+                "translation", "dayanıklı",
+                "definition", "Able to recover quickly.",
+                "exampleSentence", "The bridge withstood the storm."));
+
+        List<String> failures = GeneratorChecks.dailyWordsFailures(words);
+
+        assertTrue(failures.toString().contains("does not contain the word"), failures.toString());
+    }
+
+    @Test
+    void aDuplicateInTheSameDaysSetIsCaught() {
+        Map<String, Object> entry = Map.of(
+                "word", "insight", "translation", "içgörü",
+                "definition", "A deep understanding.",
+                "exampleSentence", "Her insight changed the plan.");
+
+        List<String> failures = GeneratorChecks.dailyWordsFailures(List.of(entry, entry));
+
+        assertTrue(failures.toString().contains("duplicate"), failures.toString());
+    }
+
+    @Test
+    void aCompleteDailyWordPasses() {
+        List<Map<String, Object>> words = List.of(Map.of(
+                "word", "insight",
+                "translation", "içgörü",
+                "definition", "A deep and accurate understanding of something.",
+                "exampleSentence", "Her insight into the problem saved us a week."));
+
+        assertEquals(List.of(), GeneratorChecks.dailyWordsFailures(words));
+    }
+
+    // ---------------------------------------------------------------- reading
+
+    @Test
+    void theEmptyC1PassageIsCaught() {
+        // C1 reading returned nothing in production more than once.
+        Map<String, Object> payload = Map.of("title", "Urban Design", "text", "", "questions", List.of());
+
+        List<String> failures = GeneratorChecks.readingFailures(payload, "C1");
+
+        assertTrue(failures.toString().contains("empty passage"), failures.toString());
+    }
+
+    @Test
+    void aQuoteThatIsNotInThePassageIsCaught() {
+        // The model is asked to quote the sentence its answer comes from. A quote that is
+        // not there means the answer was not read out of the passage.
+        String passage = "Cities grew around rivers because water carried both trade and waste. "
+                + "For centuries the banks were the cheapest place to unload a boat, so "
+                + "warehouses, workshops and housing crowded together within a few streets of "
+                + "the water. Planners later moved industry away from the banks, which changed "
+                + "how neighbourhoods formed and where people chose to live over the following "
+                + "century, and many of those older quarters were rebuilt for something else "
+                + "entirely once the factories had gone.";
+        Map<String, Object> payload = Map.of(
+                "title", "Rivers and Cities",
+                "text", passage,
+                "questions", List.of(
+                        Map.of("question", "Why did cities grow around rivers?",
+                                "options", List.of("Trade", "Weather", "Defence"),
+                                "correctAnswer", "Trade",
+                                "correctAnswerQuote", "rivers were chosen for their beauty"),
+                        Map.of("question", "What did planners do later?",
+                                "options", List.of("Moved industry", "Built dams", "Nothing"),
+                                "correctAnswer", "Moved industry",
+                                "correctAnswerQuote", "Planners later moved industry away from the banks"),
+                        Map.of("question", "What changed as a result?",
+                                "options", List.of("Neighbourhoods", "Rainfall", "Borders"),
+                                "correctAnswer", "Neighbourhoods",
+                                "correctAnswerQuote", "changed how neighbourhoods formed")));
+
+        List<String> failures = GeneratorChecks.readingFailures(payload, "B2");
+
+        assertEquals(1, failures.size(), failures.toString());
+        assertTrue(failures.get(0).contains("correctAnswerQuote is not in the passage"), failures.toString());
+    }
+
+    @Test
+    void tooFewComprehensionQuestionsIsCaught() {
+        Map<String, Object> payload = Map.of(
+                "title", "A Title",
+                "text", "word ".repeat(60),
+                "questions", List.of(Map.of("question", "Why?", "options", List.of("a", "b"),
+                        "correctAnswer", "a")));
+
+        assertTrue(GeneratorChecks.readingFailures(payload, "B1").toString().contains("question(s)"));
+    }
+}

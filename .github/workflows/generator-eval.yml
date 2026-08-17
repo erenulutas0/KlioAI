@@ -1,0 +1,71 @@
+name: Generator Eval
+
+# Runs the four AI generators against a fixed golden set and applies the mechanical
+# checks in GeneratorChecks. This is the only workflow that spends real tokens, so it
+# never runs on push - only when someone asks for it, and it is the thing to run before
+# shipping a prompt change.
+#
+# Needs a repository secret named GROQ_API_KEY. Without it the run is skipped, not
+# silently passed: a green tick on an eval that never called anything is exactly the
+# kind of false success this harness exists to stop.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generator-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_SECURITY_JWT_SECRET: smoke-test-jwt-secret-smoke-test-jwt-secret-32
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Require a real API key
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then
+            echo "::error::GROQ_API_KEY is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run generator eval
+        working-directory: backend
+        run: mvn test -Dtest=GeneratorEvalRunner -Dexcluded.test.groups= -DfailIfNoTests=false
+
+      - name: Fail if the eval never actually ran
+        # The runner writes the report only after it has called the provider, so a missing
+        # report means the test was skipped - a bad key, a changed tag, a rename. Without
+        # this the job would go green having generated nothing, which is the precise
+        # failure mode this whole harness was built to catch.
+        if: always()
+        run: |
+          if [ ! -f backend/target/eval-report.md ]; then
+            echo "::error::No eval report was written - the eval was skipped, not passed."
+            exit 1
+          fi
+
+      - name: Upload report
+        # Wanted most when the run failed - the report says which generator and why.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: backend/target/eval-report.md
+          if-no-files-found: error
+
+      - name: Summarise
+        if: always()
+        run: |
+          if [ -f backend/target/eval-report.md ]; then
+            cat backend/target/eval-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
