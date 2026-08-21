@@ -266,6 +266,10 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
         setState(() {
           _translationResults[index].isCorrect =
               resultData['isCorrect'] as bool?;
+          // A response that carried no verdict is not a pass. The backend used to invent
+          // one here and defaulted to correct, so this has to be visible rather than blank.
+          _translationResults[index].checkFailed =
+              resultData['isCorrect'] == null;
           _translationResults[index].feedback = resultData['feedback'] ?? '';
           _translationResults[index].correctTranslation =
               resultData['correctTranslation'] ?? '';
@@ -913,6 +917,36 @@ class _TranslationPracticePageState extends State<TranslationPracticePage> {
                 ],
               ),
             ),
+          ] else if (result.checkFailed) ...[
+            // The verdict could not be read. Saying so is the honest outcome: the check used
+            // to guess in this situation and its guess defaulted to "correct", so a wrong
+            // answer was ticked and written to the review schedule as a good recall. Nothing
+            // is graded here and nothing reaches the scheduler - the learner's own answer
+            // stays on screen and they can ask again.
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.help_outline,
+                      color: Colors.white.withValues(alpha: 0.7), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _t(context, 'Kontrol edilemedi. Tekrar dene.',
+                          'Could not check this one. Try again.'),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -928,6 +962,8 @@ class TranslationResult {
   String feedback;
   String correctTranslation;
   bool isChecking;
+  /// The check ran but came back without a verdict, so nothing was graded.
+  bool checkFailed;
   bool isReverse;
 
   TranslationResult({
@@ -939,5 +975,6 @@ class TranslationResult {
     required this.correctTranslation,
     required this.isChecking,
     this.isReverse = false,
+    this.checkFailed = false,
   });
 }

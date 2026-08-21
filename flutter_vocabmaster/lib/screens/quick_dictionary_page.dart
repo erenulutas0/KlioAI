@@ -61,6 +61,19 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
       final result = await GroqService.lookupWordDetailed(query);
 
       if (mounted) {
+        // Same stand-in payload as the full dictionary: HTTP 200, marked, and previously
+        // rendered as a real entry whose meaning was the words "Anlam gecici olarak
+        // getirilemedi".
+        if (result['fallback'] == true) {
+          setState(() {
+            _meanings = [];
+            _isSearching = false;
+            _errorMessage = _isTurkish
+                ? 'Anlam şu anda getirilemedi. Birkaç saniye sonra tekrar dene.'
+                : 'Could not fetch the meaning right now. Try again in a moment.';
+          });
+          return;
+        }
         setState(() {
           _searchedWord = result['word'] ?? query;
           _phonetic = result['phonetic'] ?? '';

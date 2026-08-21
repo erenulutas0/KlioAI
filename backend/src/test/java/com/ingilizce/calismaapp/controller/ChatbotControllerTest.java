@@ -960,7 +960,11 @@ public class ChatbotControllerTest {
     }
 
     @Test
-    void checkTranslationUsesFallbackParserWhenResponseIsNotJson() throws Exception {
+    void checkTranslationReportsNoVerdictWhenTheReplyIsNotJson() throws Exception {
+        // This test used to require that prose reading "Bu ceviri dogru gorunuyor." be
+        // graded CORRECT - it pinned the guessing, and the guessing is what marked wrong
+        // answers right and wrote them to the scheduler as good recalls. Prose means the
+        // model did not answer the question that was asked; the honest report is no verdict.
         when(chatbotService.checkTranslation(anyString(), any(LearningLanguageProfile.class)))
                 .thenReturn(ai("Bu ceviri dogru gorunuyor."));
 
@@ -969,17 +973,20 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"direction\":\"EN_TO_TR\",\"englishSentence\":\"I love coding\",\"userTranslation\":\"Kodlamayı seviyorum\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isCorrect").value(true))
-                .andExpect(jsonPath("$.feedback").value("Bu ceviri dogru gorunuyor."));
+                .andExpect(jsonPath("$.isCorrect").doesNotExist());
     }
 
     @Test
-    void checkTranslationFallbackParser_ShouldDetectCapitalIncorrect_OnTurkishLocaleJvm() throws Exception {
+    void checkTranslationIsUnaffectedByATurkishLocaleJvm() throws Exception {
+        // The hazard this guarded is gone rather than fixed. Inferring the verdict from text
+        // meant lowercasing it, and on a Turkish-locale JVM "Incorrect" lowercases to a
+        // dotless "ıncorrect" and stopped matching - flipping a wrong answer to right. No
+        // text is interpreted now, so there is no locale to get wrong.
         java.util.Locale original = java.util.Locale.getDefault();
         try {
             java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
             when(chatbotService.checkTranslation(anyString(), any(LearningLanguageProfile.class)))
-                    .thenReturn(ai("That translation is Incorrect, please try again."));
+                    .thenReturn(ai("{\"isCorrect\": false, \"feedback\": \"Incorrect tense.\"}"));
 
             mockMvc.perform(post("/api/chatbot/check-translation")
                     .header("X-User-Id", "1")
@@ -1001,8 +1008,10 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"direction\":\"EN_TO_TR\",\"englishSentence\":\"I love coding\",\"userTranslation\":\"Kodlamayı seviyorum\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isCorrect").value(false))
-                .andExpect(jsonPath("$.feedback").value(org.hamcrest.Matchers.containsString("Çeviri kontrol edilemedi")));
+                // Previously defaulted to "incorrect", which is corruption in the other
+                // direction: a learner who answered correctly was told they were wrong and
+                // the word's interval was shortened on evidence that never existed.
+                .andExpect(jsonPath("$.isCorrect").doesNotExist());
     }
 
     @Test
@@ -1095,9 +1104,9 @@ public class ChatbotControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"direction\":\"EN_TO_TR\",\"englishSentence\":\"I love coding\",\"userTranslation\":\"Kodlamayı seviyorum\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isCorrect").value(false))
+                .andExpect(jsonPath("$.isCorrect").doesNotExist())
                 .andExpect(jsonPath("$.correctTranslation").value(""))
-                .andExpect(jsonPath("$.feedback").value("Çeviri kontrol edildi."));
+                .andExpect(jsonPath("$.feedback").value(""));
     }
 
     @Test

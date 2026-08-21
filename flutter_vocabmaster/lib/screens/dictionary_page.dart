@@ -96,7 +96,19 @@ class _DictionaryPageState extends State<DictionaryPage> {
       final result = await GroqService.lookupWord(query);
       if (mounted) {
         setState(() {
-          groqResult = result;
+          // The backend ships a stand-in payload with HTTP 200 when a generation comes back
+          // empty or malformed, and marks it. Rendering it produced a normal-looking card
+          // whose meaning read "Anlam gecici olarak getirilemedi" and whose example sentence
+          // was an English instruction to try again - and the save button was live, so that
+          // error string could be written into the learner's vocabulary permanently and then
+          // enter the review rotation. writing_practice_page already honours this flag.
+          if (result?['fallback'] == true) {
+            groqResult = null;
+            errorMessage = _text('Anlam şu anda getirilemedi. Birkaç saniye sonra tekrar dene.',
+                'Could not fetch the meaning right now. Try again in a moment.');
+          } else {
+            groqResult = result;
+          }
           isLoading = false;
         });
       }

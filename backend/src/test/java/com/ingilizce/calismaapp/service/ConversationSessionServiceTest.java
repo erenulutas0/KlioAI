@@ -82,9 +82,13 @@ class ConversationSessionServiceTest {
     }
 
     @Test
-    void recordTurn_ShouldSkipBlankTurns() {
-        service.recordTurn(42L, "Hello", " ");
-        service.recordTurn(42L, null, "Hi");
+    void recordTurn_ShouldSkipOnlyWhenThereIsNothingToStore() {
+        // This test used to assert that a turn with a blank assistant reply stored nothing at
+        // all - it pinned the bug rather than the behaviour. Dropping the learner's message
+        // because the model returned nothing left the next reply answering a history in which
+        // they had never spoken. What is genuinely not worth storing is a turn with no
+        // content on either side, or one with no user to store it against.
+        service.recordTurn(42L, "   ", null);
         service.recordTurn(null, "Hello", "Hi");
 
         verify(listOperations, never()).rightPush(anyString(), any());
@@ -106,5 +110,37 @@ class ConversationSessionServiceTest {
     void sessionMessageCount_ShouldHandleNullSize() {
         when(listOperations.size(KEY)).thenReturn(null);
         assertEquals(0, service.sessionMessageCount(42L));
+    }
+
+    @Test
+    void aBlankReplyStillKeepsWhatTheLearnerSaid() {
+        // One guard used to cover the whole turn, so an empty completion discarded the
+        // learner's own message with it. They spoke again and the model answered from a
+        // history in which they had never said the first thing. Their half is the one that
+        // cannot be recovered - the model can be asked again, the learner cannot be asked to
+        // re-type something they believe they already said.
+        service.recordTurn(42L, "I went to the stadium yesterday.", "");
+
+        verify(listOperations).rightPush(KEY, Map.of(
+                "role", "user", "content", "I went to the stadium yesterday."));
+        verify(listOperations, never()).rightPush(KEY, Map.of("role", "assistant", "content", ""));
+        verify(redisTemplate).expire(KEY, Duration.ofHours(2));
+    }
+
+    @Test
+    void aTurnWithNeitherHalfIsNotRecorded() {
+        service.recordTurn(42L, "  ", null);
+
+        verify(listOperations, never()).rightPush(anyString(), any());
+    }
+
+    @Test
+    void aCompleteTurnStillRecordsBothHalvesInOrder() {
+        service.recordTurn(42L, "Hi", "Hey! How's your day?");
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(listOperations);
+        order.verify(listOperations).rightPush(KEY, Map.of("role", "user", "content", "Hi"));
+        order.verify(listOperations).rightPush(KEY,
+                Map.of("role", "assistant", "content", "Hey! How's your day?"));
     }
 }

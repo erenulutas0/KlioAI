@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.dto.PracticeSentence;
 import com.ingilizce.calismaapp.service.DailyContentFallbackSupport;
@@ -1429,70 +1430,56 @@ public class ChatbotController {
         }
     }
 
+    /**
+     * Reads the translation verdict, and reports nothing rather than guessing.
+     *
+     * <p>This used to infer the verdict from the text when the payload was not JSON, and the
+     * inference defaulted to correct: with a blank completion every {@code contains} check
+     * was false, so the negated clause returned true and the learner's wrong answer was
+     * marked right. It also matched the Turkish word "doğru" anywhere in the reply — and the
+     * feedback shown for a <em>wrong</em> answer begins "Doğru çeviri:", the correct
+     * translation being exactly what a wrong answer is told. A green tick suppressed the
+     * correction, and quality 4 went to the scheduler as a good recall, lengthening the
+     * interval for a word the learner had just got wrong.
+     *
+     * <p>An absent verdict is a first-class outcome now. The client is already built for it:
+     * it skips the scheduler write, skips the XP award and shows a "could not check" card,
+     * which is honest and costs the learner nothing but a retry.
+     *
+     * <p>Fields are read off a parsed document rather than scraped with regexes. The old
+     * pattern {@code "([^"]+)"} could not cross an escaped quote, and the prompt asks the
+     * model to name the error pattern using quoted tokens like "a/an/the" — so the
+     * explanation of the learner's mistake was being cut off mid-sentence precisely on the
+     * answers they got wrong.
+     */
     private Map<String, Object> parseJsonResponse(String response) {
         Map<String, Object> result = new HashMap<>();
 
-        try {
-            // Clean response - remove markdown code blocks if present
-            response = response.trim();
-            response = response.replaceAll("```json", "").replaceAll("```", "").trim();
-
-            // Try to extract JSON object
-            int jsonStart = response.indexOf("{");
-            int jsonEnd = response.lastIndexOf("}") + 1;
-
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                String jsonStr = response.substring(jsonStart, jsonEnd);
-
-                // Parse isCorrect
-                Pattern isCorrectPattern = Pattern.compile("\"isCorrect\"\\s*:\\s*(true|false)");
-                Matcher isCorrectMatcher = isCorrectPattern.matcher(jsonStr);
-                if (isCorrectMatcher.find()) {
-                    result.put("isCorrect", Boolean.parseBoolean(isCorrectMatcher.group(1)));
-                } else {
-                    result.put("isCorrect", false);
-                }
-
-                // Extract correctTranslation
-                Pattern correctPattern = Pattern.compile("\"correctTranslation\"\\s*:\\s*\"([^\"]+)\"");
-                Matcher correctMatcher = correctPattern.matcher(jsonStr);
-                if (correctMatcher.find()) {
-                    result.put("correctTranslation", correctMatcher.group(1));
-                } else {
-                    result.put("correctTranslation", "");
-                }
-
-                // Extract feedback
-                Pattern feedbackPattern = Pattern.compile("\"feedback\"\\s*:\\s*\"([^\"]+)\"");
-                Matcher feedbackMatcher = feedbackPattern.matcher(jsonStr);
-                if (feedbackMatcher.find()) {
-                    result.put("feedback", feedbackMatcher.group(1));
-                } else {
-                    result.put("feedback", "Çeviri kontrol edildi.");
-                }
-            } else {
-                // If no JSON found, try to infer from text.
-                // Locale.ROOT is required here: on a JVM whose default locale is
-                // Turkish, toLowerCase() maps 'I' -> 'ı' (dotless), so a response
-                // containing "Incorrect" would silently fail the .contains("incorrect")
-                // check below, flipping a wrong translation-practice answer into a
-                // reported "correct" result for the user.
-                String lowerResponse = response.toLowerCase(java.util.Locale.ROOT);
-                boolean isCorrect = lowerResponse.contains("\"iscorrect\":true") ||
-                        lowerResponse.contains("doğru") ||
-                        (!lowerResponse.contains("incorrect") &&
-                                !lowerResponse.contains("yanlış") &&
-                                !lowerResponse.contains("\"iscorrect\":false"));
-
-                result.put("isCorrect", isCorrect);
-                result.put("correctTranslation", "");
-                result.put("feedback", response);
-            }
-        } catch (Exception e) {
-            // Fallback
-            result.put("isCorrect", false);
+        String cleaned = response == null ? "" : response.trim()
+                .replaceAll("```json", "").replaceAll("```", "").trim();
+        int jsonStart = cleaned.indexOf('{');
+        int jsonEnd = cleaned.lastIndexOf('}') + 1;
+        if (jsonStart < 0 || jsonEnd <= jsonStart) {
+            log.warn("TRANSLATION_CHECK_UNREADABLE reason=no-json length={}", cleaned.length());
             result.put("correctTranslation", "");
-            result.put("feedback", "Çeviri kontrol edilemedi: " + e.getMessage());
+            result.put("feedback", "");
+            return result;
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(cleaned.substring(jsonStart, jsonEnd));
+            JsonNode verdict = node.get("isCorrect");
+            if (verdict != null && verdict.isBoolean()) {
+                result.put("isCorrect", verdict.booleanValue());
+            } else {
+                log.warn("TRANSLATION_CHECK_UNREADABLE reason=no-verdict");
+            }
+            result.put("correctTranslation", node.path("correctTranslation").asText(""));
+            result.put("feedback", node.path("feedback").asText(""));
+        } catch (Exception e) {
+            log.warn("TRANSLATION_CHECK_UNREADABLE reason=unparseable error={}", e.toString());
+            result.put("correctTranslation", "");
+            result.put("feedback", "");
         }
 
         return result;

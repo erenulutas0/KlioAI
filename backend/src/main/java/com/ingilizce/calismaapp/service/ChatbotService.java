@@ -129,7 +129,10 @@ public class ChatbotService {
         : List.of();
     AiCallResult result = callGroqText(
         systemPrompt, history, message, 260 + REASONING_TOKEN_ALLOWANCE, "speaking-chat");
-    if (conversationSessionService != null && result.content() != null && !result.content().isBlank()) {
+    // Unconditional on the learner's side. The guard here used to cover the whole turn, so a
+    // blank completion silently dropped what the learner had just said and the next reply came
+    // back out of context. recordTurn now stores whichever half is present.
+    if (conversationSessionService != null) {
       conversationSessionService.recordTurn(userId, message, result.content());
     }
     return result;

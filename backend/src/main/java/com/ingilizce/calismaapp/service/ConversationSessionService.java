@@ -85,18 +85,32 @@ public class ConversationSessionService {
     }
 
     /**
-     * Appends one completed user/assistant turn and refreshes the session TTL.
+     * Records what was said, whichever half of it exists.
+     *
+     * <p>A blank assistant reply used to discard the learner's own message along with it,
+     * because one guard covered the whole turn. The learner then spoke again and the model
+     * answered from a history in which they had never said the first thing — out of context,
+     * for a reason invisible from either end. Their message is the half that cannot be
+     * recovered: the model can be asked again, the learner cannot be asked to re-type
+     * something they believe they already said.
      */
     public void recordTurn(Long userId, String userMessage, String assistantReply) {
-        if (userId == null || redisTemplate == null
-                || userMessage == null || userMessage.isBlank()
-                || assistantReply == null || assistantReply.isBlank()) {
+        if (userId == null || redisTemplate == null) {
+            return;
+        }
+        boolean hasUserMessage = userMessage != null && !userMessage.isBlank();
+        boolean hasAssistantReply = assistantReply != null && !assistantReply.isBlank();
+        if (!hasUserMessage && !hasAssistantReply) {
             return;
         }
         try {
             String key = key(userId);
-            redisTemplate.opsForList().rightPush(key, Map.of("role", "user", "content", userMessage));
-            redisTemplate.opsForList().rightPush(key, Map.of("role", "assistant", "content", assistantReply));
+            if (hasUserMessage) {
+                redisTemplate.opsForList().rightPush(key, Map.of("role", "user", "content", userMessage));
+            }
+            if (hasAssistantReply) {
+                redisTemplate.opsForList().rightPush(key, Map.of("role", "assistant", "content", assistantReply));
+            }
             redisTemplate.opsForList().trim(key, -MAX_STORED_MESSAGES, -1);
             redisTemplate.expire(key, SESSION_TTL);
         } catch (Exception e) {
