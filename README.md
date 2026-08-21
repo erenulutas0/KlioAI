@@ -74,7 +74,7 @@ device.
 its own local evening, and only if there is something genuinely due and the learner has not
 already practised that day.
 
-Tests: 944 backend, 320 client. Generated content has its own harness: mechanical checks
+Tests: 965 backend, 320 client. Generated content has its own harness: mechanical checks
 run in the ordinary suite against payloads captured from real production failures, and a
 manually triggered workflow puts the four generators through a golden set of live calls
 before a prompt change ships.
@@ -124,6 +124,38 @@ request handlers. The practice-sentence prompt is now a pure function with its e
 pinned by a test, so changing it is a visible diff rather than a line that slips through in
 an unrelated commit — and the eval calls that same function, because an eval that writes its
 own prompt only proves the eval works.
+
+**What the eval found on its first afternoon.**
+Twelve cases across the four generators, checked mechanically: does the sentence contain the
+word it was built around, is the correct answer among the options, is the quoted evidence
+really in the passage. The first run scored 4 of 12. Reaching 12 took eight rounds, and the
+findings split about evenly between the generators and the checks themselves.
+
+The reading screen labels options by position and marks the one whose letter matches
+`correctAnswer`. Two of the four passages were returning the answer written out in full,
+which matches no letter — so every answer a learner gave on those was graded wrong. The
+prompt's example had shown `"options": ["A", "B", "C", "D"]`, which reads as *the options
+are the letters*. The grammar quiz was serving questions with four identical buttons; the
+prompt asked for "exactly 4 options" and never said they had to differ. A past-simple drill
+built on the learner's own vocabulary produced questions with no correct answer at all,
+because two of the words were a noun and an adjective and a tense drill has to conjugate
+something. One day's five vocabulary words were being discarded wholesale because *stadium*
+came back with a single meaning, which is how many meanings stadium has.
+
+The checks were wrong about as often. One looked for a field the generator has never
+produced and called twenty healthy sentences broken. One was inverted, so it failed the
+passages that worked and passed the ones that didn't. One graded sentences against CEFR
+word-count bands invented on the spot, and failed a good sentence for being 21 words while
+the same request asked for a "long" bucket defined as 16 or more. Every one of those is now
+a regression test with the payload that produced it, because a check that fires on correct
+output gets ignored within a week, and an ignored eval is worse than none — it looks like
+coverage.
+
+The repairs that stuck are the ones that keep the lesson rather than protect the invariant:
+a question whose target word is a lie loses the label, not the question; an unverifiable
+quote is dropped while the question stays; a quiz that cannot be built on the learner's
+words is rebuilt without them. Dropping bad questions outright was tried first and produced
+an empty practice screen, which is worse than what it replaced.
 
 ---
 
@@ -176,4 +208,5 @@ storage and that release builds bundle no provider secrets.
 Published on Google Play and under active development. The current focus is retention and
 content quality: closing the loop between what learners report and what gets fixed, and
 extending the generator eval from mechanical checks — is this output usable — to judged
-ones, which is the part that needs a second model or a person.
+ones, which is the part that needs a second model or a person. Mechanical checks can prove a
+question is answerable. They cannot tell you it is worth answering.
