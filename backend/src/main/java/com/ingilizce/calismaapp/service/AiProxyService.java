@@ -807,97 +807,6 @@ JSON Format:
         return callJson("Return valid JSON only.", prompt, 900, 0.5, "writing-evaluate");
     }
 
-    public AiJsonResult generateExamBundle(Map<String, Object> request) {
-        // Forward-compatible: keep the legacy Flutter prompt structure server-side.
-        String examType = safeString(request.get("examType"), "YDS/YOKDIL");
-        String category = safeString(request.get("category"), "grammar");
-        int questionCount = safeInt(request.get("questionCount"), 10);
-        String userLevel = safeString(request.get("userLevel"), "B2");
-        String targetScore = safeString(request.get("targetScore"), "60-80");
-
-        // Reuse the exact prompt style used in Flutter to keep output schema stable.
-        long seed = System.currentTimeMillis();
-
-        String systemContent = """
-Sen profesyonel bir YDS/YÖKDİL sınav uzmanısın.
-Görevin, belirtilen formatta tamamen ÖZGÜN, YENİ ve AKADEMİK sorular üretmektir.
-
-KURALLAR:
-1. DİL: Sorular, metinler ve şıklar TAMAMEN İNGİLİZCE olmalı. (Sadece 'Translation' kategorisi hariç).
-2. ASLA Prompt içindeki örnek soruları çıktı olarak verme. Her seferinde sıfırdan düşün.
-3. Her soru 5 şık (A, B, C, D, E) içermeli.
-4. SADECE BİR doğru cevap olmalı.
-5. Çeldiriciler güçlü olmalı.
-6. Çıktı SADECE geçerli JSON olmalı.
-
-Seviye: C1 (Advanced)
-""";
-
-        int timeLimitMinutes = questionCount * 2;
-
-        String userContent = """
-YDS/YÖKDİL Sınav Simülasyonu (%d Soru).
-Random Seed: %d (Her seferinde farklı sorular üret)
-
-SADECE "%s" kategorisinden %d adet YENİ ve ÖZGÜN soru üret.
-ÖNEMLİ: Daha önce sorulmamış, özgün sorular üret. Sorular birbirini tekrar etmesin.
-
-Kullanıcı Profili:
-- Seviye: %s
-- Hedef Puan: %s
-
-JSON ÇIKTI FORMATI:
-{
-  "meta": {
-    "exam": "%s",
-    "mode": "category",
-    "category": "%s",
-    "track": "general",
-    "user_level_cefr": "%s",
-    "target_score_band": "%s",
-    "time_limit_minutes": %d,
-    "total_questions": %d
-  },
-  "sections": [
-    {
-      "name": "Generated Test",
-      "items": [
-        {
-          "id": "q_%d_1",
-          "type": "%s",
-          "difficulty": "hard",
-          "skill_tags": [],
-          "stem": "Question text (ENGLISH)...",
-          "passage": null,
-          "options": {"A":"Answer A (ENGLISH)...","B":"...","C":"...","D":"...","E":"..."},
-          "correct": "A",
-          "explanation_tr": "Türkçe Açıklama",
-          "explanation_en": "English Explanation"
-        }
-      ]
-    }
-  ]
-}
-""".formatted(
-                questionCount,
-                seed,
-                category,
-                questionCount,
-                userLevel,
-                targetScore,
-                examType,
-                category,
-                userLevel,
-                targetScore,
-                timeLimitMinutes,
-                questionCount,
-                seed,
-                category
-        );
-
-        // Exam generation is expensive; cap max tokens but allow long outputs.
-        return callJson(systemContent, userContent, 4000, 0.85, "exam-generate");
-    }
 
     private AiJsonResult callJson(String systemPrompt,
                                   String userPrompt,
@@ -983,7 +892,6 @@ JSON ÇIKTI FORMATI:
             case "grammar-quiz" -> hasList(parsed, "questions");
             case "writing-topic" -> hasNonBlank(parsed, "topic") && hasNonBlank(parsed, "description");
             case "writing-evaluate" -> parsed.containsKey("score") && hasNonBlank(parsed, "overall");
-            case "exam-generate" -> parsed.containsKey("meta") && hasList(parsed, "sections");
             default -> true;
         };
     }
@@ -1037,7 +945,6 @@ JSON ÇIKTI FORMATI:
             case "pronunciation-text-generate" -> buildPronunciationTextsFallback(userPrompt);
             case "writing-topic" -> buildWritingTopicFallback();
             case "writing-evaluate" -> buildWritingEvaluateFallback();
-            case "exam-generate" -> buildExamFallback();
             default -> {
                 Map<String, Object> fallback = new HashMap<>();
                 fallback.put("fallback", true);
@@ -1194,27 +1101,6 @@ JSON ÇIKTI FORMATI:
         return fallback;
     }
 
-    private Map<String, Object> buildExamFallback() {
-        Map<String, Object> meta = new HashMap<>();
-        meta.put("exam", "YDS/YOKDIL");
-        meta.put("mode", "category");
-        meta.put("category", "grammar");
-        meta.put("track", "general");
-        meta.put("user_level_cefr", "B1");
-        meta.put("target_score_band", "60-80");
-        meta.put("time_limit_minutes", 0);
-        meta.put("total_questions", 0);
-
-        Map<String, Object> section = new HashMap<>();
-        section.put("name", "Generated Test");
-        section.put("items", new ArrayList<>());
-
-        Map<String, Object> fallback = new HashMap<>();
-        fallback.put("meta", meta);
-        fallback.put("sections", List.of(section));
-        fallback.put("fallback", true);
-        return fallback;
-    }
 
     private String extractWordHint(String prompt) {
         if (prompt == null || prompt.isBlank()) {

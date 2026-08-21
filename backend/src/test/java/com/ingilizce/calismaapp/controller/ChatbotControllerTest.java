@@ -1354,20 +1354,6 @@ public class ChatbotControllerTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.reason").value("daily-token-quota"));
 
-        mockMvc.perform(post("/api/chatbot/exam/generate")
-                .header("X-User-Id", "1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "examType":"YDS/YOKDIL",
-                          "mode":"category",
-                          "category":"grammar",
-                          "questionCount":10
-                        }
-                        """))
-                .andExpect(status().isTooManyRequests())
-                .andExpect(jsonPath("$.reason").value("daily-token-quota"));
-
         verifyNoInteractions(aiProxyService);
     }
 

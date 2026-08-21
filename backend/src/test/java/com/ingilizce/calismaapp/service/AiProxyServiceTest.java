@@ -276,31 +276,6 @@ class AiProxyServiceTest {
     }
 
     @Test
-    void generateExamBundle_ShouldApplySafeDefaultsAndFallbackWhenSchemaIsInvalid() {
-        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
-                .thenReturn(AiCompletionProvider.CompletionResult.of("{\"meta\":{}}", 5, 2, 7));
-
-        AiProxyService.AiJsonResult result = aiProxyService.generateExamBundle(Map.of(
-                "questionCount", "not-a-number",
-                "category", "  ",
-                "examType", "  ",
-                "userLevel", "  ",
-                "targetScore", "  "));
-
-        assertTrue((Boolean) result.json().get("fallback"));
-        Map<?, ?> meta = (Map<?, ?>) result.json().get("meta");
-        assertEquals("YDS/YOKDIL", meta.get("exam"));
-        assertEquals("grammar", meta.get("category"));
-
-        ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
-        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(true), eq(4000 + 1600), eq(0.85),
-                nullable(String.class));
-        String prompt = messagesCaptor.getValue().get(1).get("content");
-        assertTrue(prompt.contains("YDS/YÖKDİL Sınav Simülasyonu (10 Soru)."));
-        assertTrue(prompt.contains("SADECE \"grammar\" kategorisinden 10 adet"));
-    }
-
-    @Test
     void dictionarySpecificSentenceAndExplain_ShouldReturnFallbacksWhenAiContentIsBlank() {
         when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
                 .thenReturn(AiCompletionProvider.CompletionResult.of(" ", 1, 1, 2))

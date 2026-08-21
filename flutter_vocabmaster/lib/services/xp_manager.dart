@@ -125,31 +125,7 @@ class XPActionTypes {
   );
 
   // 📝 Sınav & Test
-  static const examQuestionCorrect = XPActionType(
-    id: 'exam_correct',
-    name: 'Doğru Cevap',
-    description: 'Sınav sorusu doğru cevaplandı',
-    xpAmount: 5,
-    category: 'exam',
-  );
-
-  static const examComplete = XPActionType(
-    id: 'exam_complete',
-    name: 'Sınav Tamamlandı',
-    description: 'Sınav tamamlandı',
-    xpAmount: 20,
-    category: 'exam',
-  );
-
-  static const examPerfect = XPActionType(
-    id: 'exam_perfect',
-    name: 'Mükemmel Sınav',
-    description: '%90+ başarı ile sınav tamamlandı',
-    xpAmount: 50,
-    category: 'exam',
-  );
-
-  // 🔥 Streak & Günlük
+// 🔥 Streak & Günlük
   static const dailyGoalComplete = XPActionType(
     id: 'daily_goal',
     name: 'Günlük Hedef',

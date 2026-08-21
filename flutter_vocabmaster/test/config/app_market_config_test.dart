@@ -12,7 +12,6 @@ void main() {
 
     test('resolves Turkish locale to the TR market', () {
       expect(AppMarketConfig.resolveMarket(const Locale('tr')), AppMarket.tr);
-      expect(AppMarketConfig.isExamModuleEnabled(const Locale('tr')), isTrue);
     });
 
     test('resolves non-Turkish locales to global market by default', () {
@@ -20,8 +19,6 @@ void main() {
           AppMarketConfig.resolveMarket(const Locale('en')), AppMarket.global);
       expect(
           AppMarketConfig.resolveMarket(const Locale('es')), AppMarket.global);
-      expect(AppMarketConfig.isExamModuleEnabled(const Locale('en')), isFalse);
-      expect(AppMarketConfig.isExamModuleEnabled(const Locale('es')), isFalse);
     });
   });
 }

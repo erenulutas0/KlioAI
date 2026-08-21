@@ -4,7 +4,6 @@ import '../widgets/info_dialog.dart';
 import '../models/word.dart';
 import '../services/global_state.dart';
 import '../services/learning_language_service.dart';
-import 'exam_selection_page.dart';
 import 'translation_practice_page.dart';
 import 'reading_practice_page.dart';
 import 'pronunciation_practice_page.dart';
@@ -45,7 +44,6 @@ class _PracticePageState extends State<PracticePage>
   static const String _modeGrammar = 'grammar';
   static const String _modeSpeaking = 'speaking';
   static const String _modePronunciation = 'pronunciation';
-  static const String _modeExams = 'exams';
   static const String _modeNeural = 'neural';
   static const String _modeWordGalaxy = 'word_galaxy';
 
@@ -96,9 +94,6 @@ class _PracticePageState extends State<PracticePage>
 
   List<String> _availableModesForLocale(Locale? locale) {
     final modes = <String>[..._basePracticeModes];
-    if (AppMarketConfig.isExamModuleEnabled(locale)) {
-      modes.add(_modeExams);
-    }
     modes.add(_modeWordGalaxy);
     modes.add(_modeNeural);
     return modes;
@@ -118,8 +113,6 @@ class _PracticePageState extends State<PracticePage>
         return Localizations.localeOf(context).languageCode == 'tr'
             ? 'Telaffuz'
             : 'Pronunciation';
-      case _modeExams:
-        return context.tr('practice.mode.exams');
       case _modeWordGalaxy:
         return Localizations.localeOf(context).languageCode == 'tr'
             ? 'Kelime Evreni'
@@ -160,10 +153,6 @@ class _PracticePageState extends State<PracticePage>
       case 'telaffuz':
       case 'pronunciation':
         return _modePronunciation;
-      case 'sınavlar':
-      case 'sinavlar':
-      case 'exams':
-        return _modeExams;
       case 'kelime evreni':
       case 'word galaxy':
       case 'word_galaxy':
@@ -734,10 +723,6 @@ class _PracticePageState extends State<PracticePage>
       return _buildPronunciationTab();
     } else if (_selectedMode == _modeWriting) {
       return _buildWritingTab();
-    } else if (_selectedMode == _modeExams &&
-        AppMarketConfig.isExamModuleEnabled(
-            Localizations.maybeLocaleOf(context))) {
-      return _buildExamsTab();
     } else if (_selectedMode == _modeWordGalaxy) {
       return _buildWordGalaxyTab();
     } else if (_selectedMode == _modeNeural) {
@@ -1035,9 +1020,6 @@ class _PracticePageState extends State<PracticePage>
   }
 
   Widget _buildSpeakingTab() {
-    final examModuleEnabled = AppMarketConfig.isExamModuleEnabled(
-        Localizations.maybeLocaleOf(context));
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1136,91 +1118,6 @@ class _PracticePageState extends State<PracticePage>
           featureName: context.tr('practice.aiAssistants'),
         ),
 
-        if (examModuleEnabled) ...[
-          const SizedBox(height: 20),
-          // 4. Kendini Sınavlara Hazırla Card - PRO LOCKED
-          _buildProLockedWidget(
-            featureName: 'IELTS & TOEFL',
-            child: ModernCard(
-              showGlow: true,
-              borderRadius: BorderRadius.circular(20),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.mic_none_outlined,
-                            color: Colors.white70, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.tr('practice.examPrep.title'),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17),
-                          ),
-                          Text(
-                            context.tr('practice.examPrep.subtitle'),
-                            style: const TextStyle(
-                                color: Colors.white54, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ModernCard(
-                      variant: BackgroundVariant.accent,
-                      showGlow: true,
-                      borderRadius: BorderRadius.circular(16),
-                      padding: EdgeInsets.zero,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const ExamSelectionPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.menu_book_rounded,
-                              size: 18, color: Colors.white),
-                          label: Text(context.tr('practice.examPrep.button'),
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
 
         const SizedBox(height: 80),
       ],
@@ -1603,123 +1500,6 @@ class _PracticePageState extends State<PracticePage>
     );
   }
 
-  Widget _buildExamsTab() {
-    final selectedTheme = _currentTheme();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: selectedTheme.colors.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selectedTheme.colors.accent,
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        selectedTheme.colors.accentGlow.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.school, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.tr('practice.exams.title'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    context.tr('practice.exams.subtitle'),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          ],
-        ),
-        const SizedBox(height: 24),
-        ModernCard(
-          showGlow: true,
-          borderRadius: BorderRadius.circular(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.tr('practice.exams.turkiye'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                context.tr('practice.exams.desc'),
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              ModernCard(
-                width: double.infinity,
-                variant: BackgroundVariant.accent,
-                showGlow: true,
-                borderRadius: BorderRadius.circular(16),
-                padding: EdgeInsets.zero,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ExamSelectionPage(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    context.tr('practice.exams.go'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 80),
-      ],
-    );
-  }
 
   Widget _buildTranslationTab() {
     final selectedTheme = _currentTheme();

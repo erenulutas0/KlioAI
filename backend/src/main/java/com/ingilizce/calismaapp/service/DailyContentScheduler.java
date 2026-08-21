@@ -17,16 +17,13 @@ public class DailyContentScheduler {
     private static final Logger log = LoggerFactory.getLogger(DailyContentScheduler.class);
 
     private final DailyWordsService dailyWordsService;
-    private final DailyExamPackService dailyExamPackService;
     private final DailyReadingService dailyReadingService;
     private final DailyWritingTopicService dailyWritingTopicService;
 
     public DailyContentScheduler(DailyWordsService dailyWordsService,
-                                 DailyExamPackService dailyExamPackService,
                                  DailyReadingService dailyReadingService,
                                  DailyWritingTopicService dailyWritingTopicService) {
         this.dailyWordsService = dailyWordsService;
-        this.dailyExamPackService = dailyExamPackService;
         this.dailyReadingService = dailyReadingService;
         this.dailyWritingTopicService = dailyWritingTopicService;
     }
@@ -42,12 +39,6 @@ public class DailyContentScheduler {
         } catch (Exception e) {
             log.warn("Daily words prewarm failed: {}", e.toString());
         }
-        try {
-            dailyExamPackService.getDailyExamPack(todayUtc, "yds");
-        } catch (Exception e) {
-            log.warn("Daily exam pack prewarm failed: {}", e.toString());
-        }
-
         for (String level : DailyLevelSupport.supportedLevels()) {
             try {
                 dailyReadingService.getDailyReading(todayUtc, level);

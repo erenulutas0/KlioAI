@@ -2086,25 +2086,6 @@ public class ChatbotController {
         }
     }
 
-    @PostMapping("/exam/generate")
-    public ResponseEntity<Map<String, Object>> generateExamBundle(@RequestBody Map<String, Object> request,
-            @RequestHeader("X-User-Id") Long userId,
-            HttpServletRequest httpRequest) {
-        ResponseEntity<Map<String, Object>> accessLimit = enforceAiAccess(userId, httpRequest, "exam-generate");
-        if (accessLimit != null) return accessLimit;
-        ResponseEntity<Map<String, Object>> aiLimit = enforceAiRateLimit(userId, httpRequest, "exam-generate");
-        if (aiLimit != null) return aiLimit;
-
-        try {
-            AiProxyService.AiJsonResult result = aiProxyService.generateExamBundle(request);
-            consumeAiTokens(userId, httpRequest, "exam-generate", result.totalTokens());
-            return ResponseEntity.ok(result.json());
-        } catch (Exception e) {
-            log.error("generateExamBundle failed userId={}", userId, e);
-            return ResponseEntity.internalServerError().body(Map.of("error", "Exam generation failed."));
-        }
-    }
-
     @GetMapping("/quota/status")
     public ResponseEntity<Map<String, Object>> getQuotaStatus(@RequestHeader("X-User-Id") Long userId) {
         if (aiTokenQuotaService == null) {

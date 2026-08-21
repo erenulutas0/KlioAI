@@ -14,11 +14,6 @@ class AppMarketConfig {
     defaultValue: 'auto',
   );
 
-  static const bool _enableExamsGlobal = bool.fromEnvironment(
-    'APP_ENABLE_EXAMS_GLOBAL',
-    defaultValue: false,
-  );
-
   static AppMarket get forcedMarket {
     switch (_market.toLowerCase()) {
       case 'tr':
@@ -39,12 +34,5 @@ class AppMarketConfig {
     return effectiveLocale.languageCode.toLowerCase() == 'tr'
         ? AppMarket.tr
         : AppMarket.global;
-  }
-
-  static bool isExamModuleEnabled(Locale? locale) {
-    if (resolveMarket(locale) == AppMarket.tr) {
-      return true;
-    }
-    return _enableExamsGlobal;
   }
 }

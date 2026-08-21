@@ -1,4 +1,3 @@
-import '../models/exam_models.dart';
 import '../models/writing_practice_models.dart';
 import 'api_service.dart';
 
@@ -91,25 +90,4 @@ class GroqService {
     return EvaluationData.fromJson(result);
   }
 
-  /// YDS/YÖKDİL sınavı üretir
-  static Future<ExamBundle> generateExamBundle({
-    required String examType,
-    required String mode,
-    String? category,
-    int questionCount = 10,
-    String? track,
-    String userLevel = "B2",
-    String targetScore = "60-80",
-  }) async {
-    final result = await _api.chatbotGenerateExamBundle(
-      examType: examType,
-      mode: mode,
-      category: category ?? 'grammar',
-      track: track ?? 'general',
-      questionCount: questionCount,
-      userLevel: userLevel,
-      targetScore: targetScore,
-    );
-    return ExamBundle.fromJson(result);
-  }
 }

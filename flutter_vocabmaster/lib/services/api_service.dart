@@ -1371,44 +1371,6 @@ class ApiService {
     throw Exception('Writing değerlendirme başarısız: ${response.statusCode}');
   }
 
-  Future<Map<String, dynamic>> chatbotGenerateExamBundle({
-    required String examType,
-    required String category,
-    required int questionCount,
-    required String userLevel,
-    String targetScore = '60-80',
-    String mode = 'category',
-    String track = 'general',
-  }) async {
-    final url = await baseUrl;
-    final response = await _withAiRetry(
-      (headers) => client.post(
-        Uri.parse('$url/chatbot/exam/generate'),
-        headers: headers,
-        body: json.encode({
-          'examType': examType,
-          'mode': mode,
-          'category': category,
-          'track': track,
-          'questionCount': questionCount,
-          'userLevel': userLevel,
-          'targetScore': targetScore,
-        }),
-      ),
-      feature: 'exam_generate',
-      json: true,
-    );
-    if (response.statusCode == 200) {
-      return Map<String, dynamic>.from(json.decode(response.body) as Map);
-    }
-    if (response.statusCode == 429) {
-      throw _quotaFromResponse(response);
-    }
-    if (response.statusCode == 403) {
-      throw _upgradeFromResponse(response);
-    }
-    throw Exception('Sınav üretimi başarısız: ${response.statusCode}');
-  }
 }
 
 class ApiQuotaExceededException implements Exception {

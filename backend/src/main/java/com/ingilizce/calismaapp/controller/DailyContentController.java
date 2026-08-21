@@ -1,6 +1,5 @@
 package com.ingilizce.calismaapp.controller;
 
-import com.ingilizce.calismaapp.service.DailyExamPackService;
 import com.ingilizce.calismaapp.service.DailyLevelSupport;
 import com.ingilizce.calismaapp.service.DailyReadingService;
 import com.ingilizce.calismaapp.service.DailyWritingTopicService;
@@ -25,20 +24,17 @@ import java.util.Map;
 public class DailyContentController {
 
     private final DailyWordsService dailyWordsService;
-    private final DailyExamPackService dailyExamPackService;
     private final DailyReadingService dailyReadingService;
     private final DailyWritingTopicService dailyWritingTopicService;
     private final AiTokenQuotaService aiTokenQuotaService;
     private final UserRepository userRepository;
 
     public DailyContentController(DailyWordsService dailyWordsService,
-                                  DailyExamPackService dailyExamPackService,
                                   DailyReadingService dailyReadingService,
                                   DailyWritingTopicService dailyWritingTopicService,
                                   AiTokenQuotaService aiTokenQuotaService,
                                   UserRepository userRepository) {
         this.dailyWordsService = dailyWordsService;
-        this.dailyExamPackService = dailyExamPackService;
         this.dailyReadingService = dailyReadingService;
         this.dailyWritingTopicService = dailyWritingTopicService;
         this.aiTokenQuotaService = aiTokenQuotaService;
@@ -54,15 +50,6 @@ public class DailyContentController {
         ));
     }
 
-    @GetMapping("/daily-exam-pack")
-    public ResponseEntity<Map<String, Object>> getDailyExamPack(
-            @RequestParam(name = "exam", required = false, defaultValue = "yds") String exam) {
-        var payload = dailyExamPackService.getDailyExamPack(LocalDate.now(ZoneOffset.UTC), exam);
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", payload
-        ));
-    }
 
     @GetMapping("/daily-reading")
     public ResponseEntity<Map<String, Object>> getDailyReading(

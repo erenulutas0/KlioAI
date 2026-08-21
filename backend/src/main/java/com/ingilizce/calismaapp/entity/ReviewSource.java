@@ -22,6 +22,10 @@ public final class ReviewSource {
     public static final String WORD_GALAXY = "word_galaxy";
     public static final String TRANSLATION_PRACTICE = "translation_practice";
     public static final String GRAMMAR_PRACTICE = "grammar_practice";
+    /**
+     * Kept after the exam feature was removed: review_events rows written while it existed
+     * still carry this source, and reports that group by source would silently lose them.
+     */
     public static final String EXAM = "exam";
     public static final String WRITING_PRACTICE = "writing_practice";
     public static final String NEURAL_GAME = "neural_game";

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vocabmaster/models/exam_models.dart';
 import 'package:vocabmaster/models/voice_model.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/models/writing_practice_models.dart';
@@ -109,81 +108,6 @@ void main() {
       expect(json['id'], 1);
       expect(json['englishWord'], 'Apple');
       expect(json['learnedDate'], '2023-01-01'); // Assuming standard format
-    });
-  });
-
-  group('Exam Models', () {
-    test('ExamBundle.fromJson maps nested meta sections and items', () {
-      final bundle = ExamBundle.fromJson({
-        'meta': {
-          'exam': 'YDS',
-          'mode': 'mini_test',
-          'track': 'sosyal',
-          'user_level_cefr': 'B2',
-          'target_score_band': '70-80',
-          'time_limit_minutes': 45,
-          'total_questions': 2,
-        },
-        'sections': [
-          {
-            'name': 'reading',
-            'items': [
-              {
-                'id': 'r1',
-                'type': 'multiple_choice',
-                'difficulty': 'hard',
-                'skill_tags': ['inference', 42],
-                'stem': 'What is implied by the passage?',
-                'passage': 'A short passage.',
-                'options': {'A': 'First', 'B': 'Second'},
-                'correct': 'B',
-                'explanation_tr': 'Cevap metinden cikarilir.',
-                'explanation_en': 'The answer is implied.',
-              }
-            ],
-          }
-        ],
-      });
-
-      expect(bundle.meta.exam, 'YDS');
-      expect(bundle.meta.mode, 'mini_test');
-      expect(bundle.meta.track, 'sosyal');
-      expect(bundle.meta.userLevelCefr, 'B2');
-      expect(bundle.meta.targetScoreBand, '70-80');
-      expect(bundle.meta.timeLimitMinutes, 45);
-      expect(bundle.meta.totalQuestions, 2);
-
-      final section = bundle.sections.single;
-      expect(section.name, 'reading');
-      final item = section.items.single;
-      expect(item.id, 'r1');
-      expect(item.difficulty, 'hard');
-      expect(item.skillTags, ['inference', '42']);
-      expect(item.passage, 'A short passage.');
-      expect(item.options['B'], 'Second');
-      expect(item.correct, 'B');
-      expect(item.explanationEn, 'The answer is implied.');
-    });
-
-    test('ExamMeta and ExamItem use safe defaults for partial payloads', () {
-      final meta = ExamMeta.fromJson({
-        'exam': 'YOKDIL',
-        'mode': 'full_exam',
-      });
-      final item = ExamItem.fromJson({
-        'stem': 'Choose the best answer.',
-      });
-
-      expect(meta.timeLimitMinutes, 180);
-      expect(meta.totalQuestions, 0);
-      expect(meta.track, isNull);
-
-      expect(item.id, '');
-      expect(item.type, '');
-      expect(item.difficulty, 'medium');
-      expect(item.skillTags, isEmpty);
-      expect(item.options, isEmpty);
-      expect(item.correct, '');
     });
   });
 

@@ -29,6 +29,9 @@ public class UserActivity {
 
     public enum ActivityType {
         WORD_ADDED,
+        // The exam feature is gone, but this value is persisted: rows written while it
+        // existed still carry it, and removing the constant would make JPA throw on reading
+        // a learner's own history. Kept deliberately, not overlooked.
         EXAM_COMPLETED,
         ACHIEVEMENT_UNLOCKED
     }

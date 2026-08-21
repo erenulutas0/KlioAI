@@ -1,6 +1,5 @@
 package com.ingilizce.calismaapp.controller;
 
-import com.ingilizce.calismaapp.service.DailyExamPackService;
 import com.ingilizce.calismaapp.service.DailyReadingService;
 import com.ingilizce.calismaapp.service.DailyWritingTopicService;
 import com.ingilizce.calismaapp.service.DailyWordsService;
@@ -37,9 +36,6 @@ public class DailyContentControllerTest {
     private DailyWordsService dailyWordsService;
 
     @MockBean
-    private DailyExamPackService dailyExamPackService;
-
-    @MockBean
     private DailyReadingService dailyReadingService;
 
     @MockBean
@@ -65,19 +61,6 @@ public class DailyContentControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.words").isArray())
                 .andExpect(jsonPath("$.words[0].word").value("resilient"));
-    }
-
-    @Test
-    void dailyExamPackReturnsOkWithDataObject() throws Exception {
-        when(dailyExamPackService.getDailyExamPack(any(LocalDate.class), eq("yds")))
-                .thenReturn(Map.of("exam", "yds", "date", LocalDate.now().toString(), "topics", List.of()));
-
-        mockMvc.perform(get("/api/content/daily-exam-pack?exam=yds")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.exam").value("yds"))
-                .andExpect(jsonPath("$.data.topics").isArray());
     }
 
     @Test
