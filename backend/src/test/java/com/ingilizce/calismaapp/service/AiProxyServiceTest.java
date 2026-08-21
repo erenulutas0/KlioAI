@@ -319,4 +319,101 @@ class AiProxyServiceTest {
         assertTrue((Boolean) explanation.json().get("fallback"));
         assertEquals("Anlam gecici olarak olusturulamadi.", explanation.json().get("definition"));
     }
+
+    // ---------------------------------------------------------- generated-content repair
+
+    private static String quizJson(String... optionSets) {
+        StringBuilder json = new StringBuilder("{\"topic\":\"past simple\",\"questions\":[");
+        for (int i = 0; i < optionSets.length; i++) {
+            if (i > 0) {
+                json.append(',');
+            }
+            json.append("{\"question\":\"Q").append(i + 1)
+                    .append(" ---- gap.\",\"options\":").append(optionSets[i])
+                    .append(",\"correctAnswer\":\"a\",\"targetWord\":\"\"}");
+        }
+        return json.append("]}").toString();
+    }
+
+    @Test
+    void grammarQuiz_ShouldDropQuestionsWhoseOptionsAreNotFourDistinctChoices() {
+        // Shipped to learners as four identical buttons; the client only checks that the
+        // correct answer is among the options, which duplicates satisfy.
+        String payload = quizJson(
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"a\",\"a\",\"a\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]");
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "past simple", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of());
+
+        assertEquals(3, ((List<?>) result.json().get("questions")).size());
+    }
+
+    @Test
+    void grammarQuiz_ShouldRetryRatherThanServeAnEmptyQuiz() {
+        // The guard turned a past-simple quiz where every question had duplicate options
+        // into an empty one: a learner taps Practice and gets nothing, which is worse than
+        // the broken questions it replaced.
+        String allBroken = quizJson(
+                "[\"read\",\"read\",\"read\",\"read\"]",
+                "[\"read\",\"read\",\"read\",\"read\"]",
+                "[\"read\",\"read\",\"read\",\"read\"]");
+        String good = quizJson(
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]");
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(allBroken, 10, 5, 15))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(good, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "past simple", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of());
+
+        assertEquals(3, ((List<?>) result.json().get("questions")).size());
+    }
+
+    @Test
+    void grammarQuiz_ShouldNotRetryWhenEnoughQuestionsSurvive() {
+        // The retry costs a call. It is for the empty-quiz case, not for every blemish.
+        String payload = quizJson(
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"a\",\"a\",\"a\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]");
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        aiProxyService.generateGrammarQuiz(
+                "past simple", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of());
+
+        verify(aiCompletionProvider, org.mockito.Mockito.times(1))
+                .chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class));
+    }
+
+    @Test
+    void readingPassage_ShouldDropAQuoteThatIsNotInThePassage() {
+        // The quote is shown as the evidence for the right answer. A paraphrase sends the
+        // learner back to hunt for a sentence the passage does not contain.
+        String payload = "{\"title\":\"T\",\"text\":\"Buses run on electricity in the city centre.\","
+                + "\"questions\":[{\"question\":\"Q1?\",\"options\":[\"a\",\"b\"],\"correctAnswer\":\"A\","
+                + "\"correctAnswerQuote\":\"They also help reduce pollution.\"},"
+                + "{\"question\":\"Q2?\",\"options\":[\"a\",\"b\"],\"correctAnswer\":\"B\","
+                + "\"correctAnswerQuote\":\"Buses run on electricity\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(
+                "B1", LearningLanguageProfile.defaultProfile(), 200, 0);
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        assertFalse(((Map<?, ?>) questions.get(0)).containsKey("correctAnswerQuote"));
+        // The question survives; only the unverifiable claim goes.
+        assertEquals("Q1?", ((Map<?, ?>) questions.get(0)).get("question"));
+        // A quote that really is in the passage is left alone.
+        assertEquals("Buses run on electricity", ((Map<?, ?>) questions.get(1)).get("correctAnswerQuote"));
+    }
 }

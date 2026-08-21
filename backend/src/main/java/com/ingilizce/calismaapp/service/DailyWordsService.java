@@ -71,11 +71,19 @@ public class DailyWordsService {
 
             String payloadJson = null;
             if (groqApiKey != null && !groqApiKey.isBlank()) {
-                try {
-                    payloadJson = generateDailyWordsPayload(normalized);
-                } catch (Exception e) {
-                    // Do not persist failures; allow future retries when Groq recovers.
-                    log.warn("Daily words generation failed for date={}: {}", normalized, e.toString());
+                // Two attempts, because the validation below is strict and the generator is
+                // not deterministic. The offline eval watched a whole day fall back to canned
+                // words because one of the five had a single meaning instead of two - four
+                // good words discarded for one bad one, and the learner never knew. A second
+                // attempt is one extra call on a path that already only runs once a day.
+                for (int attempt = 1; attempt <= 2 && payloadJson == null; attempt++) {
+                    try {
+                        payloadJson = generateDailyWordsPayload(normalized);
+                    } catch (Exception e) {
+                        // Do not persist failures; allow future retries when Groq recovers.
+                        log.warn("Daily words generation attempt {}/2 failed for date={}: {}",
+                                attempt, normalized, e.toString());
+                    }
                 }
             } else {
                 log.info("Groq API key not configured; daily words will use fallback data");

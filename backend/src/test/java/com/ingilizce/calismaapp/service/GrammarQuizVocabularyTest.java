@@ -34,9 +34,20 @@ class GrammarQuizVocabularyTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        // A usable quiz, not an empty one. These tests assert on the prompt that goes out,
+        // and the service now retries once when too few questions survive the
+        // duplicate-option guard - an empty stub would trigger that retry and the
+        // single-call verify below would fail for a reason none of these tests are about.
         when(aiCompletionProvider.chatCompletionWithUsage(any(), anyBoolean(), any(), any(), any()))
-                .thenReturn(AiCompletionProvider.CompletionResult.of(
-                        "{\"topic\":\"Tenses\",\"questions\":[]}", 0, 0, 0));
+                .thenReturn(AiCompletionProvider.CompletionResult.of(threeUsableQuestions(), 0, 0, 0));
+    }
+
+    private static String threeUsableQuestions() {
+        String question = "{\"question\":\"She ---- it.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"a\",\"targetWord\":\"\"}";
+        return "{\"topic\":\"Tenses\",\"questions\":["
+                + String.join(",", question, question.replace("She", "He"), question.replace("She", "They"))
+                + "]}";
     }
 
     private String promptSentTo(List<String> vocabulary) {

@@ -311,7 +311,7 @@ Format (the values below are illustrative - replace them, keep the shape):
         // C1/C2 pasajlari 340-430 kelime + 3 soru (sik, aciklama, alinti) istiyor;
         // 1400 token bunun icin yetmiyordu ve yarim kalan JSON Groq'ta
         // json_validate_failed (400) ile reddediliyordu.
-        return callJson(system, prompt, 3000, 0.7, "reading-generate");
+        return dropFabricatedQuotes(callJson(system, prompt, 3000, 0.7, "reading-generate"));
     }
 
     private String normalizeReadingLevel(String level) {
@@ -441,7 +441,33 @@ Format:
         );
 
         String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
-        return dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+        AiJsonResult result = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+        // Dropping bad questions is only an improvement while some good ones survive. The
+        // eval caught a past-simple quiz where all five had duplicate options and the guard
+        // handed back an empty quiz - a learner tapping Practice and getting nothing, which
+        // is worse than the broken questions it replaced. Past simple is where this bites:
+        // for verbs like "read" the base and past forms are spelled the same, so an
+        // otherwise sensible distractor set collapses on itself. The generator is not
+        // deterministic, and in the same run present perfect and conditionals were both
+        // clean, so one more attempt is usually all it takes.
+        if (surviving(result) < MIN_USABLE_QUIZ_QUESTIONS) {
+            logger.warn("GRAMMAR_QUIZ_RETRY topic={} level={} surviving={}", topic, normalizedLevel, surviving(result));
+            AiJsonResult second = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+            if (surviving(second) > surviving(result)) {
+                return second;
+            }
+        }
+        return result;
+    }
+
+    /** Below this a quiz is not worth serving, and a retry is cheaper than a bad session. */
+    private static final int MIN_USABLE_QUIZ_QUESTIONS = 3;
+
+    private static int surviving(AiJsonResult result) {
+        if (result == null || result.json() == null) {
+            return 0;
+        }
+        return result.json().get("questions") instanceof java.util.List<?> questions ? questions.size() : 0;
     }
 
     /**
@@ -493,6 +519,51 @@ Format:
             }
         }
         return false;
+    }
+
+    /**
+     * Removes a correctAnswerQuote that is not actually in the passage.
+     *
+     * <p>The quote is shown to the learner after answering, as the evidence for the right
+     * answer. When the model paraphrases instead of copying, that evidence is a sentence
+     * the passage does not contain - so the learner is told to look for something that
+     * is not there, and re-reads the text believing they missed it.
+     *
+     * <p>The question itself is fine, so it stays. Only the unverifiable claim goes; the
+     * screen already handles a question with no quote.
+     */
+    private AiJsonResult dropFabricatedQuotes(AiJsonResult result) {
+        if (result == null || result.json() == null) {
+            return result;
+        }
+        Object passage = result.json().get("text");
+        if (!(result.json().get("questions") instanceof java.util.List<?> questions) || passage == null) {
+            return result;
+        }
+        String haystack = passage.toString().toLowerCase(java.util.Locale.ROOT);
+        boolean changed = false;
+        java.util.List<Object> cleaned = new java.util.ArrayList<>();
+        for (Object question : questions) {
+            if (question instanceof Map<?, ?> map) {
+                Object quote = map.get("correctAnswerQuote");
+                if (quote != null && !quote.toString().isBlank()
+                        && !haystack.contains(quote.toString().toLowerCase(java.util.Locale.ROOT).trim())) {
+                    logger.warn("READING_QUOTE_DROPPED quote={}", quote);
+                    Map<String, Object> copy = new HashMap<>((Map<String, Object>) map);
+                    copy.remove("correctAnswerQuote");
+                    cleaned.add(copy);
+                    changed = true;
+                    continue;
+                }
+            }
+            cleaned.add(question);
+        }
+        if (!changed) {
+            return result;
+        }
+        Map<String, Object> repaired = new HashMap<>(result.json());
+        repaired.put("questions", cleaned);
+        return new AiJsonResult(repaired, result.totalTokens(), result.promptTokens(), result.completionTokens());
     }
 
     public AiJsonResult generateWritingTopic(String level, String wordCount) {
