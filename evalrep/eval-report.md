@@ -1,0 +1,46 @@
+# Generator eval
+
+4 of 12 cases usable.
+
+- FAIL  sentences[mitigate]
+    - sentence 1: missing translation
+    - sentence 2: missing translation
+    - sentence 3: missing translation
+    - sentence 4: missing translation
+    - sentence 5: missing translation
+- FAIL  sentences[insight]
+    - sentence 1: missing translation
+    - sentence 2: missing translation
+    - sentence 3: missing translation
+    - sentence 4: missing translation
+    - sentence 5: missing translation
+- FAIL  sentences[resilient]
+    - sentence 1: missing translation
+    - sentence 2: missing translation
+    - sentence 3: missing translation
+    - sentence 4: missing translation
+    - sentence 5: missing translation
+- FAIL  sentences[delay]
+    - sentence 1: missing translation
+    - sentence 2: missing translation
+    - sentence 3: 21 words exceeds the B1 band of 20
+    - sentence 3: missing translation
+    - sentence 4: missing translation
+    - sentence 5: missing translation
+- PASS  grammar[present perfect]
+- FAIL  grammar[past simple]
+    - question 1: duplicate options [gained, gain, gained, gaining]
+- FAIL  grammar[conditionals]
+    - question 2: duplicate options [would have gained, would have gain, would have gains, would have gains]
+    - question 4: duplicate options [would have mitigated, would have mitigate, would have mitigated, would have mitigated]
+- PASS  reading[A2]
+- FAIL  reading[B1]
+    - question 1: correctAnswer is not among the options
+    - question 2: correctAnswer is not among the options
+    - question 3: correctAnswer is not among the options
+- FAIL  reading[C1]
+    - question 1: correctAnswer is not among the options
+    - question 2: correctAnswer is not among the options
+    - question 3: correctAnswer is not among the options
+- PASS  reading[B1 regenerated]
+- PASS  dailyWords

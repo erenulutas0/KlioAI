@@ -30,7 +30,8 @@ class GeneratorChecksTest {
         // Served to learners as model output while the metrics read 100% healthy.
         Map<String, Object> payload = Map.of("sentences", List.of(
                 Map.of("englishSentence", "Maya noticed evaluate during the trip.",
-                        "turkishSentence", "Maya gezide değerlendirmeyi fark etti.")));
+                        "turkishTranslation", "değerlendirmek",
+                        "turkishFullTranslation", "Maya gezide değerlendirmeyi fark etti.")));
 
         List<String> failures = GeneratorChecks.sentenceFailures(payload, "evaluate", "B1");
 
@@ -43,7 +44,8 @@ class GeneratorChecksTest {
         // The one thing a per-word generator must not get wrong.
         Map<String, Object> payload = Map.of("sentences", List.of(
                 Map.of("englishSentence", "She finished the report before lunch.",
-                        "turkishSentence", "Raporu öğle yemeğinden önce bitirdi.")));
+                        "turkishTranslation", "bitirmek",
+                        "turkishFullTranslation", "Raporu öğle yemeğinden önce bitirdi.")));
 
         List<String> failures = GeneratorChecks.sentenceFailures(payload, "mitigate", "B1");
 
@@ -62,7 +64,8 @@ class GeneratorChecksTest {
         // than no check, because people stop reading it.
         Map<String, Object> payload = Map.of("sentences", List.of(
                 Map.of("englishSentence", "The team evaluated three suppliers last week.",
-                        "turkishSentence", "Ekip geçen hafta üç tedarikçiyi değerlendirdi.")));
+                        "turkishTranslation", "değerlendirmek",
+                        "turkishFullTranslation", "Ekip geçen hafta üç tedarikçiyi değerlendirdi.")));
 
         assertEquals(List.of(), GeneratorChecks.sentenceFailures(payload, "evaluate", "B1"));
     }
@@ -182,21 +185,87 @@ class GeneratorChecksTest {
                 "questions", List.of(
                         Map.of("question", "Why did cities grow around rivers?",
                                 "options", List.of("Trade", "Weather", "Defence"),
-                                "correctAnswer", "Trade",
+                                "correctAnswer", "A",
                                 "correctAnswerQuote", "rivers were chosen for their beauty"),
                         Map.of("question", "What did planners do later?",
                                 "options", List.of("Moved industry", "Built dams", "Nothing"),
-                                "correctAnswer", "Moved industry",
+                                "correctAnswer", "A",
                                 "correctAnswerQuote", "Planners later moved industry away from the banks"),
                         Map.of("question", "What changed as a result?",
                                 "options", List.of("Neighbourhoods", "Rainfall", "Borders"),
-                                "correctAnswer", "Neighbourhoods",
+                                "correctAnswer", "A",
                                 "correctAnswerQuote", "changed how neighbourhoods formed")));
 
         List<String> failures = GeneratorChecks.readingFailures(payload, "B2");
 
         assertEquals(1, failures.size(), failures.toString());
         assertTrue(failures.get(0).contains("correctAnswerQuote is not in the passage"), failures.toString());
+    }
+
+    @Test
+    void aReadingAnswerGivenAsOptionTextIsCaught() {
+        // Found by the first live eval run, which reported this shape as PASSING.
+        // The reading screen labels options by position and marks the one whose letter
+        // equals correctAnswer, so an answer holding the option's text matches no letter:
+        // no option is ever shown as correct and every answer is graded wrong. The
+        // original check looked for the text among the options, which is exactly
+        // backwards - it passed the broken payloads and failed the working ones.
+        Map<String, Object> payload = Map.of(
+                "title", "Rivers and Cities",
+                "text", "word ".repeat(60),
+                "questions", List.of(
+                        Map.of("question", "Why did cities grow around rivers?",
+                                "options", List.of("Trade", "Weather", "Defence", "Farming"),
+                                "correctAnswer", "Trade")));
+
+        List<String> failures = GeneratorChecks.readingFailures(payload, "B1");
+
+        assertTrue(failures.toString().contains("must be an option letter"), failures.toString());
+    }
+
+    @Test
+    void aReadingAnswerLetterBeyondTheOptionsIsCaught() {
+        // "D" with three options points at nothing.
+        Map<String, Object> payload = Map.of(
+                "title", "A Title",
+                "text", "word ".repeat(60),
+                "questions", List.of(
+                        Map.of("question", "Why?", "options", List.of("a", "b", "c"),
+                                "correctAnswer", "D")));
+
+        assertTrue(GeneratorChecks.readingFailures(payload, "B1").toString()
+                .contains("must be an option letter"));
+    }
+
+    @Test
+    void aSentenceMissingEitherTranslationIsCaught() {
+        // The payload carries two: the target word's meaning and the whole sentence.
+        // The first version of this check looked for "turkishSentence", a field the
+        // generator has never produced, and so reported every healthy sentence as broken.
+        Map<String, Object> onlyWordMeaning = Map.of("sentences", List.of(
+                Map.of("englishSentence", "The flight was delayed by heavy rain.",
+                        "turkishTranslation", "gecikme")));
+
+        assertTrue(GeneratorChecks.sentenceFailures(onlyWordMeaning, "delay", "B1").toString()
+                .contains("missing the full-sentence translation"));
+
+        Map<String, Object> onlyFullSentence = Map.of("sentences", List.of(
+                Map.of("englishSentence", "The flight was delayed by heavy rain.",
+                        "turkishFullTranslation", "Uçuş şiddetli yağmur yüzünden gecikti.")));
+
+        assertTrue(GeneratorChecks.sentenceFailures(onlyFullSentence, "delay", "B1").toString()
+                .contains("missing the target word's translation"));
+    }
+
+    @Test
+    void aNonTurkishLearnerSTranslationFieldsAreAccepted() {
+        // Same payload, source-language keys: a Spanish learner's sentences are not broken.
+        Map<String, Object> payload = Map.of("sentences", List.of(
+                Map.of("englishSentence", "The flight was delayed by heavy rain.",
+                        "sourceTranslation", "retraso",
+                        "sourceFullTranslation", "El vuelo se retrasó por la lluvia intensa.")));
+
+        assertEquals(List.of(), GeneratorChecks.sentenceFailures(payload, "delay", "B1"));
     }
 
     @Test

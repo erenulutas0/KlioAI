@@ -108,7 +108,8 @@ class GeneratorEvalRunner {
                         PromptCatalog.grammarPatternSetFor(word + ":SOURCE_TO_TARGET", null, false),
                         List.of(), profile, false, 0L));
                 var result = chatbotService.generateSentences(message, profile);
-                return GeneratorChecks.sentenceFailures(parse(result.content()), word, "B1");
+                Map<String, Object> json = parse(result.content());
+                return new Outcome(GeneratorChecks.sentenceFailures(json, word, "B1"), json);
             });
         }
 
@@ -116,7 +117,9 @@ class GeneratorEvalRunner {
             record("grammar[" + topic + "]", () -> {
                 var result = aiProxyService.generateGrammarQuiz(
                         topic, "B1", profile, 0, GOLDEN_WORDS);
-                return GeneratorChecks.grammarQuizFailures(result.json(), GOLDEN_WORDS, "B1");
+                return new Outcome(
+                        GeneratorChecks.grammarQuizFailures(result.json(), GOLDEN_WORDS, "B1"),
+                        result.json());
             });
         }
 
@@ -124,20 +127,23 @@ class GeneratorEvalRunner {
             // Fixed dayOfYear: the passage theme rotates daily, so leaving it to the clock
             // would mean every run tested a different prompt branch and a failure could not
             // be reproduced. C1 is the level that came back empty in production.
-            record("reading[" + level + "]", () ->
-                    GeneratorChecks.readingFailures(
-                            aiProxyService.generateReadingPassage(level, profile, 200, 0).json(), level));
+            record("reading[" + level + "]", () -> {
+                Map<String, Object> json = aiProxyService.generateReadingPassage(level, profile, 200, 0).json();
+                return new Outcome(GeneratorChecks.readingFailures(json, level), json);
+            });
         }
 
         // variantSeed != 0 is the "give me another passage" branch, a different prompt from
         // the daily one and the one a learner hits when they reject what they were given.
-        record("reading[B1 regenerated]", () ->
-                GeneratorChecks.readingFailures(
-                        aiProxyService.generateReadingPassage("B1", profile, 200, 7).json(), "B1"));
+        record("reading[B1 regenerated]", () -> {
+            Map<String, Object> json = aiProxyService.generateReadingPassage("B1", profile, 200, 7).json();
+            return new Outcome(GeneratorChecks.readingFailures(json, "B1"), json);
+        });
 
         record("dailyWords", () -> {
-            String payload = dailyWordsService.generateDailyWordsPayload(LocalDate.now());
-            return GeneratorChecks.dailyWordsFailures(parseWordList(payload));
+            List<Map<String, Object>> words = parseWordList(
+                    dailyWordsService.generateDailyWordsPayload(LocalDate.now()));
+            return new Outcome(GeneratorChecks.dailyWordsFailures(words), words);
         });
 
         writeReport();
@@ -149,8 +155,11 @@ class GeneratorEvalRunner {
     }
 
     private interface Case {
-        List<String> run() throws Exception;
+        Outcome run() throws Exception;
     }
+
+    /** A verdict and the payload it was reached on. */
+    private record Outcome(List<String> failures, Object payload) {}
 
     /**
      * A case that throws counts as a failure rather than aborting the run.
@@ -161,20 +170,47 @@ class GeneratorEvalRunner {
     private void record(String name, Case testCase) {
         cases++;
         List<String> failures;
+        Object payload = null;
         try {
-            failures = testCase.run();
+            Outcome outcome = testCase.run();
+            failures = outcome.failures();
+            payload = outcome.payload();
         } catch (Exception e) {
             failures = List.of("threw " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         if (failures.isEmpty()) {
             report.add("- PASS  " + name);
             log.info("eval PASS {}", name);
-        } else {
-            failedCases++;
-            report.add("- FAIL  " + name);
-            failures.forEach(f -> report.add("    - " + f));
-            log.warn("eval FAIL {}: {}", name, failures);
+            return;
         }
+        failedCases++;
+        report.add("- FAIL  " + name);
+        failures.forEach(f -> report.add("    - " + f));
+        // Without the payload a failure cannot be triaged from the report alone, and the
+        // first question is always the same: is the generator wrong, or is the check? The
+        // first live run cost a round of code reading to answer it twice.
+        if (payload != null) {
+            report.add("");
+            report.add("    <details><summary>payload</summary>");
+            report.add("");
+            report.add("    ```json");
+            excerpt(payload).lines().forEach(line -> report.add("    " + line));
+            report.add("    ```");
+            report.add("");
+            report.add("    </details>");
+        }
+        log.warn("eval FAIL {}: {}", name, failures);
+    }
+
+    /** Enough of the payload to diagnose the failure, not so much it buries the report. */
+    private static String excerpt(Object payload) {
+        String json;
+        try {
+            json = MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(payload);
+        } catch (Exception e) {
+            json = String.valueOf(payload);
+        }
+        return json.length() <= 4000 ? json : json.substring(0, 4000) + "\n... truncated";
     }
 
     private void writeReport() throws Exception {

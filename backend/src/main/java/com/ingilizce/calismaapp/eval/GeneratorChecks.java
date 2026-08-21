@@ -87,8 +87,15 @@ public final class GeneratorChecks {
                 failures.add("sentence " + index + ": " + words + " words exceeds the "
                         + normalizeLevel(level) + " band of " + maxSentenceWords(level));
             }
-            if (text(sentence, "turkishSentence", "translation", "turkish").isBlank()) {
-                failures.add("sentence " + index + ": missing translation");
+            // The generator's own schema, not a guess: englishSentence plus a short
+            // meaning and a full-sentence translation, in the learner's source language
+            // or Turkish depending on the profile. Checking invented field names is how
+            // an eval reports twenty healthy sentences as broken.
+            if (text(sentence, "turkishTranslation", "sourceTranslation").isBlank()) {
+                failures.add("sentence " + index + ": missing the target word's translation");
+            }
+            if (text(sentence, "turkishFullTranslation", "sourceFullTranslation").isBlank()) {
+                failures.add("sentence " + index + ": missing the full-sentence translation");
             }
         }
         return failures;
@@ -206,11 +213,21 @@ public final class GeneratorChecks {
             if (text(question, "question").isBlank()) {
                 failures.add("question " + index + ": empty question text");
             }
+            // Reading and the grammar quiz answer differently, and the difference is not
+            // cosmetic. The reading screen labels options by position - A, B, C, D - and
+            // marks the one whose letter equals correctAnswer. A correctAnswer holding the
+            // option's text instead matches no letter, so no option is ever shown as
+            // correct and every answer is graded wrong. That failure passed the first
+            // version of this check, which looked for the text: it was inverted.
             List<String> options = asStringList(question.get("options"));
             String correct = text(question, "correctAnswer");
-            if (!correct.isBlank() && !options.isEmpty()
-                    && options.stream().noneMatch(o -> o.equalsIgnoreCase(correct))) {
-                failures.add("question " + index + ": correctAnswer is not among the options");
+            if (correct.isBlank()) {
+                failures.add("question " + index + ": no correctAnswer");
+            } else if (!isOptionLabelInRange(correct, options.size())) {
+                failures.add("question " + index + ": correctAnswer must be an option letter"
+                        + " (A-" + (char) ('A' + Math.max(options.size(), 1) - 1) + ") but was \""
+                        + correct + "\"; the reading screen grades by position, so this marks"
+                        + " every answer wrong");
             }
             // The model is asked to quote the sentence its answer comes from. If that quote
             // is not in the passage, the answer was not read out of the passage.
@@ -241,6 +258,16 @@ public final class GeneratorChecks {
         String root = stem.endsWith("e") && stem.length() > 3 ? stem.substring(0, stem.length() - 1) : stem;
         String pattern = "(?i)\\b" + java.util.regex.Pattern.quote(root) + "\\w{0,3}\\b";
         return java.util.regex.Pattern.compile(pattern).matcher(haystack).find();
+    }
+
+    /** A single letter that names one of the options by position: A for the first, B the second. */
+    static boolean isOptionLabelInRange(String answer, int optionCount) {
+        String value = answer.trim().toUpperCase(Locale.ROOT);
+        if (value.length() != 1 || optionCount <= 0) {
+            return false;
+        }
+        int position = value.charAt(0) - 'A';
+        return position >= 0 && position < optionCount;
     }
 
     static int wordCount(String text) {
