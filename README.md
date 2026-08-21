@@ -74,7 +74,7 @@ device.
 its own local evening, and only if there is something genuinely due and the learner has not
 already practised that day.
 
-Tests: 965 backend, 320 client. Generated content has its own harness: mechanical checks
+Tests: 974 backend, 333 client. Generated content has its own harness: mechanical checks
 run in the ordinary suite against payloads captured from real production failures, and a
 manually triggered workflow puts the four generators through a golden set of live calls
 before a prompt change ships.
@@ -156,6 +156,29 @@ a question whose target word is a lie loses the label, not the question; an unve
 quote is dropped while the question stays; a quiz that cannot be built on the learner's
 words is rebuilt without them. Dropping bad questions outright was tried first and produced
 an empty practice screen, which is worse than what it replaced.
+
+**The same audit, run across the generators the harness does not cover.**
+Seven producer/consumer pairs — dictionary, writing topic, writing evaluation, pronunciation,
+exam bundle, chat, translation check — audited in parallel against the question the reading
+bug had answered the hard way: does the shape the backend produces match the shape the screen
+consumes. Twenty-two candidates, ten surviving a reviewer whose instructions were to refute
+them.
+
+The worst was the same class of failure and worse in kind. The translation check inferred its
+verdict from text whenever the reply was not JSON, and the inference defaulted to *correct* —
+so a blank completion marked the learner's answer right, suppressed the correction, and wrote
+a good recall to the spaced-repetition scheduler, lengthening the interval for a word they had
+just failed. It also matched the Turkish word for "correct" anywhere in the reply, and the
+feedback a wrong answer receives begins with it. Reporting no verdict at all turned out to
+need no client work: the screen already skipped the scheduler write when the verdict was
+absent. It had simply never been given one.
+
+Elsewhere the backend was already marking its degraded payloads and the screens were not
+reading the mark. The dictionary rendered "meaning temporarily unavailable" as a definition
+with the save button live, so that string could become a permanent vocabulary entry and enter
+the review rotation. Pronunciation practice labelled three canned sentences "text from your
+words" and overwrote the sentence that really did contain them. A blank chat reply discarded
+the learner's own message along with it, so the next answer came back out of context.
 
 ---
 
