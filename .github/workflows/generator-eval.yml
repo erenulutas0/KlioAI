@@ -27,7 +27,7 @@ jobs:
       - name: Require a real API key
         run: |
           if [ -z "$GROQ_API_KEY" ]; then
-            echo "::error::GROQ_API_KEY is not set. Add it under Settings > Secrets and variables > Actions."
+            echo "::error::GROQ_API_KEY is not set on ${{ github.repository }}. Add it at https://github.com/${{ github.repository }}/settings/secrets/actions - a secret on another repository, or scoped to an environment this job does not declare, is not visible here."
             exit 1
           fi
 
