@@ -416,4 +416,30 @@ class AiProxyServiceTest {
         // A quote that really is in the passage is left alone.
         assertEquals("Buses run on electricity", ((Map<?, ?>) questions.get(1)).get("correctAnswerQuote"));
     }
+
+    @Test
+    void grammarQuiz_ShouldClearATargetWordTheQuestionDoesNotUse() {
+        // The eval caught "mitigate" attached to a question whose answer was "included".
+        // A targetWord is what lets an answer reach the review scheduler, so a false one
+        // credits the learner's saved word for a question that tested a different one.
+        String payload = "{\"topic\":\"present perfect\",\"questions\":["
+                + "{\"question\":\"The project has ---- many changes.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"included\",\"targetWord\":\"mitigate\"},"
+                + "{\"question\":\"They have ---- the risk.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"mitigated\",\"targetWord\":\"mitigate\"},"
+                + "{\"question\":\"She has ---- it.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"a\",\"targetWord\":\"\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "present perfect", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of("mitigate"));
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        // The question survives; only the false label goes.
+        assertEquals(3, questions.size());
+        assertEquals("", ((Map<?, ?>) questions.get(0)).get("targetWord"));
+        // The word really is in the answer here, so the credit is genuine and stays.
+        assertEquals("mitigate", ((Map<?, ?>) questions.get(1)).get("targetWord"));
+    }
 }

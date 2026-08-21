@@ -266,14 +266,9 @@ public final class GeneratorChecks {
      * suffix allowance.
      */
     static boolean containsWordStem(String haystack, String word) {
-        String stem = word.trim().toLowerCase(Locale.ROOT);
-        if (stem.isEmpty()) {
-            return true;
-        }
-        // Drop a trailing 'e' so "evaluate" also matches "evaluating".
-        String root = stem.endsWith("e") && stem.length() > 3 ? stem.substring(0, stem.length() - 1) : stem;
-        String pattern = "(?i)\\b" + java.util.regex.Pattern.quote(root) + "\\w{0,3}\\b";
-        return java.util.regex.Pattern.compile(pattern).matcher(haystack).find();
+        // Delegates so the eval and the server-side repair cannot disagree about whether a
+        // question uses a word. See WordForms for why the match is shaped as it is.
+        return com.ingilizce.calismaapp.service.WordForms.contains(haystack, word);
     }
 
     static String stripQuotes(String value) {

@@ -492,14 +492,35 @@ Format:
             return result;
         }
         java.util.List<Object> kept = new java.util.ArrayList<>();
+        boolean changed = false;
         for (Object question : questions) {
-            if (question instanceof Map<?, ?> map && hasDuplicateOptions(map.get("options"))) {
-                logger.warn("GRAMMAR_QUIZ_DROPPED reason=duplicate-options question={}", map.get("question"));
-                continue;
+            if (question instanceof Map<?, ?> map) {
+                if (hasDuplicateOptions(map.get("options"))) {
+                    logger.warn("GRAMMAR_QUIZ_DROPPED reason=duplicate-options question={}", map.get("question"));
+                    changed = true;
+                    continue;
+                }
+                // A targetWord the question never uses credits the learner's saved word for
+                // a question that tested a different one - the eval caught "mitigate"
+                // attached to a question whose answer was "included". The question itself is
+                // a perfectly good grammar question, so only the false label goes; without a
+                // target word the answer simply does not reach the review scheduler.
+                Object claimed = map.get("targetWord");
+                String target = claimed == null ? "" : claimed.toString().replace("\"", "").trim();
+                if (!target.isEmpty()
+                        && !WordForms.contains(String.valueOf(map.get("question")), target)
+                        && !WordForms.contains(String.valueOf(map.get("correctAnswer")), target)) {
+                    logger.warn("GRAMMAR_QUIZ_TARGET_CLEARED word={} question={}", target, map.get("question"));
+                    Map<String, Object> copy = new HashMap<>((Map<String, Object>) map);
+                    copy.put("targetWord", "");
+                    kept.add(copy);
+                    changed = true;
+                    continue;
+                }
             }
             kept.add(question);
         }
-        if (kept.size() == questions.size()) {
+        if (!changed) {
             return result;
         }
         Map<String, Object> repaired = new HashMap<>(result.json());
