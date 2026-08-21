@@ -420,9 +420,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
   }
 
   Widget _buildLocalWordResult(Word word) {
-    final example = word.sentences.isNotEmpty
-        ? word.sentences.first.sentence
-        : _text('Ornek cumle yok', 'No example sentence');
+    // Nullable rather than a placeholder string. The card below used to be gated by
+    // comparing this against the literal 'Örnek cümle yok', which no branch here can ever
+    // produce - the Turkish one is ASCII-folded and the English one is a different sentence
+    // entirely - so the guard was always true and the placeholder was rendered as the
+    // example: an italic quoted "Ornek cumle yok" styled exactly like real study content.
+    final example = word.sentences.isNotEmpty ? word.sentences.first.sentence : null;
     final exampleTr =
         word.sentences.isNotEmpty ? word.sentences.first.translation : '';
 
@@ -492,7 +495,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
             ),
 
             // Example
-            if (example != 'Örnek cümle yok') ...[
+            if (example != null && example.trim().isNotEmpty) ...[
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
