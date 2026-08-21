@@ -32,13 +32,7 @@ public class WordService {
     private SentenceRepository sentenceRepository;
 
     @Autowired
-    private LeaderboardService leaderboardService;
-
-    @Autowired
     private ProgressService progressService;
-
-    @Autowired
-    private ActivityPublisher activityPublisher;
 
     @Autowired
     private SRSService srsService;
@@ -105,21 +99,6 @@ public class WordService {
         Word savedWord = wordRepository.save(word);
 
         if (isNew) {
-            // Gamification: Add 10 points
-            try {
-                // Note: incrementScore expects double, so passing 10.0
-                leaderboardService.incrementScore(savedWord.getUserId(), 10.0);
-            } catch (Exception e) {
-                System.err.println("Leaderboard error: " + e.getMessage());
-            }
-
-            // Social: Log Activity
-            try {
-                activityPublisher.publishWordAdded(savedWord.getUserId(), savedWord.getEnglishWord());
-            } catch (Exception e) {
-                System.err.println("Activity publish error: " + e.getMessage());
-            }
-
             progressService.awardXp(savedWord.getUserId(), XP_NEW_WORD, "New Word: " + word.getEnglishWord());
             progressService.updateStreak(savedWord.getUserId());
         }

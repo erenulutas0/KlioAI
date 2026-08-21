@@ -38,12 +38,6 @@ class WordServiceTest {
     @Mock
     private SentenceRepository sentenceRepository;
 
-    @Mock
-    private LeaderboardService leaderboardService;
-
-    @Mock
-    private ActivityPublisher activityPublisher;
-
     // We mock other dependencies to avoid NPEs during context load if they are
     // autowired
     @Mock
@@ -140,12 +134,6 @@ class WordServiceTest {
 
         // Verify Repository was called
         verify(wordRepository, times(1)).save(newWord);
-
-        // Verify Leaderboard was updated (+10 points)
-        verify(leaderboardService, times(1)).incrementScore(eq(userId), eq(10.0));
-
-        // Verify Social Feed logged the activity
-        verify(activityPublisher, times(1)).publishWordAdded(eq(userId), eq("Serendipity"));
     }
 
     @Test
@@ -168,26 +156,7 @@ class WordServiceTest {
 
         assertEquals(5L, result.getId());
         verify(wordRepository, never()).save(incoming);
-        verify(leaderboardService, never()).incrementScore(anyLong(), anyDouble());
-        verify(activityPublisher, never()).publishWordAdded(anyLong(), anyString());
         verify(progressService, never()).awardXp(anyLong(), anyInt(), anyString());
-    }
-
-    @Test
-    void saveWord_ShouldNotFail_IfLeaderboardServiceFails() {
-        // Arrange: Simulate Leaderboard acting up (e.g. Redis down)
-        Word word = new Word();
-        word.setUserId(1L);
-        word.setEnglishWord("Test");
-
-        when(wordRepository.save(any(Word.class))).thenReturn(word);
-        doThrow(new RuntimeException("Redis Down")).when(leaderboardService).incrementScore(anyLong(), anyDouble());
-
-        // Act & Assert: Should NOT throw exception
-        assertDoesNotThrow(() -> wordService.saveWord(word));
-
-        // Verify essential save still happened
-        verify(wordRepository, times(1)).save(word);
     }
 
     @Test
@@ -271,7 +240,6 @@ class WordServiceTest {
 
         assertEquals(99L, result.getId());
         verify(wordRepository, never()).findByUserIdAndEnglishWord(anyLong(), anyString());
-        verify(leaderboardService).incrementScore(2L, 10.0);
     }
 
     @Test
@@ -287,14 +255,16 @@ class WordServiceTest {
         Word result = wordService.saveWord(existing);
 
         assertEquals(50L, result.getId());
-        verify(leaderboardService, never()).incrementScore(anyLong(), anyDouble());
-        verify(activityPublisher, never()).publishWordAdded(anyLong(), anyString());
         verify(progressService, never()).awardXp(anyLong(), anyInt(), anyString());
         verify(progressService, never()).updateStreak(anyLong());
     }
 
     @Test
-    void saveWord_ShouldNotFail_IfActivityPublisherFails() {
+    void saveWord_ShouldAwardXpAndStreak_ForANewWord() {
+        // Was saveWord_ShouldNotFail_IfActivityPublisherFails, guarding a social-feed
+        // publisher that no longer exists. What it still proves is worth keeping: adding a
+        // word is what feeds XP and the streak, and those are the two rewards a learner
+        // notices immediately.
         Word incoming = new Word();
         incoming.setUserId(4L);
         incoming.setEnglishWord("resilience");
@@ -306,9 +276,6 @@ class WordServiceTest {
         saved.setEnglishWord("resilience");
 
         when(wordRepository.save(any(Word.class))).thenReturn(saved);
-        doThrow(new RuntimeException("feed down")).when(activityPublisher)
-                .publishWordAdded(eq(4L), anyString());
-
         assertDoesNotThrow(() -> wordService.saveWord(incoming));
         verify(progressService).awardXp(eq(4L), eq(10), contains("resilience"));
         verify(progressService).updateStreak(4L);

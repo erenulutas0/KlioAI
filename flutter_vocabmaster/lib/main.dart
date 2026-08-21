@@ -14,14 +14,11 @@ import 'screens/menu_page.dart';
 import 'screens/practice_page.dart';
 import 'screens/stats_page.dart';
 import 'screens/quick_dictionary_page.dart';
-import 'screens/chat_list_page.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/navigation_menu_panel.dart';
 import 'screens/profile_page.dart';
-import 'screens/social_feed_page.dart';
 import 'screens/ai_bot_chat_page.dart';
 import 'screens/splash_screen.dart';
-import 'screens/notifications_page.dart';
 import 'screens/xp_history_page.dart';
 import 'screens/language_selection_page.dart';
 import 'screens/settings_page.dart';
@@ -29,7 +26,6 @@ import 'screens/review_mode_selector_page.dart';
 import 'screens/support_tickets_page.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'services/global_state.dart';
 import 'services/offline_sync_service.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
@@ -37,7 +33,6 @@ import 'services/analytics_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/local_reminder_service.dart';
 import 'services/push_token_service.dart';
-import 'widgets/matchmaking_banner.dart';
 import 'widgets/theme_side_tab.dart';
 import 'widgets/xp_toast_host.dart';
 import 'providers/app_state_provider.dart';
@@ -303,12 +298,13 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     final route = payload.trim().toLowerCase();
+    // The in-app notification list went with the community feature - every notification it
+    // could hold was a friend request, a like, a comment or a message. A push that opens the
+    // app should land somewhere with something to do, so these go home rather than to a
+    // screen that no longer exists. Nothing sends this payload any more; it is here for a
+    // notification that was already in flight, and for admin_test.
     if (route == 'notifications' || route == 'admin_test') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const NotificationsPage(openedFromPush: true),
-        ),
-      );
+      _selectTab(0);
       return;
     }
 
@@ -364,11 +360,6 @@ class _MainScreenState extends State<MainScreen> {
       case 'sentences':
         _selectTab(3);
         break;
-      case 'notifications':
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NotificationsPage()),
-        );
-        break;
       case 'xp-history':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const XpHistoryPage()),
@@ -390,119 +381,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _showChatSelectionDialog() {
-    final l10n = context.l10n;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: l10n.t('nav.selectChatMode'),
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) {
-        return Align(
-          alignment: Alignment.center,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A)
-                    .withValues(alpha: 0.9), // Darker, glass-like
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFF22D3EE)
-                      .withValues(alpha: 0.5), // Neon blue border
-                  width: 1.5,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x4D06B6D4), // Neon blue glow
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10, bottom: 20),
-                        child: Text(
-                          l10n.t('nav.selectChatMode'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(color: Color(0xFF22D3EE), blurRadius: 10),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildChatOption(
-                        title: l10n.t('chat.friends.title'),
-                        subtitle: l10n.t('chat.friends.subtitle'),
-                        icon: Icons.people_outline,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
-                        ),
-                        onTap: () {
-                          Navigator.pop(context); // Close dialog
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const ChatListPage()),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildChatOption(
-                        title: l10n.t('chat.ai.title'),
-                        subtitle: l10n.t('chat.ai.subtitle'),
-                        icon: Icons.psychology_outlined,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFA855F7), Color(0xFFEC4899)],
-                        ),
-                        onTap: () {
-                          Navigator.pop(context); // Close dialog
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const AIBotChatPage()),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                  Positioned(
-                    top: -10,
-                    right: -10,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        return Transform.scale(
-          scale:
-              CurvedAnimation(parent: anim1, curve: Curves.easeOutBack).value,
-          child: Opacity(
-            opacity: anim1.value,
-            child: child,
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _showLanguagePickerDialog() async {
     final provider = context.read<LanguageProvider>();
@@ -577,68 +455,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Widget _buildChatOption({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Gradient gradient,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // IndexedStack sayfaları "canlı" tutar - rebuild olmaz
   Widget _buildBody() {
@@ -711,11 +527,11 @@ class _MainScreenState extends State<MainScreen> {
               );
               break;
             case 'chat':
-              _showChatSelectionDialog();
-              break;
-            case 'feed':
+              // Straight to the tutor. This used to open a dialog to choose between
+              // chatting with friends and chatting with the AI; with the community feature
+              // gone there is one option, and a dialog to pick from one is just a tap.
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SocialFeedPage()),
+                MaterialPageRoute(builder: (_) => const AIBotChatPage()),
               );
               break;
             case 'language':
@@ -730,31 +546,14 @@ class _MainScreenState extends State<MainScreen> {
         },
       ),
       body: _buildBody(),
-      bottomNavigationBar: ValueListenableBuilder<bool>(
-        valueListenable: GlobalState.isMatching,
-        builder: (context, isMatching, child) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isMatching)
-                MatchmakingBanner(
-                  onCancel: () {
-                    GlobalState.matchmakingService.leaveQueue();
-                    GlobalState.isMatching.value = false;
-                  },
-                ),
-              BottomNav(
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  if (index == 2) {
-                    _scaffoldKey.currentState?.openDrawer();
-                  } else {
-                    _selectTab(index);
-                  }
-                },
-              ),
-            ],
-          );
+      bottomNavigationBar: BottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          if (index == 2) {
+            _scaffoldKey.currentState?.openDrawer();
+          } else {
+            _selectTab(index);
+          }
         },
       ),
     );

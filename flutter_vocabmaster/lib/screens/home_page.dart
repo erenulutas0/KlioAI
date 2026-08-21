@@ -12,7 +12,7 @@ import '../widgets/animated_background.dart';
 import '../services/api_service.dart';
 import '../services/xp_manager.dart';
 import '../services/user_data_service.dart';
-import '../services/social_service.dart';
+import '../services/activity_ping_service.dart';
 import '../widgets/due_review_card.dart';
 import '../widgets/info_dialog.dart';
 import 'profile_page.dart';
@@ -61,7 +61,7 @@ class _HomePageState extends State<HomePage>
 
   // Heartbeat timer for online status
   Timer? _heartbeatTimer;
-  final SocialService _socialService = SocialService();
+  final ActivityPingService _activityPing = ActivityPingService();
 
   // SRS due-review count for the daily-return card
   final ApiService _srsApiService = ApiService();
@@ -140,11 +140,11 @@ class _HomePageState extends State<HomePage>
 
   void _startHeartbeat() {
     // İlk heartbeat'i hemen gönder
-    _socialService.sendHeartbeat();
+    _activityPing.sendHeartbeat();
 
     // Her 2 dakikada bir heartbeat gönder
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
-      _socialService.sendHeartbeat();
+      _activityPing.sendHeartbeat();
     });
   }
 

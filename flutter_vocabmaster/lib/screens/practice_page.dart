@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/info_dialog.dart';
 import '../models/word.dart';
-import '../services/global_state.dart';
 import '../services/learning_language_service.dart';
 import 'translation_practice_page.dart';
 import 'reading_practice_page.dart';
 import 'pronunciation_practice_page.dart';
 import 'writing_practice_page.dart';
-import 'video_call_page.dart';
-import '../services/matchmaking_service.dart';
 import 'package:provider/provider.dart';
 import '../widgets/animated_ai_chat_card.dart';
 import '../widgets/modern_card.dart';
@@ -173,10 +170,6 @@ class _PracticePageState extends State<PracticePage>
     }
   }
 
-  void _updateMatchingState() {
-    if (mounted) setState(() {});
-  }
-
   // Animation State
   late AnimationController _avatarAnimationController;
 
@@ -190,8 +183,6 @@ class _PracticePageState extends State<PracticePage>
       _logPracticeStarted();
     });
     _searchController.addListener(_onSearchChanged);
-    GlobalState.isMatching.addListener(_updateMatchingState);
-    GlobalState.matchmakingService.addListener(_onMatchmakingUpdate);
     if (widget.initialMode != null) {
       _selectedMode = _normalizeModeId(widget.initialMode!);
     }
@@ -308,14 +299,9 @@ class _PracticePageState extends State<PracticePage>
   void dispose() {
     _searchController.dispose();
     _avatarAnimationController.dispose();
-    GlobalState.isMatching.removeListener(_updateMatchingState);
-    GlobalState.matchmakingService.removeListener(_onMatchmakingUpdate);
     super.dispose();
   }
 
-  // ... (Existing helper methods)
-  // Re-declare _loadWords, _onMatchmakingUpdate... to keep context, but use ... range to skip unmodified methods if possible or include them
-  // For safety, I will include _loadWords and others since they are in the range.
 
   Future<void> _loadWords() async {
     try {
@@ -344,38 +330,6 @@ class _PracticePageState extends State<PracticePage>
     }
   }
 
-  void _onMatchmakingUpdate() {
-    final service = GlobalState.matchmakingService;
-    if (service.status == MatchStatus.matched && service.matchInfo != null) {
-      GlobalState.isMatching.value = false;
-      if (ModalRoute.of(context)?.isCurrent == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VideoCallPage(
-              socket: service.socket!,
-              roomId: service.matchInfo!.roomId,
-              matchedUserId: service.matchInfo!.matchedUserId,
-              currentUserId: service.userId!,
-              role: service.matchInfo!.role,
-            ),
-          ),
-        ).then((_) {
-          service.leftCall();
-        });
-        service.setInCall();
-      }
-    } else if (service.status == MatchStatus.error) {
-      GlobalState.isMatching.value = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(service.errorMessage ?? context.tr('common.error'))),
-        );
-      }
-    }
-  }
 
   void _onSearchChanged() {
     final query = _searchController.text.toLowerCase();

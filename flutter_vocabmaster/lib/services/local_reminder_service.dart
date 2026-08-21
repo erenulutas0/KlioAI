@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../screens/notifications_page.dart';
+import '../main.dart';
 import '../screens/practice_page.dart';
 import '../widgets/theme_side_tab.dart';
 import 'analytics_service.dart';
@@ -501,11 +501,12 @@ class LocalReminderService {
       return;
     }
 
+    // See the note in main.dart: the in-app notification list was part of the community
+    // feature and went with it. A reminder should open onto something to do.
     if (route == 'notifications' || route == 'admin_test') {
-      navigator.push(
-        MaterialPageRoute(
-          builder: (_) => const NotificationsPage(openedFromPush: true),
-        ),
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
       );
       return;
     }

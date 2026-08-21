@@ -9,10 +9,8 @@ import '../providers/app_state_provider.dart';
 import '../widgets/navigation_menu_panel.dart';
 import '../main.dart'; // Import MainScreen
 import '../screens/profile_page.dart';
-import '../screens/chat_list_page.dart';
 import '../screens/quick_dictionary_page.dart';
 import '../screens/review_mode_selector_page.dart';
-import '../screens/social_feed_page.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
 import '../services/locale_text_service.dart';
@@ -104,13 +102,7 @@ class _StatsPageState extends State<StatsPage> {
 
           if (id == 'stats') return;
 
-          if (id == 'chat') {
-            Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const ChatListPage()));
-          } else if (id == 'feed') {
-            Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SocialFeedPage()));
-          } else if (id == 'speaking') {
+          if (id == 'speaking') {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
                   builder: (_) => const MainScreen(initialIndex: 4)),
