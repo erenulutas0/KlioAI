@@ -390,6 +390,9 @@ LEARNER'S OWN VOCABULARY: %s
   learner's saved word is the one that gets credited for the answer.
 - If a word cannot carry this grammar point naturally, leave it out and use a neutral word.
   A forced sentence teaches the learner a mistake.
+- For tense topics this means verbs. A noun or an adjective cannot be conjugated, and
+  inventing a verb from one ("insighted", "resilianted") produces a question with no
+  correct answer. Use such a word elsewhere in the sentence or skip it entirely.
 - Set "targetWord" to the exact vocabulary word the question was built on, or "" if none.
 """.formatted(String.join(", ", vocabulary));
 
@@ -441,23 +444,33 @@ Format:
         );
 
         String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
-        AiJsonResult result = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+        AiJsonResult best = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
         // Dropping bad questions is only an improvement while some good ones survive. The
-        // eval caught a past-simple quiz where all five had duplicate options and the guard
-        // handed back an empty quiz - a learner tapping Practice and getting nothing, which
-        // is worse than the broken questions it replaced. Past simple is where this bites:
-        // for verbs like "read" the base and past forms are spelled the same, so an
-        // otherwise sensible distractor set collapses on itself. The generator is not
-        // deterministic, and in the same run present perfect and conditionals were both
-        // clean, so one more attempt is usually all it takes.
-        if (surviving(result) < MIN_USABLE_QUIZ_QUESTIONS) {
-            logger.warn("GRAMMAR_QUIZ_RETRY topic={} level={} surviving={}", topic, normalizedLevel, surviving(result));
-            AiJsonResult second = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
-            if (surviving(second) > surviving(result)) {
-                return second;
+        // eval caught a past-simple quiz where every question had duplicate options and the
+        // guard handed back an empty quiz - a learner tapping Practice and getting nothing,
+        // which is worse than the broken questions it replaced.
+        if (surviving(best) < MIN_USABLE_QUIZ_QUESTIONS) {
+            logger.warn("GRAMMAR_QUIZ_RETRY topic={} level={} surviving={}", topic, normalizedLevel, surviving(best));
+            AiJsonResult retry = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+            if (surviving(retry) > surviving(best)) {
+                best = retry;
             }
         }
-        return result;
+        // Still nothing usable, and the eval saw exactly this twice in a row on past simple.
+        // The cause is the vocabulary, not the topic: a tense drill built on "insight" and
+        // "resilient" has to invent a verb, and "insighted" is not a word - so every
+        // question it produces is unanswerable. Falling back to a quiz without the learner's
+        // words gives up the vocabulary integration and keeps the lesson, which is the right
+        // way round. An empty practice screen teaches nothing at all.
+        if (surviving(best) < MIN_USABLE_QUIZ_QUESTIONS && vocabulary != null && !vocabulary.isEmpty()) {
+            logger.warn("GRAMMAR_QUIZ_VOCABULARY_ABANDONED topic={} level={} surviving={}",
+                    topic, normalizedLevel, surviving(best));
+            AiJsonResult withoutVocabulary = generateGrammarQuiz(topic, level, profile, variantSeed, java.util.List.of());
+            if (surviving(withoutVocabulary) > surviving(best)) {
+                return withoutVocabulary;
+            }
+        }
+        return best;
     }
 
     /** Below this a quiz is not worth serving, and a retry is cheaper than a bad session. */

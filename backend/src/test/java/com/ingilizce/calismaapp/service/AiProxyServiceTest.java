@@ -469,4 +469,27 @@ class AiProxyServiceTest {
         assertEquals(3, questions.size());
         assertEquals("Q2 ---- gap.", ((Map<?, ?>) questions.get(0)).get("question"));
     }
+
+    @Test
+    void grammarQuiz_ShouldAbandonTheVocabularyRatherThanServeNothing() {
+        // A past-simple drill built on "insight" and "resilient" has to invent a verb, and
+        // every question it produces is unanswerable. Twice in a row the eval got an empty
+        // quiz. Giving up the vocabulary integration keeps the lesson; an empty practice
+        // screen teaches nothing at all.
+        String unusable = quizJson("[\"insighted\",\"insighted\",\"insighted\",\"insighted\"]");
+        String plain = quizJson(
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]",
+                "[\"a\",\"b\",\"c\",\"d\"]");
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(unusable, 10, 5, 15))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(unusable, 10, 5, 15))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(plain, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "past simple", "B1", LearningLanguageProfile.defaultProfile(), 0,
+                List.of("insight", "resilient"));
+
+        assertEquals(3, ((List<?>) result.json().get("questions")).size());
+    }
 }

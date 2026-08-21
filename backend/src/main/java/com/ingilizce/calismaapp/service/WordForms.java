@@ -1,7 +1,10 @@
 package com.ingilizce.calismaapp.service;
 
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Whether a piece of text actually uses a given word.
@@ -37,8 +40,55 @@ public final class WordForms {
         if (stem.isEmpty()) {
             return true;
         }
-        // Drop a trailing 'e' so "evaluate" also matches "evaluating".
-        String root = stem.endsWith("e") && stem.length() > 3 ? stem.substring(0, stem.length() - 1) : stem;
-        return Pattern.compile("(?i)\\b" + Pattern.quote(root) + "\\w{0,3}\\b").matcher(haystack).find();
+        String alternation = inflectionsOf(stem).stream()
+                .map(Pattern::quote)
+                .collect(Collectors.joining("|"));
+        return Pattern.compile("(?i)" + BOUNDARY + "(?:" + alternation + ")" + BOUNDARY)
+                .matcher(haystack)
+                .find();
+    }
+
+    private static final String BOUNDARY = "\\b";
+
+    /**
+     * The forms of a word a sentence may legitimately use.
+     *
+     * <p>Spelled out rather than approximated with a suffix wildcard. The wildcard version
+     * matched "evaluate" to "evaluated" but missed "qualify" in "He qualified for the next
+     * round", because the y becomes an i and the shared prefix ends early - the eval caught
+     * a perfectly good example sentence being reported as not containing its own word.
+     * Widening the wildcard to cover it would have started matching unrelated words, and
+     * this list is both stricter and easier to reason about.
+     */
+    static Set<String> inflectionsOf(String stem) {
+        Set<String> forms = new LinkedHashSet<>();
+        forms.add(stem);
+        forms.add(stem + "s");
+        forms.add(stem + "es");
+        forms.add(stem + "ed");
+        forms.add(stem + "ing");
+        forms.add(stem + "er");
+        forms.add(stem + "est");
+        if (stem.length() > 3 && stem.endsWith("e")) {
+            String root = stem.substring(0, stem.length() - 1);
+            forms.add(root + "ed");
+            forms.add(root + "es");
+            forms.add(root + "ing");
+            forms.add(root + "er");
+            forms.add(root + "est");
+        }
+        // study -> studied, qualify -> qualified, carry -> carries.
+        if (stem.length() > 3 && stem.endsWith("y") && !isVowel(stem.charAt(stem.length() - 2))) {
+            String root = stem.substring(0, stem.length() - 1);
+            forms.add(root + "ies");
+            forms.add(root + "ied");
+            forms.add(root + "ier");
+            forms.add(root + "iest");
+        }
+        return forms;
+    }
+
+    private static boolean isVowel(char c) {
+        return "aeiou".indexOf(Character.toLowerCase(c)) >= 0;
     }
 }
