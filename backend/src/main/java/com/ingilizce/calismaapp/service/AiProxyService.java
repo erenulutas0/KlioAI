@@ -264,6 +264,17 @@ DIFFERENTIATION RULE:
 Topic: Choose a specific, interesting topic as instructed above.
 Include 3 multiple choice questions (with 4 options and 1 correct answer).
 "wordCount" must be the real number of words in "text" (a plain integer, not a placeholder).
+
+ANSWER FORMAT - read carefully, the app grades on this:
+- "options" holds the four answer texts themselves. Never the letters A, B, C, D.
+- "correctAnswer" is a single LETTER naming the correct option BY POSITION: "A" for the
+  first option in the list, "B" for the second, "C" the third, "D" the fourth.
+- Never put the answer text in "correctAnswer". The app matches the letter against the
+  option's position, so an answer written out in full matches nothing and every learner
+  answer is marked wrong.
+- "correctAnswerQuote" must be copied from "text" character for character. Do not
+  paraphrase it, shorten it or join two separate parts of the passage together.
+
 Return ONLY valid JSON. No markdown formatting, no extra text.
 
 Format (the values below are illustrative - replace them, keep the shape):
@@ -274,10 +285,10 @@ Format (the values below are illustrative - replace them, keep the shape):
   "questions": [
     {
       "question": "Question 1?",
-      "options": ["A", "B", "C", "D"],
-      "correctAnswer": "A",
-      "explanation": "Brief explanation of why A is correct.",
-      "correctAnswerQuote": "Exact sentence or phrase from the text that proves the answer."
+      "options": ["The first answer", "The second answer", "The third answer", "The fourth answer"],
+      "correctAnswer": "B",
+      "explanation": "Brief explanation of why the second option is correct.",
+      "correctAnswerQuote": "Exact sentence or phrase copied word for word from the text."
     }
   ]
 }

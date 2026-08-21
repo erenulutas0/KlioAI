@@ -44,15 +44,19 @@ public final class GeneratorChecks {
             "during the trip",
             "the team evaluated the plan carefully");
 
-    /** Rough word-count bands per CEFR level, used only to catch gross mismatches. */
-    private static int maxSentenceWords(String level) {
-        return switch (normalizeLevel(level)) {
-            case "A1", "A2" -> 14;
-            case "B1" -> 20;
-            case "B2" -> 28;
-            default -> 40;
-        };
-    }
+    /**
+     * A ceiling for runaway output, not a CEFR band.
+     *
+     * <p>The first version graded sentences against per-level word bands of my own
+     * invention, and then failed a perfectly good sentence for being 21 words at B1. The
+     * app asks for three length buckets in the same request and defines the longest as
+     * "16+ words" with no upper bound, so any level can legitimately produce a long
+     * sentence. A check that contradicts the prompt it is checking is just noise.
+     *
+     * <p>What is still worth catching is a paragraph returned where a sentence was asked
+     * for, which is why this is not simply removed.
+     */
+    private static final int RUNAWAY_SENTENCE_WORDS = 35;
 
     public static List<String> sentenceFailures(Map<String, Object> json, String targetWord, String level) {
         List<String> failures = new ArrayList<>();
@@ -83,9 +87,9 @@ public final class GeneratorChecks {
                         + targetWord + "\" — \"" + english + "\"");
             }
             int words = wordCount(english);
-            if (words > maxSentenceWords(level)) {
-                failures.add("sentence " + index + ": " + words + " words exceeds the "
-                        + normalizeLevel(level) + " band of " + maxSentenceWords(level));
+            if (words > RUNAWAY_SENTENCE_WORDS) {
+                failures.add("sentence " + index + ": " + words
+                        + " words is a paragraph, not a practice sentence — \"" + english + "\"");
             }
             // The generator's own schema, not a guess: englishSentence plus a short
             // meaning and a full-sentence translation, in the learner's source language
@@ -140,7 +144,11 @@ public final class GeneratorChecks {
             // the question tests", and in that case the stem shows a ---- gap and the word
             // is the answer. Demanding it in the stem failed every correctly built
             // fill-in-the-blank on the learner's own vocabulary.
-            String target = text(question, "targetWord");
+            // The prompt says to send "" when no vocabulary word fits, and the model
+            // sometimes sends those two characters as the value rather than an empty
+            // string. Same meaning, so treat it the same rather than reporting a question
+            // that claims a target word made of quote marks.
+            String target = stripQuotes(text(question, "targetWord"));
             if (!target.isBlank()
                     && !containsWordStem(prompt, target)
                     && !containsWordStem(correct, target)) {
@@ -266,6 +274,10 @@ public final class GeneratorChecks {
         String root = stem.endsWith("e") && stem.length() > 3 ? stem.substring(0, stem.length() - 1) : stem;
         String pattern = "(?i)\\b" + java.util.regex.Pattern.quote(root) + "\\w{0,3}\\b";
         return java.util.regex.Pattern.compile(pattern).matcher(haystack).find();
+    }
+
+    static String stripQuotes(String value) {
+        return value == null ? "" : value.replace("\"", "").replace("'", "").trim();
     }
 
     /** A single letter that names one of the options by position: A for the first, B the second. */

@@ -141,8 +141,17 @@ class GeneratorEvalRunner {
         });
 
         record("dailyWords", () -> {
-            List<Map<String, Object>> words = parseWordList(
-                    dailyWordsService.generateDailyWordsPayload(LocalDate.now()));
+            // Kept as a raw string first: when the payload will not parse, the parse error
+            // alone says nothing about what the generator actually sent, and the run has
+            // already been paid for. The text itself is the evidence.
+            String raw = dailyWordsService.generateDailyWordsPayload(LocalDate.now());
+            List<Map<String, Object>> words;
+            try {
+                words = parseWordList(raw);
+            } catch (Exception e) {
+                return new Outcome(
+                        List.of("payload is not valid JSON: " + e.getMessage()), raw);
+            }
             return new Outcome(GeneratorChecks.dailyWordsFailures(words), words);
         });
 
