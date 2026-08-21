@@ -423,9 +423,11 @@ class AiProxyServiceTest {
         // A targetWord is what lets an answer reach the review scheduler, so a false one
         // credits the learner's saved word for a question that tested a different one.
         String payload = "{\"topic\":\"present perfect\",\"questions\":["
-                + "{\"question\":\"The project has ---- many changes.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "{\"question\":\"The project has ---- many changes.\","
+                + "\"options\":[\"included\",\"include\",\"includes\",\"including\"],"
                 + "\"correctAnswer\":\"included\",\"targetWord\":\"mitigate\"},"
-                + "{\"question\":\"They have ---- the risk.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "{\"question\":\"They have ---- the risk.\","
+                + "\"options\":[\"mitigated\",\"mitigate\",\"mitigates\",\"mitigating\"],"
                 + "\"correctAnswer\":\"mitigated\",\"targetWord\":\"mitigate\"},"
                 + "{\"question\":\"She has ---- it.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
                 + "\"correctAnswer\":\"a\",\"targetWord\":\"\"}]}";
@@ -441,5 +443,30 @@ class AiProxyServiceTest {
         assertEquals("", ((Map<?, ?>) questions.get(0)).get("targetWord"));
         // The word really is in the answer here, so the credit is genuine and stays.
         assertEquals("mitigate", ((Map<?, ?>) questions.get(1)).get("targetWord"));
+    }
+
+    @Test
+    void grammarQuiz_ShouldDropAQuestionWhoseAnswerIsNotOffered() {
+        // The learner cannot pick what is not there. The quiz screen already discards these;
+        // doing it here means the retry can compensate instead of the quiz quietly shrinking
+        // on the device.
+        String payload = "{\"topic\":\"past simple\",\"questions\":["
+                + "{\"question\":\"Q1 ---- gap.\",\"options\":[\"insights\",\"insighted\",\"insight\",\"insightfully\"],"
+                + "\"correctAnswer\":\"insightful\",\"targetWord\":\"\"},"
+                + "{\"question\":\"Q2 ---- gap.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"a\",\"targetWord\":\"\"},"
+                + "{\"question\":\"Q3 ---- gap.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"b\",\"targetWord\":\"\"},"
+                + "{\"question\":\"Q4 ---- gap.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"c\",\"targetWord\":\"\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "past simple", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of());
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        assertEquals(3, questions.size());
+        assertEquals("Q2 ---- gap.", ((Map<?, ?>) questions.get(0)).get("question"));
     }
 }

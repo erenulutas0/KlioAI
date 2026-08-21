@@ -500,6 +500,18 @@ Format:
                     changed = true;
                     continue;
                 }
+                // Unanswerable: the learner cannot pick what is not offered. The eval saw
+                // correctAnswer "insightful" against options [insights, insighted, insight,
+                // insightfully]. The quiz screen already discards these, so dropping them
+                // here is not a new behaviour - it is the same decision made where the
+                // retry can still compensate, instead of silently shrinking the quiz on
+                // the device.
+                if (!answerIsOffered(map.get("options"), map.get("correctAnswer"))) {
+                    logger.warn("GRAMMAR_QUIZ_DROPPED reason=answer-not-in-options answer={} options={}",
+                            map.get("correctAnswer"), map.get("options"));
+                    changed = true;
+                    continue;
+                }
                 // A targetWord the question never uses credits the learner's saved word for
                 // a question that tested a different one - the eval caught "mitigate"
                 // attached to a question whose answer was "included". The question itself is
@@ -526,6 +538,18 @@ Format:
         Map<String, Object> repaired = new HashMap<>(result.json());
         repaired.put("questions", kept);
         return new AiJsonResult(repaired, result.totalTokens(), result.promptTokens(), result.completionTokens());
+    }
+
+    private static boolean answerIsOffered(Object rawOptions, Object rawAnswer) {
+        if (!(rawOptions instanceof java.util.List<?> options) || options.isEmpty()) {
+            return true;
+        }
+        String answer = rawAnswer == null ? "" : rawAnswer.toString().trim();
+        if (answer.isEmpty()) {
+            return false;
+        }
+        return options.stream()
+                .anyMatch(option -> option != null && option.toString().trim().equalsIgnoreCase(answer));
     }
 
     private static boolean hasDuplicateOptions(Object raw) {
