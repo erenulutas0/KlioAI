@@ -342,13 +342,41 @@ public class DailyWordsService {
      */
     private static Exception unparseable(Exception cause, String raw) {
         String text = raw == null ? "" : raw;
-        String excerpt = text.length() <= 1200
-                ? text
-                : text.substring(0, 600) + " ...[" + (text.length() - 1200) + " chars]... "
-                        + text.substring(text.length() - 600);
         return new IllegalStateException(
-                "Daily words payload did not parse (" + cause.getMessage() + "); model returned: " + excerpt,
+                "Daily words payload did not parse (" + cause.getMessage() + "); model returned: "
+                        + excerptAround(text, damageColumn(cause)),
                 cause);
+    }
+
+    /** Where the parser gave up, or -1 if it did not say. */
+    private static int damageColumn(Exception cause) {
+        if (cause instanceof com.fasterxml.jackson.core.JsonProcessingException json
+                && json.getLocation() != null) {
+            return json.getLocation().getColumnNr();
+        }
+        return -1;
+    }
+
+    /**
+     * A window onto the break, not the two ends of the payload.
+     *
+     * <p>The first version of this printed the head and tail. The one failure it was
+     * written for broke at column 856 of a 3400-character line - squarely inside the part
+     * that had been elided. A diagnostic that cannot show the damage is not a diagnostic.
+     */
+    private static String excerptAround(String text, int column) {
+        if (text.length() <= 1200) {
+            return text;
+        }
+        if (column <= 0 || column > text.length()) {
+            return text.substring(0, 600) + " ...[" + (text.length() - 1200) + " chars]... "
+                    + text.substring(text.length() - 600);
+        }
+        int from = Math.max(0, column - 600);
+        int to = Math.min(text.length(), column + 600);
+        return (from > 0 ? "...[" + from + " chars]... " : "")
+                + text.substring(from, to)
+                + (to < text.length() ? " ...[" + (text.length() - to) + " chars]..." : "");
     }
 
     private List<Map<String, Object>> decodeWordsList(String payloadJson) {

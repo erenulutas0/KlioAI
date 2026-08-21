@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -211,5 +212,28 @@ class DailyWordsServiceTest {
         assertEquals(5, words.size());
         assertEquals("privacy", words.get(0).get("word"));
         verify(dailyContentRepository).save(any(DailyContent.class));
+    }
+
+    @Test
+    void anUnparseablePayloadReportsTheTextAroundTheBreak() throws Exception {
+        // The caller logs e.toString(). Without the payload that leaves "Unexpected
+        // character (':')" and nothing to act on - the prompt cannot be fixed from a
+        // parser's opinion of the damage. The first version of this printed the head and
+        // tail of the payload, and the failure it was written for broke at column 856 of a
+        // 3400-character line: squarely inside the part that had been elided.
+        String filler = "x".repeat(800);
+        String broken = "{\"words\":[\"" + filler + "\", \"marker-HERE\": \"oops\"], \"tail\":\"" 
+                + "y".repeat(800) + "\"}";
+
+        java.lang.reflect.Method parse = DailyWordsService.class
+                .getDeclaredMethod("parseLenientJsonObject", String.class);
+        parse.setAccessible(true);
+
+        Exception thrown = assertThrows(java.lang.reflect.InvocationTargetException.class,
+                () -> parse.invoke(dailyWordsService, broken));
+        String message = thrown.getCause().getMessage();
+
+        assertTrue(message.contains("marker-HERE"), message);
+        assertTrue(message.contains("chars]"), "expected the payload to be elided: " + message);
     }
 }
