@@ -284,8 +284,17 @@ public class DailyWordsService {
             requireNonBlank(wordNode, "pronunciation");
             requireNonBlank(wordNode, "translation");
             JsonNode meanings = wordNode.get("meanings");
-            if (meanings == null || !meanings.isArray() || meanings.size() < 2) {
-                throw new IllegalStateException("AI daily words payload needs at least 2 meanings for: " + word);
+            if (meanings == null || !meanings.isArray() || meanings.isEmpty()) {
+                throw new IllegalStateException("AI daily words payload has no meanings for: " + word);
+            }
+            // Two were required here, and the eval watched a whole day of words be thrown
+            // away twice running because "stadium" came back with one - which is how many
+            // meanings "stadium" has. Four good words discarded for one honest answer, and
+            // the learner silently served canned fallback words instead. The card already
+            // handles a single sense: it shows the part of speech where the sense count
+            // would go. Worth knowing about, not worth losing the day over.
+            if (meanings.size() < 2) {
+                log.info("Daily word has a single meaning: {}", word);
             }
             for (JsonNode meaning : meanings) {
                 requireNonBlank(meaning, "translation");

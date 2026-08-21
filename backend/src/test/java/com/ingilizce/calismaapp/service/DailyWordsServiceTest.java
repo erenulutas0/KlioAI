@@ -1,5 +1,6 @@
 package com.ingilizce.calismaapp.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.entity.DailyContent;
 import com.ingilizce.calismaapp.repository.DailyContentRepository;
@@ -18,6 +19,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -235,5 +238,63 @@ class DailyWordsServiceTest {
 
         assertTrue(message.contains("marker-HERE"), message);
         assertTrue(message.contains("chars]"), "expected the payload to be elided: " + message);
+    }
+
+    @Test
+    void aWordWithOneHonestMeaningIsKept() throws Exception {
+        // Two were required, and a live eval run watched a whole day of words thrown away
+        // twice running because "stadium" came back with one - which is how many meanings
+        // "stadium" has. Four good words discarded for one honest answer, and the learner
+        // silently served canned fallback words. The card already shows the part of speech
+        // where a sense count would go.
+        JsonNode words = new ObjectMapper().readTree("""
+                [{"id":1,"word":"stadium","pronunciation":"/steidiem/","translation":"stadyum",
+                  "meanings":[{"translation":"stadyum","sense":"a sports ground",
+                    "exampleSentence":"The stadium was full.","exampleTranslation":"Stadyum doluydu."}],
+                  "partOfSpeech":"Noun","definition":"A sports ground.",
+                  "exampleSentence":"The stadium was full.","exampleTranslation":"Stadyum doluydu.",
+                  "synonyms":["arena"],"difficulty":"Easy"},
+                 {"id":2,"word":"commute","pronunciation":"/kemyu:t/","translation":"işe gidip gelmek",
+                  "meanings":[{"translation":"işe gidip gelmek","sense":"travel to work",
+                    "exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidiyorsun?"},
+                   {"translation":"yolculuk","sense":"the regular trip",
+                    "exampleSentence":"Her commute takes an hour.","exampleTranslation":"Yolculuğu bir saat sürüyor."}],
+                  "partOfSpeech":"Verb","definition":"Travel to work.",
+                  "exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidiyorsun?",
+                  "synonyms":["travel"],"difficulty":"Medium"}]
+                """);
+
+        assertDoesNotThrow(() -> invokeValidate(words));
+    }
+
+    @Test
+    void aWordWithNoMeaningsAtAllIsStillRejected() {
+        // The floor moved from two to one, not to zero: an entry with no senses has nothing
+        // to teach and the card would render an empty body.
+        assertThrows(Exception.class, () -> invokeValidate(new ObjectMapper().readTree("""
+                [{"id":1,"word":"stadium","pronunciation":"/steidiem/","translation":"stadyum",
+                  "meanings":[],"partOfSpeech":"Noun","definition":"A sports ground.",
+                  "exampleSentence":"The stadium was full.","exampleTranslation":"Stadyum doluydu.",
+                  "synonyms":["arena"],"difficulty":"Easy"},
+                 {"id":2,"word":"commute","pronunciation":"/kemyu:t/","translation":"işe gidip gelmek",
+                  "meanings":[{"translation":"işe gidip gelmek","sense":"travel to work",
+                    "exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidiyorsun?"},
+                   {"translation":"yolculuk","sense":"the regular trip",
+                    "exampleSentence":"Her commute takes an hour.","exampleTranslation":"Yolculuğu bir saat sürüyor."}],
+                  "partOfSpeech":"Verb","definition":"Travel to work.",
+                  "exampleSentence":"Do you commute by train?","exampleTranslation":"İşe trenle mi gidiyorsun?",
+                  "synonyms":["travel"],"difficulty":"Medium"}]
+                """)));
+    }
+
+    private void invokeValidate(JsonNode words) throws Exception {
+        java.lang.reflect.Method validate = DailyWordsService.class.getDeclaredMethod(
+                "validateDailyWordsPayload", JsonNode.class, java.util.Set.class);
+        validate.setAccessible(true);
+        try {
+            validate.invoke(dailyWordsService, words, java.util.Set.<String>of());
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw (Exception) e.getCause();
+        }
     }
 }
