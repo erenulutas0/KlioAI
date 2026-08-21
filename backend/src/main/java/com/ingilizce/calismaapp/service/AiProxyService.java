@@ -390,8 +390,12 @@ LEVEL RULE: %s
 REQUIREMENTS:
 - Exactly 5 multiple-choice questions testing ONLY this grammar topic.
 - Each question: a sentence with a gap marked ---- (or an error-spotting question at B2+).
-- Exactly 4 options; exactly one is grammatically correct in context.
+- Exactly 4 options, and all four must be DIFFERENT strings. Never repeat an option.
+- Exactly one is grammatically correct in context.
 - Distractors must be plausible mistakes learners actually make on this topic.
+- If the grammar point admits only one natural form of the target word, build the three
+  distractors from its other forms - base, -s, -ing, past, past participle - or from a
+  different word entirely. Four identical options is not a question.
 - "explanation" must state why the correct option is right AND why the closest distractor is wrong, written in the learner's feedback language per the policy above.
 - Do not repeat the same tested sub-rule twice.
 

@@ -104,7 +104,38 @@ class GeneratorChecksTest {
 
         List<String> failures = GeneratorChecks.grammarQuizFailures(payload, List.of("mitigate"), "B1");
 
-        assertTrue(failures.toString().contains("does not contain it"), failures.toString());
+        assertTrue(failures.toString().contains("neither the question nor the answer uses it"),
+                failures.toString());
+    }
+
+    @Test
+    void aFillInTheBlankWhoseAnswerIsTheTargetWordPasses() {
+        // Found by the second live eval run. The prompt allows the target word to be the
+        // answer when the word itself is what the question tests, and then the stem shows
+        // a gap instead of the word. The first version of this check demanded the word in
+        // the stem, so it failed every correctly built question of this shape.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "I have ---- the report before the meeting.",
+                "options", List.of("delayed", "delay", "delaying", "delays"),
+                "correctAnswer", "delayed",
+                "targetWord", "delay")));
+
+        assertEquals(List.of(), GeneratorChecks.grammarQuizFailures(payload, List.of("delay"), "B1"));
+    }
+
+    @Test
+    void fourIdenticalOptionsAreCaught() {
+        // Shipped to learners as four identical buttons. The client only checks that the
+        // correct answer is among the options, which duplicates satisfy, so nothing
+        // downstream rejected it.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "I have ---- the report before the meeting.",
+                "options", List.of("delayed", "delayed", "delayed", "delayed"),
+                "correctAnswer", "delayed",
+                "targetWord", "delay")));
+
+        assertTrue(GeneratorChecks.grammarQuizFailures(payload, List.of("delay"), "B1")
+                .toString().contains("duplicate options"));
     }
 
     @Test

@@ -134,11 +134,19 @@ public final class GeneratorChecks {
                 failures.add("question " + index + ": duplicate options " + options);
             }
             // targetWord is what lets a right or wrong answer reach the review scheduler. If
-            // the model claims one, the question has to actually use it.
+            // the model claims one, the question has to actually use it — but "use it" has
+            // two legal shapes, and the first version of this check only allowed one. The
+            // prompt says the word belongs in the sentence "unless the word itself is what
+            // the question tests", and in that case the stem shows a ---- gap and the word
+            // is the answer. Demanding it in the stem failed every correctly built
+            // fill-in-the-blank on the learner's own vocabulary.
             String target = text(question, "targetWord");
-            if (!target.isBlank() && !containsWordStem(prompt, target)) {
+            if (!target.isBlank()
+                    && !containsWordStem(prompt, target)
+                    && !containsWordStem(correct, target)) {
                 failures.add("question " + index + ": claims targetWord \"" + target
-                        + "\" but the question does not contain it — \"" + prompt + "\"");
+                        + "\" but neither the question nor the answer uses it — \"" + prompt
+                        + "\" / \"" + correct + "\"");
             }
             if (!target.isBlank() && !requestedVocabulary.isEmpty()
                     && requestedVocabulary.stream().noneMatch(v -> v.equalsIgnoreCase(target))) {
