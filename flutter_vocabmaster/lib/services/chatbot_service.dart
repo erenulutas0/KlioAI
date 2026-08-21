@@ -142,6 +142,13 @@ class ChatbotService {
         focusWords: focusWords,
         variant: variant,
       );
+      // The backend marks its stand-in payload, which is three fixed B2 sentences that
+      // contain none of the learner's words. Passing them through put canned text under the
+      // heading "Kelimelerinden metin" with the tip "this text uses your selected words",
+      // and it overwrote the sentence the screen had already built from those words. The
+      // empty result keeps that sentence, so the learner still practises - on a text that
+      // actually contains their vocabulary, under a label that is true.
+      if (result['fallback'] == true) return const [];
       final texts = result['texts'];
       if (texts is! List) return const [];
       final seen = <String>{};

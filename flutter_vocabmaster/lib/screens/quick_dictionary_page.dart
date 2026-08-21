@@ -6,6 +6,7 @@ import '../widgets/bottom_nav.dart';
 import '../services/groq_service.dart';
 import '../services/api_service.dart';
 import '../services/ai_error_message_formatter.dart';
+import '../utils/sentence_tokens.dart';
 import '../services/ai_paywall_handler.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/modern_background.dart';
@@ -920,16 +921,12 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
   }
 
   Widget _buildInteractiveSentence(String sentence) {
-    final words = sentence.split(RegExp(r'(\s+)')); // Boşlukları koru
-    final searchedWordLower = _searchedWord.toLowerCase();
+    final words = SentenceTokens.split(sentence);
 
     return Wrap(
       children: words.map((word) {
-        // Kelimeyi ve noktalama işaretlerini ayır
-        final cleanWord = word.replaceAll(RegExp(r'[^\w]'), '').toLowerCase();
-        final isHighlighted = cleanWord == searchedWordLower ||
-            searchedWordLower.contains(cleanWord) ||
-            cleanWord.contains(searchedWordLower);
+        final cleanWord = SentenceTokens.word(word);
+        final isHighlighted = SentenceTokens.isSearched(cleanWord, _searchedWord);
 
         // Sadece boşluk ise
         if (word.trim().isEmpty) {

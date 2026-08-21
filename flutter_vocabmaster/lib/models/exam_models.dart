@@ -36,6 +36,9 @@ class ExamMeta {
   final int timeLimitMinutes;
   final int totalQuestions;
 
+  /// Which category this exam drew from - grammar, vocabulary, reading.
+  final String? category;
+
   ExamMeta({
     required this.exam,
     required this.mode,
@@ -44,12 +47,18 @@ class ExamMeta {
     this.targetScoreBand,
     required this.timeLimitMinutes,
     required this.totalQuestions,
+    this.category,
   });
 
   factory ExamMeta.fromJson(Map<String, dynamic> json) {
     return ExamMeta(
       exam: json['exam'],
       mode: json['mode'],
+      // The only field that actually varies between one exam and the next: "exam" is fixed
+      // at the single call site and "mode" is a literal in the prompt. Dropping it collapsed
+      // the XP idempotency key to one string per day, so the second and third exam a learner
+      // sat earned nothing and the result screen looked identical to the first.
+      category: json['category'],
       track: json['track'],
       userLevelCefr: json['user_level_cefr'],
       targetScoreBand: json['target_score_band'],

@@ -73,7 +73,12 @@ class _ExamRunnerPageState extends State<ExamRunnerPage> {
     unawaited(context.read<AppStateProvider>().addXPForAction(
           XPActionTypes.examComplete,
           source: 'Sınav Simülasyonu',
-          transactionId: 'exam_${meta.exam}_${meta.mode}_$today',
+          // Keyed on the category too. Without it every exam sat on one day produced the
+          // same transaction id, so only the first was ever rewarded: grammar then
+          // vocabulary then reading earned 20 XP instead of 60, the later ones silently
+          // returning zero while the result screen looked exactly the same.
+          transactionId:
+              'exam_${meta.exam}_${meta.mode}_${meta.category ?? 'none'}_$today',
         ));
     Navigator.pushReplacement(
       context,
