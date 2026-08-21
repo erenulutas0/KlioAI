@@ -385,6 +385,9 @@ LEARNER'S OWN VOCABULARY: %s
 - The word belongs in the sentence, not in the answer options, unless the word itself is
   what the question tests.
 - Inflect it as the sentence requires; do not force the dictionary form in.
+- Inflection only - the same word in a different grammatical form. Do not swap in a
+  different part of speech derived from it ("resilience" for "resilient"), because the
+  learner's saved word is the one that gets credited for the answer.
 - If a word cannot carry this grammar point naturally, leave it out and use a neutral word.
   A forced sentence teaches the learner a mistake.
 - Set "targetWord" to the exact vocabulary word the question was built on, or "" if none.
@@ -438,7 +441,58 @@ Format:
         );
 
         String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
-        return callJson(system, prompt, 1200, 0.7, "grammar-quiz");
+        return dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+    }
+
+    /**
+     * Removes questions whose options are not four distinct choices.
+     *
+     * <p>The offline eval caught the quiz shipping questions with four identical options -
+     * "I have ---- the report." with ["delayed","delayed","delayed","delayed"] - as four
+     * identical buttons on the learner's screen. Nothing downstream rejected it: the client
+     * only checks that the correct answer is among the options, which duplicates satisfy.
+     *
+     * <p>The prompt now demands four different strings and that removed most of it, but a
+     * prompt is a request to a probabilistic system, not a guarantee, and the eval still
+     * sees one slip through per few runs. Four good questions beat five with an
+     * unanswerable one, and the client already renders however many it is given.
+     */
+    private AiJsonResult dropUnanswerableQuestions(AiJsonResult result) {
+        if (result == null || result.json() == null) {
+            return result;
+        }
+        Object raw = result.json().get("questions");
+        if (!(raw instanceof java.util.List<?> questions) || questions.isEmpty()) {
+            return result;
+        }
+        java.util.List<Object> kept = new java.util.ArrayList<>();
+        for (Object question : questions) {
+            if (question instanceof Map<?, ?> map && hasDuplicateOptions(map.get("options"))) {
+                logger.warn("GRAMMAR_QUIZ_DROPPED reason=duplicate-options question={}", map.get("question"));
+                continue;
+            }
+            kept.add(question);
+        }
+        if (kept.size() == questions.size()) {
+            return result;
+        }
+        Map<String, Object> repaired = new HashMap<>(result.json());
+        repaired.put("questions", kept);
+        return new AiJsonResult(repaired, result.totalTokens(), result.promptTokens(), result.completionTokens());
+    }
+
+    private static boolean hasDuplicateOptions(Object raw) {
+        if (!(raw instanceof java.util.List<?> options)) {
+            return false;
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Object option : options) {
+            String value = option == null ? "" : option.toString().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!seen.add(value)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public AiJsonResult generateWritingTopic(String level, String wordCount) {

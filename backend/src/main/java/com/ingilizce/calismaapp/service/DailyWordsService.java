@@ -314,10 +314,33 @@ public class DailyWordsService {
             int end = raw.lastIndexOf('}');
             if (start >= 0 && end > start) {
                 String sliced = raw.substring(start, end + 1);
-                return objectMapper.readTree(sliced);
+                try {
+                    return objectMapper.readTree(sliced);
+                } catch (Exception stillBroken) {
+                    throw unparseable(stillBroken, raw);
+                }
             }
-            throw ignored;
+            throw unparseable(ignored, raw);
         }
+    }
+
+    /**
+     * Carries what the model sent, not only that it was wrong.
+     *
+     * <p>The caller logs {@code e.toString()}. Without the content that leaves
+     * "Unexpected character (':')" and nothing to act on: the prompt cannot be fixed from
+     * a parser's opinion of the damage. Bounded because this reaches the logs, and the
+     * head and tail are where truncation and stray braces show up.
+     */
+    private static Exception unparseable(Exception cause, String raw) {
+        String text = raw == null ? "" : raw;
+        String excerpt = text.length() <= 1200
+                ? text
+                : text.substring(0, 600) + " ...[" + (text.length() - 1200) + " chars]... "
+                        + text.substring(text.length() - 600);
+        return new IllegalStateException(
+                "Daily words payload did not parse (" + cause.getMessage() + "); model returned: " + excerpt,
+                cause);
     }
 
     private List<Map<String, Object>> decodeWordsList(String payloadJson) {
