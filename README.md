@@ -74,7 +74,7 @@ device.
 its own local evening, and only if there is something genuinely due and the learner has not
 already practised that day.
 
-Tests: 974 backend, 333 client. Generated content has its own harness: mechanical checks
+Tests: 904 backend, 323 client. Generated content has its own harness: mechanical checks
 run in the ordinary suite against payloads captured from real production failures, and a
 manually triggered workflow puts the four generators through a golden set of live calls
 before a prompt change ships.
@@ -229,7 +229,12 @@ storage and that release builds bundle no provider secrets.
 ## Status
 
 Published on Google Play and under active development. The current focus is retention and
-content quality: closing the loop between what learners report and what gets fixed, and
-extending the generator eval from mechanical checks — is this output usable — to judged
-ones, which is the part that needs a second model or a person. Mechanical checks can prove a
-question is answerable. They cannot tell you it is worth answering.
+content quality: closing the loop between what learners report and what gets fixed.
+
+The generator eval now has both halves. Mechanical checks gate the build — they are
+decidable, so a failure is a fact. A second model reads one sample from each generator and
+reports what a check cannot see, advisory only, because a build that goes red on an opinion
+gets switched off. That judge is itself calibrated against four payloads that really shipped
+broken and three that are fine, and if it cannot separate them the run says so and its
+verdicts are worthless. On its first pass it found a sentence no native speaker would write,
+a quiz question with two defensible answers, and an English word given an Italian meaning.
