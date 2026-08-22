@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -77,8 +78,20 @@ public class RedisConfig {
         return template;
     }
 
+    /**
+     * The qualifier is load-bearing, not decoration.
+     *
+     * <p>There are two {@link LettuceConnectionFactory} beans and this parameter is resolved
+     * by type. With two candidates Spring takes the {@code @Primary} one — the cache — unless
+     * something names which is wanted. Matching on the parameter name is not something to
+     * rely on: it needs parameter names retained at compile time, and it fails silently when
+     * they are not, which is exactly what happened. Everything downstream looked correct;
+     * the security Redis simply sat empty in production for months while quota counters and
+     * rate-limit state accumulated in an instance configured to evict them.
+     */
     @Bean(name = "securityStringRedisTemplate")
     public StringRedisTemplate securityStringRedisTemplate(
+            @Qualifier("securityRedisConnectionFactory")
             LettuceConnectionFactory securityRedisConnectionFactory) {
         StringRedisTemplate template = new StringRedisTemplate();
         template.setConnectionFactory(securityRedisConnectionFactory);

@@ -1,6 +1,7 @@
 # The security Redis is provisioned and unused
 
-**Status:** open, not urgent. Found 2026-08-22 while resetting a development quota.
+**Status:** fixed 2026-08-23. Found 2026-08-22 while resetting a development quota.
+Kept as the write-up of how it was found, because the shape recurs.
 
 ## What is wrong
 
@@ -84,3 +85,37 @@ answer, and it takes two minutes.
 `RedisConfig` now logs the two endpoints at startup and warns `REDIS_SECURITY_NOT_ISOLATED`
 when they are the same. That does not fix anything; it means the next person is told rather
 than having to find it while doing something else.
+
+## The cause
+
+The security template's factory parameter is resolved by type. Two
+`LettuceConnectionFactory` beans exist, so Spring took the `@Primary` one — the cache —
+because nothing named which was wanted:
+
+```java
+public StringRedisTemplate securityStringRedisTemplate(
+        LettuceConnectionFactory securityRedisConnectionFactory)   // resolved by TYPE
+```
+
+Every layer above this was correct and said so: the hostnames, DNS, the active profiles,
+and the startup line printing two distinct endpoints. The factory really was built against
+`app-redis-security`. The template just never received it.
+
+Adding `@Qualifier("securityRedisConnectionFactory")` to that parameter fixes it, and
+`RedisSecurityIsolationTest` fails without it — it was written first and reproduced the bug
+before the fix went in:
+
+```
+expected: <security-host.invalid> but was: <cache-host.invalid>
+```
+
+A related fact worth knowing: there is only one `StringRedisTemplate` bean in the context.
+Spring Boot's auto-configured one never appears, so all four security services share the
+single `securityStringRedisTemplate` — which is why one mis-resolved parameter moved every
+quota counter, rate limit and abuse record onto the cache at once.
+
+## What it cost
+
+Nothing yet — there are no users, and nine keys against a 256mb cap never triggered an
+eviction. Had traffic arrived first, quotas would have reset and rate-limit blocks lifted at
+random, with no error and no log line anywhere.
