@@ -311,7 +311,7 @@ Format (the values below are illustrative - replace them, keep the shape):
         // C1/C2 pasajlari 340-430 kelime + 3 soru (sik, aciklama, alinti) istiyor;
         // 1400 token bunun icin yetmiyordu ve yarim kalan JSON Groq'ta
         // json_validate_failed (400) ile reddediliyordu.
-        return dropFabricatedQuotes(callJson(system, prompt, 3000, 0.7, "reading-generate"));
+        return dropFabricatedQuotes(normalizeAnswerLetters(callJson(system, prompt, 3000, 0.7, "reading-generate")));
     }
 
     private String normalizeReadingLevel(String level) {
@@ -578,6 +578,32 @@ Format:
         }
         return false;
     }
+
+    /**
+     * Rewrites a reading answer given as option text into the letter the screen grades on.
+     *
+     * <p>The prompt now asks for the letter in as many words as it can, and the offline eval
+     * confirmed it. It is still only a request: the reading screen marks the option whose
+     * position-letter equals correctAnswer, so the one time the model writes out "Because the
+     * buses do not need a driver" instead of "C", no option matches and every answer the
+     * learner gives is graded wrong. That was seen on a real device against a passage
+     * generated before the prompt fix shipped.
+     *
+     * <p>The repair is decidable and lossless: if the answer is not a valid letter but does
+     * equal one of the options, that option's position is the letter. Nothing is guessed.
+     */
+    private AiJsonResult normalizeAnswerLetters(AiJsonResult result) {
+        if (result == null || result.json() == null) {
+            return result;
+        }
+        Map<String, Object> normalized = ReadingAnswers.normalize(result.json());
+        if (normalized == result.json()) {
+            return result;
+        }
+        logger.warn("READING_ANSWER_RELETTERED scope=reading-generate");
+        return new AiJsonResult(normalized, result.totalTokens(), result.promptTokens(), result.completionTokens());
+    }
+
 
     /**
      * Removes a correctAnswerQuote that is not actually in the passage.

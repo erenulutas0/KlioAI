@@ -237,7 +237,11 @@ public class DailyReadingService {
             return Map.of();
         }
         try {
-            return objectMapper.readValue(payloadJson, Map.class);
+            // Repaired on the way out, not only on the way in. A passage is generated once
+            // at 00:05 UTC and served from this cache all day, so a prompt fix that ships at
+            // noon does nothing for the learners using it today - and the defect it fixes
+            // marks every one of their answers wrong.
+            return ReadingAnswers.normalize(objectMapper.readValue(payloadJson, Map.class));
         } catch (Exception e) {
             return Map.of();
         }

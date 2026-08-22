@@ -467,4 +467,45 @@ class AiProxyServiceTest {
 
         assertEquals(3, ((List<?>) result.json().get("questions")).size());
     }
+
+    @Test
+    void readingPassage_ShouldRewriteAnAnswerGivenAsOptionTextIntoItsLetter() {
+        // Seen on a real device: question answered correctly, marked wrong, and the
+        // explanation underneath confirming the choice. The screen grades by the option's
+        // position letter, so an answer written out in full matches nothing and every answer
+        // the learner gives is wrong. The prompt asks for the letter; this makes it true.
+        String payload = "{\"title\":\"T\",\"text\":\"Smart buses use electric power.\",\"questions\":["
+                + "{\"question\":\"What power?\",\"options\":[\"Gasoline\",\"Electric\",\"Diesel\",\"Steam\"],"
+                + "\"correctAnswer\":\"Electric\"},"
+                + "{\"question\":\"Already a letter?\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"C\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(
+                "A2", LearningLanguageProfile.defaultProfile(), 200, 0);
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        // "Electric" is the second option, so B.
+        assertEquals("B", ((Map<?, ?>) questions.get(0)).get("correctAnswer"));
+        // A real letter is left exactly as it is.
+        assertEquals("C", ((Map<?, ?>) questions.get(1)).get("correctAnswer"));
+    }
+
+    @Test
+    void readingPassage_ShouldLeaveAnAnswerThatMatchesNoOptionAlone() {
+        // Nothing is guessed. An answer that is neither a letter nor one of the options is a
+        // different defect, and the eval reports it rather than this quietly inventing one.
+        String payload = "{\"title\":\"T\",\"text\":\"Some text.\",\"questions\":["
+                + "{\"question\":\"Q?\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"something else entirely\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateReadingPassage(
+                "A2", LearningLanguageProfile.defaultProfile(), 200, 0);
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        assertEquals("something else entirely", ((Map<?, ?>) questions.get(0)).get("correctAnswer"));
+    }
 }
