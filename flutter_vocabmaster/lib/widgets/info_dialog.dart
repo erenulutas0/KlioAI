@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import 'modern_card.dart';
 import 'modern_background.dart';
 
@@ -76,8 +78,8 @@ class InfoDialog {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    const Text(
-                                      'Nasıl kullanılır?',
+                                    Text(
+                                      context.tr('info.howToUse'),
                                       style: TextStyle(
                                         color: Colors.white54,
                                         fontSize: 12,
@@ -151,9 +153,9 @@ class InfoDialog {
                               borderRadius: BorderRadius.circular(16),
                               showGlow: true,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'Anladım, Başlayalım!',
+                                  context.tr('info.gotIt'),
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 15,

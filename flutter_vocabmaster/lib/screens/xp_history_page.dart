@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import '../services/local_database_service.dart';
 import '../widgets/animated_background.dart';
 
@@ -57,8 +59,8 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'XP Geçmişi',
+                      Text(
+                        context.tr('xp.history.title'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -87,12 +89,12 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
                         if (items.isEmpty) {
                           return ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 120),
+                            children: [
+                              const SizedBox(height: 120),
                               Center(
                                 child: Text(
-                                  'Henüz XP kaydı yok.',
-                                  style: TextStyle(color: Colors.white70),
+                                  context.tr('xp.history.empty'),
+                                  style: const TextStyle(color: Colors.white70),
                                 ),
                               ),
                             ],

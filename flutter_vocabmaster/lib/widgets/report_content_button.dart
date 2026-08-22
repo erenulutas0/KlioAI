@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../services/support_ticket_service.dart';
@@ -55,14 +57,14 @@ class ReportContentButton extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(isTurkish ? 'Bu içerik hatalı mı?' : 'Is this content wrong?'),
+        title: Text(isTurkish ? context.tr('report.prompt') : 'Is this content wrong?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               isTurkish
-                  ? 'İçerik bize otomatik olarak iletilecek. İstersen kısaca neyin yanlış olduğunu yazabilirsin.'
+                  ? context.tr('report.explainer')
                   : 'The content is sent automatically. You can add a word about what is wrong if you like.',
               style: const TextStyle(fontSize: 13),
             ),
@@ -73,7 +75,7 @@ class ReportContentButton extends StatelessWidget {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: isTurkish
-                    ? 'Örn: cümle anlamsız, çeviri yanlış'
+                    ? context.tr('report.hint')
                     : 'e.g. the sentence makes no sense',
                 border: const OutlineInputBorder(),
               ),
@@ -83,7 +85,7 @@ class ReportContentButton extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(isTurkish ? 'Vazgeç' : 'Cancel'),
+            child: Text(isTurkish ? context.tr('report.cancel') : 'Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -122,13 +124,13 @@ class ReportContentButton extends StatelessWidget {
       );
       messenger.showSnackBar(SnackBar(
         content: Text(isTurkish
-            ? 'Teşekkürler, bildirimin bize ulaştı.'
+            ? context.tr('report.thanks')
             : 'Thank you — your report reached us.'),
       ));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
         content: Text(isTurkish
-            ? 'Bildirim gönderilemedi, daha sonra tekrar dene.'
+            ? context.tr('report.failed')
             : 'The report could not be sent, please try again later.'),
       ));
     }
@@ -146,7 +148,7 @@ class ReportContentButton extends StatelessWidget {
           size: 18,
           color: Colors.white.withValues(alpha: 0.45),
         ),
-        tooltip: isTurkish ? 'Hatalı içerik bildir' : 'Report wrong content',
+        tooltip: isTurkish ? context.tr('report.action') : 'Report wrong content',
         // Deliberately understated. This should be findable when something is wrong and
         // invisible when nothing is.
         visualDensity: VisualDensity.compact,
@@ -157,7 +159,7 @@ class ReportContentButton extends StatelessWidget {
       onPressed: () => _report(context),
       icon: const Icon(Icons.flag_outlined, size: 16),
       label: Text(
-        isTurkish ? 'Hatalı içerik bildir' : 'Report wrong content',
+        isTurkish ? context.tr('report.action') : 'Report wrong content',
         style: const TextStyle(fontSize: 12),
       ),
     );

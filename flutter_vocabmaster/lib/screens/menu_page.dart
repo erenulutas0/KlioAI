@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import '../widgets/animated_background.dart';
 import 'profile_page.dart';
 
@@ -17,8 +19,8 @@ class MenuPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Menü',
+                  Text(
+                    context.tr('menu.title'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -34,7 +36,7 @@ class MenuPage extends StatelessWidget {
                     );
                   }),
                   _buildMenuItem(context, Icons.settings, 'Ayarlar', () {}),
-                  _buildMenuItem(context, Icons.info, 'Hakkında', () {}),
+                  _buildMenuItem(context, Icons.info, context.tr('menu.about'), () {}),
                 ],
               ),
             ),
