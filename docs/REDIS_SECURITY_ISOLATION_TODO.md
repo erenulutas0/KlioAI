@@ -45,9 +45,28 @@ Not urgent today because there are no users — the main instance holds nine key
   backend logs — the security template connects successfully, just not to the security
   instance.
 
-So `securityRedisHost` is resolving to the main host, which means the `@Value` default in
-`RedisConfig` — `${spring.data.redis.security.host:${spring.data.redis.host}}` — is being
-taken even though the property is set. The reason for that is the open question.
+**Ruled out on 2026-08-23.** The startup line added below printed, in production:
+
+```
+Redis split: cache=app-redis-main:6379/0 security=app-redis-security:6379/0
+```
+
+So the property resolves correctly and the security connection factory is built against the
+right host. The earlier theory — that the `@Value` default was being taken — is wrong.
+
+That leaves two candidates, and they are distinguishable:
+
+1. The bean injected into the four services is not `securityStringRedisTemplate`. Spring
+   Boot auto-configures its own `StringRedisTemplate` on the `@Primary` factory, so two
+   beans of that type exist; if the `@Qualifier` is not being honoured, the services get the
+   cache one. Note the constructors carry `@Autowired(required = false)` on the *parameter*
+   alongside the `@Qualifier`, which is unusual enough to be worth suspecting.
+2. Something writes those keys that is not one of the four services. Ruled unlikely: the
+   prefixes are private constants and grep finds no other writer.
+
+**The decisive test**, which has not been run yet: make one AI call through the app, then
+scan both instances for `ai:tokens:day:*`. Whichever instance the new key lands in is the
+answer, and it takes two minutes.
 
 ## Where to look next
 
