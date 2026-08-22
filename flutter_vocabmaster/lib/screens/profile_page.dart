@@ -108,6 +108,13 @@ class _ProfilePageState extends State<ProfilePage> {
   int _aiTokensRemaining = 0;
   double _aiRemainingRatio = 1.0;
   String? _aiQuotaDateUtc;
+
+  /// The plan the server is actually billing and metering against.
+  ///
+  /// The header used to work this out from a separately loaded subscriptionEndDate, so the
+  /// same screen could show "PRO Member" above a panel reading 0/8000 - the free tier. The
+  /// quota response already carries the answer and refreshes; the date did not.
+  String? _aiPlanCode;
   Map<String, int>? _aiActivityEstimates;
 
   // BYOK (Bring Your Own Key) State
@@ -384,6 +391,14 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   bool _hasActiveSubscription() {
+    // The server's own answer, when we have it. It comes from the same entitlement the
+    // quota is metered against, so the badge and the token panel can no longer disagree
+    // on this screen - which they did: "PRO Member" above "0 / 8000".
+    final planCode = _aiPlanCode?.trim().toUpperCase();
+    if (planCode != null && planCode.isNotEmpty && planCode != 'UNKNOWN') {
+      return planCode != 'FREE' && planCode != 'FREE_TRIAL_7D';
+    }
+
     final explicitActive = _user?['isActive'] ?? _user?['isSubscriptionActive'];
     if (explicitActive is bool && explicitActive == true) {
       return true;
@@ -404,8 +419,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final parsed = DateTime.tryParse(value);
     if (parsed == null) {
-      // Keep backward compatibility when backend sends non-ISO date text.
-      return true;
+      // A date we cannot read is not evidence of a subscription. This used to return true
+      // "for backward compatibility", which grants the badge on malformed data - the same
+      // shape as the translation check that defaulted to "correct" when it could not read
+      // the reply. The quota panel is the honest source and it is checked first.
+      return false;
     }
 
     final now = parsed.isUtc ? DateTime.now().toUtc() : DateTime.now();
@@ -473,6 +491,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _aiTokensRemaining = remaining;
           _aiRemainingRatio = ratio;
           _aiQuotaDateUtc = data['dateUtc']?.toString();
+          _aiPlanCode = data['planCode']?.toString();
           _aiActivityEstimates = estimates;
           _aiQuotaError = null;
           _isAiQuotaLoading = false;
