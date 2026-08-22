@@ -18,6 +18,9 @@ import java.time.Duration;
 @Configuration
 public class RedisConfig {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(RedisConfig.class);
+
     @Value("${spring.data.redis.host}")
     private String redisHost;
 
@@ -81,6 +84,38 @@ public class RedisConfig {
         template.setConnectionFactory(securityRedisConnectionFactory);
         template.afterPropertiesSet();
         return template;
+    }
+
+    /**
+     * Says out loud when the security Redis is not actually being used.
+     *
+     * <p>There are two instances on purpose. The main one runs {@code allkeys-lru} and is a
+     * cache: under memory pressure it drops whatever was least recently touched. The
+     * security one runs {@code noeviction} because what lives there must never disappear -
+     * daily AI token counters, auth rate-limit state, trial-abuse records. A counter that
+     * silently vanishes resets a learner's quota; a rate-limit block that vanishes unblocks
+     * whoever it was holding back.
+     *
+     * <p>On 2026-08-22 the security instance was found completely empty in production while
+     * every one of those keys sat in the main one, with correct hostnames in the container
+     * environment, correct DNS, and no connection error in the logs. Nothing anywhere said
+     * so. This log line is the thing that would have said so on the first boot.
+     */
+    @jakarta.annotation.PostConstruct
+    void reportWhereSecurityStateIsActuallyGoing() {
+        boolean sameEndpoint = redisHost.equals(securityRedisHost)
+                && redisPort == securityRedisPort
+                && redisDatabase == securityRedisDatabase;
+        if (sameEndpoint) {
+            log.warn("REDIS_SECURITY_NOT_ISOLATED host={} port={} db={} -"
+                            + " quota counters, rate limits and abuse records are sharing the"
+                            + " cache instance and can be evicted under memory pressure",
+                    securityRedisHost, securityRedisPort, securityRedisDatabase);
+        } else {
+            log.info("Redis split: cache={}:{}/{} security={}:{}/{}",
+                    redisHost, redisPort, redisDatabase,
+                    securityRedisHost, securityRedisPort, securityRedisDatabase);
+        }
     }
 
     private LettuceConnectionFactory buildConnectionFactory(String host,
