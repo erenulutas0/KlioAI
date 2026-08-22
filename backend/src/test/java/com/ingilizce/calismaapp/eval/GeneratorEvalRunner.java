@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.eval;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ingilizce.calismaapp.service.AiCompletionProvider;
 import com.ingilizce.calismaapp.service.AiProxyService;
 import com.ingilizce.calismaapp.service.ChatbotService;
 import com.ingilizce.calismaapp.service.DailyWordsService;
@@ -80,11 +81,21 @@ class GeneratorEvalRunner {
     /** Read back rather than assumed: see the note on the property override above. */
     @Value("${groq.api.url}") private String resolvedApiUrl;
 
+    @Autowired private AiCompletionProvider aiCompletionProvider;
+    @Value("${groq.api.model}") private String judgeModel;
+
     @Autowired private ChatbotService chatbotService;
     @Autowired private AiProxyService aiProxyService;
     @Autowired private DailyWordsService dailyWordsService;
 
     private final List<String> report = new ArrayList<>();
+    private final List<String> judgeNotes = new ArrayList<>();
+
+    /** Kept so the judge reads the same content the checks just accepted. */
+    private Object sampleSentences;
+    private Object sampleQuiz;
+    private Object sampleReading;
+    private Object sampleWords;
     private int cases;
     private int failedCases;
 
@@ -109,6 +120,9 @@ class GeneratorEvalRunner {
                         List.of(), profile, false, 0L));
                 var result = chatbotService.generateSentences(message, profile);
                 Map<String, Object> json = parse(result.content());
+                if ("delay".equals(word)) {
+                    sampleSentences = json;
+                }
                 return new Outcome(GeneratorChecks.sentenceFailures(json, word, "B1"), json);
             });
         }
@@ -117,6 +131,9 @@ class GeneratorEvalRunner {
             record("grammar[" + topic + "]", () -> {
                 var result = aiProxyService.generateGrammarQuiz(
                         topic, "B1", profile, 0, GOLDEN_WORDS);
+                if ("present perfect".equals(topic)) {
+                    sampleQuiz = result.json();
+                }
                 return new Outcome(
                         GeneratorChecks.grammarQuizFailures(result.json(), GOLDEN_WORDS, "B1"),
                         result.json());
@@ -129,6 +146,9 @@ class GeneratorEvalRunner {
             // be reproduced. C1 is the level that came back empty in production.
             record("reading[" + level + "]", () -> {
                 Map<String, Object> json = aiProxyService.generateReadingPassage(level, profile, 200, 0).json();
+                if ("B1".equals(level)) {
+                    sampleReading = json;
+                }
                 return new Outcome(GeneratorChecks.readingFailures(json, level), json);
             });
         }
@@ -152,8 +172,20 @@ class GeneratorEvalRunner {
                 return new Outcome(
                         List.of("payload is not valid JSON: " + e.getMessage()), raw);
             }
+            sampleWords = words;
             return new Outcome(GeneratorChecks.dailyWordsFailures(words), words);
         });
+
+        // One sample per generator rather than all twelve. The judge is a second generation
+        // per call: judging everything would double the run's cost for a report nobody reads
+        // in full, and one example of each is enough to notice a prompt change that made the
+        // content worse rather than merely different.
+        GeneratorJudge judge = new GeneratorJudge(aiCompletionProvider, judgeModel);
+        judge("sentences[delay]", () -> judge.judgeSentences("delay", "B1", asJson(sampleSentences)));
+        judge("grammar[present perfect]", () -> judge.judgeGrammarQuiz(
+                "present perfect", "B1", asJson(sampleQuiz)));
+        judge("reading[B1]", () -> judge.judgeReading("B1", asJson(sampleReading)));
+        judge("dailyWords", () -> judge.judgeDailyWords(asJson(sampleWords)));
 
         writeReport();
 
@@ -169,6 +201,31 @@ class GeneratorEvalRunner {
 
     /** A verdict and the payload it was reached on. */
     private record Outcome(List<String> failures, Object payload) {}
+
+    /**
+     * Runs the judge over content the mechanical checks accepted, and records what it says.
+     *
+     * <p>Advisory, and reported separately for a reason. The mechanical checks are decidable
+     * and so they fail the build; the judge is a generation and can be wrong, and a build
+     * that goes red on a second model's opinion gets ignored or disabled. Its findings are
+     * for a person to read before shipping a prompt change - which is the only moment they
+     * are worth the tokens.
+     */
+    private void judge(String name, java.util.function.Supplier<List<GeneratorJudge.Verdict>> call) {
+        List<String> failures;
+        try {
+            failures = GeneratorJudge.failures(call.get());
+        } catch (Exception e) {
+            judgeNotes.add("- " + name + ": judge unavailable (" + e.getClass().getSimpleName() + ")");
+            return;
+        }
+        if (failures.isEmpty()) {
+            judgeNotes.add("- " + name + ": nothing to flag");
+            return;
+        }
+        judgeNotes.add("- " + name);
+        failures.forEach(f -> judgeNotes.add("    - " + f));
+    }
 
     /**
      * A case that throws counts as a failure rather than aborting the run.
@@ -211,6 +268,18 @@ class GeneratorEvalRunner {
         log.warn("eval FAIL {}: {}", name, failures);
     }
 
+    /** The content as the judge should read it: what the app produced, nothing added. */
+    private static String asJson(Object payload) {
+        if (payload == null) {
+            return "{}";
+        }
+        try {
+            return MAPPER.writeValueAsString(payload);
+        } catch (Exception e) {
+            return String.valueOf(payload);
+        }
+    }
+
     /** Enough of the payload to diagnose the failure, not so much it buries the report. */
     private static String excerpt(Object payload) {
         String json;
@@ -229,6 +298,18 @@ class GeneratorEvalRunner {
         lines.add((cases - failedCases) + " of " + cases + " cases usable.");
         lines.add("");
         lines.addAll(report);
+        if (!judgeNotes.isEmpty()) {
+            lines.add("");
+            lines.add("## What a second reader thought");
+            lines.add("");
+            lines.add("Advisory. These did not fail the run: the checks above are decidable and a"
+                    + " model's opinion is not, and a build that goes red on one gets disabled."
+                    + " Read them before shipping a prompt change - that is the moment they are"
+                    + " worth the tokens. The judge is calibrated separately against content that"
+                    + " really shipped broken; if that calibration fails, ignore everything here.");
+            lines.add("");
+            lines.addAll(judgeNotes);
+        }
         Path out = Path.of("target", "eval-report.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, String.join("\n", lines) + "\n");
