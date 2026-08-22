@@ -508,4 +508,34 @@ class AiProxyServiceTest {
         List<?> questions = (List<?>) result.json().get("questions");
         assertEquals("something else entirely", ((Map<?, ?>) questions.get(0)).get("correctAnswer"));
     }
+
+    @Test
+    void grammarQuiz_ShouldClearATargetWordThatWasNeverRequested() {
+        // A live eval run produced a quiz labelling its questions "bought", "finished",
+        // "arrived" - the verbs being tested, not the learner's vocabulary. Those words are
+        // genuinely in the question, so the "does the question use it" check passes them,
+        // and the answer then credits the learner's review schedule for words they have
+        // never saved.
+        String payload = "{\"topic\":\"present perfect\",\"questions\":["
+                + "{\"question\":\"I have ---- a new laptop.\","
+                + "\"options\":[\"bought\",\"buy\",\"buys\",\"buying\"],"
+                + "\"correctAnswer\":\"bought\",\"targetWord\":\"bought\"},"
+                + "{\"question\":\"They have ---- the launch again.\","
+                + "\"options\":[\"delayed\",\"delay\",\"delays\",\"delaying\"],"
+                + "\"correctAnswer\":\"delayed\",\"targetWord\":\"delay\"},"
+                + "{\"question\":\"She has ---- it.\",\"options\":[\"a\",\"b\",\"c\",\"d\"],"
+                + "\"correctAnswer\":\"a\",\"targetWord\":\"\"}]}";
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), eq(true), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of(payload, 10, 5, 15));
+
+        AiProxyService.AiJsonResult result = aiProxyService.generateGrammarQuiz(
+                "present perfect", "B1", LearningLanguageProfile.defaultProfile(), 0, List.of("delay"));
+
+        List<?> questions = (List<?>) result.json().get("questions");
+        assertEquals(3, questions.size());
+        // "bought" is in the question but was never the learner's word.
+        assertEquals("", ((Map<?, ?>) questions.get(0)).get("targetWord"));
+        // "delay" was requested and the answer uses it, so the credit is genuine.
+        assertEquals("delay", ((Map<?, ?>) questions.get(1)).get("targetWord"));
+    }
 }

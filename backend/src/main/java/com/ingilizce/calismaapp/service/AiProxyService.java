@@ -393,7 +393,11 @@ LEARNER'S OWN VOCABULARY: %s
 - For tense topics this means verbs. A noun or an adjective cannot be conjugated, and
   inventing a verb from one ("insighted", "resilianted") produces a question with no
   correct answer. Use such a word elsewhere in the sentence or skip it entirely.
-- Set "targetWord" to the exact vocabulary word the question was built on, or "" if none.
+- "targetWord" is the LEARNER'S word from the list above - not the word the question tests.
+  A present-perfect question built on "delay" has targetWord "delay" even though the gap is
+  filled by "bought" or "finished". If the question uses none of the learner's words, send
+  "". Naming the tested verb instead credits the learner's review schedule for a word they
+  have never saved.
 """.formatted(String.join(", ", vocabulary));
 
         String prompt = """
@@ -444,14 +448,14 @@ Format:
         );
 
         String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
-        AiJsonResult best = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+        AiJsonResult best = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary);
         // Dropping bad questions is only an improvement while some good ones survive. The
         // eval caught a past-simple quiz where every question had duplicate options and the
         // guard handed back an empty quiz - a learner tapping Practice and getting nothing,
         // which is worse than the broken questions it replaced.
         if (surviving(best) < MIN_USABLE_QUIZ_QUESTIONS) {
             logger.warn("GRAMMAR_QUIZ_RETRY topic={} level={} surviving={}", topic, normalizedLevel, surviving(best));
-            AiJsonResult retry = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"));
+            AiJsonResult retry = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary);
             if (surviving(retry) > surviving(best)) {
                 best = retry;
             }
@@ -496,7 +500,7 @@ Format:
      * sees one slip through per few runs. Four good questions beat five with an
      * unanswerable one, and the client already renders however many it is given.
      */
-    private AiJsonResult dropUnanswerableQuestions(AiJsonResult result) {
+    private AiJsonResult dropUnanswerableQuestions(AiJsonResult result, java.util.List<String> vocabulary) {
         if (result == null || result.json() == null) {
             return result;
         }
@@ -532,10 +536,21 @@ Format:
                 // target word the answer simply does not reach the review scheduler.
                 Object claimed = map.get("targetWord");
                 String target = claimed == null ? "" : claimed.toString().replace("\"", "").trim();
-                if (!target.isEmpty()
-                        && !WordForms.contains(String.valueOf(map.get("question")), target)
-                        && !WordForms.contains(String.valueOf(map.get("correctAnswer")), target)) {
-                    logger.warn("GRAMMAR_QUIZ_TARGET_CLEARED word={} question={}", target, map.get("question"));
+                // Two ways the label can be a lie, and the second is easy to miss. The
+                // question may not use the word at all - or it may use a word that is
+                // perfectly present but was never the learner's. The eval caught a quiz
+                // labelling its questions "bought", "finished", "arrived": the verbs being
+                // tested, not the vocabulary that was requested. Those pass a "does the
+                // question use it" check and still credit the learner's review schedule for
+                // words they have never saved.
+                boolean absentFromQuestion = !WordForms.contains(String.valueOf(map.get("question")), target)
+                        && !WordForms.contains(String.valueOf(map.get("correctAnswer")), target);
+                boolean neverRequested = vocabulary != null && !vocabulary.isEmpty()
+                        && vocabulary.stream().noneMatch(word -> word.equalsIgnoreCase(target));
+                if (!target.isEmpty() && (absentFromQuestion || neverRequested)) {
+                    logger.warn("GRAMMAR_QUIZ_TARGET_CLEARED reason={} word={} question={}",
+                            absentFromQuestion ? "not-in-question" : "not-requested",
+                            target, map.get("question"));
                     Map<String, Object> copy = new HashMap<>((Map<String, Object>) map);
                     copy.put("targetWord", "");
                     kept.add(copy);

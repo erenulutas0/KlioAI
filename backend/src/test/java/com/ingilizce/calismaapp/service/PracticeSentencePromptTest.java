@@ -12,11 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Pins the practice-sentence prompt.
  *
- * <p>The golden below is the exact string the controller built before this prompt was
- * extracted from it, character for character. It is here for two reasons. It proves the
- * extraction changed nothing — the risk in moving a heavily tuned prompt is a silent
- * one-word difference nobody notices until output quality drifts. And from now on it makes
- * every prompt edit show up as a diff in review.
+ * <p>The golden below started as the exact string the controller built before this prompt was
+ * extracted from it, which proved the extraction changed nothing. It now serves the other
+ * purpose it was written for: every prompt edit shows up as a diff in review. The last line
+ * was added because three consecutive eval runs flagged the same unnatural output — "The
+ * train delays commuters" — and the diff is how anyone reading the history can see that a
+ * prompt changed and why.
  *
  * <p>A failure here is not necessarily a bug: if the change was intended, update the golden
  * in the same commit. That is the point — a prompt change should be a visible decision, not
@@ -65,10 +66,11 @@ class PracticeSentencePromptTest {
             Think in Turkish first for the full-sentence translation, not as a word-for-word translation of the English sentence.
             Lengths must be meaningfully different: short=4-8 words, medium=9-15 words, long=16+ words.
             Good example for target word 'delay': The flight was delayed by heavy rain.
-            Bad example for target word 'delay': A short news article used "delay" to describe the problem.""";
+            Bad example for target word 'delay': A short news article used "delay" to describe the problem.
+            Give the word the grammatical role and the subject and object a native speaker would give it. A train is delayed; it does not delay commuters. If the natural sentence needs the passive, the past, or a different subject, write it that way rather than forcing the word into the active voice.""";
 
     @Test
-    void theExtractedPromptIsCharacterForCharacterWhatTheControllerBuilt() {
+    void thePromptIsExactlyWhatIsPinnedHere() {
         assertEquals(GOLDEN, PracticeSentencePrompt.build(CANONICAL));
     }
 

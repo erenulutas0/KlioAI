@@ -112,7 +112,16 @@ public final class PracticeSentencePrompt {
         }
         prompt.append("Lengths must be meaningfully different: short=4-8 words, medium=9-15 words, long=16+ words.\n");
         prompt.append("Good example for target word 'delay': The flight was delayed by heavy rain.\n");
-        prompt.append("Bad example for target word 'delay': A short news article used \"delay\" to describe the problem.");
+        prompt.append("Bad example for target word 'delay': A short news article used \"delay\" to describe the problem.\n");
+        // Three consecutive eval runs flagged the same shape: "The train delays commuters",
+        // "The train delays frequently". The word is present, the grammar parses, and no
+        // native speaker would write it - a train is delayed, it does not delay people. A
+        // mechanical check cannot see this, so the instruction has to.
+        prompt.append(
+                "Give the word the grammatical role and the subject and object a native speaker "
+                        + "would give it. A train is delayed; it does not delay commuters. If the "
+                        + "natural sentence needs the passive, the past, or a different subject, "
+                        + "write it that way rather than forcing the word into the active voice.");
         if (in.fresh()) {
             prompt.append("\nGenerate a fresh new set. Avoid reusing common previous examples.");
             prompt.append("\nvariationSeed=").append(in.variationSeed());
