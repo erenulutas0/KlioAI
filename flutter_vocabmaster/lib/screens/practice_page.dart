@@ -17,7 +17,6 @@ import 'grammar_tab.dart';
 import 'neural_game_page.dart';
 import 'word_galaxy_page.dart';
 import '../services/daily_practice_progress_service.dart';
-import '../services/app_market_config.dart';
 import '../services/ai_access_policy.dart';
 import '../services/analytics_service.dart';
 import '../theme/app_theme.dart';
