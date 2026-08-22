@@ -38,7 +38,15 @@ jobs:
           java-version: "17"
           cache: maven
 
+      - name: Calibrate the judge
+        # Runs first and on its own: if the judge cannot tell content that shipped broken
+        # from content that is fine, its verdicts in the run below mean nothing. A judge
+        # that agrees with everything is the failure this whole harness exists to stop.
+        working-directory: backend
+        run: mvn test -Dtest=GeneratorJudgeCalibrationTest -Dexcluded.test.groups= -DfailIfNoTests=false
+
       - name: Run generator eval
+        if: always()
         working-directory: backend
         run: mvn test -Dtest=GeneratorEvalRunner -Dexcluded.test.groups= -DfailIfNoTests=false
 
