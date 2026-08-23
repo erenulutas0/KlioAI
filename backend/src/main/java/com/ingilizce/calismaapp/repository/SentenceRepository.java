@@ -32,6 +32,18 @@ public interface SentenceRepository extends JpaRepository<Sentence, Long> {
     @Query("DELETE FROM Sentence s WHERE s.word.id = :wordId")
     void deleteByWordId(@Param("wordId") Long wordId);
 
+    @Query("SELECT s FROM Sentence s WHERE s.meaning.id = :meaningId ORDER BY s.id ASC")
+    List<Sentence> findByMeaningId(@Param("meaningId") Long meaningId);
+
+    /**
+     * Detaches every sentence from a meaning, making them "unassigned". Used before a meaning
+     * is deleted: production's FK does the same ON DELETE SET NULL, but doing it explicitly
+     * keeps the persistence context honest about rows it has already loaded.
+     */
+    @Modifying
+    @Query("UPDATE Sentence s SET s.meaning = null WHERE s.meaning.id = :meaningId")
+    int clearMeaningByMeaningId(@Param("meaningId") Long meaningId);
+
     // Global stats (Admin/Legacy)
     long countByDifficulty(String difficulty);
 

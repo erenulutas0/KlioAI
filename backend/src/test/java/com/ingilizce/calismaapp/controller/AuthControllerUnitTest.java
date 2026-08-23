@@ -111,7 +111,8 @@ class AuthControllerUnitTest {
                 googleIdentityService,
                 authSecurityProperties,
                 clientIpResolver,
-                trialAbuseProtectionService);
+                trialAbuseProtectionService,
+                mock(com.ingilizce.calismaapp.service.LanguageProfileService.class));
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();

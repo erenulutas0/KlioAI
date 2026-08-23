@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../models/language_profile.dart';
 import '../models/word.dart';
 import '../models/sentence_practice.dart';
 import '../config/app_config.dart';
@@ -367,14 +368,21 @@ class ApiService {
     }
   }
 
+  /// Creates a word.
+  ///
+  /// [meanings] is optional: when given, each entry becomes one meaning row on the server
+  /// ({translation, definition?}); when omitted the server derives a single meaning list
+  /// from [turkish] exactly as it did before, so the shipped client's behaviour is kept.
   Future<Word> createWord({
     required String english,
     required String turkish,
     required DateTime addedDate,
     String difficulty = 'easy',
+    List<Map<String, dynamic>>? meanings,
   }) async {
     try {
       final url = await baseUrl;
+      final cleanedMeanings = _cleanMeaningPayload(meanings);
       final response = await _withProtectedRetry(
         (headers) => client.post(
           Uri.parse('$url/words'),
@@ -386,6 +394,7 @@ class ApiService {
             'learnedDate': addedDate.toIso8601String().split('T')[0],
             'notes': '',
             'difficulty': difficulty,
+            if (cleanedMeanings.isNotEmpty) 'meanings': cleanedMeanings,
           }),
         ),
         json: true,
@@ -418,11 +427,17 @@ class ApiService {
     }
   }
 
+  /// Adds a sentence under a word.
+  ///
+  /// [meaningId] attaches the sentence to one of the word's meanings. Left null, the
+  /// sentence is "unassigned" and the server stores no meaning link, which is also what
+  /// the shipped client always sends.
   Future<Word> addSentenceToWord({
     required int wordId,
     required String sentence,
     required String translation,
     String difficulty = 'easy',
+    int? meaningId,
   }) async {
     try {
       final url = await baseUrl;
@@ -435,6 +450,7 @@ class ApiService {
             'translation': translation,
             'sourceTranslation': translation,
             'difficulty': difficulty,
+            if (meaningId != null) 'meaningId': meaningId,
           }),
         ),
         json: true,
@@ -446,6 +462,272 @@ class ApiService {
     } catch (e) {
       throw Exception('Error adding sentence: $e');
     }
+  }
+
+  // ==================== WORD MEANINGS ====================
+
+  /// Drops blank translations and unknown keys so the wire shape is always
+  /// [{translation, definition?}].
+  List<Map<String, dynamic>> _cleanMeaningPayload(
+    List<Map<String, dynamic>>? meanings,
+  ) {
+    if (meanings == null) return const [];
+    final cleaned = <Map<String, dynamic>>[];
+    for (final raw in meanings) {
+      final translation = raw['translation']?.toString().trim() ?? '';
+      if (translation.isEmpty) continue;
+      final definition = raw['definition']?.toString().trim();
+      cleaned.add({
+        'translation': translation,
+        if (definition != null && definition.isNotEmpty)
+          'definition': definition,
+      });
+    }
+    return cleaned;
+  }
+
+  /// POST /words/{id}/meanings → the updated word.
+  Future<Word> addWordMeaning({
+    required int wordId,
+    required String translation,
+    String? definition,
+  }) async {
+    final trimmed = translation.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Meaning translation cannot be empty');
+    }
+    try {
+      final url = await baseUrl;
+      final response = await _withProtectedRetry(
+        (headers) => client.post(
+          Uri.parse('$url/words/$wordId/meanings'),
+          headers: headers,
+          body: json.encode({
+            'translation': trimmed,
+            if (definition != null && definition.trim().isNotEmpty)
+              'definition': definition.trim(),
+          }),
+        ),
+        json: true,
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Word.fromJson(json.decode(response.body));
+      }
+      throw Exception('Failed to add meaning: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Error adding meaning: $e');
+    }
+  }
+
+  /// PUT /words/{id}/meanings/{meaningId} → the updated word.
+  /// Only the fields passed are sent; a null field is left untouched server-side.
+  Future<Word> updateWordMeaning({
+    required int wordId,
+    required int meaningId,
+    String? translation,
+    String? definition,
+  }) async {
+    try {
+      final url = await baseUrl;
+      final response = await _withProtectedRetry(
+        (headers) => client.put(
+          Uri.parse('$url/words/$wordId/meanings/$meaningId'),
+          headers: headers,
+          body: json.encode({
+            if (translation != null) 'translation': translation.trim(),
+            if (definition != null) 'definition': definition.trim(),
+          }),
+        ),
+        json: true,
+      );
+      if (response.statusCode == 200) {
+        return Word.fromJson(json.decode(response.body));
+      }
+      throw Exception('Failed to update meaning: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Error updating meaning: $e');
+    }
+  }
+
+  /// DELETE /words/{id}/meanings/{meaningId}.
+  ///
+  /// The server refuses to delete the last meaning (400): a word with no meaning
+  /// teaches nothing. That surfaces here as [ApiLastMeaningException] so a caller
+  /// can say so instead of showing a generic failure. Sentences under the deleted
+  /// meaning become unassigned on the server.
+  Future<Word?> deleteWordMeaning({
+    required int wordId,
+    required int meaningId,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.delete(
+        Uri.parse('$url/words/$wordId/meanings/$meaningId'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 400) {
+      throw ApiLastMeaningException(
+        message: _messageFromBody(response.body) ??
+            'A word must keep at least one meaning.',
+      );
+    }
+    if (response.statusCode == 200 && response.body.trim().isNotEmpty) {
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return Word.fromJson(decoded);
+        }
+      } catch (_) {
+        // A 200 without a word body is still a success.
+      }
+      return null;
+    }
+    if (response.statusCode == 200 ||
+        response.statusCode == 204 ||
+        response.statusCode == 404) {
+      return null;
+    }
+    throw Exception('Failed to delete meaning: ${response.statusCode}');
+  }
+
+  String? _messageFromBody(String body) {
+    if (body.trim().isEmpty) return null;
+    try {
+      final decoded = json.decode(body);
+      if (decoded is Map) {
+        final message = (decoded['message'] ?? decoded['error'])?.toString();
+        if (message != null && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+    } catch (_) {
+      // Plain-text body: fall through.
+    }
+    return null;
+  }
+
+  // ==================== LANGUAGE PROFILES ====================
+
+  /// GET /language-profiles → every profile of the caller, active one included.
+  Future<List<LanguageProfile>> getLanguageProfiles() async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/language-profiles'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body);
+      if (decoded is! List) return [];
+      return decoded
+          .map((item) {
+            try {
+              return LanguageProfile.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              );
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<LanguageProfile>()
+          .toList();
+    }
+    throw Exception('Failed to load language profiles: ${response.statusCode}');
+  }
+
+  /// POST /language-profiles → 201 with the new profile.
+  ///
+  /// A profile for a target language the user already has is a 409 on the server,
+  /// surfaced as [ApiConflictException].
+  Future<LanguageProfile> createLanguageProfile({
+    required String sourceLanguage,
+    required String targetLanguage,
+    String? level,
+    String? learningGoal,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/language-profiles'),
+        headers: headers,
+        body: json.encode({
+          'sourceLanguage': sourceLanguage,
+          'targetLanguage': targetLanguage,
+          if (level != null && level.trim().isNotEmpty) 'level': level.trim(),
+          if (learningGoal != null && learningGoal.trim().isNotEmpty)
+            'learningGoal': learningGoal.trim(),
+        }),
+      ),
+      json: true,
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return LanguageProfile.fromJson(
+        Map<String, dynamic>.from(json.decode(response.body) as Map),
+      );
+    }
+    if (response.statusCode == 409) {
+      throw ApiConflictException(
+        message: _messageFromBody(response.body) ??
+            'A profile for $targetLanguage already exists.',
+      );
+    }
+    throw Exception('Failed to create language profile: ${response.statusCode}');
+  }
+
+  /// PUT /language-profiles/{id} → the updated profile. Only passed fields are sent.
+  Future<LanguageProfile> updateLanguageProfile({
+    required int profileId,
+    String? level,
+    String? learningGoal,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.put(
+        Uri.parse('$url/language-profiles/$profileId'),
+        headers: headers,
+        body: json.encode({
+          if (level != null) 'level': level.trim(),
+          if (learningGoal != null) 'learningGoal': learningGoal.trim(),
+        }),
+      ),
+      json: true,
+    );
+    if (response.statusCode == 200) {
+      return LanguageProfile.fromJson(
+        Map<String, dynamic>.from(json.decode(response.body) as Map),
+      );
+    }
+    throw Exception('Failed to update language profile: ${response.statusCode}');
+  }
+
+  /// POST /language-profiles/{id}/activate → the now-active profile.
+  ///
+  /// Exactly one profile is active per user; the server deactivates the others.
+  Future<LanguageProfile?> activateLanguageProfile(int profileId) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/language-profiles/$profileId/activate'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.body.trim().isEmpty) return null;
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map) {
+          return LanguageProfile.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {
+        // An empty or non-JSON 200 body is still a successful activation.
+      }
+      return null;
+    }
+    throw Exception(
+      'Failed to activate language profile: ${response.statusCode}',
+    );
   }
 
   Future<void> deleteSentenceFromWord(int wordId, int sentenceId) async {
@@ -1445,4 +1727,25 @@ class ApiAiServiceException implements Exception {
 
   @override
   String toString() => 'AI service error ($statusCode/$feature): $message';
+}
+
+/// The server answered 409: the thing being created already exists
+/// (e.g. a second language profile for the same target language).
+class ApiConflictException implements Exception {
+  final String message;
+
+  ApiConflictException({required this.message});
+
+  @override
+  String toString() => message;
+}
+
+/// The server refused to delete a word's only meaning (400).
+class ApiLastMeaningException implements Exception {
+  final String message;
+
+  ApiLastMeaningException({required this.message});
+
+  @override
+  String toString() => message;
 }

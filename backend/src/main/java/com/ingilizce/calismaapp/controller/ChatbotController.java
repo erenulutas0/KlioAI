@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.dto.PracticeSentence;
 import com.ingilizce.calismaapp.service.DailyContentFallbackSupport;
 import com.ingilizce.calismaapp.service.ChatbotService;
+import com.ingilizce.calismaapp.service.LanguageProfileService;
 import com.ingilizce.calismaapp.service.LearningLanguageProfile;
 import com.ingilizce.calismaapp.service.PracticeSentencePrompt;
 import com.ingilizce.calismaapp.service.PromptCatalog;
@@ -17,7 +18,9 @@ import com.ingilizce.calismaapp.service.AiProxyService;
 import com.ingilizce.calismaapp.service.GroqSpeechToTextService;
 import com.ingilizce.calismaapp.service.ProgressService;
 import com.ingilizce.calismaapp.service.SentenceStarterTrackingService;
+import com.ingilizce.calismaapp.entity.LanguageProfile;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.entity.WordMeaning;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
@@ -86,6 +89,13 @@ public class ChatbotController {
     @Autowired(required = false)
     private SentenceStarterTrackingService sentenceStarterTrackingService;
 
+    /**
+     * Optional only so a test that wires the controller by hand still runs: without it the
+     * AI endpoints fall back to the hardcoded Turkish/English/B1 they used before V028.
+     */
+    @Autowired(required = false)
+    private LanguageProfileService languageProfileService;
+
     @Value("${cache.sentences.ttl:604800}") // Default: 7 days
     private long cacheTtlSeconds;
 
@@ -119,16 +129,47 @@ public class ChatbotController {
                 false);
     }
 
-    private LearningLanguageProfile languageProfileFrom(Map<?, ?> request) {
-        if (request == null) {
+    /**
+     * The language profile an AI call runs under. Fields the request carries win, exactly as
+     * before; fields it omits come from the user's active {@link LanguageProfile} (V028)
+     * instead of the hardcoded defaults. The shipped client sends source/target/level on
+     * every AI request, so for it nothing changes; a client that stops sending them gets the
+     * profile it chose on the server.
+     */
+    private LearningLanguageProfile languageProfileFrom(Map<?, ?> request, Long userId) {
+        LanguageProfile active = activeLanguageProfile(userId);
+        String source = request != null ? stringValue(request.get("sourceLanguage")) : null;
+        String target = request != null ? stringValue(request.get("targetLanguage")) : null;
+        String feedback = request != null ? stringValue(request.get("feedbackLanguage")) : null;
+        String level = request != null ? stringValue(request.get("englishLevel")) : null;
+        String goal = request != null ? stringValue(request.get("learningGoal")) : null;
+        if (active != null) {
+            source = source != null ? source : active.getSourceLanguage();
+            target = target != null ? target : active.getTargetLanguage();
+            level = level != null ? level : active.getLevel();
+            goal = goal != null ? goal : active.getLearningGoal();
+        }
+        if (source == null && target == null && feedback == null && level == null && goal == null) {
             return LearningLanguageProfile.defaultProfile();
         }
-        return LearningLanguageProfile.of(
-                stringValue(request.get("sourceLanguage")),
-                stringValue(request.get("targetLanguage")),
-                stringValue(request.get("feedbackLanguage")),
-                stringValue(request.get("englishLevel")),
-                stringValue(request.get("learningGoal")));
+        return LearningLanguageProfile.of(source, target, feedback, level, goal);
+    }
+
+    /**
+     * Null when no profile service is wired or the lookup fails. An AI request must not fail
+     * because of a profile row: the fallback is the pre-V028 behaviour, which is still correct
+     * for every Turkish learner of English.
+     */
+    private LanguageProfile activeLanguageProfile(Long userId) {
+        if (languageProfileService == null || userId == null) {
+            return null;
+        }
+        try {
+            return languageProfileService.ensureDefaultProfile(userId);
+        } catch (RuntimeException ex) {
+            log.warn("LANGUAGE_PROFILE_LOOKUP_FAILED userId={} error={}", userId, ex.toString());
+            return null;
+        }
     }
 
     private String stringValue(Object value) {
@@ -230,7 +271,7 @@ public class ChatbotController {
         boolean fresh = request.get("fresh") != null &&
                 Boolean.parseBoolean(request.get("fresh").toString());
         String direction = normalizeTranslationDirection(request.get("direction"));
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
 
         if (word == null || word.trim().isEmpty()) {
             Map<String, Object> error = new HashMap<>();
@@ -1388,7 +1429,7 @@ public class ChatbotController {
                                                                          HttpServletRequest httpRequest) {
         String direction = normalizeTranslationDirection(request.get("direction"));
         String userTranslation = request.get("userTranslation");
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
 
         if (userTranslation == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Please provide translation"));
@@ -1495,12 +1536,12 @@ public class ChatbotController {
 
         try {
             String englishWord = (String) request.get("englishWord");
-            List<String> meanings = request.get("meanings") != null
-                    ? (List<String>) request.get("meanings")
-                    : new ArrayList<>();
-            List<String> sentences = request.get("sentences") != null
-                    ? (List<String>) request.get("sentences")
-                    : new ArrayList<>();
+            // Two shapes are accepted. The shipped client sends parallel string lists:
+            // meanings ["elma", ...] and sentences ["I eat apple", ...], one sentence per
+            // meaning that had an example. A newer client may send meanings as objects
+            // {translation, definition?, example?} with the example sentence inline.
+            List<SaveMeaning> meanings = parseSaveMeanings(request.get("meanings"));
+            List<SaveSentence> sentences = parseSaveSentences(request.get("sentences"), meanings);
 
             if (englishWord == null || englishWord.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "English word is required"));
@@ -1509,20 +1550,27 @@ public class ChatbotController {
             Word word = new Word();
             word.setUserId(userId);
             word.setEnglishWord(englishWord.trim());
-            word.setTurkishMeaning(meanings != null ? String.join(", ", meanings) : "");
+            word.setTurkishMeaning(meanings.stream().map(SaveMeaning::translation).collect(Collectors.joining(", ")));
             word.setLearnedDate(LocalDate.now());
             word.setDifficulty("medium");
+            // V028: the meanings the client already picked become rows, with the position
+            // the client chose, rather than being re-derived from the joined string.
+            for (int i = 0; i < meanings.size(); i++) {
+                SaveMeaning meaning = meanings.get(i);
+                word.addMeaning(new WordMeaning(null, meaning.translation(), meaning.definition(), i));
+            }
 
             Word savedWord = wordService.saveWord(word);
 
-            if (sentences != null && !sentences.isEmpty()) {
-                for (String sentenceStr : sentences) {
+            if (!sentences.isEmpty()) {
+                for (SaveSentence sentence : sentences) {
                     wordService.addSentence(
                             savedWord.getId(),
-                            sentenceStr.trim(),
+                            sentence.sentence(),
                             "",
                             "medium",
-                            userId);
+                            userId,
+                            meaningIdFor(savedWord, sentence.meaningTranslation()));
                 }
             }
 
@@ -1538,6 +1586,99 @@ public class ChatbotController {
             log.error("Failed to save word to today list for userId={}", userId, e);
             return ResponseEntity.internalServerError().body(Map.of("error", "Failed to save word: " + e.getMessage()));
         }
+    }
+
+    private record SaveMeaning(String translation, String definition, String example) {
+    }
+
+    private record SaveSentence(String sentence, String meaningTranslation) {
+    }
+
+    private List<SaveMeaning> parseSaveMeanings(Object raw) {
+        List<SaveMeaning> result = new ArrayList<>();
+        if (!(raw instanceof List<?> items)) {
+            return result;
+        }
+        for (Object item : items) {
+            if (item instanceof Map<?, ?> map) {
+                String translation = stringValue(map.get("translation"));
+                if (translation == null) {
+                    continue;
+                }
+                String example = stringValue(map.get("example"));
+                if (example == null) {
+                    example = stringValue(map.get("sentence"));
+                }
+                result.add(new SaveMeaning(translation, stringValue(map.get("definition")), example));
+            } else if (item != null) {
+                String translation = stringValue(item);
+                if (translation != null) {
+                    result.add(new SaveMeaning(translation, null, null));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Pairs each sentence with the meaning it was written for, where that is known and only
+     * where it is known. An example carried inside a meaning object is its meaning's by
+     * construction. A sentence object may name its meaning by {@code meaningIndex}. A bare
+     * string list lines up with the meanings by position only when the two lists are the
+     * same length -- the shipped client drops meanings without an example from the
+     * sentence list but not from the meaning list, so unequal lengths mean the order is
+     * not trustworthy and those sentences stay unassigned.
+     */
+    private List<SaveSentence> parseSaveSentences(Object raw, List<SaveMeaning> meanings) {
+        List<SaveSentence> result = new ArrayList<>();
+        for (SaveMeaning meaning : meanings) {
+            if (meaning.example() != null) {
+                result.add(new SaveSentence(meaning.example(), meaning.translation()));
+            }
+        }
+        if (!(raw instanceof List<?> items)) {
+            return result;
+        }
+        boolean aligned = items.size() == meanings.size();
+        for (int i = 0; i < items.size(); i++) {
+            Object item = items.get(i);
+            String meaningTranslation = null;
+            String sentence;
+            if (item instanceof Map<?, ?> map) {
+                sentence = stringValue(map.get("sentence"));
+                Object index = map.get("meaningIndex");
+                if (index instanceof Number number
+                        && number.intValue() >= 0 && number.intValue() < meanings.size()) {
+                    meaningTranslation = meanings.get(number.intValue()).translation();
+                } else if (stringValue(map.get("meaningTranslation")) != null) {
+                    meaningTranslation = stringValue(map.get("meaningTranslation"));
+                }
+            } else {
+                sentence = stringValue(item);
+                if (aligned) {
+                    meaningTranslation = meanings.get(i).translation();
+                }
+            }
+            if (sentence == null) {
+                continue;
+            }
+            result.add(new SaveSentence(sentence, meaningTranslation));
+        }
+        return result;
+    }
+
+    /** The saved meaning matching a translation, by text, or null when there is none. */
+    private Long meaningIdFor(Word savedWord, String translation) {
+        if (savedWord == null || translation == null || savedWord.getMeanings() == null) {
+            return null;
+        }
+        String wanted = translation.trim();
+        for (WordMeaning meaning : savedWord.getMeanings()) {
+            if (meaning.getTranslation() != null && meaning.getTranslation().trim().equalsIgnoreCase(wanted)) {
+                return meaning.getId();
+            }
+        }
+        return null;
     }
 
     @PostMapping("/chat")
@@ -1561,7 +1702,7 @@ public class ChatbotController {
         try {
             String scenario = request.get("scenario");
             String scenarioContext = request.get("scenarioContext");
-            LearningLanguageProfile languageProfile = languageProfileFrom(request);
+            LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
             // Optional and new: older clients omit it and keep the daily persona rotation.
             String speakerName = request.get("speakerName");
             ChatbotService.AiCallResult llm = chatbotService.chat(
@@ -1703,7 +1844,7 @@ public class ChatbotController {
                     part);
             // CEFR seviyesi + günlük tema rotasyonu: eski hali profilsiz ve
             // rotasyonsuzdu, her oturumda neredeyse aynı sorular üretiyordu.
-            LearningLanguageProfile speakingProfile = languageProfileFrom(request);
+            LearningLanguageProfile speakingProfile = languageProfileFrom(request, userId);
             int dayOfYear = java.time.LocalDate.now(java.time.ZoneOffset.UTC).getDayOfYear();
             ChatbotService.AiCallResult llm =
                     chatbotService.generateSpeakingTestQuestions(message, speakingProfile, dayOfYear);
@@ -1739,7 +1880,7 @@ public class ChatbotController {
         String testType = request.get("testType");
         String question = request.get("question");
         String response = request.get("response");
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
 
         if (testType == null || question == null || response == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Please provide testType, question, and response"));
@@ -1778,7 +1919,7 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         if (word == null || word.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
         }
@@ -1814,7 +1955,7 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         if (word == null || word.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word is required"));
         }
@@ -1851,7 +1992,7 @@ public class ChatbotController {
 
         String word = request.get("word") != null ? request.get("word").toString() : null;
         String sentence = request.get("sentence") != null ? request.get("sentence").toString() : null;
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         if (word == null || word.trim().isEmpty() || sentence == null || sentence.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word and sentence are required"));
         }
@@ -1890,7 +2031,7 @@ public class ChatbotController {
         String word = request.get("word") != null ? request.get("word").toString() : null;
         String translation = request.get("translation") != null ? request.get("translation").toString() : null;
         String context = request.get("context") != null ? request.get("context").toString() : null;
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         if (word == null || word.trim().isEmpty() || translation == null || translation.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "word and translation are required"));
         }
@@ -1931,7 +2072,7 @@ public class ChatbotController {
         if (aiLimit != null) return aiLimit;
 
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         // "Yeni pasaj" akışı: istemci artan bir variant sayısı yollar; her
         // varyant günün temasından farklı bir konu/kombinasyona zorlanır.
         int variant = 0;
@@ -1967,7 +2108,7 @@ public class ChatbotController {
 
         String level = request.get("level") != null ? request.get("level").toString() : "B1";
         List<String> focusWords = extractStringList(request.get("focusWords"));
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         int pronunciationVariant = 0;
         Object rawPronunciationVariant = request.get("variant");
         if (rawPronunciationVariant instanceof Number number) {
@@ -2009,7 +2150,7 @@ public class ChatbotController {
             return ResponseEntity.badRequest().body(Map.of("error", "A grammar topic (max 120 chars) is required."));
         }
         String level = request.get("level") != null ? request.get("level").toString() : "B1";
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         int quizVariant = 0;
         Object rawQuizVariant = request.get("variant");
         if (rawQuizVariant instanceof Number number) {
@@ -2047,7 +2188,7 @@ public class ChatbotController {
 
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
         String wordCount = request.get("wordCount") != null ? request.get("wordCount").toString() : "150-200";
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         try {
             AiProxyService.AiJsonResult result = aiProxyService.generateWritingTopic(level, wordCount, languageProfile);
             consumeAiTokens(userId, httpRequest, "writing-topic", result.totalTokens());
@@ -2071,7 +2212,7 @@ public class ChatbotController {
         String text = request.get("text") != null ? request.get("text").toString() : null;
         String level = request.get("level") != null ? request.get("level").toString() : "Intermediate";
         Map<String, Object> topic = request.get("topic") instanceof Map ? (Map<String, Object>) request.get("topic") : null;
-        LearningLanguageProfile languageProfile = languageProfileFrom(request);
+        LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
         if (text == null || text.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
         }

@@ -63,4 +63,49 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     List<Word> findByReviewCountGreaterThan(int count);
     List<Word> findByUserIdAndReviewCountGreaterThan(Long userId, int count);
+
+    // Profile Scoped Methods (V028). The user-scoped methods above stay: other code calls
+    // them, and a word's profile is always owned by the same user, so both keys are required
+    // here rather than trusting the profile id on its own. Spelled out as queries because
+    // Word exposes a getLanguageProfileId() JSON getter that would confuse derivation.
+
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId")
+    List<Word> findByUserIdAndLanguageProfileId(@Param("userId") Long userId, @Param("profileId") Long profileId);
+
+    @Query(value = "SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId",
+            countQuery = "SELECT COUNT(w) FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId")
+    Page<Word> findByUserIdAndLanguageProfileId(@Param("userId") Long userId, @Param("profileId") Long profileId,
+            Pageable pageable);
+
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId")
+    long countByUserIdAndLanguageProfileId(@Param("userId") Long userId, @Param("profileId") Long profileId);
+
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId AND w.learnedDate = :date")
+    List<Word> findByUserIdAndLanguageProfileIdAndLearnedDate(@Param("userId") Long userId,
+            @Param("profileId") Long profileId, @Param("date") LocalDate date);
+
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId AND w.learnedDate BETWEEN :startDate AND :endDate ORDER BY w.learnedDate DESC")
+    List<Word> findByUserIdAndLanguageProfileIdAndDateRange(@Param("userId") Long userId,
+            @Param("profileId") Long profileId, @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT DISTINCT w.learnedDate FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId ORDER BY w.learnedDate DESC")
+    List<LocalDate> findDistinctDatesByUserIdAndLanguageProfileId(@Param("userId") Long userId,
+            @Param("profileId") Long profileId);
+
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId AND w.nextReviewDate <= :date")
+    List<Word> findByUserIdAndLanguageProfileIdAndNextReviewDateLessThanEqual(@Param("userId") Long userId,
+            @Param("profileId") Long profileId, @Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId AND w.nextReviewDate <= :date")
+    long countByUserIdAndLanguageProfileIdAndNextReviewDateLessThanEqual(@Param("userId") Long userId,
+            @Param("profileId") Long profileId, @Param("date") LocalDate date);
+
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile.id = :profileId AND w.reviewCount > :count")
+    List<Word> findByUserIdAndLanguageProfileIdAndReviewCountGreaterThan(@Param("userId") Long userId,
+            @Param("profileId") Long profileId, @Param("count") int count);
+
+    /** Words of a user that no profile claims; should be empty after the V028 backfill. */
+    @Query("SELECT w FROM Word w WHERE w.userId = :userId AND w.languageProfile IS NULL")
+    List<Word> findByUserIdAndLanguageProfileIsNull(@Param("userId") Long userId);
 }

@@ -87,6 +87,7 @@ class FakeSyncApiService extends ApiService {
     required String turkish,
     required DateTime addedDate,
     String difficulty = 'easy',
+    List<Map<String, dynamic>>? meanings,
   }) async {
     final id = ++_wordSeq;
     final word = Word(
@@ -108,6 +109,7 @@ class FakeSyncApiService extends ApiService {
     required String sentence,
     required String translation,
     String difficulty = 'easy',
+    int? meaningId,
   }) async {
     final existing = _serverWords[wordId] ??
         Word(

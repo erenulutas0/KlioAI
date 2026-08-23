@@ -12,6 +12,7 @@ import com.ingilizce.calismaapp.security.PasswordResetService;
 import com.ingilizce.calismaapp.security.RefreshTokenService;
 import com.ingilizce.calismaapp.service.AuthRateLimitService;
 import com.ingilizce.calismaapp.service.AuthRateLimitService.RateLimitDecision;
+import com.ingilizce.calismaapp.service.LanguageProfileService;
 import com.ingilizce.calismaapp.service.TrialAbuseProtectionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ public class AuthController {
     private final AuthSecurityProperties authSecurityProperties;
     private final ClientIpResolver clientIpResolver;
     private final TrialAbuseProtectionService trialAbuseProtectionService;
+    private final LanguageProfileService languageProfileService;
 
     public AuthController(UserRepository userRepository,
                           AuthRateLimitService authRateLimitService,
@@ -59,7 +61,8 @@ public class AuthController {
                            GoogleIdentityService googleIdentityService,
                            AuthSecurityProperties authSecurityProperties,
                            ClientIpResolver clientIpResolver,
-                           TrialAbuseProtectionService trialAbuseProtectionService) {
+                           TrialAbuseProtectionService trialAbuseProtectionService,
+                           LanguageProfileService languageProfileService) {
         this.userRepository = userRepository;
         this.authRateLimitService = authRateLimitService;
         this.passwordEncoder = passwordEncoder;
@@ -72,6 +75,26 @@ public class AuthController {
         this.authSecurityProperties = authSecurityProperties;
         this.clientIpResolver = clientIpResolver;
         this.trialAbuseProtectionService = trialAbuseProtectionService;
+        this.languageProfileService = languageProfileService;
+    }
+
+    /**
+     * Gives a freshly registered user their default language profile (V028) before the
+     * client's first reads arrive. Without it, the shipped client's first two requests
+     * ({@code /srs/stats} and {@code /words}, fired together) race to create it and one of
+     * them fails. Best effort: the read paths still create the profile on demand, so a
+     * failure here must not fail the registration that already succeeded.
+     */
+    private void createDefaultLanguageProfile(User user) {
+        if (user == null || user.getId() == null) {
+            return;
+        }
+        try {
+            languageProfileService.ensureDefaultProfile(user.getId());
+        } catch (RuntimeException ex) {
+            log.warn("Default language profile not created at registration for userId={}: {}",
+                    user.getId(), ex.toString());
+        }
     }
 
     @PostMapping("/register")
@@ -112,6 +135,7 @@ public class AuthController {
                 user.setTrialEligible(false);
             }
             User savedUser = userRepository.save(user);
+            createDefaultLanguageProfile(savedUser);
             if (savedUser.isTrialEligible()) {
                 trialAbuseProtectionService.recordTrialGrant(deviceId, clientIp);
             }
@@ -279,6 +303,7 @@ public class AuthController {
                 }
                 user = userRepository.save(user);
                 createdUser = true;
+                createDefaultLanguageProfile(user);
                 if (user.isTrialEligible()) {
                     trialAbuseProtectionService.recordTrialGrant(deviceId, clientIp);
                 }

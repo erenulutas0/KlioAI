@@ -1,6 +1,9 @@
 package com.ingilizce.calismaapp.service;
 
+import com.ingilizce.calismaapp.entity.LanguageProfile;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.entity.WordMeaning;
+import com.ingilizce.calismaapp.entity.WordOrigin;
 import com.ingilizce.calismaapp.entity.Sentence;
 import com.ingilizce.calismaapp.dto.CreateWordRequest;
 import com.ingilizce.calismaapp.repository.WordRepository;
@@ -43,6 +46,13 @@ class WordServiceTest {
     @Mock
     private ProgressService progressService;
 
+    /// Every read path and every new word goes through the active language profile (V028);
+    /// the stub hands back one fixed profile so the tests stay about words.
+    @Mock
+    private LanguageProfileService languageProfileService;
+
+    private static final Long ACTIVE_PROFILE_ID = 500L;
+
     /// Real instance, not a mock: the point of the test below is that saveWord actually
     /// puts a schedule on the word, and a mock would happily record the call while leaving
     /// next_review_date null - which is the exact bug being fixed.
@@ -55,6 +65,9 @@ class WordServiceTest {
         when(wordRepository.findByUserIdAndEnglishWord(anyLong(), anyString()))
                 .thenReturn(Optional.empty());
         when(sentenceRepository.findByWordIdIn(anyList())).thenReturn(List.of());
+        LanguageProfile activeProfile = LanguageProfile.defaultEnglishProfile(1L);
+        activeProfile.setId(ACTIVE_PROFILE_ID);
+        when(languageProfileService.ensureDefaultProfile(anyLong())).thenReturn(activeProfile);
     }
 
     @Test
@@ -159,6 +172,64 @@ class WordServiceTest {
         verify(progressService, never()).awardXp(anyLong(), anyInt(), anyString());
     }
 
+
+    @Test
+    void saveWord_WithSomeoneElsesId_CreatesOwnWordInsteadOfOverwriting() {
+        // The attack the review caught: POST /api/words with another user's word id used to
+        // JPA-merge straight over their row - new owner, meanings wiped by orphanRemoval,
+        // profile nulled. An id that does not belong to the caller must never touch the row
+        // it names.
+        Word incoming = new Word();
+        incoming.setId(777L);               // victim's row
+        incoming.setUserId(4L);             // attacker's own account
+        incoming.setEnglishWord("stolen");
+        incoming.setTurkishMeaning("calinti");
+        incoming.setLearnedDate(LocalDate.now());
+
+        when(wordRepository.findByIdAndUserId(777L, 4L)).thenReturn(Optional.empty());
+        when(wordRepository.findByUserIdAndEnglishWord(4L, "stolen")).thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Word saved = wordService.saveWord(incoming);
+
+        // Created fresh under the caller, not merged over id 777.
+        assertNull(saved.getId());
+        verify(wordRepository).save(argThat(w -> w.getId() == null && w.getUserId().equals(4L)));
+    }
+
+    @Test
+    void saveWord_WithOwnId_UpdatesFieldsWithoutWipingMeanings() {
+        Word managed = new Word();
+        managed.setId(5L);
+        managed.setUserId(1L);
+        managed.setEnglishWord("delay");
+        managed.setTurkishMeaning("gecikme");
+        managed.setLearnedDate(LocalDate.now().minusDays(3));
+        WordMeaning meaning = new WordMeaning();
+        meaning.setTranslation("gecikme");
+        managed.addMeaning(meaning);
+
+        Word incoming = new Word();
+        incoming.setId(5L);
+        incoming.setUserId(1L);
+        incoming.setEnglishWord("delay");
+        incoming.setTurkishMeaning("gecikme");
+        incoming.setNotes("sik kullaniyorum");
+        incoming.setLearnedDate(LocalDate.now());
+        // The wire payload always carries an (empty) meanings list; under the old merge
+        // that list replaced the real one and orphanRemoval deleted every meaning.
+
+        when(wordRepository.findByIdAndUserId(5L, 1L)).thenReturn(Optional.of(managed));
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Word saved = wordService.saveWord(incoming);
+
+        assertEquals(5L, saved.getId());
+        assertEquals("sik kullaniyorum", saved.getNotes());
+        assertEquals(1, saved.getMeanings().size());
+        assertEquals("gecikme", saved.getMeanings().get(0).getTranslation());
+    }
+
     @Test
     void saveWord_ShouldThrow_WhenIncomingUserIdIsNull() {
         Word word = new Word();
@@ -172,8 +243,11 @@ class WordServiceTest {
 
     @Test
     void testGetMethods() {
-        when(wordRepository.findByUserId(1L)).thenReturn(new java.util.ArrayList<>());
+        // Since V028 "all words" means the active profile's words, not every row of the user.
+        when(wordRepository.findByUserIdAndLanguageProfileId(1L, ACTIVE_PROFILE_ID)).thenReturn(new java.util.ArrayList<>());
         assertNotNull(wordService.getAllWords(1L));
+        verify(wordRepository).findByUserIdAndLanguageProfileId(1L, ACTIVE_PROFILE_ID);
+        verify(wordRepository, never()).findByUserId(anyLong());
 
         when(wordRepository.findById(1L)).thenReturn(Optional.of(new Word()));
         assertTrue(wordService.getWordById(1L).isPresent());
@@ -183,10 +257,10 @@ class WordServiceTest {
     void getWordsPageAndDateQueries_ShouldDelegateToRepository() {
         LocalDate date = LocalDate.of(2026, 2, 11);
         Page<Word> page = new PageImpl<>(List.of(new Word()));
-        when(wordRepository.findByUserId(1L, PageRequest.of(0, 10))).thenReturn(page);
-        when(wordRepository.findByUserIdAndLearnedDate(1L, date)).thenReturn(List.of(new Word()));
-        when(wordRepository.findByUserIdAndDateRange(1L, date.minusDays(3), date)).thenReturn(List.of(new Word(), new Word()));
-        when(wordRepository.findDistinctDatesByUserId(1L)).thenReturn(List.of(date));
+        when(wordRepository.findByUserIdAndLanguageProfileId(1L, ACTIVE_PROFILE_ID, PageRequest.of(0, 10))).thenReturn(page);
+        when(wordRepository.findByUserIdAndLanguageProfileIdAndLearnedDate(1L, ACTIVE_PROFILE_ID, date)).thenReturn(List.of(new Word()));
+        when(wordRepository.findByUserIdAndLanguageProfileIdAndDateRange(1L, ACTIVE_PROFILE_ID, date.minusDays(3), date)).thenReturn(List.of(new Word(), new Word()));
+        when(wordRepository.findDistinctDatesByUserIdAndLanguageProfileId(1L, ACTIVE_PROFILE_ID)).thenReturn(List.of(date));
 
         Page<Word> pageResult = wordService.getWordsPage(1L, 0, 10);
         List<Word> byDate = wordService.getWordsByDate(1L, date);
@@ -250,6 +324,9 @@ class WordServiceTest {
         existing.setEnglishWord("existing");
         existing.setLearnedDate(LocalDate.now());
 
+        // The update path now proves ownership before touching the row; a save with an id
+        // only proceeds when findByIdAndUserId finds it under the caller.
+        when(wordRepository.findByIdAndUserId(50L, 3L)).thenReturn(Optional.of(existing));
         when(wordRepository.save(existing)).thenReturn(existing);
 
         Word result = wordService.saveWord(existing);
@@ -484,6 +561,284 @@ class WordServiceTest {
 
         assertNotNull(result);
         verify(sentenceRepository).delete(sentence);
+        verify(wordRepository, never()).save(any());
+    }
+
+    // ---- V028: language profiles and meanings ----
+
+    @Test
+    void saveWord_ShouldAssignTheActiveProfile_Origin_AndMeaningsSplitFromTheLegacyString() {
+        // The shipped client sends only turkishMeaning; the star in it is how it marks a word
+        // saved from the daily-words flow. The server has to derive everything else.
+        Word incoming = new Word();
+        incoming.setUserId(1L);
+        incoming.setEnglishWord("bank");
+        incoming.setTurkishMeaning("⭐ banka; kıyı / Banka, , banka");
+        incoming.setLearnedDate(LocalDate.now());
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Word saved = wordService.saveWord(incoming);
+
+        assertEquals(ACTIVE_PROFILE_ID, saved.getLanguageProfileId());
+        assertEquals(WordOrigin.DAILY_WORDS, saved.getOrigin());
+        assertEquals("⭐ banka; kıyı / Banka, , banka", saved.getTurkishMeaning(),
+                "the legacy string is what the shipped client reads; it is not rewritten");
+        List<String> translations = saved.getMeanings().stream().map(WordMeaning::getTranslation).toList();
+        assertEquals(List.of("banka", "kıyı"), translations,
+                "split on , ; and ' / ', star stripped, blanks dropped, case-insensitive duplicates dropped");
+        assertEquals(List.of(0, 1), saved.getMeanings().stream().map(WordMeaning::getPosition).toList());
+        for (WordMeaning meaning : saved.getMeanings()) {
+            assertSame(saved, meaning.getWord());
+        }
+    }
+
+    @Test
+    void saveWord_ShouldKeepExplicitMeanings_AndFillTheLegacyStringFromThem() {
+        Word incoming = new Word();
+        incoming.setUserId(1L);
+        incoming.setEnglishWord("run");
+        incoming.setLearnedDate(LocalDate.now());
+        incoming.addMeaning(new WordMeaning(null, " koşmak ", "to move fast", 7));
+        incoming.addMeaning(new WordMeaning(null, "", null, 0));
+        incoming.addMeaning(new WordMeaning(null, "çalıştırmak", " ", 0));
+        incoming.addMeaning(new WordMeaning(null, "KOŞMAK", null, 0));
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Word saved = wordService.saveWord(incoming);
+
+        assertEquals(List.of("koşmak", "çalıştırmak"),
+                saved.getMeanings().stream().map(WordMeaning::getTranslation).toList());
+        assertEquals(List.of(0, 1), saved.getMeanings().stream().map(WordMeaning::getPosition).toList(),
+                "positions are renumbered in the order given, whatever the client sent");
+        assertEquals("to move fast", saved.getMeanings().get(0).getDefinition());
+        assertNull(saved.getMeanings().get(1).getDefinition(), "a blank definition is stored as null");
+        assertEquals("koşmak, çalıştırmak", saved.getTurkishMeaning(),
+                "a client that sends only meanings still produces the string the old client reads");
+        assertEquals(WordOrigin.MANUAL, saved.getOrigin());
+    }
+
+    @Test
+    void saveWord_ShouldNotTouchProfileOrMeanings_WhenUpdatingAnExistingWord() {
+        Word existing = new Word();
+        existing.setId(50L);
+        existing.setUserId(3L);
+        existing.setEnglishWord("existing");
+        existing.setTurkishMeaning("mevcut");
+        existing.setLearnedDate(LocalDate.now());
+        when(wordRepository.findByIdAndUserId(50L, 3L)).thenReturn(Optional.of(existing));
+        when(wordRepository.save(existing)).thenReturn(existing);
+
+        wordService.saveWord(existing);
+
+        assertNull(existing.getLanguageProfile());
+        assertTrue(existing.getMeanings().isEmpty());
+        verify(languageProfileService, never()).ensureDefaultProfile(anyLong());
+    }
+
+    @Test
+    void saveWord_WithABlankMeaningString_ShouldCreateNoMeanings() {
+        Word incoming = new Word();
+        incoming.setUserId(1L);
+        incoming.setEnglishWord("blank");
+        incoming.setTurkishMeaning("  ⭐ ");
+        incoming.setLearnedDate(LocalDate.now());
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Word saved = wordService.saveWord(incoming);
+
+        assertTrue(saved.getMeanings().isEmpty());
+        assertEquals(WordOrigin.DAILY_WORDS, saved.getOrigin());
+    }
+
+    @Test
+    void splitMeaningString_FollowsTheBackfillRule() {
+        assertEquals(List.of("koşmak", "çalıştırmak"), WordService.splitMeaningString("koşmak, çalıştırmak"));
+        assertEquals(List.of("a/b", "c", "d", "e"), WordService.splitMeaningString("a/b, c / d,, e"),
+                "a slash without spaces around it is part of the word");
+        assertEquals(List.of("yıldız"), WordService.splitMeaningString("yıldız ★"));
+        assertEquals(List.of(), WordService.splitMeaningString(null));
+        assertEquals(List.of(), WordService.splitMeaningString("   "));
+    }
+
+    @Test
+    void getAllWords_ShouldUseTheProfileGivenByTheCaller() {
+        LanguageProfile german = new LanguageProfile(1L, "Turkish", "German", "A1", null, false);
+        german.setId(600L);
+        when(languageProfileService.getProfile(1L, 600L)).thenReturn(Optional.of(german));
+        when(wordRepository.findByUserIdAndLanguageProfileId(1L, 600L)).thenReturn(List.of(new Word()));
+
+        assertEquals(1, wordService.getAllWords(1L, 600L).size());
+        verify(languageProfileService, never()).ensureDefaultProfile(anyLong());
+    }
+
+    @Test
+    void getAllWords_WithAProfileThatIsNotTheCallers_ShouldBeNotFound() {
+        when(languageProfileService.getProfile(1L, 601L)).thenReturn(Optional.empty());
+
+        assertThrows(java.util.NoSuchElementException.class, () -> wordService.getAllWords(1L, 601L));
+        verify(wordRepository, never()).findByUserIdAndLanguageProfileId(anyLong(), anyLong());
+    }
+
+    private Word wordWithMeanings(String turkishMeaning, String... translations) {
+        Word word = new Word();
+        word.setId(1L);
+        word.setUserId(1L);
+        word.setEnglishWord("bank");
+        word.setTurkishMeaning(turkishMeaning);
+        for (int i = 0; i < translations.length; i++) {
+            WordMeaning meaning = new WordMeaning(null, translations[i], null, i);
+            meaning.setId(100L + i);
+            word.addMeaning(meaning);
+        }
+        when(wordRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(word));
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> inv.getArgument(0));
+        return word;
+    }
+
+    /** The sentences on the word at the moment it is saved; hydration replaces the list afterwards. */
+    private List<Sentence> sentencesAtSave() {
+        List<Sentence> atSave = new ArrayList<>();
+        when(wordRepository.save(any(Word.class))).thenAnswer(inv -> {
+            Word word = inv.getArgument(0);
+            atSave.addAll(word.getSentences());
+            return word;
+        });
+        return atSave;
+    }
+
+    @Test
+    void addSentence_WithAMeaningId_ShouldAttachTheSentenceToThatMeaning() {
+        Word word = wordWithMeanings("banka, kıyı", "banka", "kıyı");
+        List<Sentence> atSave = sentencesAtSave();
+
+        wordService.addSentence(1L, "We sat on the river bank.", "Nehir kıyısında oturduk.", "easy", 1L, 101L);
+
+        assertEquals(1, atSave.size());
+        assertSame(word.getMeanings().get(1), atSave.get(0).getMeaning());
+        assertEquals(101L, atSave.get(0).getMeaningId());
+    }
+
+    @Test
+    void addSentence_WithoutAMeaningId_ShouldLeaveTheSentenceUnassigned() {
+        wordWithMeanings("banka, kıyı", "banka", "kıyı");
+        List<Sentence> atSave = sentencesAtSave();
+
+        wordService.addSentence(1L, "I went to the bank.", "Bankaya gittim.", "easy", 1L);
+
+        assertEquals(1, atSave.size());
+        assertNull(atSave.get(0).getMeaning());
+    }
+
+    @Test
+    void addSentence_WithAMeaningOfAnotherWord_ShouldBeRejectedBeforeAnythingIsSaved() {
+        wordWithMeanings("banka, kıyı", "banka", "kıyı");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wordService.addSentence(1L, "x", "y", "easy", 1L, 999L));
+        verify(wordRepository, never()).save(any());
+        verify(progressService, never()).awardXp(anyLong(), anyInt(), anyString());
+    }
+
+    @Test
+    void addSentence_DuplicateOfAnUnassignedSentence_ShouldAdoptTheMeaningNowGiven() {
+        Word word = wordWithMeanings("banka, kıyı", "banka", "kıyı");
+        Sentence existing = new Sentence("I went to the bank.", "Bankaya gittim.", "easy", word);
+        existing.setId(7L);
+        when(sentenceRepository.findByWordIdAndSentenceAndTranslation(1L, "I went to the bank.", "Bankaya gittim."))
+                .thenReturn(List.of(existing));
+
+        wordService.addSentence(1L, "I went to the bank.", "Bankaya gittim.", "easy", 1L, 100L);
+
+        assertSame(word.getMeanings().get(0), existing.getMeaning());
+        verify(wordRepository, never()).save(any());
+        verify(progressService, never()).awardXp(anyLong(), anyInt(), anyString());
+    }
+
+    @Test
+    void addMeaning_ShouldAppendAtTheEnd_AndRewriteTheLegacyStringKeepingTheStar() {
+        Word word = wordWithMeanings("⭐ banka", "banka");
+
+        Word result = wordService.addMeaning(1L, 1L, "  kıyı ", "  ");
+
+        assertEquals(2, result.getMeanings().size());
+        WordMeaning added = result.getMeanings().get(1);
+        assertEquals("kıyı", added.getTranslation());
+        assertNull(added.getDefinition());
+        assertEquals(1, added.getPosition());
+        assertSame(word, added.getWord());
+        assertEquals("⭐ banka, kıyı", result.getTurkishMeaning(),
+                "the old client reads provenance from the star, so it must survive a rewrite");
+    }
+
+    @Test
+    void addMeaning_WithATranslationTheWordAlreadyHas_ShouldChangeNothing() {
+        wordWithMeanings("banka", "banka");
+
+        Word result = wordService.addMeaning(1L, 1L, "BANKA", null);
+
+        assertEquals(1, result.getMeanings().size());
+        verify(wordRepository, never()).save(any());
+    }
+
+    @Test
+    void addMeaning_BlankTranslation_IsRejected_AndUnknownWordIsNotFound() {
+        wordWithMeanings("banka", "banka");
+        assertThrows(IllegalArgumentException.class, () -> wordService.addMeaning(1L, 1L, " ⭐ ", null));
+
+        when(wordRepository.findByIdAndUserId(2L, 1L)).thenReturn(Optional.empty());
+        assertThrows(java.util.NoSuchElementException.class, () -> wordService.addMeaning(2L, 1L, "x", null));
+        verify(wordRepository, never()).save(any());
+    }
+
+    @Test
+    void updateMeaning_ShouldChangeOnlyWhatWasSent_AndResyncTheLegacyString() {
+        Word word = wordWithMeanings("banka, kıyı", "banka", "kıyı");
+        word.getMeanings().get(0).setDefinition("financial institution");
+
+        Word result = wordService.updateMeaning(1L, 100L, 1L, "banka (finans)", null);
+        assertEquals("banka (finans)", result.getMeanings().get(0).getTranslation());
+        assertEquals("financial institution", result.getMeanings().get(0).getDefinition());
+        assertEquals("banka (finans), kıyı", result.getTurkishMeaning());
+
+        wordService.updateMeaning(1L, 100L, 1L, null, "");
+        assertNull(word.getMeanings().get(0).getDefinition(), "a blank definition clears it");
+
+        assertThrows(IllegalArgumentException.class, () -> wordService.updateMeaning(1L, 100L, 1L, "", null));
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> wordService.updateMeaning(1L, 999L, 1L, "x", null));
+    }
+
+    @Test
+    void deleteMeaning_ShouldUnassignItsSentences_RemoveIt_AndResyncTheLegacyString() {
+        Word word = wordWithMeanings("banka, kıyı", "banka", "kıyı");
+        WordMeaning shore = word.getMeanings().get(1);
+        Sentence onShore = new Sentence("We sat on the bank.", "Kıyıda oturduk.", "easy", word);
+        onShore.setId(8L);
+        onShore.setMeaning(shore);
+        when(sentenceRepository.findByMeaningId(101L)).thenReturn(List.of(onShore));
+
+        Word result = wordService.deleteMeaning(1L, 101L, 1L);
+
+        assertNull(onShore.getMeaning(), "the learner's sentence survives as unassigned");
+        assertEquals(List.of("banka"), result.getMeanings().stream().map(WordMeaning::getTranslation).toList());
+        assertEquals("banka", result.getTurkishMeaning());
+        verify(wordRepository).save(word);
+    }
+
+    @Test
+    void deleteMeaning_OfTheLastMeaning_IsRefused() {
+        wordWithMeanings("banka", "banka");
+
+        assertThrows(WordService.LastMeaningException.class, () -> wordService.deleteMeaning(1L, 100L, 1L));
+        verify(wordRepository, never()).save(any());
+        verify(sentenceRepository, never()).findByMeaningId(anyLong());
+    }
+
+    @Test
+    void deleteMeaning_OfAMeaningTheWordDoesNotHave_IsNotFound() {
+        wordWithMeanings("banka, kıyı", "banka", "kıyı");
+
+        assertThrows(java.util.NoSuchElementException.class, () -> wordService.deleteMeaning(1L, 999L, 1L));
         verify(wordRepository, never()).save(any());
     }
 }

@@ -8,6 +8,7 @@ import '../services/xp_manager.dart';
 import '../services/local_database_service.dart';
 import '../services/analytics_service.dart';
 import '../services/local_reminder_service.dart';
+import '../models/language_profile.dart';
 import '../models/word.dart';
 import '../models/sentence_view_model.dart';
 import '../services/groq_service.dart';
@@ -202,6 +203,88 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // LANGUAGE PROFILES
+  // ═══════════════════════════════════════════════════════════════
+  List<LanguageProfile> _languageProfiles = [];
+  bool _isLoadingLanguageProfiles = false;
+  bool _isSwitchingProfile = false;
+
+  List<LanguageProfile> get languageProfiles => _languageProfiles;
+  bool get isLoadingLanguageProfiles => _isLoadingLanguageProfiles;
+  bool get isSwitchingProfile => _isSwitchingProfile;
+
+  /// The profile whose words the server is currently returning. Null until the
+  /// profile list has loaded, and stays null against a backend that does not
+  /// serve profiles yet — every screen must keep working in that case.
+  LanguageProfile? get activeProfile {
+    for (final profile in _languageProfiles) {
+      if (profile.isActive) return profile;
+    }
+    return null;
+  }
+
+  /// Loads the caller's language profiles.
+  ///
+  /// Runs alongside the other initial loads. It never throws: a backend that has not
+  /// been deployed with profiles yet answers 404, and that must not block the app.
+  Future<void> loadLanguageProfiles() async {
+    if (_isLoadingLanguageProfiles) return;
+    _isLoadingLanguageProfiles = true;
+    try {
+      final profiles = await _apiService.getLanguageProfiles();
+      _languageProfiles = profiles;
+    } catch (e) {
+      debugPrint('Error loading language profiles: $e');
+    } finally {
+      _isLoadingLanguageProfiles = false;
+      notifyListeners();
+    }
+  }
+
+  /// Makes [profileId] the active profile on the server, then reloads everything
+  /// that is scoped by it: words, daily words and the stats derived from them.
+  ///
+  /// Returns false when the server refused or could not be reached; the previously
+  /// active profile then stays in place.
+  Future<bool> switchProfile(int profileId) async {
+    if (_isSwitchingProfile) return false;
+    final current = activeProfile;
+    if (current != null && current.id == profileId) return true;
+
+    _isSwitchingProfile = true;
+    notifyListeners();
+    try {
+      await _apiService.activateLanguageProfile(profileId);
+
+      // Reflect the switch immediately; the server list is re-read below.
+      _languageProfiles = _languageProfiles
+          .map((p) => LanguageProfile(
+                id: p.id,
+                sourceLanguage: p.sourceLanguage,
+                targetLanguage: p.targetLanguage,
+                level: p.level,
+                learningGoal: p.learningGoal,
+                isActive: p.id == profileId,
+                createdAt: p.createdAt,
+              ))
+          .toList();
+      notifyListeners();
+
+      await loadLanguageProfiles();
+      await refreshWords();
+      await refreshDailyWords();
+      await refreshUserData();
+      return true;
+    } catch (e) {
+      debugPrint('Error switching language profile: $e');
+      return false;
+    } finally {
+      _isSwitchingProfile = false;
+      notifyListeners();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // INITIALIZATION - Uygulama açılışında çağrılır (HIZLI)
   // ═══════════════════════════════════════════════════════════════
   Future<void> initialize() async {
@@ -227,6 +310,9 @@ class AppStateProvider extends ChangeNotifier {
     Future(() async {
       // Günün kelimeleri (cache varsa hızlı, yoksa AI API'den çeker)
       await _loadDailyWords();
+
+      // Dil profilleri (eski backend'de yoksa sessizce boş kalır)
+      await loadLanguageProfiles();
 
       // Arka planda API ile sync (local veri zaten var)
       await _offlineSyncService.syncPendingChanges();
@@ -695,6 +781,9 @@ class AppStateProvider extends ChangeNotifier {
 
     _allWords = [];
     _allSentences = [];
+    _languageProfiles = [];
+    _isLoadingLanguageProfiles = false;
+    _isSwitchingProfile = false;
     if (clearDailyWords) {
       _dailyWords = [];
     }
@@ -713,6 +802,7 @@ class AppStateProvider extends ChangeNotifier {
     await _loadDailyWords(
       forceRefresh: forceDailyWordsRefresh || _dailyWords.isEmpty,
     );
+    await loadLanguageProfiles();
   }
 
   /// Logout veya hesap değişiminde kullanıcıya bağlı in-memory state'i temizle.

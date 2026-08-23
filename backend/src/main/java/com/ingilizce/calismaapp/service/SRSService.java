@@ -5,6 +5,7 @@ import com.ingilizce.calismaapp.entity.ReviewSource;
 import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.repository.ReviewEventRepository;
 import com.ingilizce.calismaapp.repository.WordRepository;
+import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,11 @@ public class SRSService {
     @Autowired(required = false)
     private ReviewEventRepository reviewEventRepository;
 
+    /// Optional for the same reason. Present, it scopes the due-word queries to the active
+    /// language profile (V028); absent, they fall back to every word of the user.
+    @Autowired(required = false)
+    private LanguageProfileService languageProfileService;
+
     // SM-2 Algorithm Constants
     private static final double MIN_EASE_FACTOR = 1.3;
     private static final int INITIAL_INTERVAL = 1; // days
@@ -44,15 +50,24 @@ public class SRSService {
      * 
      * @return List of words to review
      */
+    // Not readOnly: activeProfileId() may create the profile or adopt orphan words.
+    @Transactional
     public List<Word> getWordsForReview(Long userId) {
         validateUserId(userId);
         LocalDate today = LocalDate.now();
         logger.info("Getting words for review (userId={}, today={})", userId, today);
 
-        // Find words where next_review_date <= today
-        List<Word> reviewWords = wordRepository.findByUserIdAndNextReviewDateLessThanEqual(userId, today);
+        // Find words where next_review_date <= today, within the active profile
+        Long profileId = activeProfileId(userId);
+        List<Word> reviewWords = profileId != null
+                ? wordRepository.findByUserIdAndLanguageProfileIdAndNextReviewDateLessThanEqual(userId, profileId, today)
+                : wordRepository.findByUserIdAndNextReviewDateLessThanEqual(userId, today);
         logger.info("Found {} words for review (userId={})", reviewWords.size(), userId);
 
+        // Serialised by the controller after this transaction ends, with open-in-view off.
+        for (Word word : reviewWords) {
+            Hibernate.initialize(word.getSentences());
+        }
         return reviewWords;
     }
 
@@ -128,6 +143,13 @@ public class SRSService {
                 word.getEnglishWord(), reviewCount, easeFactor, interval, nextReviewDate);
 
         Word savedWord = wordRepository.save(word);
+
+        // The controller serialises this word after the transaction ends and open-in-view is
+        // off, so the lazy sentences must be loaded here or Jackson throws
+        // LazyInitializationException -- after the review has already been committed.
+        if (savedWord != null) {
+            Hibernate.initialize(savedWord.getSentences());
+        }
 
         recordReviewEvent(
                 userId,
@@ -291,22 +313,40 @@ public class SRSService {
 
         LocalDate today = LocalDate.now();
 
+        // All three within the active profile (V028): the screen that shows these numbers
+        // shows the active profile's words, so its counts must be of the same set.
+        Long profileId = activeProfileId(userId);
+
         // Words due today
-        List<Word> dueToday = wordRepository.findByUserIdAndNextReviewDateLessThanEqual(userId, today);
+        List<Word> dueToday = profileId != null
+                ? wordRepository.findByUserIdAndLanguageProfileIdAndNextReviewDateLessThanEqual(userId, profileId, today)
+                : wordRepository.findByUserIdAndNextReviewDateLessThanEqual(userId, today);
         stats.put("dueToday", dueToday.size());
 
         // Total words
-        long totalWords = wordRepository.countByUserId(userId);
+        long totalWords = profileId != null
+                ? wordRepository.countByUserIdAndLanguageProfileId(userId, profileId)
+                : wordRepository.countByUserId(userId);
         stats.put("totalWords", totalWords);
 
         // Words reviewed (review_count > 0)
-        List<Word> reviewedWords = wordRepository.findByUserIdAndReviewCountGreaterThan(userId, 0);
+        List<Word> reviewedWords = profileId != null
+                ? wordRepository.findByUserIdAndLanguageProfileIdAndReviewCountGreaterThan(userId, profileId, 0)
+                : wordRepository.findByUserIdAndReviewCountGreaterThan(userId, 0);
         stats.put("reviewedWords", reviewedWords.size());
 
         logger.info("SRS Stats (userId={}): dueToday={}, totalWords={}, reviewedWords={}",
                 userId, dueToday.size(), totalWords, reviewedWords.size());
 
         return stats;
+    }
+
+    /** The active profile's id, or null when no profile service is wired (plain unit tests). */
+    private Long activeProfileId(Long userId) {
+        if (languageProfileService == null) {
+            return null;
+        }
+        return languageProfileService.ensureDefaultProfile(userId).getId();
     }
 
     private void validateUserId(Long userId) {

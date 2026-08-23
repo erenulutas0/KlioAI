@@ -17,6 +17,7 @@ class ManualMockApiService extends Mock implements ApiService {
     required String turkish,
     required DateTime addedDate,
     String difficulty = 'easy',
+    List<Map<String, dynamic>>? meanings,
   }) =>
       super.noSuchMethod(
         Invocation.method(#createWord, [], {
@@ -24,6 +25,7 @@ class ManualMockApiService extends Mock implements ApiService {
           #turkish: turkish,
           #addedDate: addedDate,
           #difficulty: difficulty,
+          #meanings: meanings,
         }),
         returnValue: Future.value(Word(
           id: 1001,

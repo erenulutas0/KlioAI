@@ -1,10 +1,14 @@
 package com.ingilizce.calismaapp.service;
 
+import com.ingilizce.calismaapp.entity.LanguageProfile;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.entity.WordMeaning;
+import com.ingilizce.calismaapp.entity.WordOrigin;
 import com.ingilizce.calismaapp.entity.Sentence;
 import com.ingilizce.calismaapp.dto.CreateWordRequest;
 import com.ingilizce.calismaapp.repository.WordRepository;
 import com.ingilizce.calismaapp.repository.SentenceRepository;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,10 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +32,21 @@ import java.util.stream.Collectors;
 public class WordService {
     private static final int XP_NEW_WORD = 10;
     private static final int XP_NEW_WORD_SENTENCE = 5;
+
+    /**
+     * How a legacy {@code turkish_meaning} string splits into meanings: commas, semicolons,
+     * or a slash with whitespace on both sides. The same rule V028 used for the backfill, so
+     * a word created through the old client and one backfilled from the same string agree.
+     */
+    private static final Pattern MEANING_SEPARATOR = Pattern.compile("\\s*[,;]\\s*|\\s+/\\s+");
+    private static final int MAX_TRANSLATION_LENGTH = 255;
+
+    /** Deleting the last meaning is refused: a word with no meaning teaches nothing (HTTP 400). */
+    public static class LastMeaningException extends RuntimeException {
+        public LastMeaningException() {
+            super("A word must keep at least one meaning");
+        }
+    }
 
     @Autowired
     private WordRepository wordRepository;
@@ -37,32 +60,49 @@ public class WordService {
     @Autowired
     private SRSService srsService;
 
+    @Autowired
+    private LanguageProfileService languageProfileService;
+
     public List<Word> getAllWords(Long userId) {
-        List<Word> words = wordRepository.findByUserId(userId);
+        return getAllWords(userId, null);
+    }
+
+    /** @param languageProfileId a profile of the caller, or null for the active one. */
+    public List<Word> getAllWords(Long userId, Long languageProfileId) {
+        Long profileId = resolveProfileId(userId, languageProfileId);
+        List<Word> words = wordRepository.findByUserIdAndLanguageProfileId(userId, profileId);
         hydrateSentencesForWords(words);
         return words;
     }
 
     public Page<Word> getWordsPage(Long userId, int page, int size) {
-        Page<Word> wordsPage = wordRepository.findByUserId(userId, PageRequest.of(page, size));
+        return getWordsPage(userId, null, page, size);
+    }
+
+    public Page<Word> getWordsPage(Long userId, Long languageProfileId, int page, int size) {
+        Long profileId = resolveProfileId(userId, languageProfileId);
+        Page<Word> wordsPage = wordRepository.findByUserIdAndLanguageProfileId(userId, profileId, PageRequest.of(page, size));
         hydrateSentencesForWords(wordsPage.getContent());
         return wordsPage;
     }
 
     public List<Word> getWordsByDate(Long userId, LocalDate date) {
-        List<Word> words = wordRepository.findByUserIdAndLearnedDate(userId, date);
+        Long profileId = resolveProfileId(userId, null);
+        List<Word> words = wordRepository.findByUserIdAndLanguageProfileIdAndLearnedDate(userId, profileId, date);
         hydrateSentencesForWords(words);
         return words;
     }
 
     public List<Word> getWordsByDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        List<Word> words = wordRepository.findByUserIdAndDateRange(userId, startDate, endDate);
+        Long profileId = resolveProfileId(userId, null);
+        List<Word> words = wordRepository.findByUserIdAndLanguageProfileIdAndDateRange(userId, profileId, startDate, endDate);
         hydrateSentencesForWords(words);
         return words;
     }
 
     public List<LocalDate> getAllDistinctDates(Long userId) {
-        return wordRepository.findDistinctDatesByUserId(userId);
+        Long profileId = resolveProfileId(userId, null);
+        return wordRepository.findDistinctDatesByUserIdAndLanguageProfileId(userId, profileId);
     }
 
     @Transactional
@@ -72,7 +112,52 @@ public class WordService {
             throw new IllegalArgumentException("word.userId is required");
         }
 
-        boolean isNew = (word.getId() == null);
+        // A client-supplied id is a sync hint, not authority. This used to fall straight
+        // through to wordRepository.save(word) - a JPA merge of a detached entity - which
+        // meant three things at once: no ownership check, so any caller could overwrite any
+        // word row by id and make it theirs; the incoming entity's empty meanings list,
+        // under cascade ALL + orphanRemoval, deleted every meaning the word had, bypassing
+        // the last-meaning guard; and languageProfile came back null. The shipped client
+        // really does send ids here (Word.toJson includes one, and offline sync replays
+        // creations), so the id cannot simply be rejected either.
+        if (word.getId() != null) {
+            Optional<Word> owned = wordRepository.findByIdAndUserId(word.getId(), word.getUserId());
+            if (owned.isPresent()) {
+                Word managed = owned.get();
+                if (word.getEnglishWord() != null && !word.getEnglishWord().isBlank()) {
+                    managed.setEnglishWord(word.getEnglishWord());
+                }
+                if (word.getLearnedDate() != null) {
+                    managed.setLearnedDate(word.getLearnedDate());
+                }
+                managed.setNotes(word.getNotes());
+                if (word.getDifficulty() != null) {
+                    managed.setDifficulty(word.getDifficulty());
+                }
+                // Offline sync replays SRS state; honour it only when actually carried.
+                if (word.getNextReviewDate() != null) {
+                    managed.setNextReviewDate(word.getNextReviewDate());
+                }
+                if (word.getReviewCount() != null) {
+                    managed.setReviewCount(word.getReviewCount());
+                }
+                if (word.getEaseFactor() != null) {
+                    managed.setEaseFactor(word.getEaseFactor());
+                }
+                if (word.getLastReviewDate() != null) {
+                    managed.setLastReviewDate(word.getLastReviewDate());
+                }
+                applyMeaningEdit(managed, word);
+                return hydrateSentences(wordRepository.save(managed));
+            }
+            // Not this user's word (a stale local id, or someone else's row): never merge
+            // over it. Fall through and create under the caller's own account - the
+            // englishWord idempotency check below still applies, so a replayed sync does
+            // not duplicate.
+            word.setId(null);
+        }
+
+        boolean isNew = true;
 
         // Idempotency: if same word already exists for user, return it without side effects
         if (isNew && word.getEnglishWord() != null) {
@@ -94,6 +179,18 @@ public class WordService {
             // schedule, and the only two that did were reviewed through the generic
             // "review everything" screen.
             srsService.initializeWordForSRS(word);
+
+            // V028: every word belongs to a profile, carries its provenance, and has at
+            // least one meaning. The shipped client sends none of these; they are derived.
+            if (word.getLanguageProfile() == null) {
+                word.setLanguageProfile(languageProfileService.ensureDefaultProfile(word.getUserId()));
+            }
+            if (word.getOrigin() == null || word.getOrigin().isBlank()) {
+                word.setOrigin(WordOrigin.hasDailyWordsMarker(word.getTurkishMeaning())
+                        ? WordOrigin.DAILY_WORDS
+                        : WordOrigin.MANUAL);
+            }
+            prepareMeaningsForNewWord(word);
         }
 
         Word savedWord = wordRepository.save(word);
@@ -151,32 +248,154 @@ public class WordService {
         if (optionalWord.isPresent()) {
             Word word = optionalWord.get();
             word.setEnglishWord(wordDetails.getEnglishWord());
-            word.setTurkishMeaning(wordDetails.getTurkishMeaning());
             word.setLearnedDate(wordDetails.getLearnedDate());
             word.setNotes(wordDetails.getNotes());
+            applyMeaningEdit(word, wordDetails);
             Word updatedWord = wordRepository.save(word);
             return hydrateSentences(updatedWord);
         }
         return null;
     }
 
+    /**
+     * Applies the meaning part of a PUT so the two representations cannot drift: meanings
+     * sent explicitly win; otherwise a changed {@code turkishMeaning} is split into meanings
+     * with the same rule the create path uses. Either way {@code turkishMeaning} ends up as
+     * the joined translations (daily-words star kept), because the shipped client reads that
+     * string and the new client reads the meanings.
+     *
+     * <p>Reconciled by translation rather than rebuilt: a meaning whose translation survives
+     * keeps its id, its definition and the sentences attached to it. Sentences under a
+     * meaning that goes away become unassigned, as in {@link #deleteMeaning}. A PUT whose
+     * string is blank, or whose meanings are all blank, leaves the meanings alone -- a word
+     * with no meaning teaches nothing -- and re-derives the string from them.
+     */
+    private void applyMeaningEdit(Word word, Word wordDetails) {
+        List<WordMeaning> wanted = new ArrayList<>();
+        Map<String, WordMeaning> seen = new LinkedHashMap<>();
+        for (WordMeaning provided : wordDetails.getMeanings()) {
+            if (provided == null) {
+                continue;
+            }
+            String translation = cleanTranslation(provided.getTranslation());
+            if (translation.isEmpty() || seen.containsKey(translation.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            WordMeaning copy = new WordMeaning(null, translation, cleanDefinition(provided.getDefinition()), wanted.size());
+            seen.put(translation.toLowerCase(Locale.ROOT), copy);
+            wanted.add(copy);
+        }
+
+        if (wanted.isEmpty()) {
+            String newString = wordDetails.getTurkishMeaning();
+            boolean unchanged = Objects.equals(
+                    cleanTranslation(newString), cleanTranslation(word.getTurkishMeaning()));
+            if (unchanged) {
+                // Same meaning text (a star added or dropped is not a meaning change): the
+                // caller's string is stored as it always was and the meanings stay.
+                word.setTurkishMeaning(newString);
+                return;
+            }
+            List<String> translations = splitMeaningString(newString);
+            if (translations.isEmpty()) {
+                if (word.getMeanings().isEmpty()) {
+                    word.setTurkishMeaning(newString);
+                } else {
+                    syncTurkishMeaning(word);
+                }
+                return;
+            }
+            for (int i = 0; i < translations.size(); i++) {
+                wanted.add(new WordMeaning(null, translations.get(i), null, i));
+            }
+            // The star the caller sent (or kept) is what syncTurkishMeaning preserves.
+            word.setTurkishMeaning(newString);
+        }
+
+        reconcileMeanings(word, wanted);
+        syncTurkishMeaning(word);
+    }
+
+    /** Makes the word's meanings match {@code wanted} while keeping rows whose translation survives. */
+    private void reconcileMeanings(Word word, List<WordMeaning> wanted) {
+        Map<String, WordMeaning> existingByKey = new LinkedHashMap<>();
+        for (WordMeaning existing : word.getMeanings()) {
+            if (existing.getTranslation() != null) {
+                existingByKey.putIfAbsent(existing.getTranslation().trim().toLowerCase(Locale.ROOT), existing);
+            }
+        }
+
+        List<WordMeaning> result = new ArrayList<>();
+        for (WordMeaning target : wanted) {
+            WordMeaning kept = existingByKey.remove(target.getTranslation().toLowerCase(Locale.ROOT));
+            if (kept != null) {
+                kept.setTranslation(target.getTranslation());
+                if (target.getDefinition() != null) {
+                    kept.setDefinition(target.getDefinition());
+                }
+                kept.setPosition(result.size());
+                result.add(kept);
+            } else {
+                target.setPosition(result.size());
+                result.add(target);
+            }
+        }
+
+        for (WordMeaning removed : new ArrayList<>(word.getMeanings())) {
+            if (result.contains(removed)) {
+                continue;
+            }
+            if (removed.getId() != null) {
+                for (Sentence sentence : sentenceRepository.findByMeaningId(removed.getId())) {
+                    sentence.setMeaning(null);
+                }
+            }
+            word.removeMeaning(removed);
+        }
+        word.setMeanings(result);
+    }
+
     // Sentence management methods
     @Transactional
     public Word addSentence(Long wordId, String sentence, String translation, String difficulty, Long userId) {
+        return addSentence(wordId, sentence, translation, difficulty, userId, null);
+    }
+
+    /**
+     * As {@link #addSentence(Long, String, String, String, Long)}, optionally attaching the
+     * sentence to one of the word's meanings. A null {@code meaningId} leaves the sentence
+     * unassigned, which the UI shows under every meaning.
+     *
+     * @throws IllegalArgumentException when {@code meaningId} is not a meaning of this word
+     */
+    @Transactional
+    public Word addSentence(Long wordId, String sentence, String translation, String difficulty, Long userId,
+            Long meaningId) {
         Optional<Word> wordOpt = getWordByIdAndUser(wordId, userId);
         if (wordOpt.isPresent()) {
             Word word = wordOpt.get();
+            WordMeaning meaning = meaningId != null ? requireMeaningOfWord(word, meaningId) : null;
 
             // Idempotency: if same sentence already exists, return word without side effects
             if (sentence != null) {
                 List<Sentence> existingSentences = sentenceRepository
                         .findByWordIdAndSentenceAndTranslation(wordId, sentence, translation);
                 if (!existingSentences.isEmpty()) {
+                    // The one side effect worth having: an unassigned copy of this sentence
+                    // learns its meaning when the caller now knows it.
+                    if (meaning != null) {
+                        for (Sentence existing : existingSentences) {
+                            if (existing.getMeaning() == null) {
+                                existing.setMeaning(meaning);
+                            }
+                        }
+                    }
                     return hydrateSentences(word);
                 }
             }
 
             Sentence newSentence = new Sentence(sentence, translation, difficulty != null ? difficulty : "easy", word);
+            newSentence.setMeaning(meaning);
             word.addSentence(newSentence);
             progressService.awardXp(userId, XP_NEW_WORD_SENTENCE, "New Sentence for: " + word.getEnglishWord());
             Word updatedWord = wordRepository.save(word);
@@ -195,7 +414,9 @@ public class WordService {
         }
 
         Sentence sentence = sentenceOpt.get();
-        Word owningWord = sentence.getWord();
+        // sentence.word is lazy, so this is a Hibernate proxy; the controller serialises the
+        // returned word after the session closes, and Jackson cannot serialise a proxy.
+        Word owningWord = sentence.getWord() == null ? null : Hibernate.unproxy(sentence.getWord(), Word.class);
         if (owningWord == null || owningWord.getId() == null) {
             return null;
         }
@@ -204,6 +425,212 @@ public class WordService {
         owningWord.removeSentence(sentence);
         sentenceRepository.delete(sentence);
         return hydrateSentences(owningWord);
+    }
+
+    // Meaning management methods (V028)
+
+    /**
+     * Adds a meaning at the end of the word's list. Adding a translation the word already
+     * has (case-insensitively) returns the word unchanged, like the other "add" paths here.
+     *
+     * @throws NoSuchElementException when the word is not the caller's (404)
+     * @throws IllegalArgumentException when the translation is blank (400)
+     */
+    @Transactional
+    public Word addMeaning(Long wordId, Long userId, String translation, String definition) {
+        Word word = requireWordOfUser(wordId, userId);
+        String cleanTranslation = cleanTranslation(translation);
+        if (cleanTranslation.isEmpty()) {
+            throw new IllegalArgumentException("translation is required");
+        }
+        for (WordMeaning existing : word.getMeanings()) {
+            if (sameTranslation(existing.getTranslation(), cleanTranslation)) {
+                return hydrateSentences(word);
+            }
+        }
+        int position = word.getMeanings().stream().mapToInt(WordMeaning::getPosition).max().orElse(-1) + 1;
+        word.addMeaning(new WordMeaning(null, cleanTranslation, cleanDefinition(definition), position));
+        syncTurkishMeaning(word);
+        return hydrateSentences(wordRepository.save(word));
+    }
+
+    /**
+     * Edits a meaning's translation and/or definition. A null argument leaves that field as
+     * it is; a blank definition clears it; a blank translation is refused.
+     */
+    @Transactional
+    public Word updateMeaning(Long wordId, Long meaningId, Long userId, String translation, String definition) {
+        Word word = requireWordOfUser(wordId, userId);
+        WordMeaning meaning = findMeaningOfWord(word, meaningId)
+                .orElseThrow(() -> new NoSuchElementException("Meaning not found: " + meaningId));
+        if (translation != null) {
+            String cleanTranslation = cleanTranslation(translation);
+            if (cleanTranslation.isEmpty()) {
+                throw new IllegalArgumentException("translation must not be blank");
+            }
+            meaning.setTranslation(cleanTranslation);
+        }
+        if (definition != null) {
+            meaning.setDefinition(cleanDefinition(definition));
+        }
+        syncTurkishMeaning(word);
+        return hydrateSentences(wordRepository.save(word));
+    }
+
+    /**
+     * Removes a meaning. Sentences attached to it become unassigned rather than deleted: the
+     * learner wrote them, and they still illustrate the word.
+     *
+     * @throws LastMeaningException when it is the word's only meaning (400)
+     */
+    @Transactional
+    public Word deleteMeaning(Long wordId, Long meaningId, Long userId) {
+        Word word = requireWordOfUser(wordId, userId);
+        WordMeaning meaning = findMeaningOfWord(word, meaningId)
+                .orElseThrow(() -> new NoSuchElementException("Meaning not found: " + meaningId));
+        if (word.getMeanings().size() <= 1) {
+            throw new LastMeaningException();
+        }
+        // Detach through the loaded entities rather than a bulk UPDATE so the persistence
+        // context and the row agree; Hibernate flushes these updates before the delete.
+        for (Sentence sentence : sentenceRepository.findByMeaningId(meaningId)) {
+            sentence.setMeaning(null);
+        }
+        word.removeMeaning(meaning);
+        syncTurkishMeaning(word);
+        return hydrateSentences(wordRepository.save(word));
+    }
+
+    /**
+     * Splits a legacy comma-joined meaning string into clean, de-duplicated translations with
+     * the daily-words star stripped. Blank input gives an empty list.
+     */
+    public static List<String> splitMeaningString(String turkishMeaning) {
+        if (turkishMeaning == null || turkishMeaning.isBlank()) {
+            return List.of();
+        }
+        Map<String, String> byKey = new LinkedHashMap<>();
+        for (String part : MEANING_SEPARATOR.split(turkishMeaning)) {
+            String clean = cleanTranslation(part);
+            if (clean.isEmpty()) {
+                continue;
+            }
+            byKey.putIfAbsent(clean.toLowerCase(Locale.ROOT), clean);
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    private Long resolveProfileId(Long userId, Long languageProfileId) {
+        if (languageProfileId == null) {
+            return languageProfileService.ensureDefaultProfile(userId).getId();
+        }
+        return languageProfileService.getProfile(userId, languageProfileId)
+                .map(LanguageProfile::getId)
+                .orElseThrow(() -> new NoSuchElementException("Language profile not found: " + languageProfileId));
+    }
+
+    /**
+     * Gives a new word its meanings. Meanings sent explicitly are cleaned, de-duplicated and
+     * renumbered; otherwise they come from the {@code turkishMeaning} string. When only the
+     * meanings were sent, the legacy string is filled in so the shipped client sees it.
+     */
+    private void prepareMeaningsForNewWord(Word word) {
+        List<WordMeaning> provided = new ArrayList<>(word.getMeanings());
+        List<WordMeaning> cleaned = new ArrayList<>();
+        Map<String, WordMeaning> seen = new LinkedHashMap<>();
+        for (WordMeaning meaning : provided) {
+            if (meaning == null) {
+                continue;
+            }
+            String translation = cleanTranslation(meaning.getTranslation());
+            if (translation.isEmpty()) {
+                continue;
+            }
+            String key = translation.toLowerCase(Locale.ROOT);
+            if (seen.containsKey(key)) {
+                continue;
+            }
+            WordMeaning copy = new WordMeaning(null, translation, cleanDefinition(meaning.getDefinition()), cleaned.size());
+            seen.put(key, copy);
+            cleaned.add(copy);
+        }
+
+        if (cleaned.isEmpty()) {
+            List<String> translations = splitMeaningString(word.getTurkishMeaning());
+            for (int i = 0; i < translations.size(); i++) {
+                cleaned.add(new WordMeaning(null, translations.get(i), null, i));
+            }
+        } else if (word.getTurkishMeaning() == null || word.getTurkishMeaning().isBlank()) {
+            word.setTurkishMeaning(joinTranslations(cleaned));
+        }
+
+        word.setMeanings(cleaned);
+    }
+
+    /**
+     * Rewrites the denormalised {@code turkishMeaning} from the meanings. A daily-words star
+     * the old string carried is kept in front, because the shipped client reads provenance
+     * from that character and nothing else.
+     */
+    private void syncTurkishMeaning(Word word) {
+        String old = word.getTurkishMeaning();
+        String joined = joinTranslations(word.getMeanings());
+        String marker = null;
+        if (old != null && old.contains(WordOrigin.DAILY_WORDS_MARKER_EMOJI)) {
+            marker = WordOrigin.DAILY_WORDS_MARKER_EMOJI;
+        } else if (old != null && old.contains(WordOrigin.DAILY_WORDS_MARKER_BLACK_STAR)) {
+            marker = WordOrigin.DAILY_WORDS_MARKER_BLACK_STAR;
+        }
+        word.setTurkishMeaning(marker != null ? marker + " " + joined : joined);
+    }
+
+    private static String joinTranslations(List<WordMeaning> meanings) {
+        return meanings.stream()
+                .map(WordMeaning::getTranslation)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String cleanTranslation(String value) {
+        if (value == null) {
+            return "";
+        }
+        String clean = value
+                .replace(WordOrigin.DAILY_WORDS_MARKER_EMOJI, "")
+                .replace(WordOrigin.DAILY_WORDS_MARKER_BLACK_STAR, "")
+                .trim();
+        return clean.length() > MAX_TRANSLATION_LENGTH ? clean.substring(0, MAX_TRANSLATION_LENGTH) : clean;
+    }
+
+    private static String cleanDefinition(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static boolean sameTranslation(String a, String b) {
+        return a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
+    }
+
+    private Word requireWordOfUser(Long wordId, Long userId) {
+        return getWordByIdAndUser(wordId, userId)
+                .orElseThrow(() -> new NoSuchElementException("Word not found: " + wordId));
+    }
+
+    private static Optional<WordMeaning> findMeaningOfWord(Word word, Long meaningId) {
+        if (meaningId == null) {
+            return Optional.empty();
+        }
+        return word.getMeanings().stream()
+                .filter(meaning -> meaningId.equals(meaning.getId()))
+                .findFirst();
+    }
+
+    private static WordMeaning requireMeaningOfWord(Word word, Long meaningId) {
+        return findMeaningOfWord(word, meaningId)
+                .orElseThrow(() -> new IllegalArgumentException("meaningId does not belong to this word: " + meaningId));
     }
 
     private Word hydrateSentences(Word word) {

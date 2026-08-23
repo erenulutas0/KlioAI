@@ -1,8 +1,23 @@
+import 'word_meaning.dart';
+
+export 'word_meaning.dart';
+
 class Word {
   final int id;
   final String englishWord;
   final String turkishMeaning;
   String get sourceMeaning => turkishMeaning;
+
+  /// The senses of this word, in server order. Empty against a backend that does not
+  /// send them yet; [turkishMeaning] remains the denormalised copy either way.
+  final List<WordMeaning> meanings;
+
+  /// The language profile this word belongs to. Null from an older backend.
+  final int? languageProfileId;
+
+  /// Where the word came from: 'daily_words' or 'manual'. Null from an older backend,
+  /// in which case the marker inside [turkishMeaning] still answers the question.
+  final String? origin;
 
   /// Was this word added from Daily Words?
   ///
@@ -14,12 +29,31 @@ class Word {
   ///
   /// Reading it here means no caller has to remember. [displayMeaning] is what belongs on
   /// screen and in anything read aloud; this flag is what belongs behind a star icon.
-  bool get isFromDailyWords =>
-      turkishMeaning.contains('⭐') || turkishMeaning.contains('★');
+  ///
+  /// The server now stores provenance as [origin]; when it is present it wins over the
+  /// marker, so a word whose meaning was edited clean keeps its star.
+  bool get isFromDailyWords {
+    final source = origin?.trim();
+    if (source != null && source.isNotEmpty) {
+      return source == 'daily_words';
+    }
+    return turkishMeaning.contains('⭐') || turkishMeaning.contains('★');
+  }
 
   /// The translation with the provenance marker removed, safe to show or speak.
-  String get displayMeaning =>
-      turkishMeaning.replaceAll('⭐', '').replaceAll('★', '').trim();
+  ///
+  /// Built from [meanings] when the server sent them, so an edit through the meaning
+  /// endpoints shows up even if the joined string lags; otherwise the stripped
+  /// [turkishMeaning].
+  String get displayMeaning {
+    final fromMeanings = meanings
+        .map((m) => m.translation.trim())
+        .where((t) => t.isNotEmpty)
+        .join(', ');
+    if (fromMeanings.isNotEmpty) return fromMeanings;
+    return turkishMeaning.replaceAll('⭐', '').replaceAll('★', '').trim();
+  }
+
   final DateTime learnedDate;
   final String? notes;
   final String difficulty;
@@ -41,6 +75,9 @@ class Word {
     this.easeFactor,
     this.lastReviewDate,
     this.sentences = const [],
+    this.meanings = const [],
+    this.languageProfileId,
+    this.origin,
   });
 
   factory Word.fromJson(Map<String, dynamic> json) {
@@ -69,6 +106,15 @@ class Word {
       return double.tryParse(value.toString());
     }
 
+    int? parseNullableInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
+    final rawOrigin = json['origin']?.toString().trim();
+
     return Word(
       id: wordId,
       englishWord: json['englishWord'] as String? ?? '',
@@ -94,6 +140,19 @@ class Word {
               .whereType<Sentence>()
               .toList() ??
           [],
+      meanings: (json['meanings'] as List<dynamic>?)
+              ?.map((m) {
+                try {
+                  return WordMeaning.fromJson(m as Map<String, dynamic>);
+                } catch (e) {
+                  return null;
+                }
+              })
+              .whereType<WordMeaning>()
+              .toList() ??
+          [],
+      languageProfileId: parseNullableInt(json['languageProfileId']),
+      origin: (rawOrigin == null || rawOrigin.isEmpty) ? null : rawOrigin,
     );
   }
 
@@ -113,6 +172,9 @@ class Word {
       if (lastReviewDate != null)
         'lastReviewDate': lastReviewDate!.toIso8601String().split('T')[0],
       'sentences': sentences.map((s) => s.toJson()).toList(),
+      'meanings': meanings.map((m) => m.toJson()).toList(),
+      if (languageProfileId != null) 'languageProfileId': languageProfileId,
+      if (origin != null) 'origin': origin,
     };
   }
 }
@@ -125,6 +187,10 @@ class Sentence {
   final String? difficulty;
   final DateTime? createdAt;
 
+  /// The meaning this sentence illustrates. Null means "unassigned": the server does
+  /// not know which sense it was written for, and the UI treats it as all of them.
+  final int? meaningId;
+
   Sentence({
     required this.id,
     required this.sentence,
@@ -132,6 +198,7 @@ class Sentence {
     required this.wordId,
     this.difficulty,
     this.createdAt,
+    this.meaningId,
   });
 
   factory Sentence.fromJson(Map<String, dynamic> json) {
@@ -159,6 +226,16 @@ class Sentence {
       createdAt = DateTime.tryParse(createdAtRaw.toString());
     }
 
+    int? meaningId;
+    final meaningIdRaw = json['meaningId'];
+    if (meaningIdRaw is int) {
+      meaningId = meaningIdRaw;
+    } else if (meaningIdRaw is num) {
+      meaningId = meaningIdRaw.toInt();
+    } else if (meaningIdRaw != null) {
+      meaningId = int.tryParse(meaningIdRaw.toString());
+    }
+
     return Sentence(
       id: (json['id'] is int) ? json['id'] as int : (json['id'] as num).toInt(),
       sentence: json['sentence'] as String? ?? '',
@@ -167,6 +244,7 @@ class Sentence {
       wordId: wordId,
       difficulty: json['difficulty'] as String?,
       createdAt: createdAt,
+      meaningId: meaningId,
     );
   }
 
@@ -179,6 +257,7 @@ class Sentence {
       'wordId': wordId,
       'difficulty': difficulty,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      if (meaningId != null) 'meaningId': meaningId,
     };
   }
 }

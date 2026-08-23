@@ -2,8 +2,11 @@ package com.ingilizce.calismaapp.entity;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import org.hibernate.annotations.BatchSize;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
@@ -12,10 +15,14 @@ import java.util.ArrayList;
 @Table(name = "words", indexes = {
         @Index(name = "idx_word_user", columnList = "user_id"),
         @Index(name = "idx_word_english", columnList = "english_word"), // Optimized Search
-        @Index(name = "idx_word_user_srs", columnList = "user_id, next_review_date")
+        @Index(name = "idx_word_user_srs", columnList = "user_id, next_review_date"),
+        @Index(name = "idx_words_language_profile", columnList = "language_profile_id")
 }, uniqueConstraints = {
         @UniqueConstraint(columnNames = { "user_id", "english_word" }) // Prevent duplicates for same user
 })
+// A word reached through a sentence's lazy back-reference is a Hibernate proxy; without this
+// Jackson serialises the proxy's own fields and fails on hibernateLazyInitializer.
+@JsonIgnoreProperties(value = { "hibernateLazyInitializer", "handler" })
 public class Word {
 
     @Id
@@ -56,6 +63,33 @@ public class Word {
     @OneToMany(mappedBy = "word", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Sentence> sentences = new ArrayList<>();
+
+    /**
+     * The language profile this word belongs to (V028). Nullable in the schema because the
+     * column was added to existing rows; the backfill fills it for every row and new words
+     * are expected to carry the active profile. Exposed in JSON as {@code languageProfileId}
+     * only -- the profile object itself is not serialised with the word.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "language_profile_id")
+    @JsonIgnore
+    private LanguageProfile languageProfile;
+
+    /** Provenance: {@code "daily_words"} or {@code "manual"}; see {@link WordOrigin}. */
+    @Column(name = "origin", length = 32)
+    private String origin;
+
+    /**
+     * Ordered meanings of this word (V028). Eager on purpose: {@code Word} is serialised
+     * straight to JSON by the controllers with open-in-view off, so a lazy collection here
+     * would throw at serialisation time. {@code BatchSize} keeps the list endpoints from
+     * issuing one select per word.
+     */
+    @OneToMany(mappedBy = "word", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("position ASC, id ASC")
+    @BatchSize(size = 64)
+    @JsonManagedReference("word-meanings")
+    private List<WordMeaning> meanings = new ArrayList<>();
 
     // Constructors
     public Word() {
@@ -149,6 +183,58 @@ public class Word {
         sentences.remove(sentence);
         if (sentence != null && sentence.getId() == null) {
             sentence.setWord(null);
+        }
+    }
+
+    public LanguageProfile getLanguageProfile() {
+        return languageProfile;
+    }
+
+    public void setLanguageProfile(LanguageProfile languageProfile) {
+        this.languageProfile = languageProfile;
+    }
+
+    /** Plain id rather than the nested profile; reading the id does not initialise the proxy. */
+    @JsonGetter("languageProfileId")
+    public Long getLanguageProfileId() {
+        return languageProfile != null ? languageProfile.getId() : null;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public List<WordMeaning> getMeanings() {
+        return meanings;
+    }
+
+    public void setMeanings(List<WordMeaning> meanings) {
+        // Same instance kept on purpose: orphanRemoval forbids swapping the collection out,
+        // and Jackson / callers may hand back the list they got from getMeanings().
+        if (meanings == this.meanings) {
+            return;
+        }
+        this.meanings.clear();
+        if (meanings != null) {
+            for (WordMeaning meaning : meanings) {
+                addMeaning(meaning);
+            }
+        }
+    }
+
+    public void addMeaning(WordMeaning meaning) {
+        meanings.add(meaning);
+        meaning.setWord(this);
+    }
+
+    public void removeMeaning(WordMeaning meaning) {
+        meanings.remove(meaning);
+        if (meaning != null && meaning.getId() == null) {
+            meaning.setWord(null);
         }
     }
 

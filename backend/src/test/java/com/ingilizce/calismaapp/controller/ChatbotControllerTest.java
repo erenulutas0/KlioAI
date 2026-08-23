@@ -1,8 +1,11 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ingilizce.calismaapp.entity.LanguageProfile;
 import com.ingilizce.calismaapp.entity.User;
 import com.ingilizce.calismaapp.entity.Word;
+import com.ingilizce.calismaapp.entity.WordMeaning;
+import com.ingilizce.calismaapp.repository.LanguageProfileRepository;
 import com.ingilizce.calismaapp.repository.UserRepository;
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
@@ -102,6 +105,10 @@ public class ChatbotControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    /** Real, H2-backed: the profile fallback is exercised end to end, not through a mock. */
+    @Autowired
+    private LanguageProfileRepository languageProfileRepository;
 
     @BeforeEach
     void setUp() {
@@ -1109,6 +1116,160 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.feedback").value(""));
     }
 
+    // ---- V028: language profiles and meanings ----
+
+    @Test
+    void chatFallsBackToTheActiveLanguageProfile_WhenTheRequestOmitsLanguageFields() throws Exception {
+        // User 7701 has chosen Spanish / C1 / Exam on the server. The request sends only
+        // the message, as a client that has stopped sending language fields would.
+        LanguageProfile spanish = new LanguageProfile(7701L, "Spanish", "English", "C1", "Exam", true);
+        languageProfileRepository.save(spanish);
+        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+                nullable(String.class)))
+                .thenReturn(ai("Hola!"));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "7701")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hello\"}"))
+                .andExpect(status().isOk());
+
+        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(7701L),
+                argThat((LearningLanguageProfile profile) ->
+                        "Spanish".equals(profile.sourceLanguage())
+                                && "English".equals(profile.targetLanguage())
+                                && "Spanish".equals(profile.feedbackLanguage())
+                                && "C1".equals(profile.englishLevel())
+                                && "Exam".equals(profile.learningGoal())),
+                nullable(String.class));
+    }
+
+    @Test
+    void chatLetsTheRequestWinOverTheActiveProfile_FieldByField() throws Exception {
+        LanguageProfile spanish = new LanguageProfile(7702L, "Spanish", "English", "C1", "Exam", true);
+        languageProfileRepository.save(spanish);
+        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+                nullable(String.class)))
+                .thenReturn(ai("Hola!"));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "7702")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hello\",\"englishLevel\":\"A2\"}"))
+                .andExpect(status().isOk());
+
+        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(7702L),
+                argThat((LearningLanguageProfile profile) ->
+                        "Spanish".equals(profile.sourceLanguage())
+                                && "A2".equals(profile.englishLevel())
+                                && "Exam".equals(profile.learningGoal())),
+                nullable(String.class));
+    }
+
+    @Test
+    void chatForAUserWithNoProfileRow_GetsTheDefaultProfileCreated() throws Exception {
+        when(chatbotService.chat("Hello", null, null, 7703L, LearningLanguageProfile.defaultProfile(), null))
+                .thenReturn(ai("Hi there!"));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "7703")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hello\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Hi there!"));
+
+        LanguageProfile created = languageProfileRepository.findByUserIdAndIsActiveTrue(7703L).orElseThrow();
+        assertEquals("Turkish", created.getSourceLanguage());
+        assertEquals("English", created.getTargetLanguage());
+        assertEquals("B1", created.getLevel());
+    }
+
+    @Test
+    void saveToTodayCreatesMeaningRowsFromTheMeaningsSent_AndAttachesExamplesToThem() throws Exception {
+        // The object shape: each meaning carries its own example, so the attachment is
+        // known, not guessed. The saved word comes back with meaning ids, as the real
+        // service would return it.
+        Word saved = new Word();
+        saved.setId(12L);
+        saved.setUserId(1L);
+        saved.setEnglishWord("bank");
+        WordMeaning bankMeaning = new WordMeaning(null, "banka", "financial institution", 0);
+        bankMeaning.setId(501L);
+        WordMeaning shoreMeaning = new WordMeaning(null, "kıyı", null, 1);
+        shoreMeaning.setId(502L);
+        saved.addMeaning(bankMeaning);
+        saved.addMeaning(shoreMeaning);
+
+        when(wordService.saveWord(any(Word.class))).thenReturn(saved);
+        when(wordService.addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong(), any()))
+                .thenReturn(saved);
+        when(wordService.getWordByIdAndUser(12L, 1L)).thenReturn(Optional.of(saved));
+
+        mockMvc.perform(post("/api/chatbot/save-to-today")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "englishWord":"bank",
+                          "meanings":[
+                            {"translation":"banka","definition":"financial institution","example":"I went to the bank."},
+                            {"translation":"kıyı","example":"We sat on the river bank."}
+                          ]
+                        }
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.word.meanings.length()").value(2))
+                .andExpect(jsonPath("$.word.meanings[0].id").value(501));
+
+        org.mockito.ArgumentCaptor<Word> toSave = org.mockito.ArgumentCaptor.forClass(Word.class);
+        verify(wordService).saveWord(toSave.capture());
+        assertEquals("banka, kıyı", toSave.getValue().getTurkishMeaning(),
+                "the legacy string the shipped client reads is still filled");
+        assertEquals(2, toSave.getValue().getMeanings().size());
+        assertEquals("financial institution", toSave.getValue().getMeanings().get(0).getDefinition());
+        assertEquals(1, toSave.getValue().getMeanings().get(1).getPosition());
+
+        verify(wordService).addSentence(eq(12L), eq("I went to the bank."), eq(""), eq("medium"), eq(1L), eq(501L));
+        verify(wordService).addSentence(eq(12L), eq("We sat on the river bank."), eq(""), eq("medium"), eq(1L), eq(502L));
+    }
+
+    @Test
+    void saveToTodayAttachesParallelStringLists_OnlyWhenTheyLineUp() throws Exception {
+        // The shipped client's shape with one example per meaning: same length, so the order
+        // is the client's own and each sentence goes to its meaning.
+        Word saved = new Word();
+        saved.setId(13L);
+        saved.setUserId(1L);
+        saved.setEnglishWord("bank");
+        WordMeaning bankMeaning = new WordMeaning(null, "banka", null, 0);
+        bankMeaning.setId(601L);
+        WordMeaning shoreMeaning = new WordMeaning(null, "kıyı", null, 1);
+        shoreMeaning.setId(602L);
+        saved.addMeaning(bankMeaning);
+        saved.addMeaning(shoreMeaning);
+
+        when(wordService.saveWord(any(Word.class))).thenReturn(saved);
+        when(wordService.addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong(), any()))
+                .thenReturn(saved);
+        when(wordService.getWordByIdAndUser(13L, 1L)).thenReturn(Optional.of(saved));
+
+        mockMvc.perform(post("/api/chatbot/save-to-today")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "englishWord":"bank",
+                          "meanings":["banka","kıyı"],
+                          "sentences":["I went to the bank.","We sat on the river bank."]
+                        }
+                        """))
+                .andExpect(status().isOk());
+
+        verify(wordService).addSentence(eq(13L), eq("I went to the bank."), eq(""), eq("medium"), eq(1L), eq(601L));
+        verify(wordService).addSentence(eq(13L), eq("We sat on the river bank."), eq(""), eq("medium"), eq(1L), eq(602L));
+    }
+
     @Test
     void saveToTodayReturnsBadRequestWhenEnglishWordMissing() throws Exception {
         mockMvc.perform(post("/api/chatbot/save-to-today")
@@ -1126,7 +1287,8 @@ public class ChatbotControllerTest {
         saved.setEnglishWord("apple");
 
         when(wordService.saveWord(any(Word.class))).thenReturn(saved);
-        when(wordService.addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong())).thenReturn(saved);
+        when(wordService.addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong(), any()))
+                .thenReturn(saved);
         when(wordService.getWordByIdAndUser(10L, 1L)).thenReturn(Optional.of(saved));
 
         mockMvc.perform(post("/api/chatbot/save-to-today")
@@ -1142,7 +1304,9 @@ public class ChatbotControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(wordService, times(2)).addSentence(eq(10L), anyString(), eq(""), eq("medium"), eq(1L));
+        // Two sentences for one meaning: the lists do not line up, so neither sentence can
+        // honestly be attributed to a meaning and both are saved unassigned (V028).
+        verify(wordService, times(2)).addSentence(eq(10L), anyString(), eq(""), eq("medium"), eq(1L), isNull());
     }
 
     @Test
@@ -1162,7 +1326,7 @@ public class ChatbotControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(wordService, never()).addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong());
+        verify(wordService, never()).addSentence(anyLong(), anyString(), anyString(), anyString(), anyLong(), any());
     }
 
     @Test
