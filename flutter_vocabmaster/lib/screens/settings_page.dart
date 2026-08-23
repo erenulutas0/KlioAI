@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../frontend_newest/nf_frontend_preference.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/language_provider.dart';
 import '../providers/learning_language_provider.dart';
@@ -438,6 +439,7 @@ class SettingsPage extends StatelessWidget {
                       ],
                     ),
                   ),
+                  _NewDesignPreviewCard(theme: selectedTheme),
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -616,6 +618,93 @@ class SettingsPage extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Switches between the current design and the one being trialled alongside it.
+///
+/// Both frontends are in this build; the toggle is one tap each way and it
+/// survives a restart. The notifier is looked up nullably — the same defensive
+/// `Provider.of` this file already uses for `ThemeProvider` — so the page still
+/// renders anywhere the preview is not registered, rather than throwing.
+class _NewDesignPreviewCard extends StatelessWidget {
+  const _NewDesignPreviewCard({required this.theme});
+
+  final AppThemeConfig theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final preference = Provider.of<NfFrontendPreference?>(context);
+    if (preference == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      // Carries its own separator so that an absent notifier leaves no gap.
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colors.glassBorder.withValues(alpha: 0.55),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // TODO(i18n): needs a key
+                const Text(
+                  'New design (preview)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // TODO(i18n): needs a key
+                Text(
+                  'Try the redesigned home, practice, tutor, words and '
+                  'profile screens. Come back here to switch off.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch(
+            value: preference.useNewFrontend,
+            onChanged: (value) {
+              final messenger = ScaffoldMessenger.of(context);
+              preference.setUseNewFrontend(value);
+              // The shell underneath has already swapped, but this page is
+              // still on top of it, so nothing visibly happens without this.
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    // TODO(i18n): needs a key
+                    value
+                        ? 'New design on. Go back to see it.'
+                        : 'Back to the current design.',
+                  ),
+                ),
+              );
+            },
+            activeThumbColor: Colors.white,
+            activeTrackColor: theme.colors.accent,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
           ),
         ],
       ),

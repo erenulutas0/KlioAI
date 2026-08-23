@@ -40,6 +40,8 @@ import 'providers/language_provider.dart';
 import 'providers/learning_language_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
+import 'frontend_newest/nf_frontend_preference.dart';
+import 'frontend_newest/nf_shell.dart';
 
 bool _firebaseTelemetryEnabled = false;
 bool _handlingSessionExpiry = false;
@@ -111,9 +113,13 @@ void main() async {
   final themeProvider = ThemeProvider();
   final languageProvider = LanguageProvider();
   final learningLanguageProvider = LearningLanguageProvider();
+  final nfFrontendPreference = NfFrontendPreference();
   await themeProvider.initialize();
   await languageProvider.initialize();
   await learningLanguageProvider.initialize();
+  // Awaited with the rest so the first frame already knows which frontend to
+  // build; loading it later would flash the one the learner did not pick.
+  await nfFrontendPreference.initialize();
 
   appStateProvider.addListener(() {
     final xp = (appStateProvider.userStats['xp'] as int?) ?? 0;
@@ -148,6 +154,7 @@ void main() async {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: languageProvider),
         ChangeNotifierProvider.value(value: learningLanguageProvider),
+        ChangeNotifierProvider.value(value: nfFrontendPreference),
       ],
       child: const KlioAIApp(),
     ),
@@ -246,15 +253,36 @@ class AppEntryGate extends StatelessWidget {
   }
 }
 
-class MainScreen extends StatefulWidget {
+/// Picks the frontend. Everything else in the app keeps pushing `MainScreen`.
+///
+/// The choice lives here rather than at the eight call sites that build this
+/// screen, so splash, login, a notification tap and the stats shortcuts all
+/// land in whichever frontend is selected. Branching before [LegacyMainScreen]
+/// is constructed also matters: its `initState` consumes the pending
+/// notification payload, and a shell that is not on screen must not swallow it.
+class MainScreen extends StatelessWidget {
   final int initialIndex;
   const MainScreen({super.key, this.initialIndex = 0});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  Widget build(BuildContext context) {
+    if (context.watch<NfFrontendPreference>().useNewFrontend) {
+      return NfShell(initialIndex: NfShell.tabForLegacyIndex(initialIndex));
+    }
+    return LegacyMainScreen(initialIndex: initialIndex);
+  }
 }
 
-class _MainScreenState extends State<MainScreen> {
+/// The current frontend, unchanged. Reached through [MainScreen].
+class LegacyMainScreen extends StatefulWidget {
+  final int initialIndex;
+  const LegacyMainScreen({super.key, this.initialIndex = 0});
+
+  @override
+  State<LegacyMainScreen> createState() => _LegacyMainScreenState();
+}
+
+class _LegacyMainScreenState extends State<LegacyMainScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
 
