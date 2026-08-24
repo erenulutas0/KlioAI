@@ -93,6 +93,11 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/app_icon_composed.png
-  adaptive_icon_foreground: assets/images/flat_k_white.png
+  # A padded copy, not flat_k_white.png itself. Android masks an adaptive icon
+  # down to a circle on many launchers, and the unpadded mark's corners fell
+  # outside it - the K lost its lower-left leg and part of its right arm on
+  # every circular-mask home screen. This copy keeps every painted pixel inside
+  # the 66dp safe zone of the 108dp canvas.
+  adaptive_icon_foreground: assets/images/flat_k_adaptive.png
   adaptive_icon_background: '#6C4EF5'
   remove_alpha_ios: true
