@@ -117,4 +117,33 @@ void main() {
     }
     expect(found, greaterThan(200));
   });
+
+  test('no placeholder ships as its own source text', () {
+    // Writing `replaceAll('{n}', '\${widget.count}')` compiles, runs, and puts
+    // the characters ${widget.count} on the screen: the backslash makes Dart
+    // treat the interpolation as literal text. The Words tab's review row read
+    // "Tekrar zamanı gelen ${widget.count}" on a real phone and nothing failed
+    // — not the analyzer, not a test, not the build.
+    //
+    // An escaped `${` is essentially never what anyone wants here. A lone
+    // escaped `$` still is (prices, currency), so only the interpolation form
+    // is caught.
+    final escaped = RegExp(r'\\\$\{');
+
+    final offenders = <String>[];
+    for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.dart')) continue;
+      final lines = file.readAsStringSync().split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        if (escaped.hasMatch(lines[i])) {
+          final where = file.path.replaceAll(r'\', '/');
+          offenders.add('$where:${i + 1}  ${lines[i].trim()}');
+        }
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These put Dart source on screen instead of a value:\n'
+            '${offenders.join('\n')}');
+  });
 }

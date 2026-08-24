@@ -61,6 +61,7 @@ class NfPrimaryButton extends StatelessWidget {
         color: enabled || busy ? t.primaryInk : t.inkFaint,
       ),
       iconSize: 20,
+      compact: false,
     );
   }
 }
@@ -77,6 +78,7 @@ class NfSecondaryButton extends StatelessWidget {
     this.expand = true,
     this.height = NfSize.buttonSecondary,
     this.tone = NfButtonTone.neutral,
+    this.compact = false,
   });
 
   final String label;
@@ -88,6 +90,12 @@ class NfSecondaryButton extends StatelessWidget {
 
   /// Colours the label and border without filling the button.
   final NfButtonTone tone;
+
+  /// Narrow horizontal padding, for a button sharing its row with others.
+  /// Three buttons across a 393dp phone get about 111dp each, and the roomy
+  /// padding plus an icon left "Hard" with roughly 43dp - the label came out
+  /// as "Ha…" on a real device.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +121,7 @@ class NfSecondaryButton extends StatelessWidget {
         color: enabled || busy ? accent : t.inkFaint,
       ),
       iconSize: 18,
+      compact: compact,
     );
   }
 
@@ -154,6 +163,7 @@ class _NfPushable extends StatefulWidget {
     required this.side,
     required this.labelStyle,
     required this.iconSize,
+    required this.compact,
   });
 
   final String label;
@@ -168,6 +178,10 @@ class _NfPushable extends StatefulWidget {
   final BorderSide? side;
   final TextStyle labelStyle;
   final double iconSize;
+
+  /// Narrow padding, for a button sharing its row with others. Set by the
+  /// caller rather than derived from the width - see the note in build().
+  final bool compact;
 
   @override
   State<_NfPushable> createState() => _NfPushableState();
@@ -194,26 +208,18 @@ class _NfPushableState extends State<_NfPushable> {
     }
   }
 
-  /// Roomy padding is right for a button that owns its row, and wrong for one
-  /// of three sharing it. Three buttons across a 393dp phone leave about 111dp
-  /// each; 20dp of padding on both sides plus the icon left "Hard" with roughly
-  /// 43dp and the label came out as "Ha…" on a real device. Narrow buttons give
-  /// the space back to the word, which is the part that carries the meaning.
-  static const double _tightWidth = 140;
-
   @override
   Widget build(BuildContext context) {
     const double depth = NfSize.pressDepth;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) =>
-          _build(context, depth, constraints.maxWidth),
-    );
-  }
-
-  Widget _build(BuildContext context, double depth, double maxWidth) {
+    // Told, not measured. This was a LayoutBuilder that shrank the padding when
+    // the button was narrow, which read well and broke the Words tab's empty
+    // state: `SliverFillRemaining(hasScrollBody: false)` asks its child for an
+    // intrinsic height, and a LayoutBuilder cannot answer that — it throws, the
+    // sliver comes back with null geometry, and the viewport crashes. That
+    // state is the first screen a new learner sees.
     final double horizontalPadding =
-        maxWidth.isFinite && maxWidth < _tightWidth ? NfSpace.s10 : NfSpace.s20;
+        widget.compact ? NfSpace.s10 : NfSpace.s20;
 
     final Widget face = Container(
       height: widget.height,

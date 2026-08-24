@@ -183,7 +183,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _TitleRow(count: listedCount),
+        _TitleRow(count: listedCount, onAddWord: widget.onOpenDictionary),
         if (showControls) ...<Widget>[
           const SizedBox(height: NfSpace.s14),
           _SearchField(
@@ -239,12 +239,16 @@ class _NfWordsPageState extends State<NfWordsPage> {
 // ---------------------------------------------------------------------------
 
 class _TitleRow extends StatelessWidget {
-  const _TitleRow({required this.count});
+  const _TitleRow({required this.count, this.onAddWord});
 
   /// How many words the list is showing. With no search running that is the
   /// total; while a search filters, a badge that disagreed with the rows under
   /// it would look like a bug.
   final int count;
+
+  /// Opens the dictionary. Null hides the control rather than offering a
+  /// button that does nothing.
+  final VoidCallback? onAddWord;
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +262,32 @@ class _TitleRow extends StatelessWidget {
             style: NfTokens.display(size: NfFont.s25, color: t.ink),
           ),
         ),
+        // The only way to add a word once the deck is not empty. The dictionary
+        // used to be reachable solely from the empty state on this tab and on
+        // Today, so a learner who had saved their first word could never save
+        // a second one - in an app whose whole loop is collecting words.
+        if (onAddWord != null) ...<Widget>[
+          const SizedBox(width: NfSpace.s8),
+          Semantics(
+            button: true,
+            label: context.tr('words.addWord'),
+            excludeSemantics: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onAddWord,
+              child: Container(
+                width: NfSize.minTap,
+                height: NfSize.minTap,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: t.primarySoft,
+                  borderRadius: NfRadius.iconTileAll,
+                ),
+                child: Icon(Icons.add_rounded, size: 22, color: t.primaryText),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(width: NfSpace.s12),
         Semantics(
           label: '$count ${context.tr('words.unit')}',
@@ -399,7 +429,7 @@ class _ReviewDueRowState extends State<_ReviewDueRow> {
 
     final String label = widget.count == 1
         ? context.tr('words.reviewDueOne')
-        : context.tr('words.reviewDue').replaceAll('{n}', '\${widget.count}');
+        : context.tr('words.reviewDue').replaceAll('{n}', '${widget.count}');
 
     final Widget face = Container(
       height: NfSize.buttonPrimary,

@@ -997,6 +997,7 @@ class AppLocalizations {
           'KlioAI uses Google Sign-In only and never stores passwords.',
       'common.delete': 'Delete',
       'settings.about.version': 'Version',
+      'words.addWord': 'Add a word',
     },
     'tr': {
       'menu.title': 'Menü',
@@ -1935,6 +1936,7 @@ class AppLocalizations {
           'KlioAI yalnızca Google ile giriş kullanır, şifre saklamaz.',
       'common.delete': 'Sil',
       'settings.about.version': 'Sürüm',
+      'words.addWord': 'Kelime ekle',
     },
     'de': {
       'menu.title': 'Menü',
@@ -2902,6 +2904,7 @@ class AppLocalizations {
           'KlioAI nutzt nur Google Sign-In und speichert keine Passwörter.',
       'common.delete': 'Löschen',
       'settings.about.version': 'Version',
+      'words.addWord': 'Wort hinzufügen',
     },
     'ar': {
       'app.name': 'KlioAI',
