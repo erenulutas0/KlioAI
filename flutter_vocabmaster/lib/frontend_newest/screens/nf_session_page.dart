@@ -276,8 +276,7 @@ class _NfSessionPageState extends State<NfSessionPage> {
           Icon(LucideIcons.inbox, size: 40, color: t.inkFaint),
           const SizedBox(height: NfSpace.s16),
           Text(
-            // TODO(i18n): needs a key
-            'No words to review yet.\nAdd some from the dictionary!',
+            context.tr('session.empty'),
             textAlign: TextAlign.center,
             style: NfTokens.body(size: NfFont.s15, color: t.inkMuted),
           ),
@@ -410,8 +409,7 @@ class _SegmentedProgress extends StatelessWidget {
     if (total > _maxSegments) {
       final double fraction = total == 0 ? 0 : done / total;
       return Semantics(
-        // TODO(i18n): needs a key
-        label: 'Session progress',
+        label: context.tr('session.progress'),
         value: '$done of $total',
         child: SizedBox(
           height: _height,
@@ -444,8 +442,7 @@ class _SegmentedProgress extends StatelessWidget {
     }
 
     return Semantics(
-      // TODO(i18n): needs a key
-      label: 'Session progress',
+      label: context.tr('session.progress'),
       value: '$done of $total',
       child: Row(
         children: <Widget>[
@@ -526,8 +523,7 @@ class _RecallCard extends StatelessWidget {
               const Spacer(),
               Semantics(
                 button: true,
-                // TODO(i18n): needs a key
-                label: 'Pronounce',
+                label: context.tr('common.pronounce'),
                 child: InkWell(
                   onTap: onSpeak,
                   borderRadius: NfRadius.tileAll,
@@ -559,7 +555,9 @@ class _RecallCard extends StatelessWidget {
           const SizedBox(height: NfSpace.s20),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
-            child: revealed ? _buildAnswer(t) : _buildPrompt(t),
+            child: revealed
+                ? _buildAnswer(context, t)
+                : _buildPrompt(context, t),
           ),
         ],
       ),
@@ -567,7 +565,7 @@ class _RecallCard extends StatelessWidget {
   }
 
   /// The front of the card: an invitation to recall, never the answer.
-  Widget _buildPrompt(NfTokens t) {
+  Widget _buildPrompt(BuildContext context, NfTokens t) {
     return Column(
       key: const ValueKey<String>('prompt'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -587,8 +585,7 @@ class _RecallCard extends StatelessWidget {
               Icon(LucideIcons.eye, size: 22, color: t.primaryText),
               const SizedBox(height: NfSpace.s8),
               Text(
-                // TODO(i18n): needs a key (legacy: "Show meaning")
-                'Tap to reveal the meaning',
+                context.tr('session.reveal'),
                 textAlign: TextAlign.center,
                 style: NfTokens.display(size: NfFont.s15, color: t.primaryText),
               ),
@@ -597,8 +594,7 @@ class _RecallCard extends StatelessWidget {
         ),
         const SizedBox(height: NfSpace.s12),
         Text(
-          // TODO(i18n): needs a key (legacy: "Try to recall it first, ...")
-          'Try to recall it first — then check yourself.',
+          context.tr('session.recallHint'),
           textAlign: TextAlign.center,
           style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
         ),
@@ -606,7 +602,7 @@ class _RecallCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAnswer(NfTokens t) {
+  Widget _buildAnswer(BuildContext context, NfTokens t) {
     final Sentence? example =
         word.sentences.isNotEmpty ? word.sentences.first : null;
 
@@ -661,8 +657,7 @@ class _RecallCard extends StatelessWidget {
                             const BoxConstraints(minHeight: NfSize.minTap),
                         child: Center(
                           child: Text(
-                            // TODO(i18n): needs a key (legacy copy)
-                            'Tap to see the translation',
+                            context.tr('session.revealTranslation'),
                             style: NfTokens.body(
                               size: NfFont.s125,
                               color: t.primaryText,
@@ -723,10 +718,8 @@ class _GradeBar extends StatelessWidget {
         children: <Widget>[
           Text(
             revealed
-                // TODO(i18n): needs a key (legacy: "How easy was this word?")
-                ? 'How easy was this word?'
-                // TODO(i18n): needs a key (legacy copy)
-                : 'Reveal the meaning to grade yourself',
+                ? context.tr('session.gradePrompt')
+                : context.tr('session.gradeLocked'),
             textAlign: TextAlign.center,
             style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
           ),
@@ -735,8 +728,7 @@ class _GradeBar extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: NfSecondaryButton(
-                  // TODO(i18n): needs a key (legacy: "Hard")
-                  label: 'Hard',
+                  label: context.tr('session.grade.hard'),
                   icon: LucideIcons.rotateCcw,
                   tone: NfButtonTone.wrong,
                   onPressed: enabled ? onHard : null,
@@ -745,8 +737,7 @@ class _GradeBar extends StatelessWidget {
               const SizedBox(width: NfSpace.s10),
               Expanded(
                 child: NfSecondaryButton(
-                  // TODO(i18n): needs a key (legacy: "Good")
-                  label: 'Good',
+                  label: context.tr('session.grade.good'),
                   icon: LucideIcons.check,
                   tone: NfButtonTone.primary,
                   onPressed: enabled ? onGood : null,
@@ -755,8 +746,7 @@ class _GradeBar extends StatelessWidget {
               const SizedBox(width: NfSpace.s10),
               Expanded(
                 child: NfSecondaryButton(
-                  // TODO(i18n): needs a key (legacy: "Easy")
-                  label: 'Easy',
+                  label: context.tr('session.grade.easy'),
                   icon: LucideIcons.checkCheck,
                   tone: NfButtonTone.correct,
                   onPressed: enabled ? onEasy : null,

@@ -231,8 +231,7 @@ class _NfPracticePageState extends State<NfPracticePage> {
                 ),
                 const SizedBox(height: NfSpace.s6),
                 Text(
-                  // TODO(i18n): needs a key
-                  'Every way to practise, in one place.',
+                  context.tr('practice.subtitle'),
                   style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
                 ),
                 const SizedBox(height: NfSpace.s18),
@@ -247,8 +246,7 @@ class _NfPracticePageState extends State<NfPracticePage> {
                 _NfModeGrid(specs: core, onOpenMode: _openMode),
                 const SizedBox(height: NfSpace.s22),
                 Text(
-                  // TODO(i18n): needs a key
-                  'Games',
+                  context.tr('practice.games'),
                   style: NfTokens.body(
                     size: NfFont.s125,
                     weight: NfTokens.bodyEmphasisWeight,
@@ -280,8 +278,7 @@ List<_NfModeSpec> _modeSpecs(BuildContext context) {
       id: NfPracticeModes.translate,
       icon: Icons.translate_rounded,
       name: context.tr('practice.mode.translate'),
-      // TODO(i18n): needs a key
-      description: 'Translate sentences built from your own words.',
+      description: context.tr('practice.translate.desc'),
     ),
     _NfModeSpec(
       id: NfPracticeModes.reading,
@@ -299,34 +296,28 @@ List<_NfModeSpec> _modeSpecs(BuildContext context) {
       id: NfPracticeModes.grammar,
       icon: Icons.rule_rounded,
       name: context.tr('practice.mode.grammar'),
-      // TODO(i18n): needs a key
-      description: 'Topic guides, examples and a quiz per topic.',
+      description: context.tr('practice.grammar.desc'),
     ),
     _NfModeSpec(
       id: NfPracticeModes.speaking,
       icon: Icons.forum_outlined,
       name: context.tr('practice.mode.speaking'),
-      // TODO(i18n): needs a key
-      description: 'Hold a spoken conversation with the AI tutor.',
+      description: context.tr('practice.speaking.desc'),
     ),
     // const only until these strings get keys; `context.tr` is not const.
-    const _NfModeSpec(
+    _NfModeSpec(
       id: NfPracticeModes.pronunciation,
       icon: Icons.mic_none_rounded,
-      // TODO(i18n): needs a key
-      name: 'Pronunciation',
+      name: context.tr('practice.pronunciation.title'),
       // Deliberately says "clarity": the score compares the target text with
       // what was heard, it is not phoneme-level pronunciation diagnosis.
-      // TODO(i18n): needs a key
-      description: 'Read aloud, record, and get a clarity report.',
+      description: context.tr('practice.pronunciation.desc'),
     ),
-    const _NfModeSpec(
+    _NfModeSpec(
       id: NfPracticeModes.wordGalaxy,
       icon: Icons.hub_outlined,
-      // TODO(i18n): needs a key
-      name: 'Word Galaxy',
-      // TODO(i18n): needs a key
-      description: 'Explore your words as a network of sentences.',
+      name: context.tr('practice.wordGalaxy.title'),
+      description: context.tr('practice.wordGalaxy.desc'),
       isGame: true,
     ),
   ];
@@ -376,8 +367,7 @@ class _NfResumeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      // TODO(i18n): needs a key
-                      'Continue where you left off',
+                      context.tr('practice.continueLast'),
                       style: NfTokens.body(
                         size: NfFont.s125,
                         weight: NfTokens.bodyEmphasisWeight,
@@ -458,10 +448,8 @@ class _NfTodaysPlanCard extends StatelessWidget {
                     const SizedBox(height: NfSpace.s4),
                     Text(
                       libraryIsEmpty
-                          // TODO(i18n): needs a key
-                          ? 'Learn your first words'
-                          // TODO(i18n): needs a key
-                          : 'Start your daily session',
+                          ? context.tr('practice.emptyTitle')
+                          : context.tr('practice.dailyTitle'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: NfTokens.display(size: NfFont.s20, color: t.ink),
@@ -474,10 +462,8 @@ class _NfTodaysPlanCard extends StatelessWidget {
           const SizedBox(height: NfSpace.s10),
           Text(
             libraryIsEmpty
-                // TODO(i18n): needs a key
-                ? 'Your library is empty — today\'s words are the place to start.'
-                // TODO(i18n): needs a key
-                : "Today's words and everything due for review, in one go.",
+                ? context.tr('practice.emptyBody')
+                : context.tr('practice.dailyBody'),
             style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
           ),
           const SizedBox(height: NfSpace.s14),

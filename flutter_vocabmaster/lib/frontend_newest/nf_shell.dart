@@ -438,10 +438,9 @@ class _NfNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
 
-    // TODO(i18n): needs a key — "Today" and "Tutor" have no key yet. The other
     // three reuse `nav.*`, which are already translated everywhere.
     final List<_NfNavItem> items = <_NfNavItem>[
-      const _NfNavItem(icon: Icons.today_outlined, label: 'Today'),
+      _NfNavItem(icon: Icons.today_outlined, label: context.tr('nav.today')),
       _NfNavItem(
         icon: Icons.school_outlined,
         label: context.tr('nav.practice'),

@@ -116,8 +116,7 @@ class NfSessionSummaryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: NfSpace.s8),
                   Text(
-                    // TODO(i18n): needs a key
-                    'Every card graded feeds your review schedule.',
+                    context.tr('session.summary.subtitle'),
                     textAlign: TextAlign.center,
                     style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
                   ),
@@ -297,8 +296,7 @@ class _GradeSplitCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            // TODO(i18n): needs a key
-            'How you rated them',
+            context.tr('session.summary.ratings'),
             style: NfTokens.display(size: NfFont.s16, color: t.ink),
           ),
           const SizedBox(height: NfSpace.s12),
@@ -307,20 +305,17 @@ class _GradeSplitCard extends StatelessWidget {
             runSpacing: NfSpace.s8,
             children: <Widget>[
               NfChip(
-                // TODO(i18n): needs a key ("Hard" also on the grade button)
-                label: '${result.hardCount} Hard',
+                label: '${result.hardCount} ${context.tr('session.grade.hard')}',
                 icon: LucideIcons.rotateCcw,
                 variant: NfChipVariant.wrong,
               ),
               NfChip(
-                // TODO(i18n): needs a key
-                label: '${result.goodCount} Good',
+                label: '${result.goodCount} ${context.tr('session.grade.good')}',
                 icon: LucideIcons.check,
                 variant: NfChipVariant.selected,
               ),
               NfChip(
-                // TODO(i18n): needs a key
-                label: '${result.easyCount} Easy',
+                label: '${result.easyCount} ${context.tr('session.grade.easy')}',
                 icon: LucideIcons.checkCheck,
                 variant: NfChipVariant.correct,
               ),
@@ -355,8 +350,7 @@ class _HardWordCard extends StatelessWidget {
               const SizedBox(width: NfSpace.s6),
               Expanded(
                 child: Text(
-                  // TODO(i18n): needs a key
-                  'Worth another look',
+                  context.tr('session.summary.worthReview'),
                   style: NfTokens.body(
                     size: NfFont.s125,
                     weight: NfTokens.bodyEmphasisWeight,

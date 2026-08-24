@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
 import '../../providers/app_state_provider.dart';
 import '../theme/nf_tokens.dart';
@@ -253,15 +254,13 @@ class _TitleRow extends StatelessWidget {
       children: <Widget>[
         Expanded(
           child: Text(
-            // TODO(i18n): needs a key
-            'Words',
+            context.tr('words.title'),
             style: NfTokens.display(size: NfFont.s25, color: t.ink),
           ),
         ),
         const SizedBox(width: NfSpace.s12),
         Semantics(
-          // TODO(i18n): needs a key
-          label: '$count words',
+          label: '$count ${context.tr('words.unit')}',
           excludeSemantics: true,
           child: Container(
             padding: const EdgeInsets.symmetric(
@@ -336,8 +335,7 @@ class _SearchField extends StatelessWidget {
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                // TODO(i18n): needs a key
-                hintText: 'Search your words',
+                hintText: context.tr('words.search'),
                 hintStyle: NfTokens.body(size: NfFont.s15, color: t.inkFaint),
               ),
             ),
@@ -345,8 +343,7 @@ class _SearchField extends StatelessWidget {
           if (hasText)
             Semantics(
               button: true,
-              // TODO(i18n): needs a key
-              label: 'Clear search',
+              label: context.tr('words.clearSearch'),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onClear,
@@ -400,10 +397,9 @@ class _ReviewDueRowState extends State<_ReviewDueRow> {
     final NfTokens t = NfTokens.of(context);
     const double depth = NfSize.pressDepth;
 
-    // TODO(i18n): needs a key — and a plural rule, which `tr` has no form for.
     final String label = widget.count == 1
-        ? 'Review 1 due word'
-        : 'Review ${widget.count} due words';
+        ? context.tr('words.reviewDueOne')
+        : context.tr('words.reviewDue').replaceAll('{n}', '\${widget.count}');
 
     final Widget face = Container(
       height: NfSize.buttonPrimary,
@@ -546,7 +542,7 @@ class _WordRow extends StatelessWidget {
                     if (status != _WordStatus.none) ...<Widget>[
                       const SizedBox(width: NfSpace.s8),
                       NfChip(
-                        label: status.label,
+                        label: status.label(context),
                         variant: status.variant,
                         dense: true,
                       ),
@@ -587,8 +583,7 @@ class _DotsExplainer extends StatelessWidget {
         left: NfSpace.s4,
       ),
       child: Text(
-        // TODO(i18n): needs a key
-        'Dots show how well each word sticks in review.',
+        context.tr('words.dotsHint'),
         style: NfTokens.body(size: NfFont.s125, color: t.inkFaint),
       ),
     );
@@ -636,16 +631,13 @@ class _EmptyBlock extends StatelessWidget {
         const _IconTile(icon: Icons.auto_stories_outlined),
         const SizedBox(height: NfSpace.s20),
         Text(
-          // TODO(i18n): needs a key
-          'No words yet',
+          context.tr('words.emptyTitle'),
           style: NfTokens.display(size: NfFont.s20, color: t.ink),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: NfSpace.s10),
         Text(
-          // TODO(i18n): needs a key
-          'Words you save from the dictionary or your daily set show up here, '
-          'ready to review.',
+          context.tr('words.emptyBody'),
           style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
           textAlign: TextAlign.center,
         ),
@@ -654,8 +646,7 @@ class _EmptyBlock extends StatelessWidget {
           SizedBox(
             width: 220,
             child: NfPrimaryButton(
-              // TODO(i18n): needs a key
-              label: 'Open dictionary',
+              label: context.tr('words.openDictionary'),
               icon: Icons.search_rounded,
               onPressed: onOpenDictionary,
             ),
@@ -680,8 +671,7 @@ class _NoMatchBlock extends StatelessWidget {
         const _IconTile(icon: Icons.search_off_rounded),
         const SizedBox(height: NfSpace.s20),
         Text(
-          // TODO(i18n): needs a key
-          'No words match that search',
+          context.tr('words.noMatch'),
           style: NfTokens.display(size: NfFont.s18, color: t.ink),
           textAlign: TextAlign.center,
         ),
@@ -689,8 +679,7 @@ class _NoMatchBlock extends StatelessWidget {
         SizedBox(
           width: 200,
           child: NfSecondaryButton(
-            // TODO(i18n): needs a key
-            label: 'Clear search',
+            label: context.tr('words.clearSearch'),
             onPressed: onClear,
           ),
         ),
@@ -761,14 +750,16 @@ enum _WordStatus {
   /// Saved but never graded, so the scheduler has no opinion on it yet.
   isNew;
 
-  String get label {
+  /// Takes the context rather than being a getter: the labels are translated,
+  /// and a getter on an enum has nowhere to read the locale from.
+  String label(BuildContext context) {
     switch (this) {
       case _WordStatus.none:
         return '';
       case _WordStatus.due:
-        return 'DUE'; // TODO(i18n): needs a key
+        return context.tr('words.dueBadge');
       case _WordStatus.isNew:
-        return 'NEW'; // TODO(i18n): needs a key
+        return context.tr('words.newBadge');
     }
   }
 

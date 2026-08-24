@@ -1051,8 +1051,7 @@ class _PlanCard extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  // TODO(i18n): needs a key
-                  "Today's plan",
+                  context.tr('home.plan.title'),
                   style: NfTokens.display(size: NfFont.s18, color: t.ink),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1061,8 +1060,7 @@ class _PlanCard extends StatelessWidget {
               if (!model.isLoading && minutes > 0) ...<Widget>[
                 const SizedBox(width: NfSpace.s10),
                 NfChip(
-                  // TODO(i18n): needs a key
-                  label: '~$minutes min',
+                  label: context.tr('home.plan.minutes').replaceAll('{n}', '$minutes'),
                   icon: LucideIcons.clock,
                   dense: true,
                 ),
@@ -1077,11 +1075,10 @@ class _PlanCard extends StatelessWidget {
               icon: LucideIcons.repeat,
               accent: _Accent.primary,
               title: model.reviewTarget > 0
-                  // TODO(i18n): needs a key
-                  ? 'Review ${model.reviewTarget} words'
-                  // TODO(i18n): needs a key
-                  : 'Review words',
-              subtitle: _reviewSubtitle(),
+                  ? context.tr('home.plan.reviewN')
+                      .replaceAll('{n}', '${model.reviewTarget}')
+                  : context.tr('home.plan.review'),
+              subtitle: _reviewSubtitle(context),
               xpReward: model.reviewXp,
               done: model.reviewDone,
             ),
@@ -1089,9 +1086,9 @@ class _PlanCard extends StatelessWidget {
             _PlanRow(
               icon: LucideIcons.sparkles,
               accent: _Accent.streak,
-              // TODO(i18n): needs a key
-              title: 'Learn ${model.newTarget} new words',
-              subtitle: _learnSubtitle(),
+              title: context.tr('home.plan.learnN')
+                  .replaceAll('{n}', '${model.newTarget}'),
+              subtitle: _learnSubtitle(context),
               xpReward: model.newWordsXp,
               done: model.learnDone,
             ),
@@ -1099,9 +1096,8 @@ class _PlanCard extends StatelessWidget {
             _PlanRow(
               icon: LucideIcons.languages,
               accent: _Accent.primary,
-              // TODO(i18n): needs a key
-              title: 'Quick translation set',
-              subtitle: _translationSubtitle(),
+              title: context.tr('home.plan.translation'),
+              subtitle: _translationSubtitle(context),
               xpReward: model.translationXp,
               done: model.translationDone,
             ),
@@ -1114,8 +1110,7 @@ class _PlanCard extends StatelessWidget {
                 const SizedBox(width: NfSpace.s6),
                 Expanded(
                   child: Text(
-                    // TODO(i18n): needs a key
-                    'Plan finished — anything else is a bonus.',
+                    context.tr('home.plan.done'),
                     style: NfTokens.body(size: NfFont.s13, color: t.correct),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -1126,9 +1121,8 @@ class _PlanCard extends StatelessWidget {
             const SizedBox(height: NfSpace.s12),
           ],
           if (model.isLoading)
-            const NfPrimaryButton(
-              // TODO(i18n): needs a key
-              label: 'Start session',
+            NfPrimaryButton(
+              label: context.tr('home.plan.start'),
               icon: LucideIcons.play,
               onPressed: null,
             )
@@ -1138,15 +1132,13 @@ class _PlanCard extends StatelessWidget {
             // screen two pushes away, so the first thing a new learner needs is
             // offered here instead.
             NfPrimaryButton(
-              // TODO(i18n): needs a key
-              label: 'Add your first word',
+              label: context.tr('home.plan.addFirst'),
               icon: LucideIcons.plus,
               onPressed: onAddFirstWord,
             )
           else
             NfPrimaryButton(
-              // TODO(i18n): needs a key
-              label: 'Start session',
+              label: context.tr('home.plan.start'),
               icon: LucideIcons.play,
               onPressed: onStartSession,
             ),
@@ -1155,35 +1147,31 @@ class _PlanCard extends StatelessWidget {
     );
   }
 
-  String _reviewSubtitle() {
+  String _reviewSubtitle(BuildContext context) {
     if (!model.hasWords) {
-      // TODO(i18n): needs a key
-      return 'Add your first word to start reviewing';
+      return context.tr('home.plan.addFirstHint');
     }
     if (model.reviewDone) {
-      // TODO(i18n): needs a key
-      return 'Nothing due — your deck is ahead of schedule';
+      return context.tr('home.plan.nothingDue');
     }
-    // TODO(i18n): needs a key
-    return 'The ones your memory is about to drop';
+    return context.tr('home.plan.reviewDesc');
   }
 
-  String _learnSubtitle() {
+  String _learnSubtitle(BuildContext context) {
     if (!model.learnDone && model.learnedToday > 0) {
-      // TODO(i18n): needs a key
-      return '${model.learnedToday} of ${model.newTarget} added today';
+      return context.tr('home.plan.learnedToday')
+          .replaceAll('{a}', '${model.learnedToday}')
+          .replaceAll('{b}', '${model.newTarget}');
     }
-    // TODO(i18n): needs a key
-    return "Fresh picks from today's word set";
+    return context.tr('home.plan.learnDesc');
   }
 
-  String _translationSubtitle() {
+  String _translationSubtitle(BuildContext context) {
     if (model.translationTarget == 0) {
-      // TODO(i18n): needs a key
-      return 'Add sentences to your words to unlock this';
+      return context.tr('home.plan.translationLocked');
     }
-    // TODO(i18n): needs a key
-    return '${model.translationTarget} sentences built from your own words';
+    return context.tr('home.plan.translationDesc')
+        .replaceAll('{n}', '${model.translationTarget}');
   }
 }
 
@@ -1381,8 +1369,7 @@ class _TutorCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Text(
-                      // TODO(i18n): needs a key (the speaker's name is data)
-                      'Talk with $name',
+                      context.tr('home.tutor.title').replaceAll('{name}', name),
                       style: NfTokens.display(size: NfFont.s16, color: t.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1400,8 +1387,7 @@ class _TutorCard extends StatelessWidget {
               ),
               const SizedBox(width: NfSpace.s12),
               NfSecondaryButton(
-                // TODO(i18n): needs a key
-                label: 'Chat',
+                label: context.tr('home.tutor.chat'),
                 icon: LucideIcons.messageCircle,
                 tone: NfButtonTone.primary,
                 expand: false,
@@ -1437,8 +1423,7 @@ class _StatRow extends StatelessWidget {
           child: _StatTile(
             icon: LucideIcons.bookmark,
             value: value(model.wordsKept),
-            // TODO(i18n): needs a key
-            label: 'Words kept',
+            label: context.tr('home.stats.wordsKept'),
           ),
         ),
         const SizedBox(width: NfSpace.s10),
