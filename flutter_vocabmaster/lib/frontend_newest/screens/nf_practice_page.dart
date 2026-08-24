@@ -437,8 +437,7 @@ class _NfTodaysPlanCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      // TODO(i18n): needs a key
-                      "Today's plan",
+                      context.tr('home.plan.title'),
                       style: NfTokens.body(
                         size: NfFont.s125,
                         weight: NfTokens.bodyEmphasisWeight,

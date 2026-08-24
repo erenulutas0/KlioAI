@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/api_service.dart';
-import '../nf_frontend_preference.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
@@ -67,7 +66,11 @@ class _NfProfilePageState extends State<NfProfilePage>
   /// Non-null only when the quota REQUEST failed. Kept apart from
   /// `_aiTokenLimit == 0` so a transient 401 never renders as "you have no
   /// quota" — a paying learner reads that as a broken subscription.
-  String? _quotaError;
+  ///
+  /// Holds the l10n *key*, not the sentence: the learner can walk to settings,
+  /// change the app language and come back to this very page, and a stored
+  /// sentence would still be in the old language.
+  String? _quotaErrorKey;
 
   int _aiTokenLimit = 0;
   int _aiTokensRemaining = 0;
@@ -107,7 +110,7 @@ class _NfProfilePageState extends State<NfProfilePage>
     if (_isQuotaLoading) return;
     setState(() {
       _isQuotaLoading = true;
-      _quotaError = null;
+      _quotaErrorKey = null;
     });
 
     try {
@@ -126,18 +129,16 @@ class _NfProfilePageState extends State<NfProfilePage>
         _aiTokensRemaining = remaining;
         _aiRemainingRatio = ratio;
         _aiPlanCode = data['planCode']?.toString();
-        _quotaError = null;
+        _quotaErrorKey = null;
         _isQuotaLoading = false;
       });
     } catch (e) {
       debugPrint('NfProfilePage: AI token quota could not be loaded: $e');
       if (!mounted) return;
       setState(() {
-        _quotaError = e is ApiUnauthorizedException
-            // TODO(i18n): needs a key
-            ? 'Session could not be verified. Try signing in again.'
-            // TODO(i18n): needs a key
-            : 'Could not load quota info.';
+        _quotaErrorKey = e is ApiUnauthorizedException
+            ? 'profile.quota.err.auth'
+            : 'profile.quota.err.load';
         _isQuotaLoading = false;
       });
     }
@@ -189,7 +190,7 @@ class _NfProfilePageState extends State<NfProfilePage>
     }
 
     // Its *absence* does not: not loaded looks exactly like not subscribed.
-    if (_isQuotaLoading || _quotaError != null) {
+    if (_isQuotaLoading || _quotaErrorKey != null) {
       return _PlanState.pending;
     }
     if (appState.isLoadingAiEntitlement || !appState.hasResolvedAiEntitlement) {
@@ -230,17 +231,18 @@ class _NfProfilePageState extends State<NfProfilePage>
     if (planCode != null && planCode != 'UNKNOWN') {
       switch (planCode) {
         case 'FREE':
-          // TODO(i18n): needs a key
-          return 'Free plan';
+          return context.tr('profile.plan.free');
         case 'FREE_TRIAL_7D':
-          // TODO(i18n): needs a key
-          return 'Free trial';
+          return context.tr('profile.plan.trial');
         default:
+          // A paid tier the app has no name for. The server's own code is the
+          // honest label, and it is the same word in every language.
           return planCode.replaceAll('_', ' ');
       }
     }
-    // TODO(i18n): needs a key
-    return state == _PlanState.paid ? 'PRO' : 'Free plan';
+    return state == _PlanState.paid
+        ? context.tr('profile.plan.pro')
+        : context.tr('profile.plan.free');
   }
 
   // ---------------------------------------------------------------------------
@@ -322,8 +324,7 @@ class _NfProfilePageState extends State<NfProfilePage>
         if (planState == _PlanState.free) ...<Widget>[
           const SizedBox(width: NfSpace.s12),
           NfPrimaryButton(
-            // TODO(i18n): needs a key
-            label: 'Upgrade',
+            label: context.tr('profile.upgrade'),
             expand: false,
             // The header is a dense row; the secondary height keeps the button
             // from towering over the two lines of text next to it and still
@@ -398,8 +399,7 @@ class _NfProfilePageState extends State<NfProfilePage>
                   accent: t.primaryText,
                   tint: t.primarySoft,
                   value: _tokensStatValue(),
-                  // TODO(i18n): needs a key
-                  label: 'AI usage left',
+                  label: context.tr('profile.ai.left'),
                 ),
               ),
             ],
@@ -417,7 +417,7 @@ class _NfProfilePageState extends State<NfProfilePage>
   /// token numbers, and a stat tile that still said "8000" would reintroduce
   /// them through the side door.
   String _tokensStatValue() {
-    if (_isQuotaLoading || _quotaError != null) return _kPending;
+    if (_isQuotaLoading || _quotaErrorKey != null) return _kPending;
     if (_aiTokenLimit <= 0) return _kPending;
     return _percentLeftLabel();
   }
@@ -426,10 +426,15 @@ class _NfProfilePageState extends State<NfProfilePage>
 
   /// A sliver of quota left still rounds to 0%; saying "0%" while something
   /// remains reads as a bug, so it becomes "<1%".
+  ///
+  /// Even the sign goes through a key: Turkish writes it in front of the
+  /// number (%42), English and German behind it.
   String _percentLeftLabel() {
     final int percent = _percentLeft();
-    if (_aiTokensRemaining > 0 && percent == 0) return '<1%';
-    return '$percent%';
+    if (_aiTokensRemaining > 0 && percent == 0) {
+      return context.tr('common.percentUnderOne');
+    }
+    return context.tr('common.percent').replaceAll('{n}', '$percent');
   }
 
   Widget _buildAiTokenCard(NfTokens t) {
@@ -447,16 +452,14 @@ class _NfProfilePageState extends State<NfProfilePage>
               const SizedBox(width: NfSpace.s12),
               Expanded(
                 child: Text(
-                  // TODO(i18n): needs a key
-                  'AI usage',
+                  context.tr('profile.ai.title'),
                   style: NfTokens.display(size: NfFont.s16, color: t.ink),
                 ),
               ),
               _TapIcon(
                 icon: Icons.refresh_rounded,
                 color: t.inkMuted,
-                // TODO(i18n): needs a key
-                semanticsLabel: 'Refresh AI token quota',
+                semanticsLabel: context.tr('profile.ai.refresh'),
                 onTap: _isQuotaLoading ? null : _loadAiQuota,
               ),
             ],
@@ -480,17 +483,16 @@ class _NfProfilePageState extends State<NfProfilePage>
       ];
     }
 
-    if (_quotaError case final String message) {
+    if (_quotaErrorKey case final String key) {
       return <Widget>[
-        _RetryRow(message: message, tokens: t, onRetry: _loadAiQuota),
+        _RetryRow(message: context.tr(key), tokens: t, onRetry: _loadAiQuota),
       ];
     }
 
     if (_aiTokenLimit <= 0) {
       return <Widget>[
         Text(
-          // TODO(i18n): needs a key
-          'Token quota is not active on this plan.',
+          context.tr('profile.ai.noQuota'),
           style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
         ),
       ];
@@ -502,8 +504,9 @@ class _NfProfilePageState extends State<NfProfilePage>
     // the last token goes. Above that line the meter stays quiet on purpose:
     // no raw token counts, no usage estimates — just how much is left.
     final bool runningLow = _aiTokensRemaining <= 0 || percent < 20;
-    // TODO(i18n): needs a key
-    final String percentLabel = '${_percentLeftLabel()} left';
+    final String percentLabel = context
+        .tr('profile.ai.percentLeft')
+        .replaceAll('{p}', _percentLeftLabel());
 
     return <Widget>[
       Row(
@@ -522,9 +525,8 @@ class _NfProfilePageState extends State<NfProfilePage>
           ),
           if (runningLow) ...<Widget>[
             const SizedBox(width: NfSpace.s8),
-            const NfChip(
-              // TODO(i18n): needs a key
-              label: 'Running low',
+            NfChip(
+              label: context.tr('profile.ai.runningLow'),
               icon: Icons.bolt_outlined,
               variant: NfChipVariant.streak,
               dense: true,
@@ -553,8 +555,7 @@ class _NfProfilePageState extends State<NfProfilePage>
         children: <Widget>[
           _SettingsRow(
             icon: Icons.workspace_premium_outlined,
-            // TODO(i18n): needs a key
-            label: 'Manage subscription',
+            label: context.tr('profile.manageSubscription'),
             tokens: t,
             onTap: widget.onManageSubscription,
           ),
@@ -586,14 +587,16 @@ class _NfProfilePageState extends State<NfProfilePage>
           _Divider(tokens: t),
           _SettingsRow(
             icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-            // TODO(i18n): needs a key
-            label: 'Appearance',
+            label: context.tr('settings.appearance'),
             tokens: t,
             // The chip is the value, not a second control: it has no onTap, so
             // the tap falls through to the row and toggles the palette.
             trailing: NfChip(
-              // TODO(i18n): needs a key
-              label: isDark ? 'Dark' : 'Light',
+              label: context.tr(
+                isDark
+                    ? 'settings.appearance.dark'
+                    : 'settings.appearance.light',
+              ),
               variant: NfChipVariant.selected,
               dense: true,
             ),
@@ -610,8 +613,7 @@ class _NfProfilePageState extends State<NfProfilePage>
     if (fromUser.isNotEmpty) return fromUser;
     final String fromState = appState.userName.trim();
     if (fromState.isNotEmpty) return fromState;
-    // TODO(i18n): needs a key
-    return 'Learner';
+    return context.tr('profile.defaultName');
   }
 
   /// Up to two initials: first letter of the first and last name parts.
@@ -789,8 +791,7 @@ class _RetryRow extends StatelessWidget {
                 ),
                 const SizedBox(width: NfSpace.s8),
                 Text(
-                  // TODO(i18n): needs a key
-                  'Retry',
+                  context.tr('common.retry'),
                   style: NfTokens.display(
                     size: NfFont.s13,
                     color: tokens.primaryText,

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/ai_error_message_formatter.dart';
 import '../../services/ai_paywall_handler.dart';
@@ -90,14 +91,6 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
   PronunciationReport? _report;
   int _pronunciationAttemptSequence = 0;
   List<String> _aiTextOptions = const <String>[];
-
-  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
-
-  /// Same TR/EN copy the legacy screen ships (the spec says legacy copy is the
-  /// spec). No pronunciation keys exist in `app_localizations.dart` yet, so DE
-  /// falls back to English exactly as it did on the legacy screen.
-  // TODO(i18n): move this copy into app_localizations keys (EN/TR/DE).
-  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   @override
   void initState() {
@@ -318,20 +311,20 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
 
     await _playTtsText(
       _targetText,
-      unavailableMessage: _text(
-        'Model sesi su an uretilemedi.',
-        'Model voice could not be generated right now.',
-      ),
-      failedMessage: _text(
-        'Model sesi calinamadi.',
-        'Model voice could not be played.',
-      ),
+      unavailableMessage:
+          context.tr('pronunciation.err.modelVoiceUnavailable'),
+      failedMessage: context.tr('pronunciation.err.modelVoicePlay'),
     );
   }
 
   Future<void> _playWordPronunciation(String word) async {
     final String cleanWord = word.trim();
     if (cleanWord.isEmpty || _isRecording || _isTranscribing) return;
+    // Resolved up front: the override player below is awaited, and the two
+    // messages must not depend on a context that outlived it.
+    final String unavailable =
+        context.tr('pronunciation.err.wordVoiceUnavailable');
+    final String failed = context.tr('pronunciation.err.wordVoicePlay');
     final Future<void> Function(String word)? overridePlayer =
         widget.wordPronunciationPlayer;
     if (overridePlayer != null) {
@@ -341,14 +334,8 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
 
     await _playTtsText(
       cleanWord,
-      unavailableMessage: _text(
-        'Kelime sesi su an uretilemedi.',
-        'Word pronunciation could not be generated right now.',
-      ),
-      failedMessage: _text(
-        'Kelime sesi calinamadi.',
-        'Word pronunciation could not be played.',
-      ),
+      unavailableMessage: unavailable,
+      failedMessage: failed,
     );
   }
 
@@ -388,12 +375,13 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
 
   Future<void> _startRecording() async {
     if (_isTranscribing) return;
+    // Both messages are read before the permission round-trip, so the lookups
+    // never sit behind an await.
+    final String micDenied = context.tr('pronunciation.err.micPermission');
+    final String startFailed = context.tr('pronunciation.err.recordStart');
     final bool hasPermission = await _audioRecorder.hasPermission();
     if (!hasPermission) {
-      _showSnack(_text(
-        'Mikrofon izni gerekli.',
-        'Microphone permission is required.',
-      ));
+      _showSnack(micDenied);
       return;
     }
 
@@ -420,10 +408,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
       _recordingTimer?.cancel();
       _recordingTimer = Timer(const Duration(seconds: 45), _stopAndEvaluate);
     } catch (e) {
-      _showSnack(_text(
-        'Kayit baslatilamadi.',
-        'Recording could not be started.',
-      ));
+      _showSnack(startFailed);
     }
   }
 
@@ -438,6 +423,14 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
   /// the legacy recorder pattern instead.
   Future<void> _stopAndEvaluate() async {
     if (!_isRecording) return;
+
+    // Every message this method can show is resolved before the first await:
+    // transcription is a network round-trip, and the copy must not depend on
+    // the context still being current when it returns.
+    final String captureFailed =
+        context.tr('pronunciation.err.recordCapture');
+    final String noSpeech = context.tr('pronunciation.err.noSpeech');
+    final String reportFailed = context.tr('pronunciation.err.reportFailed');
 
     final DateTime? startedAt = _recordingStartedAt;
     String? path = _recordingPath;
@@ -460,7 +453,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
 
     if (path == null || path.trim().isEmpty) {
       if (mounted) setState(() => _isTranscribing = false);
-      _showSnack(_text('Kayit alinamadi.', 'Recording could not be captured.'));
+      _showSnack(captureFailed);
       return;
     }
 
@@ -475,10 +468,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
       if (!mounted) return;
       if (transcript.isEmpty) {
         setState(() => _isTranscribing = false);
-        _showSnack(_text(
-          'Konusma algilanamadi. Biraz daha net tekrar dene.',
-          'No speech was detected. Try one clearer repetition.',
-        ));
+        _showSnack(noSpeech);
         return;
       }
       final int effectiveDurationMs =
@@ -505,13 +495,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
       if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
         return;
       }
-      _showSnack(AiErrorMessageFormatter.forError(
-        e,
-        fallback: _text(
-          'Telaffuz raporu su an hazirlanamadi.',
-          'The pronunciation report could not be prepared right now.',
-        ),
-      ));
+      _showSnack(AiErrorMessageFormatter.forError(e, fallback: reportFailed));
     } finally {
       try {
         await File(path).delete();
@@ -592,23 +576,18 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
                 // "Clarity", not "pronunciation": the score is transcript
                 // alignment + pace, and the title must not claim phoneme-level
                 // diagnosis before it exists (same reasoning as the legacy
-                // screen).
+                // screen). Every translation of these keys keeps that
+                // distinction.
                 widget.placementMode
-                    ? _text('Seviye Olcumu', 'Level Check')
-                    : _text('Okuma Netligi Raporu', 'Reading Clarity Report'),
+                    ? context.tr('pronunciation.placement.title')
+                    : context.tr('pronunciation.title'),
                 style: NfTokens.display(size: NfFont.s22, color: t.ink),
               ),
               const SizedBox(height: NfSpace.s4),
               Text(
                 widget.placementMode
-                    ? _text(
-                        'Kisa metni oku, onerilen baslangic seviyeni gor',
-                        'Read the short text and get a starting-level suggestion',
-                      )
-                    : _text(
-                        'Oku, kaydet ve netlik raporunu al',
-                        'Read aloud, record, and get a clarity report',
-                      ),
+                    ? context.tr('pronunciation.placement.subtitle')
+                    : context.tr('practice.pronunciation.desc'),
                 style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
               ),
             ],
@@ -628,11 +607,10 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
               Expanded(
                 child: Text(
                   widget.placementMode
-                      ? _text('Seviye metni', 'Level check text')
+                      ? context.tr('pronunciation.target.placement')
                       : widget.focusWords.isNotEmpty
-                          ? _text(
-                              'Kelimelerinden metin', 'Text from your words')
-                          : _text('Okunacak metin', 'Text to read'),
+                          ? context.tr('pronunciation.target.fromWords')
+                          : context.tr('pronunciation.target.toRead'),
                   style: NfTokens.body(
                     size: NfFont.s125,
                     weight: NfTokens.bodyEmphasisWeight,
@@ -642,7 +620,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
               ),
               if (!widget.placementMode)
                 NfChip(
-                  label: _text('Degistir', 'Change'),
+                  label: context.tr('pronunciation.change'),
                   icon: _isGeneratingText
                       ? Icons.hourglass_top_rounded
                       : Icons.refresh_rounded,
@@ -667,19 +645,10 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
           const SizedBox(height: NfSpace.s12),
           Text(
             widget.placementMode
-                ? _text(
-                    'Ipucu: Bu sonuc genel Ingilizce seviyen degil, okuma ve telaffuz baslangic oneridir.',
-                    'Tip: This is not your full English level, only a reading and pronunciation starting suggestion.',
-                  )
+                ? context.tr('pronunciation.tip.placement')
                 : widget.focusWords.isNotEmpty
-                    ? _text(
-                        'Ipucu: Metin sectigin kelimeleri kullaniyor. Once model sesi dinle, sonra ayni metni oku.',
-                        'Tip: This text uses your selected words. Listen to the model first, then read it aloud.',
-                      )
-                    : _text(
-                        'Ipucu: Once model sesi dinle, sonra ayni metni dogal hizda oku.',
-                        'Tip: Listen to the model first, then read the same text at a natural pace.',
-                      ),
+                    ? context.tr('pronunciation.tip.focusWords')
+                    : context.tr('pronunciation.tip.default'),
             style: NfTokens.body(
               size: NfFont.s13,
               color: t.inkMuted,
@@ -697,8 +666,8 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         Expanded(
           child: NfSecondaryButton(
             label: _isPlayingModel
-                ? _text('Durdur', 'Stop')
-                : _text('Modeli dinle', 'Model voice'),
+                ? context.tr('pronunciation.stop')
+                : context.tr('pronunciation.modelVoice'),
             icon: _isPlayingModel
                 ? Icons.stop_rounded
                 : Icons.volume_up_rounded,
@@ -712,14 +681,14 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         Expanded(
           child: _isRecording
               ? NfSecondaryButton(
-                  label: _text('Bitir', 'Finish'),
+                  label: context.tr('pronunciation.finish'),
                   icon: Icons.stop_rounded,
                   tone: NfButtonTone.wrong,
                   height: NfSize.buttonPrimary,
                   onPressed: _toggleRecording,
                 )
               : NfPrimaryButton(
-                  label: _text('Kaydet', 'Record'),
+                  label: context.tr('pronunciation.record'),
                   icon: Icons.mic_rounded,
                   onPressed: _isTranscribing ? null : _toggleRecording,
                 ),
@@ -743,10 +712,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
           const SizedBox(width: NfSpace.s14),
           Expanded(
             child: Text(
-              _text(
-                'Ses yazıya cevriliyor ve rapor hazirlaniyor...',
-                'Transcribing speech and preparing the report...',
-              ),
+              context.tr('pronunciation.transcribing'),
               style: NfTokens.body(size: NfFont.s14, color: t.ink),
             ),
           ),
@@ -807,14 +773,16 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
           const SizedBox(height: NfSpace.s18),
           _buildMetricRow(
             t,
-            _text('Metin eslesmesi', 'Text match'),
+            context.tr('pronunciation.metric.textMatch'),
             report.accuracyScore,
           ),
           _buildMetricRow(
             t,
-            _text('Okuma hizi', 'Reading pace'),
+            context.tr('pronunciation.metric.pace'),
             report.paceScore,
-            detail: '${report.wordsPerMinute.round()} WPM',
+            detail: context
+                .tr('pronunciation.wpmValue')
+                .replaceAll('{n}', '${report.wordsPerMinute.round()}'),
           ),
           const SizedBox(height: NfSpace.s14),
           _buildNextStepCard(t, report),
@@ -901,7 +869,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            _text('Algilanan metin', 'Detected speech'),
+            context.tr('pronunciation.detected'),
             style: NfTokens.body(
               size: NfFont.s12,
               weight: NfTokens.bodyEmphasisWeight,
@@ -941,7 +909,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  _text('Sonraki deneme', 'Next attempt'),
+                  context.tr('pronunciation.nextAttempt'),
                   style: NfTokens.body(
                     size: NfFont.s135,
                     weight: NfTokens.bodyEmphasisWeight,
@@ -1007,7 +975,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  _text('Onerilen baslangic', 'Suggested start'),
+                  context.tr('pronunciation.placement.suggested'),
                   style: NfTokens.body(
                     size: NfFont.s135,
                     weight: NfTokens.bodyEmphasisWeight,
@@ -1058,10 +1026,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
             const SizedBox(width: NfSpace.s10),
             Expanded(
               child: Text(
-                _text(
-                  'Tum kelimeler hedef metinle eslesti.',
-                  'All words matched the target text.',
-                ),
+                context.tr('pronunciation.allMatched'),
                 style: NfTokens.body(
                   size: NfFont.s13,
                   weight: NfTokens.bodyEmphasisWeight,
@@ -1078,7 +1043,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          _text('Kelime kontrolu', 'Word review'),
+          context.tr('pronunciation.wordReview'),
           style: NfTokens.body(
             size: NfFont.s12,
             weight: NfTokens.bodyEmphasisWeight,
@@ -1087,10 +1052,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         ),
         const SizedBox(height: NfSpace.s4),
         Text(
-          _text(
-            'Vurgulanan kelimelere dokunup model telaffuzunu dinleyebilirsin.',
-            'Tap highlighted words to hear the model pronunciation.',
-          ),
+          context.tr('pronunciation.tapHighlighted'),
           style: NfTokens.body(
             size: NfFont.s115,
             color: t.inkFaint,
@@ -1142,7 +1104,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
       children: <Widget>[
         Expanded(
           child: NfSecondaryButton(
-            label: _text('Tekrar oku', 'Try again'),
+            label: context.tr('pronunciation.readAgain'),
             icon: Icons.replay_rounded,
             onPressed: _tryAgain,
           ),
@@ -1151,8 +1113,8 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         Expanded(
           child: NfSecondaryButton(
             label: widget.placementMode
-                ? _text('Tekrar olc', 'Check again')
-                : _text('Yeni metin', 'New text'),
+                ? context.tr('pronunciation.checkAgain')
+                : context.tr('pronunciation.newText'),
             icon: Icons.refresh_rounded,
             tone: NfButtonTone.primary,
             onPressed: _pickAnotherText,
@@ -1167,10 +1129,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
     final bool hasExtra = report.extraWords.isNotEmpty;
     if (!hasMissing && !hasExtra) {
       return Text(
-        _text(
-          'Belirgin eksik veya fazladan kelime yok.',
-          'No obvious missing or extra words.',
-        ),
+        context.tr('pronunciation.noWordIssues'),
         style: NfTokens.body(size: NfFont.s13, color: t.inkMuted),
       );
     }
@@ -1181,14 +1140,14 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         if (hasMissing)
           _buildChipGroup(
             t,
-            _text('Eksik/yanlis algilanan', 'Missing or unclear'),
+            context.tr('pronunciation.missingWords'),
             report.missingWords,
           ),
         if (hasExtra) ...<Widget>[
           const SizedBox(height: NfSpace.s12),
           _buildChipGroup(
             t,
-            _text('Fazladan algilanan', 'Extra detected'),
+            context.tr('pronunciation.extraWords'),
             report.extraWords,
           ),
         ],
@@ -1210,7 +1169,7 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
         ),
         const SizedBox(height: NfSpace.s4),
         Text(
-          _text('Dinlemek icin kelimeye dokun.', 'Tap a word to hear it.'),
+          context.tr('pronunciation.tapWord'),
           style: NfTokens.body(size: NfFont.s115, color: t.inkFaint),
         ),
         const SizedBox(height: NfSpace.s8),
@@ -1233,75 +1192,105 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // Localised report copy — identical rules to the legacy screen.
+  // Report copy.
+  //
+  // The bands are `PronunciationReportService`'s own — the service still
+  // composes English strings, but a report the learner reads has to speak
+  // their app language, so the screen re-derives every line from the report's
+  // numbers through keys. The rules below are the service's rules verbatim,
+  // including the "expected X, heard Y" evidence line that used to reach
+  // English readers only.
+  //
+  // Everything here says "clarity", never "pronunciation accuracy": the score
+  // is transcript alignment plus pace, and no translation may promise more.
   // ---------------------------------------------------------------------------
 
   String _localizedClarityLabel(PronunciationReport report) {
-    if (!_isTurkish) return report.clarityLabel;
-    if (report.overallScore >= 90) return 'Harika';
-    if (report.overallScore >= 75) return 'Net';
-    if (report.overallScore >= 60) return 'Biraz calisma gerek';
-    return 'Tekrar dene';
+    if (report.overallScore >= 90) {
+      return context.tr('pronunciation.clarity.excellent');
+    }
+    if (report.overallScore >= 75) {
+      return context.tr('pronunciation.clarity.clear');
+    }
+    if (report.overallScore >= 60) {
+      return context.tr('pronunciation.clarity.polish');
+    }
+    return context.tr('pronunciation.clarity.retry');
   }
 
   String _localizedSummary(PronunciationReport report) {
-    if (!_isTurkish) return report.summary;
-    final StringBuffer buffer = StringBuffer();
+    // Whole sentences, joined — never clause fragments, which would not
+    // survive a language whose word order differs.
+    final List<String> parts = <String>[];
     if (report.overallScore >= 85) {
-      buffer.write('Güçlü bir okuma. Kelimelerin çoğu net algılandı.');
+      parts.add(context.tr('pronunciation.summary.strong'));
     } else if (report.overallScore >= 65) {
-      buffer.write('İyi deneme. Özellikle işaretlenen kelimelere odaklan.');
+      parts.add(context.tr('pronunciation.summary.good'));
     } else {
-      buffer.write('Biraz daha yavaş ve kelimeleri ayırarak tekrar dene.');
+      parts.add(context.tr('pronunciation.summary.retry'));
     }
 
     if (report.wordsPerMinute > 0 && report.wordsPerMinute < 85) {
-      buffer.write(' Hızın biraz yavaş.');
+      parts.add(context.tr('pronunciation.summary.paceSlow'));
     } else if (report.wordsPerMinute > 165) {
-      buffer.write(' Hızın biraz yüksek.');
+      parts.add(context.tr('pronunciation.summary.paceFast'));
     }
 
     if (report.missingWords.isEmpty && report.extraWords.isEmpty) {
-      buffer.write(' Algılanan metin hedef metne çok yakın.');
+      parts.add(context.tr('pronunciation.summary.closeMatch'));
     }
-    return buffer.toString();
+    return parts.join(' ');
   }
 
   String _localizedNextStep(PronunciationReport report) {
-    if (!_isTurkish) return report.nextStep;
+    // Concrete evidence first: "sheep heard for ship" points at one sound,
+    // which teaches more than any general "say it more clearly".
+    for (final PronunciationWordMark mark in report.targetWordMarks) {
+      if (mark.status == PronunciationWordStatus.unclear &&
+          mark.heardAs != null &&
+          mark.heardAs != mark.word) {
+        return context
+            .tr('pronunciation.next.heardAs')
+            .replaceAll('{word}', mark.word)
+            .replaceAll('{heard}', mark.heardAs!);
+      }
+    }
     if (report.missingWords.isNotEmpty) {
-      final String focus = report.missingWords.take(3).join(', ');
-      return 'Bir kez daha oku ve şu kelimeleri daha net söyle: $focus.';
+      return context.tr('pronunciation.next.missing').replaceAll(
+            '{words}',
+            report.missingWords.take(3).join(', '),
+          );
     }
     if (report.extraWords.isNotEmpty) {
-      final String focus = report.extraWords.take(3).join(', ');
-      return 'Bir kez daha oku ve fazladan algılanan şu kelimelerden kaçın: $focus.';
+      return context.tr('pronunciation.next.extra').replaceAll(
+            '{words}',
+            report.extraWords.take(3).join(', '),
+          );
     }
     if (report.wordsPerMinute > 0 && report.wordsPerMinute < 85) {
-      return 'Aynı metni daha akıcı ve daha az duraksayarak tekrar dene.';
+      return context.tr('pronunciation.next.smoother');
     }
     if (report.wordsPerMinute > 165) {
-      return 'Aynı metni biraz daha yavaş, özellikle virgüllerde nefes vererek oku.';
+      return context.tr('pronunciation.next.slower');
     }
     if (report.overallScore >= 90) {
-      return 'Sonuç iyi. Metni değiştir veya daha zor bir seviyeye geç.';
+      return context.tr('pronunciation.next.changeText');
     }
-    return 'Bir kez daha oku; ritme ve kelime sonlarını net bitirmeye odaklan.';
+    return context.tr('pronunciation.next.rhythm');
   }
 
   String _localizedPaceFeedback(PronunciationReport report) {
-    if (!_isTurkish) return report.paceFeedback;
     final double wordsPerMinute = report.wordsPerMinute;
     if (wordsPerMinute <= 0) {
-      return 'Henüz tempo algılanmadı.';
+      return context.tr('pronunciation.pace.none');
     }
     if (wordsPerMinute < 85) {
-      return 'Doğal okuma için yaklaşık hedef aralık: 95-155 WPM.';
+      return context.tr('pronunciation.pace.slow');
     }
     if (wordsPerMinute > 165) {
-      return 'Biraz yavaşla ve her kelimeye daha fazla alan bırak.';
+      return context.tr('pronunciation.pace.fast');
     }
-    return 'Okuma hızın doğal aralıkta.';
+    return context.tr('pronunciation.pace.natural');
   }
 
   String _suggestedPlacementLevel(PronunciationReport report) {
@@ -1315,10 +1304,9 @@ class _NfPronunciationPageState extends State<NfPronunciationPage> {
     PronunciationReport report,
     String suggestedLevel,
   ) {
-    if (!_isTurkish) {
-      return 'Based on this short reading, start pronunciation practice around $suggestedLevel. You can still choose any level manually.';
-    }
-    return 'Bu kisa okumaya gore telaffuz calismasina $suggestedLevel civarindan baslamak mantikli. Istersen seviyeyi yine manuel degistirebilirsin.';
+    return context
+        .tr('pronunciation.placement.copy')
+        .replaceAll('{level}', suggestedLevel);
   }
 }
 

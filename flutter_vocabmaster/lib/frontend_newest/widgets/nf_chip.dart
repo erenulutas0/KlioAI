@@ -94,8 +94,15 @@ class NfChip extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
+          // Both axes, not just the height. `Center(widthFactor: 1)` collapses
+          // the hit box to exactly the pill's width, so a short label — "A1",
+          // "B2" — gave about 39px of horizontal target against a 44px height:
+          // a tap area that passes the guideline in one direction only.
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: NfSize.minTap),
+            constraints: const BoxConstraints(
+              minHeight: NfSize.minTap,
+              minWidth: NfSize.minTap,
+            ),
             child: Center(widthFactor: 1, child: pill),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../theme/nf_tokens.dart';
 
 /// A rounded progress track with a rounded fill.
@@ -119,7 +120,10 @@ class NfStrengthDots extends StatelessWidget {
     final Color on = color ?? t.primary;
 
     return Semantics(
-      label: 'Strength $filled of $total', // TODO(i18n): needs a key
+      label: context
+          .tr('words.strength')
+          .replaceAll('{n}', '$filled')
+          .replaceAll('{total}', '$total'),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[

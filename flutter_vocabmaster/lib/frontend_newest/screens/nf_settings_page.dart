@@ -386,8 +386,7 @@ class NfSettingsPage extends StatelessWidget {
           _RowDivider(tokens: t),
           _SettingsRow(
             icon: Icons.workspace_premium_outlined,
-            // TODO(i18n): needs a key
-            label: 'Manage subscription',
+            label: context.tr('profile.manageSubscription'),
             tokens: t,
             onTap: onManageSubscription,
           ),
@@ -407,8 +406,7 @@ class NfSettingsPage extends StatelessWidget {
 
     return _SettingsRow(
       icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-      // TODO(i18n): needs a key
-      label: 'Appearance',
+      label: context.tr('settings.appearance'),
       tokens: t,
       showChevron: false,
       // No onTap of its own: the chips are the control. A row that also
@@ -421,8 +419,7 @@ class NfSettingsPage extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 NfChip(
-                  // TODO(i18n): needs a key
-                  label: 'Light',
+                  label: context.tr('settings.appearance.light'),
                   icon: Icons.light_mode_outlined,
                   dense: true,
                   variant: isDark
@@ -432,8 +429,7 @@ class NfSettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(width: NfSpace.s6),
                 NfChip(
-                  // TODO(i18n): needs a key
-                  label: 'Dark',
+                  label: context.tr('settings.appearance.dark'),
                   icon: Icons.dark_mode_outlined,
                   dense: true,
                   variant: isDark

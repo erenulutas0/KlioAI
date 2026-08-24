@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/grammar_data.dart';
+import '../../l10n/app_localizations.dart';
 import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
@@ -35,14 +36,14 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
   bool get _isTurkish =>
       Localizations.localeOf(context).languageCode == 'tr';
 
-  /// The `formula` field is a multi-line Turkish block, not a short formula;
-  /// embedding it in an English sentence produced an unreadable wall for
-  /// non-TR users. The formula itself is shown right below in its own section,
-  /// so the English overview is a short framing sentence instead.
-  String _englishOverview(GrammarSubtopic subtopic) {
-    final String title = subtopic.title.trim();
-    return '$title is an English grammar pattern. '
-        'Check the formula below, then study the examples to see how it works in real sentences.';
+  /// The `explanation` field is a multi-line Turkish block, not a short
+  /// formula; showing it to a non-TR reader produced an unreadable wall. The
+  /// formula itself is shown right below in its own section, so every other
+  /// locale gets a short framing sentence instead.
+  String _overviewFallback(GrammarSubtopic subtopic) {
+    return context
+        .tr('grammar.topic.overview')
+        .replaceAll('{title}', subtopic.title.trim());
   }
 
   @override
@@ -108,8 +109,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                   ),
                   child: NfPrimaryButton(
                     key: const ValueKey('grammar-practice-quiz'),
-                    // TODO(i18n): needs a key
-                    label: _isTurkish ? 'Pratik Yap' : 'Practice',
+                    label: context.tr('grammar.practice'),
                     icon: Icons.quiz_outlined,
                     onPressed: _openQuiz,
                   ),
@@ -260,7 +260,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                     Text(
                       _isTurkish
                           ? subtopic.explanation
-                          : _englishOverview(subtopic),
+                          : _overviewFallback(subtopic),
                       style: NfTokens.body(
                         size: NfFont.s145,
                         weight: FontWeight.w600,
@@ -271,8 +271,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                     const SizedBox(height: NfSpace.s18),
                     _buildSectionHeader(
                       t,
-                      // TODO(i18n): needs a key
-                      _isTurkish ? 'Yapi / Formul' : 'Formula',
+                      context.tr('grammar.section.formula'),
                       Icons.functions_rounded,
                     ),
                     Container(
@@ -304,7 +303,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                       const SizedBox(height: NfSpace.s18),
                       _buildSectionHeader(
                         t,
-                        'Can Alici Noktalar',
+                        context.tr('grammar.section.keyPoints'),
                         Icons.vpn_key_outlined,
                       ),
                       ...subtopic.keyPoints!.map(
@@ -334,8 +333,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                     const SizedBox(height: NfSpace.s18),
                     _buildSectionHeader(
                       t,
-                      // TODO(i18n): needs a key
-                      _isTurkish ? 'Ornekler' : 'Examples',
+                      context.tr('grammar.section.examples'),
                       Icons.check_circle_outline_rounded,
                     ),
                     ...subtopic.examples.map(
@@ -346,7 +344,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                       const SizedBox(height: NfSpace.s10),
                       _buildSectionHeader(
                         t,
-                        'Sik Yapilan Hatalar',
+                        context.tr('grammar.section.mistakes'),
                         Icons.warning_amber_rounded,
                       ),
                       Container(
@@ -382,7 +380,7 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                       const SizedBox(height: NfSpace.s18),
                       _buildSectionHeader(
                         t,
-                        'Karsilastirma',
+                        context.tr('grammar.section.comparison'),
                         Icons.compare_arrows_rounded,
                       ),
                       Container(

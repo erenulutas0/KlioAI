@@ -250,7 +250,6 @@ class _AddSentenceRow extends StatelessWidget {
                 Icon(Icons.add_rounded, size: 18, color: t.primaryText),
                 const SizedBox(width: NfSpace.s6),
                 Text(
-                  // TODO(i18n): needs a key
                   context.tr('word.addSentence'),
                   style:
                       NfTokens.display(size: NfFont.s14, color: t.primaryText),

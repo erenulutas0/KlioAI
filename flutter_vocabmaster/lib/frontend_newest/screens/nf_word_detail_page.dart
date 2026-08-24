@@ -310,8 +310,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     final bool confirmed = await _confirm(
       title: context.tr('word.deleteMeaningTitle'),
       body: context.tr('word.deleteMeaningBody'),
-      // TODO(i18n): needs a key
-      confirmLabel: 'Delete',
+      confirmLabel: context.tr('common.delete'),
     );
     if (!confirmed || !mounted || _busy) return;
 
@@ -430,8 +429,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     final bool confirmed = await _confirm(
       title: context.tr('word.deleteSentenceTitle'),
       body: context.tr('word.deleteSentenceBody'),
-      // TODO(i18n): needs a key
-      confirmLabel: 'Delete',
+      confirmLabel: context.tr('common.delete'),
     );
     if (!confirmed || !mounted || _busy) return;
 
@@ -698,8 +696,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
               const SizedBox(width: NfSpace.s8),
               Semantics(
                 button: true,
-                // TODO(i18n): needs a key
-                label: 'Listen',
+                label: context.tr('word.listen'),
                 excludeSemantics: true,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
@@ -730,16 +727,14 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
           Row(
             children: <Widget>[
               if (due)
-                const NfChip(
-                  // TODO(i18n): needs a key
-                  label: 'DUE',
+                NfChip(
+                  label: context.tr('words.dueBadge'),
                   variant: NfChipVariant.streak,
                   dense: true,
                 )
               else if (isNew)
-                const NfChip(
-                  // TODO(i18n): needs a key
-                  label: 'NEW',
+                NfChip(
+                  label: context.tr('words.newBadge'),
                   variant: NfChipVariant.selected,
                   dense: true,
                 ),
@@ -799,7 +794,6 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
   }
 
   String _srsLine(BuildContext context, bool due) {
-    // TODO(i18n): needs a key — every string below, and a plural rule.
     final String reviews = _word.reviewCount == 1
         ? context.tr('word.srs.once')
         : context.tr('word.srs.times')
@@ -1135,7 +1129,9 @@ class _MeaningEditorSheetState extends State<_MeaningEditorSheet> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          editing ? context.tr('word.editMeaning') : 'Add meaning',
+          editing
+              ? context.tr('word.editMeaning')
+              : context.tr('word.addMeaning'),
           style: NfTokens.display(size: NfFont.s18, color: t.ink),
         ),
         const SizedBox(height: NfSpace.s14),
@@ -1308,7 +1304,7 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
             for (final MapEntry<String, String> option
                 in _difficultyOptions.entries)
               NfChip(
-                label: option.value,
+                label: context.tr(option.value),
                 variant: _difficulty == option.key
                     ? NfChipVariant.selected
                     : NfChipVariant.unselected,
@@ -1328,11 +1324,14 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
 
 /// The three values the sentence tile's badge can show, in the order the
 /// previous add-sentence modal offered them.
-// TODO(i18n): needs keys
+///
+/// Keys rather than words: this list is rendered as chips next to a translated
+/// question and a translated button, and English values there were the one
+/// English thing left in that sheet.
 const Map<String, String> _difficultyOptions = <String, String>{
-  'easy': 'Easy',
-  'medium': 'Medium',
-  'hard': 'Hard',
+  'easy': 'word.difficulty.easy',
+  'medium': 'word.difficulty.medium',
+  'hard': 'word.difficulty.hard',
 };
 
 // ---------------------------------------------------------------------------

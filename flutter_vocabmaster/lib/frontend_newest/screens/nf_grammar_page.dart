@@ -48,26 +48,22 @@ class _NfGrammarPageState extends State<NfGrammarPage> {
     return all.where((GrammarTopic t) => t.level == _selectedFilter).toList();
   }
 
-  /// Filter labels. The legacy screen localized these TR/EN inline; the topic
-  /// data itself carries no keys, so English is the fallback for every other
-  /// locale, matching the rest of this frontend.
+  /// Filter labels. The difficulty names are ours, so they resolve through the
+  /// key table; the topic *data* underneath still carries only English and
+  /// Turkish titles, which is why [_isTurkish] survives below.
   String _filterLabel(String key) {
     switch (key) {
       case 'core':
-        // TODO(i18n): needs a key
-        return _isTurkish ? 'Temel' : 'Core';
+        return context.tr('grammar.filter.core');
       case 'advanced':
-        // TODO(i18n): needs a key
-        return _isTurkish ? 'Ileri' : 'Advanced';
+        return context.tr('grammar.filter.advanced');
       case 'exam':
         // Difficulty label, not the exam simulator.
-        // TODO(i18n): needs a key
-        return _isTurkish ? 'Sinav' : 'Exam';
+        return context.tr('grammar.filter.exam');
       case 'bonus':
-        return 'Bonus';
+        return context.tr('grammar.filter.bonus');
       default:
-        // TODO(i18n): needs a key
-        return _isTurkish ? 'Tumu' : 'All';
+        return context.tr('grammar.filter.all');
     }
   }
 
@@ -79,8 +75,7 @@ class _NfGrammarPageState extends State<NfGrammarPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            // TODO(i18n): needs a key
-            _isTurkish ? 'Bu icerik yakinda eklenecek!' : 'Coming soon!',
+            context.tr('grammar.comingSoonSnack'),
             style: NfTokens.body(size: NfFont.s135, color: t.primaryInk),
           ),
           backgroundColor: t.ink,
@@ -161,8 +156,7 @@ class _NfGrammarPageState extends State<NfGrammarPage> {
                   style: NfTokens.display(size: NfFont.s20, color: t.ink),
                 ),
                 Text(
-                  // TODO(i18n): needs a key
-                  'Grammar notes and topic guides',
+                  context.tr('grammar.subtitle'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: NfTokens.body(size: NfFont.s12, color: t.inkMuted),
@@ -268,12 +262,10 @@ class _NfGrammarPageState extends State<NfGrammarPage> {
               children: <Widget>[
                 NfChip(
                   label: isComingSoon
-                      // TODO(i18n): needs a key
-                      ? (_isTurkish ? 'Yakinda' : 'Soon')
-                      // TODO(i18n): needs a key
-                      : (_isTurkish
-                          ? '$subtopicCount Baslik'
-                          : '$subtopicCount Topics'),
+                      ? context.tr('grammar.soon')
+                      : context
+                          .tr('grammar.topicCount')
+                          .replaceAll('{n}', '$subtopicCount'),
                   dense: true,
                   variant: NfChipVariant.unselected,
                 ),
@@ -281,10 +273,9 @@ class _NfGrammarPageState extends State<NfGrammarPage> {
                   Padding(
                     padding: const EdgeInsets.only(top: NfSpace.s4),
                     child: Text(
-                      // TODO(i18n): needs a key
-                      _isTurkish
-                          ? '$exampleCount+ Ornek'
-                          : '$exampleCount+ Examples',
+                      context
+                          .tr('grammar.exampleCount')
+                          .replaceAll('{n}', '$exampleCount'),
                       style: NfTokens.body(
                         size: NfFont.s105,
                         color: t.primaryText,

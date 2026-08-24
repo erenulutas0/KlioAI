@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/voice_model.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/learning_language_provider.dart';
@@ -125,7 +126,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     setState(() {
       _voice = voice;
       _bootstrapping = false;
-      _turns.add(_greeting(voice));
+      _turns.add(_greeting(context, voice));
     });
 
     unawaited(_probeTts());
@@ -148,14 +149,12 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// automatically — a tab that starts talking the moment you reach it is
   /// hostile in a way a screen you deliberately opened is not, and the play
   /// control on the bubble is right there.
-  _NfTurn _greeting(VoiceModel voice) {
-    // TODO(i18n): needs a key
+  _NfTurn _greeting(BuildContext context, VoiceModel voice) {
     return _NfTurn(
       id: _nextTurnId++,
       fromTutor: true,
       hasAudio: true,
-      text: "Hi, I'm ${voice.name}. Hold the button below and tell me about "
-          "your day — I'll answer out loud.",
+      text: context.tr('tutor.greeting').replaceAll('{name}', voice.name),
     );
   }
 
@@ -232,11 +231,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
         unawaited(AnalyticsService.logFirstSpeakingStarted(source: 'nf_tutor'));
         _updateWakelock();
       case NfCaptureStart.micDenied:
-        // TODO(i18n): needs a key
-        _showHint('Microphone permission is required.');
+        _showHint(context.tr('tutor.err.micDenied'));
       case NfCaptureStart.failed:
-        // TODO(i18n): needs a key
-        _showHint('Recording could not be started.');
+        _showHint(context.tr('tutor.err.recordStart'));
       case NfCaptureStart.busy:
         break;
     }
@@ -258,11 +255,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
       case NfCaptureOutcome.transcribed:
         await _send(result.transcript);
       case NfCaptureOutcome.silent:
-        // TODO(i18n): needs a key
-        _showHint('No speech was detected. Try again.');
+        _showHint(context.tr('tutor.hint.noSpeech'));
       case NfCaptureOutcome.tooShort:
-        // TODO(i18n): needs a key
-        _showHint('Hold the button while you speak.');
+        _showHint(context.tr('tutor.hint.holdWhileSpeaking'));
       case NfCaptureOutcome.notRecording:
         break;
       case NfCaptureOutcome.failed:
@@ -272,8 +267,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
   Future<void> _reportCaptureFailure(Object? error) async {
     if (error == null) {
-      // TODO(i18n): needs a key
-      _showHint('Voice recording could not be captured.');
+      _showHint(context.tr('tutor.err.captureFailed'));
       return;
     }
     if (!mounted) {
@@ -286,11 +280,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
     // forError already knows quota and upgrade errors and phrases them in the
-    // learner's language; only the last-resort fallback is untranslated here.
+    // learner's language; the last-resort fallback is the only line this page
+    // owns, so it comes from the same key table as the rest of the screen.
     _showSnack(AiErrorMessageFormatter.forError(
       error,
-      // TODO(i18n): needs a key
-      fallback: 'Could not transcribe speech. Please try again.',
+      fallback: context.tr('tutor.err.transcribe'),
     ));
   }
 
@@ -363,16 +357,12 @@ class _NfTutorPageState extends State<NfTutorPage> {
     }
 
     final String detail = error.toString();
-    // TODO(i18n): needs a key
-    String message =
-        'Connection error. Check your internet connection and try again.';
+    String message = context.tr('tutor.err.connection');
     if (detail.contains('SocketException') ||
         detail.contains('Failed host lookup')) {
-      // TODO(i18n): needs a key
-      message = 'No internet connection. Check your Wi-Fi or mobile data.';
+      message = context.tr('tutor.err.offline');
     } else if (detail.contains('TimeoutException')) {
-      // TODO(i18n): needs a key
-      message = 'The server is not responding. Please try again shortly.';
+      message = context.tr('tutor.err.timeout');
     }
     _addNotice(message);
   }
@@ -418,9 +408,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
     setState(() {
-      // TODO(i18n): needs a key
-      _turns[index] = _turns[index]
-          .withNote('Speaking practice complete · +$added XP');
+      _turns[index] = _turns[index].withNote(
+        context.tr('tutor.note.sessionXp').replaceAll('{n}', '$added'),
+      );
     });
   }
 
@@ -443,7 +433,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // as one person changing voice mid-conversation.
       _turns
         ..clear()
-        ..add(_greeting(voice));
+        ..add(_greeting(context, voice));
       _resetSessionXp();
     });
 
@@ -667,8 +657,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
                     const SizedBox(width: NfSpace.s6),
                     Flexible(
                       child: Text(
-                        // TODO(i18n): needs a key
-                        'Speaking practice · $level',
+                        context
+                            .tr('tutor.header.status')
+                            .replaceAll('{level}', level),
                         style: NfTokens.body(
                           size: NfFont.s125,
                           weight: NfTokens.bodyEmphasisWeight,
@@ -776,7 +767,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
           ),
           const SizedBox(height: NfSpace.s10),
           Text(
-            _captionText(),
+            _captionText(context),
             style: NfTokens.body(size: NfFont.s13, color: t.inkMuted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -816,21 +807,24 @@ class _NfTutorPageState extends State<NfTutorPage> {
     return const SizedBox.shrink();
   }
 
-  String _captionText() {
-    // TODO(i18n): needs a key — every caption below.
+  String _captionText(BuildContext context) {
     if (_capture.isTranscribing) {
-      return 'Transcribing…';
+      return context.tr('tutor.caption.transcribing');
     }
     if (_capture.isRecording) {
-      return 'Release to send';
+      return context.tr('tutor.caption.release');
     }
     if (_isReplying) {
-      return '${_voice.name} is thinking…';
+      return context
+          .tr('tutor.caption.thinking')
+          .replaceAll('{name}', _voice.name);
     }
     if (_speakingTurnId != null) {
-      return '${_voice.name} is speaking…';
+      return context
+          .tr('tutor.caption.speaking')
+          .replaceAll('{name}', _voice.name);
     }
-    return 'Hold to speak';
+    return context.tr('tutor.caption.hold');
   }
 }
 
@@ -1071,8 +1065,9 @@ class _AudioRow extends StatelessWidget {
       children: <Widget>[
         Semantics(
           button: true,
-          // TODO(i18n): needs a key
-          label: speaking ? 'Stop' : 'Play',
+          label: speaking
+              ? context.tr('tutor.a11y.stop')
+              : context.tr('tutor.a11y.play'),
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -1401,8 +1396,7 @@ class _HoldToSpeakButtonState extends State<_HoldToSpeakButton> {
     return Semantics(
       button: true,
       enabled: widget.enabled,
-      // TODO(i18n): needs a key
-      label: 'Hold to speak',
+      label: context.tr('tutor.caption.hold'),
       excludeSemantics: true,
       child: MouseRegion(
         cursor: widget.enabled

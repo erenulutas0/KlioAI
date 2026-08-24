@@ -181,10 +181,7 @@ class _NfNotificationsPageState extends State<NfNotificationsPage> {
         if (!mounted) return;
         if (applied != value) {
           setState(() => _values[_Pref.dailyReminder] = applied);
-          _showMessage(
-            // TODO(i18n): needs a key
-            'Notifications are off for this app in your phone settings.',
-          );
+          _showMessage(context.tr('notif.err.systemOff'));
         }
       }
 
@@ -215,8 +212,7 @@ class _NfNotificationsPageState extends State<NfNotificationsPage> {
     } catch (e) {
       debugPrint('NfNotificationsPage: preferences not saved ($e)');
       if (!mounted) return;
-      // TODO(i18n): needs a key
-      _showMessage('Notification preferences could not be saved.');
+      _showMessage(context.tr('notif.err.saveFailed'));
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -293,51 +289,39 @@ class _NfNotificationsPageState extends State<NfNotificationsPage> {
               _row(
                 t,
                 _Pref.dailyReminder,
-                // TODO(i18n): needs a key
-                'Daily practice reminder',
-                // TODO(i18n): needs a key
-                'A calm reminder for daily practice.',
+                context.tr('notif.daily.title'),
+                context.tr('notif.daily.desc'),
                 first: true,
               ),
               _row(
                 t,
                 _Pref.streakGuard,
-                // TODO(i18n): needs a key
-                'Streak guard',
-                // TODO(i18n): needs a key
-                'One reminder before your streak is at risk.',
+                context.tr('notif.streak.title'),
+                context.tr('notif.streak.desc'),
               ),
               _row(
                 t,
                 _Pref.wordRecall,
-                // TODO(i18n): needs a key
-                'Word recall',
-                // TODO(i18n): needs a key
-                'Once a day, asks you about a word whose review is overdue.',
+                context.tr('notif.recall.title'),
+                context.tr('notif.recall.desc'),
               ),
               _row(
                 t,
                 _Pref.productUpdates,
-                // TODO(i18n): needs a key
-                'Daily words and updates',
-                // TODO(i18n): needs a key
-                'New daily content and low-frequency updates.',
+                context.tr('notif.updates.title'),
+                context.tr('notif.updates.desc'),
               ),
               _row(
                 t,
                 _Pref.subscriptionAlerts,
-                // TODO(i18n): needs a key
-                'Subscription and account',
-                // TODO(i18n): needs a key
-                'Important payment or account access alerts.',
+                context.tr('notif.subscription.title'),
+                context.tr('notif.subscription.desc'),
               ),
               _row(
                 t,
                 _Pref.social,
-                // TODO(i18n): needs a key
-                'Community notifications',
-                // TODO(i18n): needs a key
-                'Alerts from social features when enabled.',
+                context.tr('notif.social.title'),
+                context.tr('notif.social.desc'),
               ),
             ],
           ),

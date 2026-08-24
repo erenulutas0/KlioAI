@@ -60,6 +60,10 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
   }
 
   Future<void> _loadQuiz({bool fresh = false}) async {
+    // Resolved before the request so no failure path has to reach for a
+    // BuildContext across an await.
+    final String emptyError = context.tr('grammar.quiz.errEmpty');
+    final String loadErrorTemplate = context.tr('grammar.quiz.errLoad');
     if (fresh) {
       _variant += 1;
     }
@@ -98,8 +102,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
       }
       if (questions.isEmpty) {
         setState(() {
-          // TODO(i18n): needs a key
-          _errorMessage = 'Could not generate the quiz, please try again.';
+          _errorMessage = emptyError;
           _isLoading = false;
         });
         return;
@@ -124,8 +127,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
       }
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          // TODO(i18n): needs a key
-          : 'Failed to load quiz: $e';
+          : loadErrorTemplate.replaceAll('{error}', '$e');
       setState(() {
         _errorMessage = msg;
         _isLoading = false;
@@ -278,8 +280,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  // TODO(i18n): needs a key
-                  _isTurkish ? 'Pratik Quiz' : 'Practice Quiz',
+                  context.tr('grammar.quiz.title'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: NfTokens.display(size: NfFont.s20, color: t.ink),
@@ -314,8 +315,8 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
           ),
           const SizedBox(height: NfSpace.s16),
           Text(
-            // TODO(i18n): needs a key
-            'Preparing questions for your level...',
+            context.tr('grammar.quiz.loading'),
+            textAlign: TextAlign.center,
             style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
           ),
         ],
@@ -339,8 +340,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
             ),
             const SizedBox(height: NfSpace.s20),
             NfSecondaryButton(
-              // TODO(i18n): needs a key
-              label: 'Try Again',
+              label: context.tr('common.tryAgain'),
               icon: Icons.refresh_rounded,
               expand: false,
               onPressed: () => unawaited(_loadQuiz()),
@@ -375,11 +375,12 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
         const SizedBox(height: NfSpace.s8),
         if (!_showResults)
           NfPrimaryButton(
-            // TODO(i18n): needs a key
             label: allAnswered
-                ? 'Check Answers'
-                : 'Answer all questions '
-                    '(${_selectedOptionIndexes.length}/${_questions.length})',
+                ? context.tr('grammar.quiz.check')
+                : context
+                    .tr('grammar.quiz.answerAll')
+                    .replaceAll('{a}', '${_selectedOptionIndexes.length}')
+                    .replaceAll('{b}', '${_questions.length}'),
             onPressed: allAnswered ? () => unawaited(_finishQuiz()) : null,
           )
         else ...<Widget>[
@@ -389,8 +390,10 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
             borderColor: _score == _questions.length ? t.correct : t.primary,
             child: Center(
               child: Text(
-                // TODO(i18n): needs a key
-                '${_isTurkish ? 'Skor' : 'Score'}: $_score / ${_questions.length}',
+                context
+                    .tr('grammar.quiz.score')
+                    .replaceAll('{a}', '$_score')
+                    .replaceAll('{b}', '${_questions.length}'),
                 style: NfTokens.display(size: NfFont.s18, color: t.ink),
               ),
             ),
@@ -398,8 +401,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
           const SizedBox(height: NfSpace.s12),
           NfPrimaryButton(
             key: const ValueKey('new-grammar-quiz'),
-            // TODO(i18n): needs a key
-            label: _isTurkish ? 'Yeni Quiz Üret' : 'New Quiz',
+            label: context.tr('grammar.quiz.new'),
             icon: Icons.auto_awesome_outlined,
             onPressed: () => unawaited(_loadQuiz(fresh: true)),
           ),

@@ -20,7 +20,6 @@ import 'screens/profile_page.dart';
 import 'screens/ai_bot_chat_page.dart';
 import 'screens/splash_screen.dart';
 import 'screens/xp_history_page.dart';
-import 'screens/language_selection_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/review_mode_selector_page.dart';
 import 'screens/support_tickets_page.dart';
@@ -42,6 +41,8 @@ import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
 import 'frontend_newest/nf_frontend_preference.dart';
 import 'frontend_newest/nf_shell.dart';
+import 'frontend_newest/screens/nf_landing_page.dart';
+import 'frontend_newest/screens/nf_onboarding_page.dart';
 
 bool _firebaseTelemetryEnabled = false;
 bool _handlingSessionExpiry = false;
@@ -235,8 +236,28 @@ class KlioAIApp extends StatelessWidget {
   }
 }
 
-class AppEntryGate extends StatelessWidget {
+/// What the app shows first: the first-run flow, or the splash.
+///
+/// The condition is unchanged — no app language has ever been chosen means this
+/// is a first run — but it no longer opens `LanguageSelectionPage`. Picking the
+/// language is the first step of [NfOnboardingPage] now, which then carries
+/// straight on into the tour and the learning profile instead of handing back
+/// to the splash in between.
+class AppEntryGate extends StatefulWidget {
   const AppEntryGate({super.key});
+
+  @override
+  State<AppEntryGate> createState() => _AppEntryGateState();
+}
+
+class _AppEntryGateState extends State<AppEntryGate> {
+  /// Latched the first time the answer is known, and deliberately not re-read.
+  ///
+  /// Choosing a language flips `hasExplicitSelection`, and this widget is
+  /// listening: re-deciding on that rebuild would tear the flow down half way
+  /// through and drop the learner on the splash. `LanguageSelectionPage` could
+  /// not hit that, because it navigated away the moment it saved.
+  bool? _isFirstRun;
 
   @override
   Widget build(BuildContext context) {
@@ -246,8 +267,13 @@ class AppEntryGate extends StatelessWidget {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    if (!languageProvider.hasExplicitSelection) {
-      return const LanguageSelectionPage();
+    if (_isFirstRun ??= !languageProvider.hasExplicitSelection) {
+      // `nextPageBuilder` is what keeps the end of the flow off the legacy
+      // `LoginPage`; without it the page falls back to that as its default.
+      return NfOnboardingPage(
+        showLanguageStep: true,
+        nextPageBuilder: (_) => const NfLandingPage(),
+      );
     }
     return const SplashScreen();
   }

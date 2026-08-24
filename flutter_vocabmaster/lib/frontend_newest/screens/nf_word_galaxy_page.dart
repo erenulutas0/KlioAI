@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/ai_error_message_formatter.dart';
@@ -99,49 +100,72 @@ double _reviewHistoryScore(Word word, {DateTime? referenceDate}) {
   return ((reviewCountScore * 0.7) + (lastReviewScore * 0.3)).clamp(0.0, 1.0);
 }
 
-String? _reviewStatusBadgeLabel(Word word, bool isTurkish) {
+/// The badge on a node: overdue, due today, or due within three days. Null
+/// means the word is far enough out that the badge would be noise.
+String? _reviewStatusBadgeLabel(BuildContext context, Word word) {
   final int? days = _daysUntilReview(word);
   if (days == null) {
     return null;
   }
   if (days < 0) {
-    return isTurkish ? '${days.abs()}g gecikmis' : '${days.abs()}d overdue';
+    return context
+        .tr('galaxy.badge.overdue')
+        .replaceAll('{n}', '${days.abs()}');
   }
   if (days == 0) {
-    return isTurkish ? 'Bugun' : 'Due today';
+    return context.tr('galaxy.badge.dueToday');
   }
   if (days <= 3) {
-    return isTurkish ? '$days g sonra' : 'In $days d';
+    return context.tr('galaxy.badge.inDays').replaceAll('{n}', '$days');
   }
   return null;
 }
 
-/// English needs the singular after 1 ("1 sentence", not "1 sentences");
-/// Turkish nouns after a numeral never take the plural suffix, so "1 cumle"
-/// and "3 cumle" are both already right.
-String _enCount(int count, String singular) =>
-    '$count ${count == 1 ? singular : '${singular}s'}';
-
-String _reviewCountBadgeLabel(Word word, bool isTurkish) {
-  return isTurkish
-      ? '${word.reviewCount} tekrar'
-      : _enCount(word.reviewCount, 'review');
+/// A count and its noun. Split into a one/many pair because English needs the
+/// singular after 1 ("1 sentence", not "1 sentences"), while Turkish nouns
+/// after a numeral never take the plural suffix — so both keys read the same
+/// there, and each language decides for itself.
+String _countLabel(
+  BuildContext context,
+  int count,
+  String oneKey,
+  String manyKey,
+) {
+  return context.tr(count == 1 ? oneKey : manyKey).replaceAll('{n}', '$count');
 }
 
-String? _nextReviewDetailLabel(Word word, bool isTurkish) {
+String _sentenceCountBadgeLabel(BuildContext context, int count) {
+  return _countLabel(
+    context,
+    count,
+    'galaxy.badge.sentenceCountOne',
+    'galaxy.badge.sentenceCount',
+  );
+}
+
+String _reviewCountBadgeLabel(BuildContext context, Word word) {
+  return _countLabel(
+    context,
+    word.reviewCount,
+    'galaxy.badge.reviewCountOne',
+    'galaxy.badge.reviewCount',
+  );
+}
+
+String? _nextReviewDetailLabel(BuildContext context, Word word) {
   final int? days = _daysUntilReview(word);
   if (days == null) {
     return null;
   }
   if (days < 0) {
-    return isTurkish
-        ? 'Tekrar ${days.abs()} gun gecikti'
-        : 'Review overdue by ${days.abs()} days';
+    return context
+        .tr('galaxy.next.overdue')
+        .replaceAll('{n}', '${days.abs()}');
   }
   if (days == 0) {
-    return isTurkish ? 'Bugun tekrar zamani' : 'Review is due today';
+    return context.tr('galaxy.next.today');
   }
-  return isTurkish ? '$days gun sonra tekrar' : 'Review in $days days';
+  return context.tr('galaxy.next.inDays').replaceAll('{n}', '$days');
 }
 
 class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
@@ -160,14 +184,6 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
   Size? _canvasViewportSize;
   bool _hasInitializedCanvasView = false;
   int? _lastAutoCenteredFocusId;
-
-  bool get _isTurkish => Localizations.localeOf(context).languageCode == 'tr';
-
-  /// Same TR/EN copy the legacy screen ships. No galaxy keys exist in
-  /// `app_localizations.dart` yet, so DE falls back to English exactly as it
-  /// did on the legacy screen.
-  // TODO(i18n): move this copy into app_localizations keys (EN/TR/DE).
-  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   @override
   void initState() {
@@ -545,7 +561,6 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
       isScrollControlled: true,
       builder: (BuildContext context) => _NfWordPreviewSheet(
         word: _latestWordFor(word.id, word),
-        isTurkish: _isTurkish,
         autoGenerateAi: autoGenerateAi,
       ),
     );
@@ -570,10 +585,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
 
     final _WordNodeQuickAction? action =
         await _showNfSheet<_WordNodeQuickAction>(
-      builder: (BuildContext context) => _NfWordQuickActionSheet(
-        word: word,
-        isTurkish: _isTurkish,
-      ),
+      builder: (BuildContext context) => _NfWordQuickActionSheet(word: word),
     );
 
     if (!mounted || action == null) {
@@ -662,7 +674,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              _text('Kelime Evreni', 'Word Galaxy'),
+                              context.tr('practice.wordGalaxy.title'),
                               style: NfTokens.display(
                                 size: NfFont.s22,
                                 color: t.ink,
@@ -670,10 +682,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                             ),
                             const SizedBox(height: NfSpace.s4),
                             Text(
-                              _text(
-                                'Kartlara dokun, cumlelerini ac ve yeni cumle ekle.',
-                                'Tap a card to open its sentences and add new ones.',
-                              ),
+                              context.tr('galaxy.subtitle'),
                               style: NfTokens.body(
                                 size: NfFont.s13,
                                 color: t.inkMuted,
@@ -715,10 +724,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(NfSpace.s26),
                                   child: Text(
-                                    _text(
-                                      'Bu alan icin henuz kelime yok.',
-                                      'There are no words here yet.',
-                                    ),
+                                    context.tr('galaxy.empty'),
                                     textAlign: TextAlign.center,
                                     style: NfTokens.body(
                                       size: NfFont.s16,
@@ -776,7 +782,6 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                                               child: _NfGalaxyNodeCard(
                                                 word: node.word,
                                                 isFocus: node.isFocus,
-                                                isTurkish: _isTurkish,
                                                 onTap: () =>
                                                     _handleWordTap(node.word),
                                                 onLongPress: () =>
@@ -796,8 +801,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                                 left: NfSpace.s12,
                                 top: NfSpace.s12,
                                 child: NfChip(
-                                  label: _text('Surukle ve yakinlastir',
-                                      'Drag and zoom'),
+                                  label: context.tr('galaxy.dragZoom'),
                                   icon: Icons.open_with_rounded,
                                   dense: true,
                                 ),
@@ -808,8 +812,8 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                                 top: NfSpace.s12,
                                 child: NfChip(
                                   label: _isFullscreen
-                                      ? _text('Küçült', 'Shrink')
-                                      : _text('Genişlet', 'Expand'),
+                                      ? context.tr('galaxy.shrink')
+                                      : context.tr('galaxy.expand'),
                                   icon: _isFullscreen
                                       ? Icons.fullscreen_exit_rounded
                                       : Icons.fullscreen_rounded,
@@ -836,8 +840,7 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                                     ),
                                     const SizedBox(height: NfSpace.s8),
                                     NfChip(
-                                      label:
-                                          _text('Merkeze Don', 'Recenter'),
+                                      label: context.tr('galaxy.recenter'),
                                       icon: Icons.center_focus_strong_rounded,
                                       variant: NfChipVariant.selected,
                                       onTap: _recenterCanvas,
@@ -954,21 +957,19 @@ class _NfGalaxyNodeCard extends StatelessWidget {
   const _NfGalaxyNodeCard({
     required this.word,
     required this.isFocus,
-    required this.isTurkish,
     required this.onTap,
     required this.onLongPress,
   });
 
   final Word word;
   final bool isFocus;
-  final bool isTurkish;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
-    final String? dueLabel = _reviewStatusBadgeLabel(word, isTurkish);
+    final String? dueLabel = _reviewStatusBadgeLabel(context, word);
     final bool isDue = _isDueWord(word);
     final bool isOverdue = _isOverdueWord(word);
 
@@ -1028,9 +1029,10 @@ class _NfGalaxyNodeCard extends StatelessWidget {
                 children: <Widget>[
                   _NfTinyBadge(label: word.difficulty.toUpperCase()),
                   _NfTinyBadge(
-                    label: isTurkish
-                        ? '${word.sentences.length} cumle'
-                        : _enCount(word.sentences.length, 'sentence'),
+                    label: _sentenceCountBadgeLabel(
+                      context,
+                      word.sentences.length,
+                    ),
                   ),
                   if (dueLabel != null)
                     _NfTinyBadge(
@@ -1041,7 +1043,7 @@ class _NfGalaxyNodeCard extends StatelessWidget {
                     )
                   else if (word.reviewCount > 0)
                     _NfTinyBadge(
-                      label: _reviewCountBadgeLabel(word, isTurkish),
+                      label: _reviewCountBadgeLabel(context, word),
                     ),
                 ],
               ),
@@ -1139,15 +1141,9 @@ class _NfGalaxyMinimap extends StatelessWidget {
 
 /// Long-press quick actions.
 class _NfWordQuickActionSheet extends StatelessWidget {
-  const _NfWordQuickActionSheet({
-    required this.word,
-    required this.isTurkish,
-  });
+  const _NfWordQuickActionSheet({required this.word});
 
   final Word word;
-  final bool isTurkish;
-
-  String _text(String tr, String en) => isTurkish ? tr : en;
 
   @override
   Widget build(BuildContext context) {
@@ -1197,33 +1193,29 @@ class _NfWordQuickActionSheet extends StatelessWidget {
               const SizedBox(height: NfSpace.s16),
               _NfQuickActionTile(
                 icon: Icons.adjust_rounded,
-                title: _text('Odak Yap', 'Focus Node'),
-                subtitle: _text(
-                    'Bu kelimeyi merkeze al', 'Bring this word to the center'),
+                title: context.tr('galaxy.action.focus'),
+                subtitle: context.tr('galaxy.action.focusDesc'),
                 onTap: () =>
                     Navigator.of(context).pop(_WordNodeQuickAction.focus),
               ),
               _NfQuickActionTile(
                 icon: Icons.visibility_outlined,
-                title: _text('Onizleme Ac', 'Open Preview'),
-                subtitle: _text(
-                    'Cumleleri ve formu ac', 'Open sentences and the form'),
+                title: context.tr('galaxy.action.preview'),
+                subtitle: context.tr('galaxy.action.previewDesc'),
                 onTap: () =>
                     Navigator.of(context).pop(_WordNodeQuickAction.preview),
               ),
               _NfQuickActionTile(
                 icon: Icons.auto_awesome_rounded,
-                title: _text('AI Cumle Ac', 'Open AI Preview'),
-                subtitle: _text('Ornek cumleleri AI ile doldur',
-                    'Open preview and generate AI examples'),
+                title: context.tr('galaxy.action.ai'),
+                subtitle: context.tr('galaxy.action.aiDesc'),
                 onTap: () =>
                     Navigator.of(context).pop(_WordNodeQuickAction.aiPreview),
               ),
               _NfQuickActionTile(
                 icon: Icons.article_outlined,
-                title: _text('Tum Cumleler', 'View All Sentences'),
-                subtitle: _text('Bu kelimenin tum cumle gecmisini ac',
-                    'Open the full sentence history'),
+                title: context.tr('galaxy.action.allSentences'),
+                subtitle: context.tr('galaxy.action.allSentencesDesc'),
                 onTap: () => Navigator.of(context)
                     .pop(_WordNodeQuickAction.viewAllSentences),
               ),
@@ -1292,12 +1284,10 @@ class _NfQuickActionTile extends StatelessWidget {
 class _NfWordPreviewSheet extends StatefulWidget {
   const _NfWordPreviewSheet({
     required this.word,
-    required this.isTurkish,
     this.autoGenerateAi = false,
   });
 
   final Word word;
-  final bool isTurkish;
   final bool autoGenerateAi;
 
   @override
@@ -1315,8 +1305,6 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
   bool _isSaving = false;
   bool _isGeneratingAi = false;
   bool _isReviewing = false;
-
-  bool get _isTurkish => widget.isTurkish;
 
   @override
   void initState() {
@@ -1340,8 +1328,6 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
     _translationController.dispose();
     super.dispose();
   }
-
-  String _text(String tr, String en) => _isTurkish ? tr : en;
 
   List<Sentence> _sortedSentences(List<Sentence> sentences) {
     final List<Sentence> items = List<Sentence>.from(sentences);
@@ -1415,14 +1401,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
 
       if (suggestions.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _text(
-                'AI ornek cumle uretemedi. Tekrar dene.',
-                'AI could not generate example sentences. Try again.',
-              ),
-            ),
-          ),
+          SnackBar(content: Text(context.tr('galaxy.err.aiEmpty'))),
         );
         return;
       }
@@ -1443,8 +1422,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
       }
       final String message = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : _text('AI cumle uretimi su an basarisiz.',
-              'AI sentence generation failed right now.');
+          : context.tr('galaxy.err.aiFailed');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -1457,14 +1435,15 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
 
     if (sentence.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _text('Lutfen cumleyi gir.', 'Enter the sentence.'),
-          ),
-        ),
+        SnackBar(content: Text(context.tr('galaxy.err.emptySentence'))),
       );
       return;
     }
+
+    // Both outcomes are resolved before the save round-trip, so neither
+    // message depends on a context that has moved on while it ran.
+    final String saveFailed = context.tr('word.err.sentenceAdd');
+    final String saved = context.tr('galaxy.sentenceAdded');
 
     setState(() {
       _isSaving = true;
@@ -1487,14 +1466,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
         _isSaving = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'Cumle kaydedilemedi. Tekrar dene.',
-              'The sentence could not be saved. Try again.',
-            ),
-          ),
-        ),
+        SnackBar(content: Text(saveFailed)),
       );
       return;
     }
@@ -1508,28 +1480,32 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _text('Cumle eklendi. (+5 XP)', 'Sentence added. (+5 XP)'),
-        ),
-      ),
+      SnackBar(content: Text(saved)),
     );
   }
 
-  String _reviewLabel(int quality) {
+  String _reviewLabel(BuildContext context, int quality) {
     switch (quality) {
       case 1:
-        return _text('Yine Goster', 'Show Again');
+        return context.tr('galaxy.review.again');
       case 3:
-        return _text('Zorlandim', 'Struggled');
+        return context.tr('galaxy.review.struggled');
       case 5:
-        return _text('Bildim', 'Got It');
+        return context.tr('galaxy.review.gotIt');
       default:
-        return _text('Tekrar', 'Review');
+        return context.tr('nav.repeat');
     }
   }
 
   Future<void> _submitReview(int quality) async {
+    // The grade name and both outcome templates are read before the review is
+    // written, so the snackbar copy never depends on a stale context.
+    final String grade = _reviewLabel(context, quality);
+    final String reviewFailed = context.tr('galaxy.err.reviewSave');
+    final String savedWithGrade =
+        context.tr('galaxy.reviewSaved').replaceAll('{grade}', grade);
+    final String savedTemplate = context.tr('galaxy.reviewSavedNext');
+
     setState(() {
       _isReviewing = true;
     });
@@ -1552,14 +1528,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
         _isReviewing = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'Tekrar sonucu kaydedilemedi. Tekrar dene.',
-              'The review result could not be saved. Try again.',
-            ),
-          ),
-        ),
+        SnackBar(content: Text(reviewFailed)),
       );
       return;
     }
@@ -1570,19 +1539,13 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
       _isReviewing = false;
     });
 
-    final String? nextReviewMessage = _nextReviewDetailLabel(_word, _isTurkish);
+    final String? nextReviewMessage = _nextReviewDetailLabel(context, _word);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           nextReviewMessage == null
-              ? _text(
-                  'Tekrar kaydedildi: ${_reviewLabel(quality)}',
-                  'Review saved: ${_reviewLabel(quality)}',
-                )
-              : _text(
-                  'Tekrar kaydedildi. $nextReviewMessage',
-                  'Review saved. $nextReviewMessage',
-                ),
+              ? savedWithGrade
+              : savedTemplate.replaceAll('{next}', nextReviewMessage),
         ),
       ),
     );
@@ -1663,27 +1626,28 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                 children: <Widget>[
                   _NfTinyBadge(label: _word.difficulty.toUpperCase()),
                   _NfTinyBadge(
-                    label: _isTurkish
-                        ? '${_sentences.length} cumle'
-                        : _enCount(_sentences.length, 'sentence'),
+                    label: _sentenceCountBadgeLabel(
+                      context,
+                      _sentences.length,
+                    ),
                   ),
                   if (_word.reviewCount > 0)
                     _NfTinyBadge(
-                      label: _reviewCountBadgeLabel(_word, _isTurkish),
+                      label: _reviewCountBadgeLabel(context, _word),
                     ),
-                  if (_reviewStatusBadgeLabel(_word, _isTurkish) != null)
+                  if (_reviewStatusBadgeLabel(context, _word) != null)
                     _NfTinyBadge(
-                      label: _reviewStatusBadgeLabel(_word, _isTurkish)!,
+                      label: _reviewStatusBadgeLabel(context, _word)!,
                       emphasis: _isOverdueWord(_word)
                           ? _NfBadgeEmphasis.wrong
                           : _NfBadgeEmphasis.streak,
                     ),
                 ],
               ),
-              if (_nextReviewDetailLabel(_word, _isTurkish) != null) ...<Widget>[
+              if (_nextReviewDetailLabel(context, _word) != null) ...<Widget>[
                 const SizedBox(height: NfSpace.s10),
                 Text(
-                  _nextReviewDetailLabel(_word, _isTurkish)!,
+                  _nextReviewDetailLabel(context, _word)!,
                   style: NfTokens.body(
                     size: NfFont.s13,
                     weight: NfTokens.bodyEmphasisWeight,
@@ -1696,7 +1660,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                 child: ListView(
                   children: <Widget>[
                     Text(
-                      _text('Tekrar', 'Review'),
+                      context.tr('nav.repeat'),
                       style: NfTokens.display(size: NfFont.s16, color: t.ink),
                     ),
                     const SizedBox(height: NfSpace.s12),
@@ -1704,7 +1668,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                       children: <Widget>[
                         Expanded(
                           child: NfSecondaryButton(
-                            label: _reviewLabel(1),
+                            label: _reviewLabel(context, 1),
                             tone: NfButtonTone.wrong,
                             busy: _isReviewing,
                             onPressed:
@@ -1714,7 +1678,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                         const SizedBox(width: NfSpace.s10),
                         Expanded(
                           child: NfSecondaryButton(
-                            label: _reviewLabel(3),
+                            label: _reviewLabel(context, 3),
                             tone: NfButtonTone.neutral,
                             busy: _isReviewing,
                             onPressed:
@@ -1724,7 +1688,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                         const SizedBox(width: NfSpace.s10),
                         Expanded(
                           child: NfSecondaryButton(
-                            label: _reviewLabel(5),
+                            label: _reviewLabel(context, 5),
                             tone: NfButtonTone.correct,
                             busy: _isReviewing,
                             onPressed:
@@ -1735,7 +1699,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                     ),
                     const SizedBox(height: NfSpace.s18),
                     Text(
-                      _text('Cumleler', 'Sentences'),
+                      context.tr('nav.sentences'),
                       style: NfTokens.display(size: NfFont.s16, color: t.ink),
                     ),
                     const SizedBox(height: NfSpace.s12),
@@ -1749,10 +1713,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                           border: Border.fromBorderSide(t.side),
                         ),
                         child: Text(
-                          _text(
-                            'Bu kelime icin henuz cumle yok. Asagidan ilk cumleni ekleyebilirsin.',
-                            'There are no sentences for this word yet. Add the first one below.',
-                          ),
+                          context.tr('galaxy.noSentences'),
                           style: NfTokens.body(
                             size: NfFont.s135,
                             color: t.inkMuted,
@@ -1798,13 +1759,12 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                       ),
                     const SizedBox(height: NfSpace.s14),
                     Text(
-                      _text('Yeni Cumle', 'New Sentence'),
+                      context.tr('word.addSentence'),
                       style: NfTokens.display(size: NfFont.s16, color: t.ink),
                     ),
                     const SizedBox(height: NfSpace.s12),
                     NfSecondaryButton(
-                      label:
-                          _text('AI Ornek Cumle Uret', 'Generate AI Example'),
+                      label: context.tr('galaxy.generateAi'),
                       icon: Icons.auto_awesome_rounded,
                       tone: NfButtonTone.primary,
                       busy: _isGeneratingAi,
@@ -1818,7 +1778,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                           padding: const EdgeInsets.only(bottom: NfSpace.s8),
                           child: _NfAiSuggestionCard(
                             suggestion: suggestion,
-                            useLabel: _text('Kullan', 'Use'),
+                            useLabel: context.tr('galaxy.use'),
                             onUse: () =>
                                 setState(() => _applySuggestion(suggestion)),
                           ),
@@ -1833,10 +1793,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                       style: NfTokens.body(size: NfFont.s14, color: t.ink),
                       decoration: _fieldDecoration(
                         t,
-                        _text(
-                          'Ingilizce cumleyi yaz',
-                          'Write the English sentence',
-                        ),
+                        context.tr('galaxy.sentenceHint'),
                       ),
                     ),
                     const SizedBox(height: NfSpace.s10),
@@ -1845,12 +1802,14 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                       minLines: 2,
                       maxLines: 3,
                       style: NfTokens.body(size: NfFont.s14, color: t.ink),
-                      decoration:
-                          _fieldDecoration(t, _text('Çeviri', 'Translation')),
+                      decoration: _fieldDecoration(
+                        t,
+                        context.tr('word.translationLabel'),
+                      ),
                     ),
                     const SizedBox(height: NfSpace.s12),
                     NfPrimaryButton(
-                      label: _text('Cumleyi Kaydet', 'Save Sentence'),
+                      label: context.tr('galaxy.saveSentence'),
                       busy: _isSaving,
                       onPressed: _isSaving ? null : _saveSentence,
                     ),
@@ -1862,7 +1821,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                 children: <Widget>[
                   Expanded(
                     child: NfSecondaryButton(
-                      label: _text('Tum Cumleler', 'View All'),
+                      label: context.tr('galaxy.viewAll'),
                       onPressed: () =>
                           Navigator.of(context).pop(_WordSheetAction.viewAll),
                     ),
@@ -1870,7 +1829,7 @@ class _NfWordPreviewSheetState extends State<_NfWordPreviewSheet> {
                   const SizedBox(width: NfSpace.s10),
                   Expanded(
                     child: NfSecondaryButton(
-                      label: _text('Kapat', 'Close'),
+                      label: context.tr('common.close'),
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),

@@ -128,6 +128,9 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
     if (!mounted) {
       return;
     }
+    // Looked up before the paywall await: after it the context may have moved
+    // on, and a message template is cheap to hold onto.
+    final String loadFailed = context.tr('practice.reading.loadFailed');
     if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
       if (!mounted) {
         return;
@@ -140,8 +143,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
     }
     final String msg = e is ApiQuotaExceededException
         ? AiErrorMessageFormatter.forQuota(e)
-        // TODO(i18n): needs a key
-        : 'Could not load passage: $e';
+        : loadFailed.replaceAll('{error}', '$e');
     setState(() {
       _errorMessage = msg;
       _isLoading = false;
@@ -150,8 +152,9 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
 
   void _applyPassageResult(Map<String, dynamic> result) {
     setState(() {
-      // TODO(i18n): needs a key (fallback title only)
-      _title = result['title'] ?? 'Reading Passage';
+      // Fallback title only: a passage that arrives without one still needs a
+      // heading, and the backend's own title is content, not chrome.
+      _title = result['title'] ?? context.tr('practice.reading.fallbackTitle');
       _passage = result['text'] ?? '';
       final List<dynamic> questionsData = result['questions'] as List? ?? [];
       _questions = questionsData
@@ -403,8 +406,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
             ),
             const SizedBox(height: NfSpace.s16),
             Text(
-              // TODO(i18n): needs a key
-              'Preparing your passage...',
+              context.tr('practice.reading.preparing'),
               style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
             ),
           ],
@@ -428,8 +430,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
               ),
               const SizedBox(height: NfSpace.s20),
               NfSecondaryButton(
-                // TODO(i18n): needs a key
-                label: 'Try Again',
+                label: context.tr('common.tryAgain'),
                 icon: Icons.refresh_rounded,
                 expand: false,
                 onPressed: () => unawaited(_loadPassage()),
@@ -499,15 +500,18 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  // TODO(i18n): needs a key
-                  'Questions (${_questions.length})',
+                  context
+                      .tr('practice.reading.questions')
+                      .replaceAll('{n}', '${_questions.length}'),
                   style: NfTokens.display(size: NfFont.s18, color: t.ink),
                 ),
               ),
               if (_showResults)
                 NfChip(
-                  // TODO(i18n): needs a key
-                  label: 'Score: $_score/${_questions.length}',
+                  label: context
+                      .tr('practice.reading.score')
+                      .replaceAll('{a}', '$_score')
+                      .replaceAll('{b}', '${_questions.length}'),
                   dense: true,
                   variant: _score == _questions.length
                       ? NfChipVariant.correct
@@ -528,15 +532,13 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
                   const SizedBox(width: NfSpace.s10),
                   Expanded(
                     child: Text(
-                      // TODO(i18n): needs a key
-                      'You finished this level today. You can review your answers.',
+                      context.tr('practice.reading.doneToday'),
                       style: NfTokens.body(size: NfFont.s13, color: t.ink),
                     ),
                   ),
                   const SizedBox(width: NfSpace.s8),
                   NfSecondaryButton(
-                    // TODO(i18n): needs a key
-                    label: 'Show',
+                    label: context.tr('practice.reading.showAnswers'),
                     tone: NfButtonTone.correct,
                     expand: false,
                     height: NfSize.minTap,
@@ -558,10 +560,11 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
           if (!_showResults && _questions.isNotEmpty)
             NfPrimaryButton(
               label: _selectedAnswers.length == _questions.length
-                  // TODO(i18n): needs a key
-                  ? 'Check Answers'
-                  // TODO(i18n): needs a key
-                  : 'Answer all questions (${_selectedAnswers.length}/${_questions.length})',
+                  ? context.tr('practice.reading.checkAnswers')
+                  : context
+                      .tr('practice.reading.answerAll')
+                      .replaceAll('{a}', '${_selectedAnswers.length}')
+                      .replaceAll('{b}', '${_questions.length}'),
               onPressed: _selectedAnswers.length == _questions.length
                   ? () => unawaited(_checkAnswers())
                   : null,
@@ -569,16 +572,14 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
 
           if (_showResults) ...<Widget>[
             NfSecondaryButton(
-              // TODO(i18n): needs a key
-              label: 'Retake This Test',
+              label: context.tr('practice.reading.retake'),
               icon: Icons.refresh_rounded,
               onPressed: _retryCurrentPassage,
             ),
             const SizedBox(height: NfSpace.s10),
             NfPrimaryButton(
               key: const ValueKey('new-reading-passage'),
-              // TODO(i18n): needs a key
-              label: 'New Passage',
+              label: context.tr('practice.reading.newPassage'),
               icon: Icons.auto_awesome_outlined,
               onPressed: () => unawaited(_loadFreshPassage()),
             ),
@@ -692,8 +693,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
                         ),
                         const SizedBox(width: NfSpace.s6),
                         Text(
-                          // TODO(i18n): needs a key
-                          'Explanation',
+                          context.tr('practice.reading.explanation'),
                           style: NfTokens.body(
                             size: NfFont.s12,
                             weight: NfTokens.bodyEmphasisWeight,

@@ -167,9 +167,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
       if (result['fallback'] == true) {
         setState(() {
           _isSearching = false;
-          // TODO(i18n): needs a key
-          _errorMessage =
-              'Could not fetch the meaning right now. Try again in a moment.';
+          _errorMessage = context.tr('dict.err.lookupFailed');
         });
         return;
       }
@@ -289,8 +287,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
       // The provider re-reads its stores so Words / Today see the new word
       // without a restart.
       unawaited(context.read<AppStateProvider>().refreshWords());
-      // TODO(i18n): needs a key
-      _showMessage('Word saved to today!');
+      _showMessage(context.tr('dict.saved'));
       // Re-run the search so the screen now shows the word as "Saved".
       unawaited(_search());
     } catch (e) {
@@ -350,8 +347,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         );
       }
       if (!mounted) return;
-      // TODO(i18n): needs a key
-      _showMessage('Saved offline — it will sync when you reconnect.');
+      _showMessage(context.tr('dict.savedOffline'));
       unawaited(_search());
     } catch (fallbackError) {
       debugPrint('NfDictionaryPage: offline save also failed ($fallbackError)');
@@ -410,8 +406,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
                 ),
                 const SizedBox(height: NfSpace.s8),
                 Text(
-                  // TODO(i18n): needs a key
-                  'What would you like to do?',
+                  context.tr('dict.sheet.prompt'),
                   style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
                 ),
                 const SizedBox(height: NfSpace.s20),
@@ -419,8 +414,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
                   children: <Widget>[
                     Expanded(
                       child: NfSecondaryButton(
-                        // TODO(i18n): needs a key
-                        label: 'Search',
+                        label: context.tr('dict.search'),
                         icon: Icons.search_rounded,
                         tone: NfButtonTone.primary,
                         onPressed: () {
@@ -434,8 +428,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
                     const SizedBox(width: NfSpace.s12),
                     Expanded(
                       child: NfSecondaryButton(
-                        // TODO(i18n): needs a key
-                        label: 'View now',
+                        label: context.tr('dict.sheet.viewNow'),
                         icon: Icons.visibility_outlined,
                         tone: NfButtonTone.primary,
                         onPressed: () {
@@ -533,8 +526,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  // TODO(i18n): needs a key
-                  'Meaning in this sentence:',
+                  context.tr('dict.inContext.title'),
                   style: NfTokens.body(size: NfFont.s125, color: dt.inkMuted),
                 ),
                 const SizedBox(height: NfSpace.s8),
@@ -643,8 +635,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => unawaited(_search()),
           decoration: InputDecoration(
-            // TODO(i18n): needs a key
-            hintText: 'Type an English word (e.g. apple)',
+            hintText: context.tr('dict.searchHint'),
             hintStyle: NfTokens.body(size: NfFont.s15, color: t.inkFaint),
             prefixIcon: Icon(Icons.search_rounded, color: t.inkMuted),
             filled: true,
@@ -669,8 +660,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         ),
         const SizedBox(height: NfSpace.s12),
         NfPrimaryButton(
-          // TODO(i18n): needs a key
-          label: 'Search',
+          label: context.tr('dict.search'),
           icon: Icons.search_rounded,
           busy: _isSearching,
           onPressed: _isSearching ? null : () => unawaited(_search()),
@@ -730,8 +720,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
     if (_meanings.isEmpty) {
       return Center(
         child: Text(
-          // TODO(i18n): needs a key
-          'No result found',
+          context.tr('dict.noResult'),
           style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
         ),
       );
@@ -759,14 +748,12 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
           ),
           const SizedBox(height: NfSpace.s20),
           Text(
-            // TODO(i18n): needs a key
-            'Search for any English word',
+            context.tr('dict.emptyTitle'),
             style: NfTokens.display(size: NfFont.s17, color: t.ink),
           ),
           const SizedBox(height: NfSpace.s6),
           Text(
-            // TODO(i18n): needs a key
-            'Get detailed meanings with AI',
+            context.tr('dict.emptyBody'),
             style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
           ),
         ],
@@ -807,9 +794,8 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
                     onTap: () => unawaited(_speak(word.englishWord)),
                   ),
                   const SizedBox(width: NfSpace.s8),
-                  const NfChip(
-                    // TODO(i18n): needs a key
-                    label: 'Saved',
+                  NfChip(
+                    label: context.tr('dict.savedBadge'),
                     icon: Icons.check_rounded,
                     variant: NfChipVariant.correct,
                     dense: true,
@@ -842,8 +828,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        // TODO(i18n): needs a key
-                        'Example',
+                        context.tr('dict.example'),
                         style: NfTokens.body(
                           size: NfFont.s115,
                           weight: NfTokens.bodyEmphasisWeight,
@@ -872,6 +857,21 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         ),
       ],
     );
+  }
+
+  /// The save button's label. Three keys rather than one with a count, because
+  /// "1 meaning" / "N meanings" is an English plural rule: Turkish takes the
+  /// singular noun after any number, and German inflects the noun itself. The
+  /// zero case is its own sentence, not a count at all — no selection means
+  /// "save everything", which is what the button then does.
+  String _saveButtonLabel(int selectedCount) {
+    if (selectedCount == 0) {
+      return context.tr('dict.saveAll');
+    }
+    if (selectedCount == 1) {
+      return context.tr('dict.saveOne');
+    }
+    return context.tr('dict.saveN').replaceAll('{n}', '$selectedCount');
   }
 
   Widget _buildAiResult(NfTokens t) {
@@ -917,8 +917,8 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         ),
         const SizedBox(height: NfSpace.s16),
         Text(
-          // TODO(i18n): needs a key
-          'Meanings (${_meanings.length})',
+          context.tr('dict.meaningsCount')
+              .replaceAll('{n}', '${_meanings.length}'),
           style: NfTokens.display(size: NfFont.s17, color: t.ink),
         ),
         const SizedBox(height: NfSpace.s10),
@@ -928,18 +928,14 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         ],
         const SizedBox(height: NfSpace.s8),
         NfPrimaryButton(
-          // TODO(i18n): needs a key
-          label: selectedCount == 0
-              ? 'Save all to Today'
-              : 'Save $selectedCount ${selectedCount == 1 ? 'meaning' : 'meanings'}',
+          label: _saveButtonLabel(selectedCount),
           icon: Icons.add_circle_outline_rounded,
           busy: _isSaving,
           onPressed: _isSaving ? null : () => unawaited(_saveToToday()),
         ),
         const SizedBox(height: NfSpace.s10),
         Text(
-          // TODO(i18n): needs a key
-          'Tap meanings to choose which ones to save',
+          context.tr('dict.selectHint'),
           textAlign: TextAlign.center,
           style: NfTokens.body(size: NfFont.s125, color: t.inkFaint),
         ),
@@ -1103,8 +1099,7 @@ class _SpeakButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      // TODO(i18n): needs a key
-      label: 'Pronounce',
+      label: context.tr('common.pronounce'),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(

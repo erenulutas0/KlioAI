@@ -438,14 +438,18 @@ class _NfNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
 
-    // three reuse `nav.*`, which are already translated everywhere.
+    // Every label reads from `nav.*`, so the bar follows the app language the
+    // same way the rest of this frontend does.
     final List<_NfNavItem> items = <_NfNavItem>[
       _NfNavItem(icon: Icons.today_outlined, label: context.tr('nav.today')),
       _NfNavItem(
         icon: Icons.school_outlined,
         label: context.tr('nav.practice'),
       ),
-      const _NfNavItem(icon: Icons.forum_outlined, label: 'Tutor'),
+      _NfNavItem(
+        icon: Icons.forum_outlined,
+        label: context.tr('nav.tutor'),
+      ),
       _NfNavItem(
         icon: Icons.menu_book_outlined,
         label: context.tr('nav.words'),

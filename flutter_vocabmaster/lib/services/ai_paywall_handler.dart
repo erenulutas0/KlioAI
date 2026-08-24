@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../frontend_newest/screens/nf_subscription_page.dart';
 import '../frontend_newest/theme/nf_theme_scope.dart';
 import '../providers/app_state_provider.dart';
-import '../screens/login_page.dart';
+import '../frontend_newest/screens/nf_landing_page.dart';
 import 'ai_error_message_formatter.dart';
 import 'analytics_service.dart';
 import 'api_service.dart';
@@ -87,8 +87,13 @@ class AiPaywallHandler {
       if (!context.mounted) {
         return true;
       }
+      // The new sign-in screen, not the legacy one. This is the only path that
+      // still reached lib/screens/login_page.dart, and it is reachable from
+      // eight new-frontend screens: any AI call that 401s on an expired session
+      // wiped the stack and landed the learner on a screen in the old paint
+      // with no way back short of restarting the app.
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
+        MaterialPageRoute<void>(builder: (_) => const NfLandingPage()),
         (route) => false,
       );
       return true;

@@ -20,6 +20,10 @@ import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
 
+/// How many words a 'random' round draws from the deck. Named so the label that
+/// promises the number and the code that takes it can never drift apart.
+const int _kRandomWordCount = 5;
+
 /// Which of [practiceWords] a generated sentence is actually drilling.
 ///
 /// Same contract as `wordDrilledBySentence` in the legacy
@@ -178,15 +182,6 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
-  // Copy. The legacy screen localizes TR/EN through the same two-string helper;
-  // DE falls back to English there and therefore here too, so the two screens
-  // read identically in every locale.
-  // ---------------------------------------------------------------------------
-
-  String _t(String tr, String en) =>
-      context.l10n.locale.languageCode == 'tr' ? tr : en;
-
   Word? _wordForSentence(int index) {
     if (index < 0 || index >= _rounds.length) return null;
     return nfWordDrilledBySentence(_rounds[index].sentence, _practiceWords);
@@ -203,12 +198,11 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
       final List<Word> words = await _apiService.getAllWords();
       if (!mounted) return;
       if (words.isEmpty) {
-        _showError(
-            _t('Henüz kelime listeniz boş.', 'Your word list is empty.'));
+        _showError(context.tr('practice.translation.emptyDeck'));
         return;
       }
       words.shuffle();
-      final List<Word> selected = words.take(5).toList();
+      final List<Word> selected = words.take(_kRandomWordCount).toList();
       // Keep the Word objects, not just their text — their ids are what let a
       // graded translation reach the review scheduler.
       _practiceWords = selected;
@@ -218,8 +212,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
           _selectedWord == null ? const <Word>[] : <Word>[_selectedWord!];
       wordToUse = _selectedWord?.englishWord ?? _wordController.text.trim();
       if (wordToUse.isEmpty) {
-        _showError(_t('Lütfen bir kelime seçin veya yazın',
-            'Please pick or type a word'));
+        _showError(context.tr('practice.translation.pickWord'));
         return;
       }
     }
@@ -292,7 +285,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : 'Hata: $e';
+          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
       _showError(msg);
     }
   }
@@ -346,7 +339,9 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : _t('Kontrol hatası: $e', 'Check failed: $e');
+          : context
+              .tr('practice.translation.checkFailed')
+              .replaceAll('{e}', '$e');
       _showError(msg);
     }
   }
@@ -355,14 +350,14 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
     if (round.isCorrect == true) {
       return _NfBannerData(
         kind: _NfBannerKind.correct,
-        title: _t('Doğru!', 'Correct!'),
+        title: context.tr('practice.translation.verdictCorrect'),
         feedback: round.feedback,
       );
     }
     if (round.isCorrect == false) {
       return _NfBannerData(
         kind: _NfBannerKind.wrong,
-        title: _t('Yanlış', 'Incorrect'),
+        title: context.tr('practice.translation.verdictWrong'),
         feedback: round.feedback,
         correctTranslation: round.correctTranslation,
       );
@@ -372,8 +367,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
     // again. Neutral colour on purpose — this is not a result.
     return _NfBannerData(
       kind: _NfBannerKind.neutral,
-      title: _t('Kontrol edilemedi. Tekrar dene.',
-          'Could not check this one. Try again.'),
+      title: context.tr('practice.translation.verdictUnknown'),
     );
   }
 
@@ -472,7 +466,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
     final String sourceCode = _languageCode(profile.sourceLanguage);
     return switch (direction) {
       'TR_TO_EN' || 'SOURCE_TO_TARGET' => '$sourceCode → $targetCode',
-      'MIXED' => _t('Karışık', 'Mixed'),
+      'MIXED' => context.tr('practice.submode.mixed'),
       _ => '$targetCode → $sourceCode',
     };
   }
@@ -491,10 +485,9 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
     final String targetLabel = _languageLabel(profile.targetLanguage);
     final String sourceLabel = _languageLabel(profile.sourceLanguage);
     final String language = isReverse ? targetLabel : sourceLabel;
-    if (context.l10n.locale.languageCode == 'tr') {
-      return '$language çevirinizi yazın...';
-    }
-    return 'Write your $language translation...';
+    return context
+        .tr('practice.translation.inputHint')
+        .replaceAll('{lang}', language);
   }
 
   void _showError(String text) {
@@ -551,7 +544,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                     const SizedBox(height: NfSpace.s16),
                     NfPrimaryButton(
                       key: const ValueKey('translation-generate-button'),
-                      label: _t('Cümle Üret', 'Generate Sentences'),
+                      label: context.tr('practice.translation.generate'),
                       icon: Icons.auto_awesome,
                       busy: _isGenerating,
                       onPressed: _isGenerating ? null : _generateSentences,
@@ -559,8 +552,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                     if (_isGenerating) ...<Widget>[
                       const SizedBox(height: NfSpace.s10),
                       Text(
-                        _t('Owen cümle üretiyor...',
-                            'Owen is writing sentences...'),
+                        context.tr('practice.translation.generating'),
                         textAlign: TextAlign.center,
                         style: NfTokens.body(
                             size: NfFont.s125, color: t.inkMuted),
@@ -569,8 +561,9 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                     if (_rounds.isNotEmpty) ...<Widget>[
                       const SizedBox(height: NfSpace.s22),
                       Text(
-                        _t('Cümleler (${_rounds.length})',
-                            'Sentences (${_rounds.length})'),
+                        context
+                            .tr('practice.translation.sentenceCount')
+                            .replaceAll('{n}', '${_rounds.length}'),
                         style:
                             NfTokens.display(size: NfFont.s18, color: t.ink),
                       ),
@@ -617,13 +610,14 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    _t('Karışık Mod', 'Mixed Mode'),
+                    context.tr('practice.translation.mixedMode'),
                     style: NfTokens.display(size: NfFont.s16, color: t.ink),
                   ),
                   const SizedBox(height: NfSpace.s4),
                   Text(
-                    _t('Rastgele 5 kelime seçilecek',
-                        '5 random words will be picked'),
+                    context
+                        .tr('practice.translation.mixedModeDesc')
+                        .replaceAll('{n}', '$_kRandomWordCount'),
                     style:
                         NfTokens.body(size: NfFont.s125, color: t.inkMuted),
                   ),
@@ -640,7 +634,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            _t('Kelime', 'Word'),
+            context.tr('practice.wordTag'),
             style: NfTokens.body(
               size: NfFont.s125,
               weight: NfTokens.bodyEmphasisWeight,
@@ -667,7 +661,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
           else
             _NfTextField(
               controller: _wordController,
-              hint: _t('Kelime yazın...', 'Type a word...'),
+              hint: context.tr('practice.translation.wordHint'),
               tokens: t,
             ),
         ],
@@ -681,7 +675,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            _t('Çeviri Yönü', 'Translation Direction'),
+            context.tr('practice.translation.direction'),
             style: NfTokens.body(
               size: NfFont.s125,
               weight: NfTokens.bodyEmphasisWeight,
@@ -779,8 +773,8 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                 const SizedBox(width: NfSpace.s6),
                 NfChip(
                   label: round.isCorrect!
-                      ? _t('Doğru', 'Correct')
-                      : _t('Yanlış', 'Wrong'),
+                      ? context.tr('practice.translation.badgeCorrect')
+                      : context.tr('practice.translation.badgeWrong'),
                   dense: true,
                   icon: round.isCorrect!
                       ? Icons.check_rounded
@@ -828,7 +822,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
                 key: ValueKey<String>('translation-check-$index'),
                 tokens: t,
                 busy: round.isChecking,
-                semanticLabel: _t('Kontrol et', 'Check'),
+                semanticLabel: context.tr('practice.translation.check'),
                 onPressed:
                     round.isChecking ? null : () => _checkTranslation(index),
               ),

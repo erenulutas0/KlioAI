@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/auth_service.dart';
-import '../../services/locale_text_service.dart';
 import '../../services/subscription_service.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
@@ -24,9 +24,10 @@ import '../widgets/nf_chip.dart';
 /// changed: plans sit in [NfCard]s, the learner picks one, and a single
 /// [NfPrimaryButton] starts the purchase.
 ///
-/// User-facing copy stays on `LocaleTextService.pick` exactly as the legacy
-/// screen had it, so the words shown around a payment are character-identical
-/// to the ones that shipped.
+/// User-facing copy now goes through `context.tr`. The legacy screen picked
+/// between a Turkish and an English literal, which meant a German learner read
+/// English on the one screen where money changes hands; the keys carry all
+/// three languages.
 class NfSubscriptionPage extends StatefulWidget {
   const NfSubscriptionPage({super.key});
 
@@ -55,8 +56,6 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
   ];
   final bool _enableMobileIap =
       const bool.fromEnvironment('ENABLE_MOBILE_IAP', defaultValue: true);
-
-  String _text(String tr, String en) => LocaleTextService.pick(tr, en);
 
   @override
   void initState() {
@@ -118,14 +117,16 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
 
     try {
       final started = await _subscriptionService.syncOwnedPurchases();
-      if (!started || !mounted) {
+      if (!started) {
+        return;
+      }
+      // Split from the check above so the analyzer can see the guard that
+      // makes the `context` read below safe.
+      if (!mounted) {
         return;
       }
       _showSnack(
-        _text(
-          'Mevcut magaza aboneligi kontrol ediliyor...',
-          'Checking your existing store subscription...',
-        ),
+        context.tr('subscription.snack.checkingStore'),
         warning: true,
       );
     } catch (e) {
@@ -144,11 +145,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       final plans = await _subscriptionService.getPlans();
       final storeProductsById = await _loadStoreProductsById();
       var active = false;
-      String? endDate;
+      String? endDateRaw;
       try {
         final status = await _subscriptionService.getUserSubscriptionStatus();
         active = _isActiveSubscription(status);
-        endDate = _extractSubscriptionEnd(status);
+        endDateRaw = _extractSubscriptionEnd(status);
         if (active) {
           await _authService.refreshProfile();
           if (mounted) {
@@ -163,7 +164,12 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
         _plans = _selectVisiblePlans(plans);
         _storeProductsById = storeProductsById;
         _hasActiveSubscription = active;
-        _subscriptionEndDateLabel = endDate;
+        // Formatted here rather than up in the try: the month name comes out
+        // of the l10n map, and reading it needs a context that is only known
+        // to be alive past the `mounted` check above.
+        _subscriptionEndDateLabel = endDateRaw == null
+            ? null
+            : _formatReadableDate(context, endDateRaw);
         _isLoading = false;
         // Keep an existing choice across reloads; otherwise recommend annual.
         if (_selectedPlan == null ||
@@ -179,7 +185,10 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnack(_text('Hata: $e', 'Error: $e'), error: true);
+      _showSnack(
+        context.tr('subscription.err.load').replaceAll('{error}', '$e'),
+        error: true,
+      );
     }
   }
 
@@ -268,6 +277,8 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
     return text.isNotEmpty && text != 'null';
   }
 
+  /// The raw end-date string the server sent, or null when it sent nothing
+  /// usable. Formatting happens later, where a [BuildContext] is in hand.
   String? _extractSubscriptionEnd(Map<String, dynamic> status) {
     final end = status['subscriptionEndDate'] ?? status['endDate'];
     if (end == null) {
@@ -277,30 +288,25 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
     if (text.isEmpty || text.toLowerCase() == 'null') {
       return null;
     }
-    return _formatReadableDate(text);
+    return text;
   }
-
-  static const List<String> _monthsTr = [
-    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-  ];
-  static const List<String> _monthsEn = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
 
   /// Raw ISO timestamp → readable, localized date. Unparseable input is shown
   /// as-is rather than breaking the screen.
-  String _formatReadableDate(String raw) {
+  ///
+  /// Both halves are localized: the month name, and the order the day, month
+  /// and year go in — English puts the month first, Turkish and German the
+  /// day.
+  String _formatReadableDate(BuildContext context, String raw) {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) {
       return raw;
     }
-    final isTurkish = LocaleTextService.isTurkish;
-    if (isTurkish) {
-      return '${parsed.day} ${_monthsTr[parsed.month - 1]} ${parsed.year}';
-    }
-    return '${_monthsEn[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
+    return context
+        .tr('common.dateLong')
+        .replaceAll('{day}', '${parsed.day}')
+        .replaceAll('{month}', context.tr('common.month.${parsed.month}'))
+        .replaceAll('{year}', '${parsed.year}');
   }
 
   // Payment demo mode can be enabled only via build-time flag for test builds:
@@ -334,13 +340,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
-      _showSnack(
-        _text(
-          'Abonelik satin alma sadece mobil uygulamada desteklenir.',
-          'Subscription purchases are supported only in the mobile app.',
-        ),
-        warning: true,
-      );
+      _showSnack(context.tr('subscription.err.platform'), warning: true);
       return;
     }
 
@@ -352,13 +352,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
-      _showSnack(
-        _text(
-          'Bu buildde mobil satin alma kapali.',
-          'Mobile purchases are disabled in this build.',
-        ),
-        warning: true,
-      );
+      _showSnack(context.tr('subscription.err.iapDisabled'), warning: true);
       return;
     }
 
@@ -383,7 +377,10 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
-      _showSnack(_text('Odeme hatasi: $e', 'Payment error: $e'), error: true);
+      _showSnack(
+        context.tr('subscription.err.payment').replaceAll('{error}', '$e'),
+        error: true,
+      );
     }
   }
 
@@ -393,9 +390,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
           await _subscriptionService.activateDemoSubscription(plan.id);
       if (!mounted) return;
       setState(() => _isPurchasing = false);
+      // Read before the await below, so the context is one the guard above
+      // has already vouched for.
+      final String fallback = context.tr('subscription.demo.active');
       await AnalyticsService.logPurchaseCompleted(planName: plan.name);
-      _showSuccessDialog(result['message'] ??
-          _text('Demo abonelik aktif!', 'Demo subscription is active!'));
+      _showSuccessDialog(result['message'] ?? fallback);
     } catch (e) {
       if (!mounted) return;
       await AnalyticsService.logPurchaseFailed(
@@ -404,7 +403,10 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       );
       if (!mounted) return;
       setState(() => _isPurchasing = false);
-      _showSnack(_text('Demo hatasi: $e', 'Demo error: $e'), error: true);
+      _showSnack(
+        context.tr('subscription.err.demo').replaceAll('{error}', '$e'),
+        error: true,
+      );
     }
   }
 
@@ -416,10 +418,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       setState(() => _isPurchasing = false);
       _showSnack(
-        _text(
-          'Geri yukleme baslatildi. Abonelik senkronu bekleniyor...',
-          'Restore started. Waiting for subscription sync...',
-        ),
+        context.tr('subscription.snack.restoreStarted'),
         warning: true,
       );
       Future.delayed(
@@ -434,7 +433,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       setState(() => _isPurchasing = false);
       _showSnack(
-        _text('Geri yukleme hatasi: $e', 'Restore error: $e'),
+        context.tr('subscription.err.restore').replaceAll('{error}', '$e'),
         error: true,
       );
     }
@@ -477,15 +476,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
             side: t.side,
           ),
           title: Text(
-            _text('Tebrikler!', 'Congratulations!'),
+            context.tr('subscription.success.title'),
             style: NfTokens.display(size: NfFont.s20, color: t.ink),
           ),
           content: Text(
-            message ??
-                _text(
-                  'PRO uyeliginiz basariyla aktif edildi. Keyifle ogrenin!',
-                  'Your PRO membership is active. Enjoy learning!',
-                ),
+            message ?? context.tr('subscription.success.body'),
             style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
           ),
           actions: [
@@ -495,7 +490,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
                 Navigator.pop(context); // Return to previous screen
               },
               child: Text(
-                _text('Tamam', 'OK'),
+                context.tr('common.ok'),
                 style:
                     NfTokens.display(size: NfFont.s14, color: t.primaryText),
               ),
@@ -539,7 +534,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
                   const SizedBox(width: NfSpace.s4),
                   Expanded(
                     child: Text(
-                      _text('PRO Uyelik', 'PRO Membership'),
+                      context.tr('subscription.title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: NfTokens.display(size: NfFont.s20, color: t.ink),
@@ -584,7 +579,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
               vertical: NfSpace.s10,
             ),
             child: Text(
-              _text('DEMO ODEME MODU AKTIF', 'DEMO PAYMENT MODE ACTIVE'),
+              context.tr('subscription.demo.banner'),
               textAlign: TextAlign.center,
               style: NfTokens.body(
                 size: NfFont.s12,
@@ -596,16 +591,13 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
           const SizedBox(height: NfSpace.s16),
         ],
         Text(
-          _text('AI destekli gunluk pratik', 'AI-powered daily practice'),
+          context.tr('subscription.hero.title'),
           textAlign: TextAlign.center,
           style: NfTokens.display(size: NfFont.s25, color: t.ink),
         ),
         const SizedBox(height: NfSpace.s8),
         Text(
-          _text(
-            'Cumle uretme, konusma ve tekrar tek planda.',
-            'Create sentences, practice speaking, and review in one plan.',
-          ),
+          context.tr('subscription.hero.subtitle'),
           textAlign: TextAlign.center,
           style: NfTokens.body(size: NfFont.s145, color: t.inkMuted),
         ),
@@ -622,14 +614,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
                 Expanded(
                   child: Text(
                     _subscriptionEndDateLabel == null
-                        ? _text(
-                            'Aboneliginiz aktif.',
-                            'Your subscription is active.',
-                          )
-                        : _text(
-                            'Aboneliginiz aktif. Bitis: $_subscriptionEndDateLabel',
-                            'Your subscription is active. Ends: $_subscriptionEndDateLabel',
-                          ),
+                        ? context.tr('subscription.active')
+                        : context.tr('subscription.activeUntil').replaceAll(
+                              '{date}',
+                              _subscriptionEndDateLabel!,
+                            ),
                     style: NfTokens.body(
                       size: NfFont.s135,
                       weight: NfTokens.bodyEmphasisWeight,
@@ -646,10 +635,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: NfSpace.s26),
             child: Text(
-              _text(
-                'Abonelik plani su anda bulunamadi.',
-                'No subscription plan is available right now.',
-              ),
+              context.tr('subscription.empty'),
               textAlign: TextAlign.center,
               style: NfTokens.body(size: NfFont.s145, color: t.inkMuted),
             ),
@@ -661,9 +647,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
           ],
           const SizedBox(height: NfSpace.s8),
           NfPrimaryButton(
-            label: _hasActiveSubscription
-                ? _text('Abonelik Aktif', 'Subscription Active')
-                : _text('Hemen Yukselt', 'Upgrade Now'),
+            label: context.tr(
+              _hasActiveSubscription
+                  ? 'subscription.cta.active'
+                  : 'subscription.cta.upgrade',
+            ),
             busy: _isPurchasing,
             onPressed: _hasActiveSubscription || selected == null
                 ? null
@@ -675,12 +663,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
           // conversion work instead of being given away silently.
           Text(
             key: const ValueKey('paywall-trial-note'),
-            _text(
-              'Yeni hesaplar 7 gunluk deneme AI kotasiyla baslar. '
-                  'Aboneligi istedigin zaman Google Play uzerinden iptal edebilirsin.',
-              'New accounts start with a 7-day trial AI quota. '
-                  'Cancel your subscription anytime in Google Play.',
-            ),
+            context.tr('subscription.trialNote'),
             textAlign: TextAlign.center,
             style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
           ),
@@ -688,7 +671,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
         if ((Platform.isAndroid || Platform.isIOS) && _enableMobileIap) ...<Widget>[
           const SizedBox(height: NfSpace.s16),
           NfSecondaryButton(
-            label: _text('Satin alimlari geri yukle', 'Restore purchases'),
+            label: context.tr('subscription.restore'),
             onPressed:
                 _isPurchasing ? null : () => unawaited(_restorePurchases()),
           ),
@@ -702,6 +685,9 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
 
     final bool isSelected = _selectedPlan?.id == plan.id;
     final bool isAnnual = plan.name.contains('ANNUAL');
+    final String periodKey = plan.durationDays == 30
+        ? 'subscription.perMonth'
+        : 'subscription.perYear';
 
     return NfCard(
       backgroundColor: isSelected ? t.primarySoft : t.surface,
@@ -716,9 +702,11 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  isAnnual
-                      ? _text('Yillik Plan', 'Annual Plan')
-                      : _text('Aylik Plan', 'Monthly Plan'),
+                  context.tr(
+                    isAnnual
+                        ? 'subscription.plan.annual'
+                        : 'subscription.plan.monthly',
+                  ),
                   style: NfTokens.display(
                     size: NfFont.s17,
                     color: isSelected ? t.primaryText : t.ink,
@@ -727,7 +715,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
               ),
               if (isAnnual)
                 NfChip(
-                  label: _text('%40 Tasarruf', 'Save 40%'),
+                  label: context.tr('subscription.plan.save40'),
                   variant: NfChipVariant.streak,
                   dense: true,
                 ),
@@ -747,29 +735,17 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
                 ),
               ),
               Text(
-                plan.durationDays == 30
-                    ? _text(' / ay', ' / month')
-                    : _text(' / yil', ' / year'),
+                // The leading space belongs to the layout, not the copy, so
+                // it stays out of the translation.
+                ' ${context.tr(periodKey)}',
                 style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
               ),
             ],
           ),
           const SizedBox(height: NfSpace.s14),
-          _buildPerk(
-            t,
-            _text('AI destekli gunluk pratik', 'AI-powered daily practice'),
-          ),
-          _buildPerk(
-            t,
-            _text(
-              'Cumle uretme ve ceviri destegi',
-              'Sentence creation and translation support',
-            ),
-          ),
-          _buildPerk(
-            t,
-            _text('Konusma ve tekrar modlari', 'Speaking and review modes'),
-          ),
+          _buildPerk(t, context.tr('subscription.perk.daily')),
+          _buildPerk(t, context.tr('subscription.perk.sentences')),
+          _buildPerk(t, context.tr('subscription.perk.speaking')),
         ],
       ),
     );

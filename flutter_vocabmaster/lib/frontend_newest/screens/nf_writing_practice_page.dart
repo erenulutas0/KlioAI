@@ -65,11 +65,6 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
     'C2',
   ];
 
-  /// The legacy screen localizes TR/EN through the same two-string helper;
-  /// DE falls back to English there and therefore here too.
-  String _t(String tr, String en) =>
-      context.l10n.locale.languageCode == 'tr' ? tr : en;
-
   @override
   void initState() {
     super.initState();
@@ -130,7 +125,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : 'Hata: $e';
+          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
       _showMessage(msg);
     }
   }
@@ -148,10 +143,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
       if (evaluation.isFallback) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        _showMessage(_t(
-          'Degerlendirme su an yapilamadi. Yazin duruyor, tekrar deneyebilirsin.',
-          'The evaluation could not be made right now. Your text is safe — try again.',
-        ));
+        _showMessage(context.tr('practice.writing.evalUnavailable'));
         return;
       }
 
@@ -197,7 +189,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : _t('Hata: $e', 'Error: $e');
+          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
       _showMessage(msg);
     }
   }
@@ -304,15 +296,12 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      _t('AI ile Yazma Pratigi', 'AI Writing Practice'),
+                      context.tr('practice.writing.aiTitle'),
                       style: NfTokens.display(size: NfFont.s17, color: t.ink),
                     ),
                     const SizedBox(height: NfSpace.s4),
                     Text(
-                      _t(
-                        'Seviyene uygun konularda yaz, yapay zeka degerlendirsin',
-                        'Write on level-appropriate topics and get AI evaluation',
-                      ),
+                      context.tr('practice.writing.card.desc'),
                       style:
                           NfTokens.body(size: NfFont.s125, color: t.inkMuted),
                     ),
@@ -338,7 +327,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
               Icon(Icons.gps_fixed_rounded, size: 18, color: t.primaryText),
               const SizedBox(width: NfSpace.s8),
               Text(
-                _t('Zorluk Sec', 'Choose Difficulty'),
+                context.tr('practice.writing.chooseLevel'),
                 style: NfTokens.display(size: NfFont.s16, color: t.ink),
               ),
             ],
@@ -363,10 +352,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
               backgroundColor: t.correctSoft,
               borderColor: t.correct,
               child: Text(
-                _t(
-                  'Bu seviyedeki gunluk yazma alistirmasi tamamlandi. Ayni konuyu tekrar cozebilirsin.',
-                  'Today\'s writing task for this level is already completed. You can still retry the same topic.',
-                ),
+                context.tr('practice.writing.levelDone'),
                 style: NfTokens.body(size: NfFont.s125, color: t.ink),
               ),
             ),
@@ -374,18 +360,15 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
           ],
           NfPrimaryButton(
             label: _isLoading
-                ? _t('Konu Hazirlaniyor...', 'Preparing topic...')
-                : _t('Gunun Konusunu Getir', 'Get Today\'s Topic'),
+                ? context.tr('practice.writing.preparingTopic')
+                : context.tr('practice.writing.getTopic'),
             icon: Icons.auto_awesome,
             busy: _isLoading,
             onPressed: _isLoading ? null : _handleGenerateTopic,
           ),
           const SizedBox(height: NfSpace.s10),
           Text(
-            _t(
-              'Her seviye icin gunluk tek konu verilir. Ayni seviyede tekrar ayni konu acilir.',
-              'Each level provides one daily topic. Reopening the same level brings back the same topic.',
-            ),
+            context.tr('practice.writing.dailyNote'),
             style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
           ),
         ],
@@ -479,7 +462,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
           children: <Widget>[
             Expanded(
               child: NfSecondaryButton(
-                label: _t('Ayni Konuyu Tekrar Coz', 'Retry Same Topic'),
+                label: context.tr('practice.writing.retryTopic'),
                 icon: Icons.refresh_rounded,
                 onPressed: _resetCurrentWritingAttempt,
               ),
@@ -488,8 +471,8 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
             Expanded(
               child: NfPrimaryButton(
                 label: _isLoading
-                    ? _t('Degerlendiriliyor...', 'Evaluating...')
-                    : _t('Degerlendir', 'Evaluate'),
+                    ? context.tr('practice.writing.evaluating')
+                    : context.tr('practice.writing.evaluate'),
                 icon: Icons.check_rounded,
                 busy: _isLoading,
                 height: NfSize.buttonSecondary,
@@ -523,7 +506,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
                   Icon(Icons.edit_outlined, size: 18, color: t.primaryText),
                   const SizedBox(width: NfSpace.s8),
                   Text(
-                    _t('Yazinizi Buraya Yazin', 'Write Here'),
+                    context.tr('practice.writing.writeHere'),
                     style: NfTokens.display(size: NfFont.s16, color: t.ink),
                   ),
                 ],
@@ -532,7 +515,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
-                    _t('Kelime: ', 'Words: '),
+                    context.tr('practice.writing.wordsLabel'),
                     style: NfTokens.body(size: NfFont.s13, color: t.inkMuted),
                   ),
                   Text(
@@ -564,10 +547,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
               style: NfTokens.body(
                   size: NfFont.s15, color: t.ink, height: 1.7),
               decoration: InputDecoration(
-                hintText: _t(
-                  'Yazinizi buraya yazin... Duygularinizi ve dusuncelerinizi ozgurce ifade edin. Her kelime ogrenme yolculugunuzda bir adimdir.',
-                  'Write here... Express your ideas clearly and freely. Every word is a step in your learning journey.',
-                ),
+                hintText: context.tr('practice.writing.hint'),
                 hintStyle: NfTokens.body(size: NfFont.s145, color: t.inkFaint),
                 border: InputBorder.none,
                 isDense: true,
@@ -592,7 +572,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
                           size: NfFont.s125, color: t.inkMuted, height: 1.5),
                       children: <TextSpan>[
                         TextSpan(
-                          text: _t('Yazi Ipuclari: ', 'Writing Tips: '),
+                          text: context.tr('practice.writing.tipsLabel'),
                           style: NfTokens.body(
                             size: NfFont.s125,
                             weight: NfTokens.bodyEmphasisWeight,
@@ -600,10 +580,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
                           ),
                         ),
                         TextSpan(
-                          text: _t(
-                            'Cumlelerinizi net ve anlasilir tutun. Gecis kelimelerini kullanarak fikirlerinizi birbirine baglayin. Yaratici olun ve kendi sesinizi bulmaktan cekinmeyin.',
-                            'Keep your sentences clear and organized. Use transition words to connect your ideas. Be creative and write in your own voice.',
-                          ),
+                          text: context.tr('practice.writing.tipsBody'),
                         ),
                       ],
                     ),
@@ -631,7 +608,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
         if (evaluation.strengths.isNotEmpty) ...<Widget>[
           _buildListCard(
             t,
-            title: _t('Guclu Yonler', 'Strengths'),
+            title: context.tr('practice.writing.strengths'),
             entries: evaluation.strengths,
             accent: t.correct,
             background: t.correctSoft,
@@ -643,7 +620,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
         if (evaluation.improvements.isNotEmpty) ...<Widget>[
           _buildListCard(
             t,
-            title: _t('Gelistirilebilir Alanlar', 'Areas to Improve'),
+            title: context.tr('practice.writing.improvements'),
             entries: evaluation.improvements,
             accent: t.streakText,
             background: t.streakSoft,
@@ -655,7 +632,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
         _buildDetailedFeedback(t, evaluation),
         const SizedBox(height: NfSpace.s16),
         NfPrimaryButton(
-          label: _t('Baska Seviye Sec', 'Choose Another Level'),
+          label: context.tr('practice.writing.anotherLevel'),
           icon: Icons.refresh_rounded,
           onPressed: _handleReset,
         ),
@@ -681,7 +658,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
           ),
           const SizedBox(height: NfSpace.s12),
           Text(
-            _t('Harika Is Cikardin!', 'Great Work!'),
+            context.tr('practice.writing.greatWork'),
             textAlign: TextAlign.center,
             style: NfTokens.display(size: NfFont.s22, color: t.ink),
           ),
@@ -705,7 +682,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
           ),
           const SizedBox(height: NfSpace.s8),
           Text(
-            _t('100 uzerinden puaniniz', 'Your score out of 100'),
+            context.tr('practice.writing.scoreOutOf'),
             style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
           ),
         ],
@@ -766,12 +743,15 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
 
   Widget _buildDetailedFeedback(NfTokens t, EvaluationData evaluation) {
     final List<(String, String)> sections = <(String, String)>[
-      (_t('Gramer', 'Grammar'), evaluation.grammar),
-      (_t('Kelime Dagarcigi', 'Vocabulary'), evaluation.vocabulary),
-      (_t('Tutarlilik', 'Coherence'), evaluation.coherence),
+      (context.tr('practice.mode.grammar'), evaluation.grammar),
+      (context.tr('practice.writing.vocabulary'), evaluation.vocabulary),
+      (context.tr('practice.writing.coherence'), evaluation.coherence),
       if (evaluation.contextRelevance.isNotEmpty)
-        (_t('Konu Uyumu', 'Topic Relevance'), evaluation.contextRelevance),
-      (_t('Genel Degerlendirme', 'Overall Evaluation'), evaluation.overall),
+        (
+          context.tr('practice.writing.topicRelevance'),
+          evaluation.contextRelevance
+        ),
+      (context.tr('practice.writing.overall'), evaluation.overall),
     ];
 
     return NfCard(
@@ -783,7 +763,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
               Icon(Icons.auto_awesome, size: 18, color: t.primaryText),
               const SizedBox(width: NfSpace.s8),
               Text(
-                _t('Detayli Geri Bildirim', 'Detailed Feedback'),
+                context.tr('practice.writing.detailedFeedback'),
                 style: NfTokens.display(size: NfFont.s16, color: t.ink),
               ),
             ],

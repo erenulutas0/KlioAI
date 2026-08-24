@@ -1255,7 +1255,7 @@ class _PlanRow extends StatelessWidget {
           )
         else
           Text(
-            // TODO(i18n): needs a key
+            // XP reads the same in all three languages.
             '+$xpReward XP',
             style: NfTokens.display(size: NfFont.s135, color: t.primaryText),
           ),
