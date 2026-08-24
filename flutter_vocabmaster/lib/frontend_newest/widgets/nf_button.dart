@@ -194,14 +194,31 @@ class _NfPushableState extends State<_NfPushable> {
     }
   }
 
+  /// Roomy padding is right for a button that owns its row, and wrong for one
+  /// of three sharing it. Three buttons across a 393dp phone leave about 111dp
+  /// each; 20dp of padding on both sides plus the icon left "Hard" with roughly
+  /// 43dp and the label came out as "Ha…" on a real device. Narrow buttons give
+  /// the space back to the word, which is the part that carries the meaning.
+  static const double _tightWidth = 140;
+
   @override
   Widget build(BuildContext context) {
     const double depth = NfSize.pressDepth;
 
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) =>
+          _build(context, depth, constraints.maxWidth),
+    );
+  }
+
+  Widget _build(BuildContext context, double depth, double maxWidth) {
+    final double horizontalPadding =
+        maxWidth.isFinite && maxWidth < _tightWidth ? NfSpace.s10 : NfSpace.s20;
+
     final Widget face = Container(
       height: widget.height,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: NfSpace.s20),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       decoration: BoxDecoration(
         color: widget.faceColor,
         borderRadius: NfRadius.controlAll,

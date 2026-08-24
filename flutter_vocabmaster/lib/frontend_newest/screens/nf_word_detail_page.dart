@@ -69,6 +69,10 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
   /// and the screen says so rather than pretending the word has none.
   bool _hydrateFailed = false;
 
+  /// True once the server copy has landed. It decides who owns the review state
+  /// in [_mergeProviderWord]; see the note there.
+  bool _hydrated = false;
+
   /// One mutation at a time. Cheap, and it prevents the classic double-tap
   /// duplicate sentence.
   bool _busy = false;
@@ -112,6 +116,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       setState(() {
         _word = fresh;
         _hydrating = false;
+        _hydrated = true;
       });
     } catch (e) {
       debugPrint('NfWordDetailPage: hydrate failed ($e)');
@@ -125,9 +130,21 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
 
   /// Provider results come from the local database, which stores neither
   /// meanings nor sentence-to-meaning links. Adopting such a word wholesale
-  /// would wipe both off the screen — so the provider copy wins on sentences
-  /// and SRS fields, while meanings and known links are carried over.
+  /// would wipe both off the screen — so the provider copy wins on sentences,
+  /// which it owns and which it alone knows about while offline, and meanings
+  /// and known links are carried over.
+  ///
+  /// Review state is taken from whichever copy is actually fresher. The local
+  /// database lags a review that has just been submitted, so a word graded in
+  /// today's session and then given a sentence used to jump from "Reviewed
+  /// once · next on 25.8.2026" back to "DUE · Not reviewed yet" on screen: the
+  /// provider's stale zero overwrote the server's answer, and the learner was
+  /// told a review they had just finished had not happened.
   Word _mergeProviderWord(Word providerWord) {
+    // Only when the server has actually answered. Without a hydrate the page's
+    // own copy is the same local row, so there is nothing fresher to keep.
+    final bool serverOwnsReviewState =
+        _hydrated && providerWord.reviewCount <= _word.reviewCount;
     final Map<int, int?> knownLinks = <int, int?>{
       for (final Sentence s in _word.sentences) s.id: s.meaningId,
     };
@@ -156,10 +173,18 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       learnedDate: providerWord.learnedDate,
       notes: providerWord.notes ?? _word.notes,
       difficulty: providerWord.difficulty,
-      nextReviewDate: providerWord.nextReviewDate ?? _word.nextReviewDate,
-      reviewCount: providerWord.reviewCount,
-      easeFactor: providerWord.easeFactor ?? _word.easeFactor,
-      lastReviewDate: providerWord.lastReviewDate ?? _word.lastReviewDate,
+      nextReviewDate: serverOwnsReviewState
+          ? _word.nextReviewDate
+          : (providerWord.nextReviewDate ?? _word.nextReviewDate),
+      reviewCount: serverOwnsReviewState
+          ? _word.reviewCount
+          : providerWord.reviewCount,
+      easeFactor: serverOwnsReviewState
+          ? (_word.easeFactor ?? providerWord.easeFactor)
+          : (providerWord.easeFactor ?? _word.easeFactor),
+      lastReviewDate: serverOwnsReviewState
+          ? _word.lastReviewDate
+          : (providerWord.lastReviewDate ?? _word.lastReviewDate),
       sentences: sentences,
       meanings: _word.meanings,
       languageProfileId:

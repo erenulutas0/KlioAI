@@ -486,36 +486,51 @@ class _GreetingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
     final String welcome = context.tr('home.welcome');
-    final String greeting = name.isEmpty ? welcome : '$welcome, $name';
+    // First name only. The row also carries the streak and language chips, and
+    // a full name ran out of room mid-greeting: "Eren Ulutaş" was clipped away
+    // entirely and the header read "Hoş geldin, …" — a greeting addressed to
+    // nobody. A greeting wants the first name anyway.
+    final String firstName = name.trim().split(RegExp(r'\s+')).first;
+    final String greeting = firstName.isEmpty ? welcome : '$welcome, $firstName';
 
-    return Row(
+    // Two rows, not one. A 23px greeting sharing a 393dp line with a streak
+    // chip and a "Ingilizce · B1" chip had about a third of the width, so it
+    // ellipsised at the comma and the header read "Hoş geldin, …" — addressed
+    // to nobody. Giving the greeting the full line costs one chip's height and
+    // makes both halves legible.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Expanded(
-          child: Text(
-            greeting,
-            style: NfTokens.display(size: NfFont.s23, color: t.ink),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          greeting,
+          style: NfTokens.display(size: NfFont.s23, color: t.ink),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(width: NfSpace.s10),
-        NfChip(
-          label: '$streak',
-          icon: LucideIcons.flame,
-          // A cold streak stays neutral: amber is a reward, not a label.
-          variant: streak > 0
-              ? NfChipVariant.streak
-              : NfChipVariant.unselected,
-          dense: true,
-        ),
-        const SizedBox(width: NfSpace.s6),
-        NfChip(
-          label: '${_localizedLanguageName(context, targetLanguage)}'
-              ' · $cefrLevel',
-          icon: LucideIcons.globe,
-          variant: NfChipVariant.selected,
-          dense: true,
-          onTap: onOpenLanguages,
+        const SizedBox(height: NfSpace.s10),
+        Row(
+          children: <Widget>[
+            NfChip(
+              label: '$streak',
+              icon: LucideIcons.flame,
+              // A cold streak stays neutral: amber is a reward, not a label.
+              variant: streak > 0
+                  ? NfChipVariant.streak
+                  : NfChipVariant.unselected,
+              dense: true,
+            ),
+            const SizedBox(width: NfSpace.s6),
+            Flexible(
+              child: NfChip(
+                label: '${_localizedLanguageName(context, targetLanguage)}'
+                    ' · $cefrLevel',
+                icon: LucideIcons.globe,
+                variant: NfChipVariant.selected,
+                dense: true,
+                onTap: onOpenLanguages,
+              ),
+            ),
+          ],
         ),
       ],
     );
