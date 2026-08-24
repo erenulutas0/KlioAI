@@ -35,6 +35,15 @@ class NfSubscriptionPage extends StatefulWidget {
   State<NfSubscriptionPage> createState() => _NfSubscriptionPageState();
 }
 
+/// Exposes the active-subscription rule to tests.
+///
+/// The rule is a pure function of what the server sent, and it decides whether
+/// a learner is told they are subscribed — worth pinning without standing up
+/// the whole screen, its billing plugin and its network calls.
+@visibleForTesting
+bool debugIsActiveSubscription(Map<String, dynamic> status) =>
+    _NfSubscriptionPageState.isActiveSubscription(status);
+
 class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
   final SubscriptionService _subscriptionService = SubscriptionService();
   final AuthService _authService = AuthService();
@@ -264,7 +273,10 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
     return plan.currency;
   }
 
-  bool _isActiveSubscription(Map<String, dynamic> status) {
+  bool _isActiveSubscription(Map<String, dynamic> status) =>
+      isActiveSubscription(status);
+
+  static bool isActiveSubscription(Map<String, dynamic> status) {
     final active = status['isActive'] ?? status['subscriptionActive'];
     if (active is bool) {
       return active;
@@ -273,8 +285,23 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
     if (end == null) {
       return false;
     }
-    final text = end.toString().trim().toLowerCase();
-    return text.isNotEmpty && text != 'null';
+    final text = end.toString().trim();
+    if (text.isEmpty || text.toLowerCase() == 'null') {
+      return false;
+    }
+    // A date, not merely the presence of one. This read "is the field filled
+    // in?", so a subscription that had already ended still showed
+    // "Aboneliğin aktif. Bitiş: 24 Ağustos 2026" — with today's date on it —
+    // while the quota endpoint had correctly gone back to the free plan and
+    // the profile said "Ücretsiz plan". Two screens, one fact, and this one
+    // was reading it wrong.
+    final DateTime? parsed = DateTime.tryParse(text);
+    if (parsed == null) {
+      // Unparseable is not a reason to tell someone who paid that they did
+      // not: keep the old lenient answer for a shape we do not understand.
+      return true;
+    }
+    return parsed.isAfter(DateTime.now());
   }
 
   /// The raw end-date string the server sent, or null when it sent nothing
