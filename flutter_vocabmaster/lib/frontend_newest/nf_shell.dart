@@ -47,17 +47,11 @@ const double _navPillHeight = 32;
 /// clipped label helps nobody. The icon above it keeps the system scale.
 const double _navLabelMaxScale = 1.4;
 
-/// The new frontend's root: five tabs over the same app.
+/// The app's root: five tabs over the same services the app always used.
 ///
-/// This is a peer of `MainScreen`, not a replacement — both ship in one build
-/// and `NfFrontendPreference` decides which one `main.dart` mounts. Everything
-/// below it reads the same providers and services the current screens read; the
-/// shell only owns navigation.
-///
-/// Destinations that have no new-frontend screen yet push the existing screen
-/// from `lib/screens/`. A familiar screen with the old paint on it is a far
-/// better answer than a dead end, and it keeps the preview honest about what is
-/// actually finished.
+/// `MainScreen` builds this unconditionally. Everything below it reads the same
+/// providers the previous frontend read; the shell only owns navigation, and
+/// every destination it opens is a screen from this frontend.
 class NfShell extends StatefulWidget {
   const NfShell({super.key, this.initialIndex = todayTab});
 
@@ -93,12 +87,34 @@ class NfShell extends StatefulWidget {
     }
   }
 
+  /// Brings a shell that is already on screen to Today, closing anything
+  /// stacked above it. Returns false when no shell is mounted.
+  ///
+  /// A notification tapped while the app is running cannot be handled the way a
+  /// cold start is: [_NfShellState.initState] has already run, so the stored
+  /// payload will not be read again. Without this the only way to honour such a
+  /// tap was to push a screen onto the shell or to rebuild the app under it —
+  /// the first stranded the learner on a screen with no chrome, the second
+  /// threw away the session they were in the middle of.
+  static bool showTodayIfMounted() {
+    final _NfShellState? state = _NfShellState._mounted;
+    if (state == null || !state.mounted) {
+      return false;
+    }
+    state._returnToToday();
+    return true;
+  }
+
   @override
   State<NfShell> createState() => _NfShellState();
 }
 
 class _NfShellState extends State<NfShell> {
   late int _index = _clampTab(widget.initialIndex);
+
+  /// The shell currently on screen, for [NfShell.showTodayIfMounted]. Only one
+  /// can be mounted: `MainScreen` is the app's root and never nests.
+  static _NfShellState? _mounted;
 
   static int _clampTab(int index) {
     if (index < 0) {
@@ -110,6 +126,7 @@ class _NfShellState extends State<NfShell> {
   @override
   void initState() {
     super.initState();
+    _mounted = this;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -117,6 +134,29 @@ class _NfShellState extends State<NfShell> {
       _logTab(_index);
       unawaited(_consumePendingNotificationNavigation());
     });
+  }
+
+  @override
+  void dispose() {
+    if (identical(_mounted, this)) {
+      _mounted = null;
+    }
+    super.dispose();
+  }
+
+  /// Closes whatever is stacked above the shell and shows Today.
+  ///
+  /// Pops against this shell's own route rather than `route.isFirst`: the shell
+  /// is not always the first route — the sign-in flow reaches it through a
+  /// different stack — and popping to the wrong floor would tear down more than
+  /// it should.
+  void _returnToToday() {
+    final ModalRoute<dynamic>? shellRoute = ModalRoute.of(context);
+    if (shellRoute != null) {
+      Navigator.of(context)
+          .popUntil((Route<dynamic> route) => identical(route, shellRoute));
+    }
+    _select(NfShell.todayTab);
   }
 
   // ---------------------------------------------------------------------------

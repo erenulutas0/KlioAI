@@ -178,7 +178,12 @@ class _NfSessionPageState extends State<NfSessionPage> {
       await context.read<AppStateProvider>().submitWordReview(
             wordId: word.id,
             quality: quality,
-            source: 'nf_session',
+            // The same source the previous review screen sent, on purpose. This
+            // is the same activity graded the same way, and it is one of the
+            // two sources the scheduler actually reads
+            // (`ReviewSource.CLASSIC_REVIEW`). A new name would have split one
+            // learner's review history across two labels at the redesign.
+            source: 'classic_review',
             responseMs: _millisSinceCardShown(),
           );
     } catch (error) {

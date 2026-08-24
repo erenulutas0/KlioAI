@@ -76,6 +76,9 @@ flutter:
     - assets/images/mainLogo.png
     - assets/images/telephone_logo.png
     - assets/images/telephone_logo_foreground.png
+    # Also an input to flutter_launcher_icons below, but that only reads it at
+    # build time. The Dart splash draws it at runtime, so it has to be bundled.
+    - assets/images/flat_k_white.png
 
   # To add custom fonts to your application, add a fonts section here
   # fonts:

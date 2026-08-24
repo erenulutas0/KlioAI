@@ -233,6 +233,8 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
     try {
       // Phase-1 path: the word is created WITH its meanings in one request, so
       // each sense is a real row the learner can attach sentences to later.
+      // This has to reach the server — the offline queue carries no `meanings`
+      // field — so `_saveThroughQueue` below covers the case where it cannot.
       final Word created = await _apiService.createWord(
         english: _searchedWord,
         turkish: chosen.map((m) => m.storedTranslation).join(', '),
@@ -259,13 +261,28 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
             break;
           }
         }
-        await _apiService.addSentenceToWord(
-          wordId: created.id,
-          sentence: m.example,
-          translation: m.exampleTranslation,
-          difficulty: 'medium',
-          meaningId: meaningId,
-        );
+        try {
+          await _apiService.addSentenceToWord(
+            wordId: created.id,
+            sentence: m.example,
+            translation: m.exampleTranslation,
+            difficulty: 'medium',
+            meaningId: meaningId,
+          );
+        } catch (e) {
+          // The word is already saved; losing its example over a dropped
+          // connection would be the worst of both. The queued write carries no
+          // meaning id, so the sentence arrives unassigned and the word screen
+          // offers it under "Unassigned sentences" to place later.
+          debugPrint('NfDictionaryPage: queueing example sentence instead ($e)');
+          if (!mounted) return;
+          await context.read<AppStateProvider>().addSentenceToWord(
+                wordId: created.id,
+                sentence: m.example,
+                translation: m.exampleTranslation,
+                difficulty: 'medium',
+              );
+        }
       }
 
       if (!mounted) return;
@@ -282,14 +299,64 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         return;
       }
       if (!mounted) return;
-      final String message = e is ApiQuotaExceededException
-          ? AiErrorMessageFormatter.forQuota(e)
-          : AiErrorMessageFormatter.forError(e);
-      _showMessage(message);
+      // A quota or entitlement refusal is an answer, not a failed delivery —
+      // retrying it through the queue would just save a word the server said
+      // no to. Anything else is most likely the connection, and the learner's
+      // word should survive it.
+      if (e is ApiQuotaExceededException) {
+        _showMessage(AiErrorMessageFormatter.forQuota(e));
+      } else {
+        await _saveThroughQueue(chosen, e);
+      }
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  /// Saves the word the way the previous dictionary always did: through
+  /// [AppStateProvider], which writes to the local database and queues the
+  /// server call for the next connection.
+  ///
+  /// This is the offline path. The queue has no column for meanings, so the
+  /// senses collapse back into the one joined translation string and the
+  /// examples arrive unassigned — but the learner keeps the word, its
+  /// sentences and the XP, which the meaning-aware path drops entirely when
+  /// the server cannot be reached.
+  Future<void> _saveThroughQueue(
+    List<_NfLookupMeaning> chosen,
+    Object originalError,
+  ) async {
+    final AppStateProvider appState = context.read<AppStateProvider>();
+    try {
+      final Word? created = await appState.addWord(
+        english: _searchedWord,
+        turkish: chosen.map((m) => m.storedTranslation).join(', '),
+        addedDate: DateTime.now(),
+        difficulty: 'medium',
+        source: 'quick_dictionary',
+      );
+      if (created == null) {
+        throw StateError('the word could not be stored locally');
+      }
+      for (final _NfLookupMeaning m in chosen) {
+        if (m.example.trim().isEmpty) continue;
+        await appState.addSentenceToWord(
+          wordId: created.id,
+          sentence: m.example,
+          translation: m.exampleTranslation,
+          difficulty: 'medium',
+        );
+      }
+      if (!mounted) return;
+      // TODO(i18n): needs a key
+      _showMessage('Saved offline — it will sync when you reconnect.');
+      unawaited(_search());
+    } catch (fallbackError) {
+      debugPrint('NfDictionaryPage: offline save also failed ($fallbackError)');
+      if (!mounted) return;
+      _showMessage(AiErrorMessageFormatter.forError(originalError));
     }
   }
 
@@ -390,27 +457,46 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
 
   Future<void> _showWordMeaningInContext(String word, String sentence) async {
     final NfTokens t = NfTokens.of(context);
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-        child: CircularProgressIndicator(
-          strokeWidth: NfStroke.border,
-          color: t.primary,
+
+    // `barrierDismissible: false` stops a tap on the barrier but not the
+    // Android back button, which pops the dialog like any route. Once it is
+    // gone an unconditional `Navigator.pop` takes the dictionary page down
+    // instead — the learner cancels a slow lookup and the screen vanishes under
+    // them a few seconds later. This flag is what makes the later pop refer to
+    // the dialog and nothing else.
+    bool loaderIsUp = true;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => Center(
+          child: CircularProgressIndicator(
+            strokeWidth: NfStroke.border,
+            color: t.primary,
+          ),
         ),
-      ),
+      ).whenComplete(() => loaderIsUp = false),
     );
+
+    void dismissLoader() {
+      if (!loaderIsUp || !mounted) return;
+      loaderIsUp = false;
+      Navigator.pop(context);
+    }
 
     try {
       final String meaning =
           await GroqService.explainWordInSentence(word, sentence);
       if (!mounted) return;
-      Navigator.pop(context); // The loading dialog.
+      dismissLoader();
 
+      // From the page context, like the loading dialog above it. A dialog route
+      // sits over this page's NfTheme, so resolving inside the builder would
+      // give the two dialogs in one flow opposite palettes.
+      final NfTokens dt = NfTokens.of(context);
       showDialog<void>(
         context: context,
         builder: (BuildContext dialogContext) {
-          final NfTokens dt = NfTokens.of(dialogContext);
           return AlertDialog(
             backgroundColor: dt.surface,
             shape: RoundedRectangleBorder(
@@ -473,9 +559,9 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context); // The loading dialog.
-      }
+      // Not `Navigator.canPop`: that is true for any pushed page, so it popped
+      // the dictionary whenever the learner had already dismissed the loader.
+      dismissLoader();
       if (await AiPaywallHandler.handleIfUpgradeRequired(context, e)) {
         return;
       }

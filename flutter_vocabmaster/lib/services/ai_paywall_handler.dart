@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../frontend_newest/screens/nf_subscription_page.dart';
+import '../frontend_newest/theme/nf_theme_scope.dart';
 import '../providers/app_state_provider.dart';
-import '../screens/subscription_page.dart';
 import '../screens/login_page.dart';
 import 'ai_error_message_formatter.dart';
 import 'analytics_service.dart';
@@ -17,9 +18,14 @@ class AiPaywallHandler {
     if (!context.mounted) {
       return;
     }
+    // Wrapped because the route is built under the app's Navigator, above the
+    // shell's NfTheme: without the scope the page would resolve its palette
+    // from the device brightness and ignore the learner's in-app choice.
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SubscriptionPage()),
+      MaterialPageRoute<void>(
+        builder: (_) => const NfThemeScope(child: NfSubscriptionPage()),
+      ),
     );
   }
 

@@ -7,8 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../main.dart';
-import '../screens/practice_page.dart';
+import '../frontend_newest/nf_shell.dart';
 import '../widgets/theme_side_tab.dart';
 import 'analytics_service.dart';
 import 'locale_text_service.dart';
@@ -494,26 +493,33 @@ class LocalReminderService {
     return payload;
   }
 
+  /// Handles a notification tapped while the app is already running.
+  ///
+  /// Every reminder this app sends means the same thing — there is something to
+  /// do today — and Today is the screen that says what. So all four payloads
+  /// land there, which is also what `NfShell` does with the stored payload on a
+  /// cold start; the two paths agreeing is the point.
+  ///
+  /// This used to do two different and worse things. A practice reminder pushed
+  /// `PracticePage`, a tab body that carries no app bar of its own, so it
+  /// arrived on top of the shell with nothing on screen to get back with. A
+  /// notification reminder called `pushAndRemoveUntil(..., (route) => false)`,
+  /// which disposes the mounted shell and every tab's state with it — a learner
+  /// mid-session lost the session.
+  ///
+  /// When no shell is mounted this does nothing on purpose. The payload was
+  /// already written to `SharedPreferences` by the caller, and the shell reads
+  /// it in `initState`, so a tap that arrives before sign-in is honoured after
+  /// it instead of being obeyed by pushing past the login screen.
   static void _navigateForPayload(String? payload) {
-    final route = (payload ?? '').trim().toLowerCase();
-    final navigator = appNavigatorKey.currentState;
-    if (navigator == null || route.isEmpty) {
-      return;
-    }
-
-    // See the note in main.dart: the in-app notification list was part of the community
-    // feature and went with it. A reminder should open onto something to do.
-    if (route == 'notifications' || route == 'admin_test') {
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-        (route) => false,
-      );
-      return;
-    }
-    if (route == 'daily_practice' || route == 'streak_guard') {
-      navigator.push(
-        MaterialPageRoute(builder: (_) => const PracticePage()),
-      );
+    switch ((payload ?? '').trim().toLowerCase()) {
+      case 'notifications':
+      case 'admin_test':
+      case 'daily_practice':
+      case 'streak_guard':
+        NfShell.showTodayIfMounted();
+      default:
+        break;
     }
   }
 

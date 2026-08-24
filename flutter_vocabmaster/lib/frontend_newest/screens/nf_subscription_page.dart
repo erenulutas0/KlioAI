@@ -463,10 +463,13 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
   }
 
   void _showSuccessDialog([String? message]) {
+    // Captured from the page, not from the dialog's own context. A dialog route
+    // is built above this page's NfTheme, so resolving there falls back to the
+    // device brightness — a white congratulations box over a dark page.
+    final NfTokens t = NfTokens.of(context);
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        final NfTokens t = NfTokens.of(dialogContext);
         return AlertDialog(
           backgroundColor: t.surface,
           shape: RoundedRectangleBorder(

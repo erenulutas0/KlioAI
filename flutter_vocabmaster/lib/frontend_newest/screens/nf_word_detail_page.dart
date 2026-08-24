@@ -77,12 +77,18 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
   void initState() {
     super.initState();
     _word = widget.word;
+    // Assigned before _hydrate, not after. An async body runs synchronously up
+    // to its first await, and _hydrate's first await reads _api - so starting
+    // it first threw LateInitializationError straight into its own catch, on
+    // every word, and the page silently fell back to "showing what is saved on
+    // this device". Meanings only come from the server, so the whole
+    // per-meaning surface was invisible.
+    _api = widget.apiService ?? ApiService();
     // Negative ids are local-only words the sync queue has not pushed yet;
     // the server has nothing to say about them.
     if (_word.id > 0) {
       unawaited(_hydrate());
     }
-    _api = widget.apiService ?? ApiService();
   }
 
   @override
@@ -352,7 +358,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       wordId: _word.id,
       sentence: draft.sentence,
       translation: draft.translation,
-      difficulty: _word.difficulty,
+      difficulty: draft.difficulty,
     );
     if (!mounted) return;
     if (updated == null) {
@@ -376,7 +382,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
         wordId: _word.id,
         sentence: draft.sentence,
         translation: draft.translation,
-        difficulty: _word.difficulty,
+        difficulty: draft.difficulty,
         meaningId: draft.meaningId,
       );
       if (!mounted) return;
@@ -434,10 +440,22 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     }
   }
 
-  /// There is no "move sentence" endpoint, so assigning is a re-create: the
-  /// same text is added under the chosen meaning, then the unassigned original
-  /// is deleted. Add first, delete second — a failure mid-way duplicates a
-  /// sentence, which is recoverable; the other order can lose one.
+  /// Moves an unassigned sentence under a meaning.
+  ///
+  /// There is no "move sentence" endpoint, but `POST /words/{id}/sentences`
+  /// already does the move: its idempotency check finds the identical text on
+  /// this word and, rather than inserting a second row, gives the unassigned
+  /// copy the meaning the caller now knows (`WordService.addSentence`). So the
+  /// one call is the whole operation.
+  ///
+  /// This used to add and then delete the original, on the assumption that the
+  /// add had created a second row. It had not — the row the delete removed was
+  /// the one that had just been assigned, so the sentence was destroyed and the
+  /// learner charged the 5 XP that deleting a sentence costs.
+  ///
+  /// The delete still exists for the case that assumption was written for: if
+  /// the server really did insert a new row, the original comes back unassigned
+  /// and is then a genuine duplicate to clear away.
   Future<void> _assignSentence(Sentence sentence) async {
     final WordMeaning? target = await _showAssignPicker();
     if (target == null || !mounted || _busy) return;
@@ -453,6 +471,13 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       );
       if (!mounted) return;
       setState(() => _word = updated);
+
+      if (!_isStillUnassigned(updated, sentence.id)) {
+        // Assigned in place: the row the learner tapped now carries the
+        // meaning. Nothing left to clean up.
+        _nudgeProviderSync();
+        return;
+      }
 
       final bool deleted =
           await context.read<AppStateProvider>().deleteSentenceFromWord(
@@ -481,6 +506,17 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Whether [sentenceId] is still present on [word] with no meaning — meaning
+  /// the server inserted a separate row instead of assigning this one.
+  static bool _isStillUnassigned(Word word, int sentenceId) {
+    for (final Sentence s in word.sentences) {
+      if (s.id == sentenceId) {
+        return s.meaningId == null;
+      }
+    }
+    return false;
   }
 
   /// Kicks the provider's own reload, whose background sync pulls the server
@@ -976,6 +1012,7 @@ class _SentenceDraft {
     required this.sentence,
     required this.translation,
     this.meaningId,
+    this.difficulty = 'easy',
   });
 
   final String sentence;
@@ -983,6 +1020,10 @@ class _SentenceDraft {
 
   /// Null means "no specific meaning": the sentence lands in Unassigned.
   final int? meaningId;
+
+  /// The learner's own rating for this example, not the word's. One word can
+  /// carry an easy sentence and a hard one, and the tile shows this per row.
+  final String difficulty;
 }
 
 // ---------------------------------------------------------------------------
@@ -1157,6 +1198,9 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
   final TextEditingController _translation = TextEditingController();
 
   late int? _meaningId = widget.initialMeaningId;
+
+  /// Same default the previous add-sentence modal opened on.
+  String _difficulty = 'easy';
   bool _canSave = false;
 
   @override
@@ -1188,6 +1232,7 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
       sentence: _sentence.text.trim(),
       translation: _translation.text.trim(),
       meaningId: _meaningId,
+      difficulty: _difficulty,
     ));
   }
 
@@ -1259,6 +1304,32 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
             ],
           ),
         ],
+        const SizedBox(height: NfSpace.s14),
+        Text(
+          // TODO(i18n): needs a key
+          'How hard is it?',
+          style: NfTokens.body(
+            size: NfFont.s13,
+            weight: NfTokens.bodyEmphasisWeight,
+            color: t.inkMuted,
+          ),
+        ),
+        const SizedBox(height: NfSpace.s8),
+        Wrap(
+          spacing: NfSpace.s8,
+          runSpacing: NfSpace.s8,
+          children: <Widget>[
+            for (final MapEntry<String, String> option
+                in _difficultyOptions.entries)
+              NfChip(
+                label: option.value,
+                variant: _difficulty == option.key
+                    ? NfChipVariant.selected
+                    : NfChipVariant.unselected,
+                onTap: () => setState(() => _difficulty = option.key),
+              ),
+          ],
+        ),
         const SizedBox(height: NfSpace.s16),
         NfPrimaryButton(
           // TODO(i18n): needs a key
@@ -1269,6 +1340,15 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
     );
   }
 }
+
+/// The three values the sentence tile's badge can show, in the order the
+/// previous add-sentence modal offered them.
+// TODO(i18n): needs keys
+const Map<String, String> _difficultyOptions = <String, String>{
+  'easy': 'Easy',
+  'medium': 'Medium',
+  'hard': 'Hard',
+};
 
 // ---------------------------------------------------------------------------
 // Shared sheet pieces

@@ -6,8 +6,6 @@ import '../providers/app_state_provider.dart';
 import '../main.dart';
 import 'landing_page.dart';
 import 'onboarding_screen.dart';
-import '../widgets/animated_background.dart';
-import '../l10n/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,7 +22,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    // Biraz bekle (Logo görünsün)
+    // Holds the mark on screen long enough to be read rather than flashed.
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
@@ -33,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final isLoggedIn = await authService.isLoggedIn();
 
     if (isLoggedIn) {
-      // Veriyi önden yükle
+      // Loaded here so the first frame of the app already has a user.
       final user = await authService.getUser();
       if (user != null && mounted) {
         Provider.of<AppStateProvider>(context, listen: false).setUser(user);
@@ -58,65 +56,40 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
+  /// Brand violet — the same value as `@color/splash_background` in
+  /// `android/app/src/main/res/values/colors.xml`. This screen takes over from
+  /// the Android launch drawable, so any difference between the two shows up as
+  /// a flash of colour on every cold start.
+  static const Color _brandViolet = Color(0xFF6C4EF5);
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: AnimatedBackground(isDark: true),
-          ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(24),
-                    border:
-                        Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.cyan.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: Image.asset(
-                    'assets/images/mainLogo.png',
-                    width: 72,
-                    height: 72,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'KlioAI',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  context.tr('splash.loading'),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const CircularProgressIndicator(color: Colors.cyan),
-              ],
+    return const Scaffold(
+      backgroundColor: _brandViolet,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            // Same flat mark and same size as the native splash, so the
+            // handover is invisible: the K does not move, resize or change
+            // colour when Flutter takes the first frame.
+            Image(
+              image: AssetImage('assets/images/flat_k_white.png'),
+              width: 128,
+              height: 128,
+              fit: BoxFit.contain,
             ),
-          ),
-        ],
+            SizedBox(height: 40),
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
