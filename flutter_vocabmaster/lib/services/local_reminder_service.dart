@@ -8,7 +8,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../frontend_newest/nf_shell.dart';
-import '../widgets/theme_side_tab.dart';
+import '../app_navigator.dart';
 import 'analytics_service.dart';
 import 'locale_text_service.dart';
 

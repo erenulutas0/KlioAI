@@ -3,10 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../app_navigator.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_provider.dart';
-
-final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class ThemeSideTab extends StatefulWidget {
   final Widget child;

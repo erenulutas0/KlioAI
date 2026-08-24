@@ -32,7 +32,7 @@ import 'services/analytics_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/local_reminder_service.dart';
 import 'services/push_token_service.dart';
-import 'widgets/theme_side_tab.dart';
+import 'app_navigator.dart';
 import 'widgets/xp_toast_host.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/language_provider.dart';
@@ -226,10 +226,14 @@ class KlioAIApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.transparent,
         fontFamily: 'Inter',
       ),
-      builder: (context, child) => ThemeSideTab(
-        child: XpToastHost(
-          child: child ?? const SizedBox.shrink(),
-        ),
+      // The theme drawer that used to wrap this is gone. It hung a pull-out tab
+      // on the left edge of every screen and opened a picker offering five
+      // legacy identities - Ice Blue, Neural Glow, Midnight Focus, Emerald
+      // Calm, Solar Energy - drawn in the old cyan-and-gradient paint, over an
+      // app that is now one violet design with a light and a dark palette.
+      // Its files stay under lib/widgets/ and lib/theme/; nothing mounts them.
+      builder: (context, child) => XpToastHost(
+        child: child ?? const SizedBox.shrink(),
       ),
       home: const AppEntryGate(),
     );
