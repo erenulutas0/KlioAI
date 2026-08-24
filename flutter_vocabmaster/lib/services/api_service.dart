@@ -799,6 +799,30 @@ class ApiService {
     }
     throw Exception('Failed to load SRS stats: ${response.statusCode}');
   }
+
+  /// The server's own progress record: {totalXp, level, currentStreak, ...}.
+  ///
+  /// The backend has kept this all along — it awards XP when a word or sentence
+  /// is created and when a review is graded — and the app had never once read
+  /// it. XP lived only on the device, so reinstalling the app looked like
+  /// losing progress.
+  ///
+  /// Read-only on purpose. `POST /progress/award-xp` is admin-locked precisely
+  /// so a client cannot tell the server how much XP it deserves; the totals
+  /// here are server-computed and cannot be talked up from this side.
+  Future<Map<String, dynamic>> getProgressStats() async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/progress/stats'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body) as Map);
+    }
+    throw Exception('Failed to load progress stats: ${response.statusCode}');
+  }
   // ==================== SENTENCES ====================
 
   // ==================== DAILY CONTENT ====================

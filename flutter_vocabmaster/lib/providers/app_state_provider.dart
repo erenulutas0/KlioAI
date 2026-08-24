@@ -20,9 +20,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppStateProvider extends ChangeNotifier {
   final OfflineSyncService _offlineSyncService = OfflineSyncService();
   final AuthService _authService = AuthService();
-  final ApiService _apiService = ApiService();
+  ApiService _apiService = ApiService();
   final XPManager _xpManager = XPManager();
   final LocalDatabaseService _localDb = LocalDatabaseService();
+
+  /// Swaps the API client, for tests that need to answer for the server
+  /// without one. Mirrors `OfflineSyncService.setDependenciesForTesting`.
+  @visibleForTesting
+  void setApiServiceForTesting(ApiService apiService) {
+    _apiService = apiService;
+  }
 
   AppStateProvider() {
     // XP değişikliklerini dinle ve UI'ı güncelle
@@ -713,7 +720,13 @@ class AppStateProvider extends ChangeNotifier {
   /// data reload or online sync.
   Future<void> refreshXpStatsFromLocal({bool notify = true}) async {
     try {
-      final minimumContentXp = _estimateMinimumContentXp();
+      final estimated = _estimateMinimumContentXp();
+      final fromServer = await _serverTotalXp();
+      // The floor is whichever record knows more. The content estimate can only
+      // account for XP that left something behind — words and sentences — so a
+      // learner who reinstalled came back with every review they had ever done
+      // erased. The server has been recording those all along.
+      final minimumContentXp = fromServer > estimated ? fromServer : estimated;
       if (minimumContentXp > 0) {
         await _xpManager.ensureMinimumTotalXP(minimumContentXp);
       }
@@ -738,6 +751,38 @@ class AppStateProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error refreshing local XP stats: $e');
     }
+  }
+
+  /// The server's XP total, read at most once per session.
+  ///
+  /// `refreshXpStatsFromLocal` runs on every tab change and after every award,
+  /// so this must not become a network call per rebuild. One read is enough:
+  /// the number only matters as a floor, and everything earned after it is
+  /// already counted locally.
+  int? _serverTotalXpCache;
+  bool _serverTotalXpTried = false;
+
+  Future<int> _serverTotalXp() async {
+    if (_serverTotalXpTried) {
+      return _serverTotalXpCache ?? 0;
+    }
+    _serverTotalXpTried = true;
+    try {
+      final stats = await _apiService.getProgressStats();
+      final raw = stats['totalXp'];
+      final value = raw is int
+          ? raw
+          : raw is num
+              ? raw.toInt()
+              : int.tryParse(raw?.toString() ?? '') ?? 0;
+      _serverTotalXpCache = value < 0 ? 0 : value;
+    } catch (e) {
+      // Offline, or an older backend without the endpoint. The content estimate
+      // below is exactly what happened before this existed.
+      debugPrint('AppStateProvider: server XP unavailable ($e)');
+      _serverTotalXpCache = 0;
+    }
+    return _serverTotalXpCache ?? 0;
   }
 
   int _estimateMinimumContentXp() {
