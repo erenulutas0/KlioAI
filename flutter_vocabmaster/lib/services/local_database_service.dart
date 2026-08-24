@@ -39,7 +39,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       singleInstance: !isTest,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -82,7 +82,8 @@ class LocalDatabaseService {
         easeFactor REAL DEFAULT 2.5,
         lastReviewDate TEXT,
         syncStatus TEXT DEFAULT 'synced',
-        createdAt TEXT NOT NULL
+        createdAt TEXT NOT NULL,
+        languageProfileId INTEGER
       )
     ''');
 
@@ -181,6 +182,14 @@ class LocalDatabaseService {
       await _ensureColumnExists(db, 'sync_queue', 'nextRetryAt',
           "ALTER TABLE sync_queue ADD COLUMN nextRetryAt TEXT");
     }
+    if (oldVersion < 5) {
+      // Left NULL for rows that predate language profiles. `getAllWords` reads
+      // NULL as "belongs to whichever profile is asking", so an upgrading
+      // learner sees their whole deck on the first launch and each row is
+      // stamped with its real profile by the next sync.
+      await _ensureColumnExists(db, 'words', 'languageProfileId',
+          "ALTER TABLE words ADD COLUMN languageProfileId INTEGER");
+    }
     if (oldVersion < 4) {
       await _ensureColumnExists(db, 'words', 'nextReviewDate',
           "ALTER TABLE words ADD COLUMN nextReviewDate TEXT");
@@ -276,10 +285,26 @@ class LocalDatabaseService {
   }
 
   /// Tüm kelimeleri getir (yerel)
-  Future<List<Word>> getAllWords() async {
+  /// Every cached word, or only the ones belonging to [languageProfileId].
+  ///
+  /// Passing null returns everything, which is what a caller that does not know
+  /// about profiles gets and what the app did before profiles existed.
+  ///
+  /// A row whose `languageProfileId` is NULL is returned for every profile on
+  /// purpose. Those are rows written before this column existed; excluding them
+  /// would make an upgrading learner's entire deck vanish until a sync
+  /// completed, which looks exactly like data loss. Each one is stamped with its
+  /// real profile the first time the server sends it back.
+  Future<List<Word>> getAllWords({int? languageProfileId}) async {
     final db = await database;
-    final List<Map<String, dynamic>> wordMaps =
-        await db.query('words', orderBy: 'learnedDate DESC');
+    final List<Map<String, dynamic>> wordMaps = await db.query(
+      'words',
+      where: languageProfileId == null
+          ? null
+          : 'languageProfileId = ? OR languageProfileId IS NULL',
+      whereArgs: languageProfileId == null ? null : <Object>[languageProfileId],
+      orderBy: 'learnedDate DESC',
+    );
 
     List<Word> words = [];
     for (var wordMap in wordMaps) {
@@ -313,6 +338,10 @@ class LocalDatabaseService {
         reviewCount: _toNullableInt(wordMap['reviewCount']) ?? 0,
         easeFactor: _toNullableDouble(wordMap['easeFactor']),
         lastReviewDate: _tryParseDateTime(wordMap['lastReviewDate']),
+        // Carried back out, or a word read from the cache would lose the
+        // profile it was filtered by and be written back as NULL on the next
+        // save - undoing the stamp on every round trip.
+        languageProfileId: _toNullableInt(wordMap['languageProfileId']),
         sentences: sentences
             .map((s) => Sentence(
                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,
@@ -378,6 +407,7 @@ class LocalDatabaseService {
           'syncStatus': 'synced',
           'createdAt':
               preservedWordCreatedAt ?? DateTime.now().toIso8601String(),
+          'languageProfileId': word.languageProfileId,
         },
         conflictAlgorithm: ConflictAlgorithm.replace);
 

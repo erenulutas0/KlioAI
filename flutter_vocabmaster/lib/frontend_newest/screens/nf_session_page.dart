@@ -301,28 +301,47 @@ class _NfSessionPageState extends State<NfSessionPage> {
           total: _deck.length,
           onClose: () => Navigator.of(context).maybePop(),
         ),
+        // Centred when the card fits, scrollable when it does not. A plain
+        // ListView pinned the card to the top, so on a tall phone an unrevealed
+        // card — a single word — sat in the upper third with the rest of the
+        // screen empty, and the thing the learner is trying to recall was as
+        // far from their thumbs as it could be. Revealed cards with a long
+        // example sentence still scroll rather than overflow.
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              NfSpace.s16,
-              NfSpace.s8,
-              NfSpace.s16,
-              NfSpace.s16,
-            ),
-            children: <Widget>[
-              _RecallCard(
-                // A new card must not inherit the previous card's reveal
-                // animation state.
-                key: ValueKey<int>(_index),
-                word: word,
-                revealed: _revealed,
-                sentenceTranslationShown: _sentenceTranslationShown,
-                onReveal: _reveal,
-                onSpeak: _speak,
-                onShowSentenceTranslation: () =>
-                    setState(() => _sentenceTranslationShown = true),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              const double verticalPadding = NfSpace.s8 + NfSpace.s16;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  NfSpace.s16,
+                  NfSpace.s8,
+                  NfSpace.s16,
+                  NfSpace.s16,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: math.max(
+                      0,
+                      constraints.maxHeight - verticalPadding,
+                    ),
+                  ),
+                  child: Center(
+                    child: _RecallCard(
+                      // A new card must not inherit the previous card's reveal
+                      // animation state.
+                      key: ValueKey<int>(_index),
+                      word: word,
+                      revealed: _revealed,
+                      sentenceTranslationShown: _sentenceTranslationShown,
+                      onReveal: _reveal,
+                      onSpeak: _speak,
+                      onShowSentenceTranslation: () =>
+                          setState(() => _sentenceTranslationShown = true),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
         _GradeBar(
