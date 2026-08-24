@@ -146,4 +146,43 @@ void main() {
         reason: 'These put Dart source on screen instead of a value:\n'
             '${offenders.join('\n')}');
   });
+
+  test('Turkish is written with its own letters', () {
+    // The app shipped with "Sozluk", "Konusma", "Gercek Zamanli Degerlendirme"
+    // and thirty-odd more. Turkish readers are the entire audience, and to them
+    // a missing ö or ş does not read as a typo — it reads as a machine wrote it.
+    //
+    // Only whole words whose diacritic form is the only correct one. Anything
+    // ambiguous is left out: a guard that cries wolf gets switched off.
+    const stripped = <String>[
+      'icin', 'gunluk', 'ogren', 'ogrenme', 'ogrenilen', 'konusma', 'konusmaci',
+      'sozluk', 'degerlendirme', 'degerlendir', 'gecmis', 'basla', 'baslat',
+      'hazir', 'farkli', 'gercek', 'zamanli', 'bugun', 'henuz', 'ornek',
+      'cumle', 'tum', 'arayuz', 'pratigi', 'guncellendi', 'hazirlaniyor',
+      'anlayin', 'yazilar', 'aninda', 'bulunamadi',
+    ];
+    final word = RegExp('(?:${stripped.join('|')})', caseSensitive: false);
+
+    final block = RegExp("^    'tr': \\{(.*?)^    \\},",
+            multiLine: true, dotAll: true)
+        .firstMatch(source);
+    expect(block, isNotNull);
+
+    final offenders = <String>[];
+    final entry = RegExp(r"^\s+'([^']+)': '([^']*)',", multiLine: true);
+    for (final m in entry.allMatches(block!.group(1)!)) {
+      final value = m.group(2)!;
+      for (final token in value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
+        if (token.isEmpty) continue;
+        if (word.stringMatch(token) == token) {
+          offenders.add('${m.group(1)}: "$value"  →  "$token"');
+          break;
+        }
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'Turkish written without its diacritics:\n'
+            '${offenders.join('\n')}');
+  });
 }
