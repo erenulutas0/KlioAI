@@ -26,9 +26,12 @@ class NfPracticeModes {
   static const String speaking = 'speaking';
   static const String pronunciation = 'pronunciation';
   static const String wordGalaxy = 'word_galaxy';
-  static const String neural = 'neural';
 
   /// Core modes first, diversions last — the order the tab renders them in.
+  ///
+  /// The Neural game is deliberately absent. It was never redrawn for this
+  /// frontend, and a mode tile that opens a screen in the old paint is worse
+  /// than one that is not offered. Its code still exists under `lib/screens/`.
   static const List<String> all = <String>[
     translate,
     reading,
@@ -37,7 +40,6 @@ class NfPracticeModes {
     speaking,
     pronunciation,
     wordGalaxy,
-    neural,
   ];
 }
 
@@ -325,16 +327,6 @@ List<_NfModeSpec> _modeSpecs(BuildContext context) {
       name: 'Word Galaxy',
       // TODO(i18n): needs a key
       description: 'Explore your words as a network of sentences.',
-      isGame: true,
-    ),
-    _NfModeSpec(
-      id: NfPracticeModes.neural,
-      icon: Icons.bolt_outlined,
-      name: context.tr('practice.mode.neural'),
-      // Shorter than `practice.neural.desc`, which does not fit a half-width
-      // tile without being cut mid-sentence.
-      // TODO(i18n): needs a key
-      description: 'Race the clock linking related words.',
       isGame: true,
     ),
   ];

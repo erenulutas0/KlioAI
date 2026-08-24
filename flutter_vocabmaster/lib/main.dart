@@ -253,27 +253,29 @@ class AppEntryGate extends StatelessWidget {
   }
 }
 
-/// Picks the frontend. Everything else in the app keeps pushing `MainScreen`.
+/// The app's home. Everything else keeps pushing `MainScreen`.
 ///
-/// The choice lives here rather than at the eight call sites that build this
-/// screen, so splash, login, a notification tap and the stats shortcuts all
-/// land in whichever frontend is selected. Branching before [LegacyMainScreen]
-/// is constructed also matters: its `initState` consumes the pending
-/// notification payload, and a shell that is not on screen must not swallow it.
+/// This used to branch on a preference: the new design was a preview a learner
+/// opted into, and [LegacyMainScreen] was what everyone else got. The new
+/// design is now the app, so the branch is gone and every entry point — splash,
+/// login, a notification tap, the stats shortcuts — lands in [NfShell].
+///
+/// [LegacyMainScreen] and the screens under `lib/screens/` are deliberately
+/// kept in the tree, and deliberately unreachable. Nothing constructs them.
+/// They are the fallback if the new design has to be walked back, not dead code
+/// to tidy away: deleting them is a decision for after this design has been in
+/// front of real learners, not a side effect of shipping it.
 class MainScreen extends StatelessWidget {
   final int initialIndex;
   const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
-    if (context.watch<NfFrontendPreference>().useNewFrontend) {
-      return NfShell(initialIndex: NfShell.tabForLegacyIndex(initialIndex));
-    }
-    return LegacyMainScreen(initialIndex: initialIndex);
+    return NfShell(initialIndex: NfShell.tabForLegacyIndex(initialIndex));
   }
 }
 
-/// The current frontend, unchanged. Reached through [MainScreen].
+/// The previous frontend. No longer reachable — see [MainScreen].
 class LegacyMainScreen extends StatefulWidget {
   final int initialIndex;
   const LegacyMainScreen({super.key, this.initialIndex = 0});

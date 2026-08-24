@@ -7,21 +7,26 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/word.dart';
 import '../providers/app_state_provider.dart';
-import '../screens/dictionary_page.dart';
-import '../screens/practice_page.dart';
-import '../screens/review_mode_selector_page.dart';
-import '../screens/settings_page.dart';
-import '../screens/subscription_page.dart';
 import '../services/analytics_service.dart';
 import '../services/local_reminder_service.dart';
-import '../widgets/word_sentences_modal.dart';
 import 'nf_frontend_preference.dart';
+import 'screens/nf_dictionary_page.dart';
+import 'screens/nf_grammar_page.dart';
 import 'screens/nf_notifications_page.dart';
 import 'screens/nf_practice_page.dart';
 import 'screens/nf_profile_page.dart';
+import 'screens/nf_pronunciation_page.dart';
+import 'screens/nf_reading_practice_page.dart';
+import 'screens/nf_session_page.dart';
+import 'screens/nf_settings_page.dart';
+import 'screens/nf_subscription_page.dart';
 import 'screens/nf_today_page.dart';
+import 'screens/nf_translation_practice_page.dart';
 import 'screens/nf_tutor_page.dart';
+import 'screens/nf_word_detail_page.dart';
+import 'screens/nf_word_galaxy_page.dart';
 import 'screens/nf_words_page.dart';
+import 'screens/nf_writing_practice_page.dart';
 import 'theme/nf_theme.dart';
 import 'theme/nf_theme_scope.dart';
 import 'theme/nf_tokens.dart';
@@ -207,11 +212,11 @@ class _NfShellState extends State<NfShell> {
   }
 
   /// The daily plan and the "N due words" row both mean the same thing: a
-  /// session over exactly the words the scheduler has raised. `dueOnly` keeps
-  /// that promise, and falls back to the whole deck when nothing is due, so it
-  /// can never open an empty session.
+  /// session over exactly the words the scheduler has raised. `NfSessionPage`
+  /// keeps that promise, and falls back to unscheduled words when nothing is
+  /// due, so it can never open an empty session.
   void _startReviewSession() {
-    _push(const ReviewModeSelectorPage(dueOnly: true));
+    _pushNf(const NfSessionPage());
   }
 
   void _openMode(String modeId) {
@@ -222,19 +227,39 @@ class _NfShellState extends State<NfShell> {
       _select(NfShell.tutorTab);
       return;
     }
-    // Every other mode keeps its setup step — word choice, level, length —
-    // which lives on `PracticePage`. Its ids are the ones `NfPracticeModes`
-    // uses, so this needs no mapping table.
-    _push(PracticePage(initialMode: modeId));
+    switch (modeId) {
+      case NfPracticeModes.translate:
+        // The legacy setup step asked which word before showing anything. Here
+        // the deck answers that: with words saved, the round is drawn from them
+        // — which is what practising *your* vocabulary means. Only an empty
+        // deck falls back to typing a word, because there is nothing to draw.
+        final bool hasWords = context.read<AppStateProvider>().allWords.isNotEmpty;
+        _pushNf(NfTranslationPracticePage(
+          subMode: hasWords ? 'random' : 'select',
+        ));
+      case NfPracticeModes.reading:
+        _pushNf(const NfReadingPracticePage());
+      case NfPracticeModes.writing:
+        _pushNf(const NfWritingPracticePage());
+      case NfPracticeModes.grammar:
+        _pushNf(const NfGrammarPage());
+      case NfPracticeModes.pronunciation:
+        _pushNf(const NfPronunciationPage());
+      case NfPracticeModes.wordGalaxy:
+        _pushNf(const NfWordGalaxyPage());
+      default:
+        // An unknown id can only come from a stored "continue where you left
+        // off" note written by an older build. Dropping the learner on the
+        // mode library is the honest answer; opening a legacy screen would
+        // undo the transformation this shell exists for.
+        _select(NfShell.practiceTab);
+    }
   }
 
+  /// A word opens its own screen rather than a sheet: meanings each carry their
+  /// own sentences now, which is more than a half-height modal can hold.
   void _openWord(Word word) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: NfTokens.transparent,
-      builder: (_) => WordSentencesModal(word: word),
-    );
+    _pushNf(NfWordDetailPage(word: word));
   }
 
   /// Notification preferences, in this frontend rather than in `ProfilePage`.
@@ -249,18 +274,25 @@ class _NfShellState extends State<NfShell> {
     _pushNf(const NfNotificationsPage());
   }
 
-  /// `SettingsPage` is the app's settings screen *and* the way out of the
-  /// preview — the design switch lives on it. The profile row that opens it is
-  /// labelled as settings for that reason; it used to read "Language", which
-  /// left the switch back to the classic design unsignposted.
+  /// Settings is the app's settings screen *and* the way out of the preview —
+  /// the design switch lives on it. The profile row that opens it is labelled
+  /// as settings for that reason; it used to read "Language", which left the
+  /// switch back to the classic design unsignposted.
   void _openSettings() {
-    _push(const SettingsPage());
+    _pushNf(NfSettingsPage(
+      onOpenNotifications: _openNotifications,
+      onManageSubscription: _openSubscription,
+    ));
+  }
+
+  void _openSubscription() {
+    _pushNf(const NfSubscriptionPage());
   }
 
   /// The dictionary is where a word gets added, and an empty deck is the one
   /// state in which Today offers that instead of a review session.
   void _openDictionary() {
-    _push(const DictionaryPage());
+    _pushNf(const NfDictionaryPage());
   }
 
   /// Resolved at tap time rather than captured at build time, so the flip is
@@ -296,7 +328,7 @@ class _NfShellState extends State<NfShell> {
         onStartReview: _startReviewSession,
       ),
       NfProfilePage(
-        onManageSubscription: () => _push(const SubscriptionPage()),
+        onManageSubscription: _openSubscription,
         onOpenNotifications: _openNotifications,
         onOpenSettings: _openSettings,
         onToggleBrightness: _toggleBrightness,

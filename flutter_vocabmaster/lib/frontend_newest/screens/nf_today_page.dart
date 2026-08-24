@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/language_profile.dart';
 import '../../models/sentence_view_model.dart';
 import '../../models/voice_model.dart';
 import '../../models/word.dart';
@@ -14,6 +15,7 @@ import '../../services/learning_language_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_tutor_voice.dart';
+import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
@@ -141,6 +143,19 @@ class _NfTodayPageState extends State<NfTodayPage> {
     }
   }
 
+  /// Opens the language-profile switcher. The sheet lives above the shell's
+  /// navigator, so it wraps itself in [NfThemeScope] the same way pushed nf
+  /// routes do — without it the sheet would follow the device brightness
+  /// instead of the learner's in-app choice.
+  void _openLanguageSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NfTokens.transparent,
+      builder: (_) => const NfThemeScope(child: _LanguageSheet()),
+    );
+  }
+
   Future<void> _refresh() async {
     final AppStateProvider appState = context.read<AppStateProvider>();
     await Future.wait(<Future<void>>[
@@ -177,6 +192,8 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 name: model.userName,
                 streak: model.streak,
                 cefrLevel: model.cefrLevel,
+                targetLanguage: model.targetLanguage,
+                onOpenLanguages: _openLanguageSheet,
               ),
               const SizedBox(height: NfSpace.s20),
               _WeekStrip(
@@ -216,6 +233,7 @@ class _TodayModel {
     required this.userName,
     required this.streak,
     required this.cefrLevel,
+    required this.targetLanguage,
     required this.weekCompleted,
     required this.todayIndex,
     required this.reviewTarget,
@@ -320,12 +338,20 @@ class _TodayModel {
 
     final int xp = _asInt(stats['xp']);
 
+    // The chip names what the learner is actually studying: the active
+    // language profile. Until profiles have loaded (or against a backend that
+    // does not serve them) it falls back to the app-wide constants, which is
+    // exactly what the whole app means in that state.
+    final LanguageProfile? profile = appState.activeProfile;
+
     return _TodayModel(
       isLoading: !appState.isInitialized ||
           (appState.isLoadingWords && words.isEmpty),
       userName: appState.userName.trim(),
       streak: _asInt(stats['streak']),
-      cefrLevel: LearningLanguageService.englishLevel,
+      cefrLevel: profile?.level ?? LearningLanguageService.englishLevel,
+      targetLanguage:
+          profile?.targetLanguage ?? LearningLanguageService.targetLanguage,
       weekCompleted: weekCompleted,
       todayIndex: todayIndex,
       reviewTarget: reviewTarget,
@@ -348,6 +374,10 @@ class _TodayModel {
   final String userName;
   final int streak;
   final String cefrLevel;
+
+  /// The active profile's target language ("English", …), used with
+  /// [cefrLevel] to label the language chip in the header.
+  final String targetLanguage;
 
   /// Seven flags, Monday first.
   final List<bool> weekCompleted;
@@ -400,6 +430,27 @@ class _TodayModel {
   }
 }
 
+/// Localizes a stored language name ("English", "en", "Turkish", …) through
+/// the existing `language.*` keys. A language the normalizer does not know is
+/// shown as stored rather than hidden — the learner named it, so it must
+/// appear.
+String _localizedLanguageName(BuildContext context, String raw) {
+  final String trimmed = raw.trim();
+  final String canonical =
+      LearningLanguageService.normalizeSupported(trimmed, trimmed);
+  final String? key = switch (canonical) {
+    'English' => 'language.english',
+    'German' => 'language.german',
+    'Spanish' => 'language.spanish',
+    'Portuguese' => 'language.portuguese',
+    'Indonesian' => 'language.indonesian',
+    'French' => 'language.french',
+    'Turkish' => 'language.turkish',
+    _ => null,
+  };
+  return key == null ? canonical : context.tr(key);
+}
+
 int _asInt(Object? value, {int fallback = 0}) {
   if (value is int) {
     return value;
@@ -419,11 +470,17 @@ class _GreetingRow extends StatelessWidget {
     required this.name,
     required this.streak,
     required this.cefrLevel,
+    required this.targetLanguage,
+    required this.onOpenLanguages,
   });
 
   final String name;
   final int streak;
   final String cefrLevel;
+  final String targetLanguage;
+
+  /// Fired by the language chip; opens the profile switcher sheet.
+  final VoidCallback onOpenLanguages;
 
   @override
   Widget build(BuildContext context) {
@@ -453,11 +510,301 @@ class _GreetingRow extends StatelessWidget {
         ),
         const SizedBox(width: NfSpace.s6),
         NfChip(
-          label: cefrLevel,
+          label: '${_localizedLanguageName(context, targetLanguage)}'
+              ' · $cefrLevel',
+          icon: LucideIcons.globe,
           variant: NfChipVariant.selected,
           dense: true,
+          onTap: onOpenLanguages,
         ),
       ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LANGUAGE SWITCHER SHEET
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Bottom sheet listing the learner's language profiles.
+///
+/// Tapping an inactive profile calls [AppStateProvider.switchProfile] and
+/// closes the sheet once the server has confirmed; the provider then reloads
+/// words, daily words and stats, so the page behind updates by itself. A
+/// failed switch keeps the sheet open and says so inline — a snackbar would
+/// appear behind the sheet.
+class _LanguageSheet extends StatefulWidget {
+  const _LanguageSheet();
+
+  @override
+  State<_LanguageSheet> createState() => _LanguageSheetState();
+}
+
+class _LanguageSheetState extends State<_LanguageSheet> {
+  /// Profile id a switch is in flight for; only that row shows the spinner.
+  int? _pendingId;
+  bool _failed = false;
+
+  Future<void> _switchTo(LanguageProfile profile) async {
+    final AppStateProvider appState = context.read<AppStateProvider>();
+    if (appState.isSwitchingProfile) {
+      return;
+    }
+    if (profile.isActive) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _pendingId = profile.id;
+      _failed = false;
+    });
+    final bool ok = await appState.switchProfile(profile.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _pendingId = null);
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final AppStateProvider appState = context.watch<AppStateProvider>();
+    final List<LanguageProfile> profiles = appState.languageProfiles;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(NfRadius.card),
+          ),
+          border: Border.fromBorderSide(t.sideOf(t.border)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          NfSpace.s16,
+          NfSpace.s10,
+          NfSpace.s16,
+          NfSpace.s16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: t.border,
+                  borderRadius: NfRadius.pillAll,
+                ),
+              ),
+            ),
+            const SizedBox(height: NfSpace.s14),
+            Text(
+              context.tr('home.language.sheetTitle'),
+              style: NfTokens.display(size: NfFont.s18, color: t.ink),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: NfSpace.s4),
+            Text(
+              context.tr('home.language.sheetSubtitle'),
+              style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: NfSpace.s16),
+            for (final LanguageProfile profile in profiles) ...<Widget>[
+              _LanguageRow(
+                profile: profile,
+                pending: _pendingId == profile.id,
+                enabled: !appState.isSwitchingProfile,
+                onTap: () => _switchTo(profile),
+              ),
+              const SizedBox(height: NfSpace.s10),
+            ],
+            const _AddLanguageRow(),
+            if (_failed) ...<Widget>[
+              const SizedBox(height: NfSpace.s12),
+              Row(
+                children: <Widget>[
+                  Icon(LucideIcons.alertCircle, size: 16, color: t.wrong),
+                  const SizedBox(width: NfSpace.s6),
+                  Expanded(
+                    child: Text(
+                      context.tr('home.language.switchFailed'),
+                      style: NfTokens.body(size: NfFont.s125, color: t.wrong),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageRow extends StatelessWidget {
+  const _LanguageRow({
+    required this.profile,
+    required this.pending,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  static const double _tileSize = 40;
+
+  final LanguageProfile profile;
+
+  /// True while [AppStateProvider.switchProfile] runs for *this* profile.
+  final bool pending;
+
+  /// False while any switch is in flight, so a second row cannot start one.
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final bool active = profile.isActive;
+
+    final Widget trailing;
+    if (pending) {
+      trailing = SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(
+          strokeWidth: NfStroke.border,
+          color: t.primary,
+        ),
+      );
+    } else if (active) {
+      trailing = NfChip(
+        label: context.tr('home.language.active'),
+        icon: LucideIcons.check,
+        variant: NfChipVariant.selected,
+        dense: true,
+      );
+    } else {
+      trailing = Icon(LucideIcons.chevronRight, size: 18, color: t.inkFaint);
+    }
+
+    return NfCard(
+      onTap: enabled ? onTap : null,
+      padding: const EdgeInsets.all(NfSpace.s12),
+      borderRadius: NfRadius.tileAll,
+      backgroundColor: active ? t.primarySoft : t.surface,
+      borderColor: active ? t.primary : t.border,
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: _tileSize,
+            height: _tileSize,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? t.surface : t.raised,
+              borderRadius: NfRadius.iconTileAll,
+              border: Border.fromBorderSide(
+                t.sideOf(active ? t.primary : t.border),
+              ),
+            ),
+            child: Icon(
+              LucideIcons.globe,
+              size: 20,
+              color: active ? t.primaryText : t.inkMuted,
+            ),
+          ),
+          const SizedBox(width: NfSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  _localizedLanguageName(context, profile.targetLanguage),
+                  style: NfTokens.body(
+                    size: NfFont.s15,
+                    weight: NfTokens.bodyEmphasisWeight,
+                    color: t.ink,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: NfSpace.s4),
+                Text(
+                  profile.level,
+                  style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: NfSpace.s10),
+          trailing,
+        ],
+      ),
+    );
+  }
+}
+
+/// The "Add a language" row. Deliberately inert: creating a second profile is
+/// a later phase, and a dead-looking row is more honest than a button that
+/// apologizes when tapped.
+class _AddLanguageRow extends StatelessWidget {
+  const _AddLanguageRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+
+    return NfCard(
+      padding: const EdgeInsets.all(NfSpace.s12),
+      borderRadius: NfRadius.tileAll,
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: _LanguageRow._tileSize,
+            height: _LanguageRow._tileSize,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: t.raised,
+              borderRadius: NfRadius.iconTileAll,
+              border: Border.fromBorderSide(t.sideOf(t.border)),
+            ),
+            child: Icon(LucideIcons.plus, size: 20, color: t.inkFaint),
+          ),
+          const SizedBox(width: NfSpace.s12),
+          Expanded(
+            child: Text(
+              context.tr('home.language.addSoon'),
+              style: NfTokens.body(
+                size: NfFont.s15,
+                weight: NfTokens.bodyEmphasisWeight,
+                color: t.inkFaint,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: NfSpace.s10),
+          NfChip(
+            label: context.tr('home.language.comingSoon'),
+            dense: true,
+          ),
+        ],
+      ),
     );
   }
 }

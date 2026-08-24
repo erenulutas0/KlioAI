@@ -72,7 +72,6 @@ class _NfProfilePageState extends State<NfProfilePage>
   int _aiTokenLimit = 0;
   int _aiTokensRemaining = 0;
   double _aiRemainingRatio = 1.0;
-  Map<String, int>? _aiActivityEstimates;
 
   /// The plan the server is actually metering against, straight from the quota
   /// response. See [_hasPaidPlan] for why nothing else may decide this.
@@ -121,21 +120,11 @@ class _NfProfilePageState extends State<NfProfilePage>
       final double ratio =
           limit > 0 ? (remaining / limit).clamp(0.0, 1.0).toDouble() : 1.0;
 
-      Map<String, int>? estimates;
-      final dynamic rawEstimates = data['activityEstimates'];
-      if (rawEstimates is Map) {
-        estimates = <String, int>{
-          for (final MapEntry<dynamic, dynamic> entry in rawEstimates.entries)
-            entry.key.toString(): _asInt(entry.value),
-        };
-      }
-
       if (!mounted) return;
       setState(() {
         _aiTokenLimit = limit;
         _aiTokensRemaining = remaining;
         _aiRemainingRatio = ratio;
-        _aiActivityEstimates = estimates;
         _aiPlanCode = data['planCode']?.toString();
         _quotaError = null;
         _isQuotaLoading = false;
@@ -410,7 +399,7 @@ class _NfProfilePageState extends State<NfProfilePage>
                   tint: t.primarySoft,
                   value: _tokensStatValue(),
                   // TODO(i18n): needs a key
-                  label: 'AI tokens left',
+                  label: 'AI usage left',
                 ),
               ),
             ],
@@ -423,10 +412,24 @@ class _NfProfilePageState extends State<NfProfilePage>
   /// The tokens tile must not claim "0 left" while the request is still in
   /// flight or after it failed — that is the same lie the plan badge used to
   /// tell. An em dash says "not known" instead.
+  ///
+  /// Shows the percentage, not the raw count: the meter card stopped exposing
+  /// token numbers, and a stat tile that still said "8000" would reintroduce
+  /// them through the side door.
   String _tokensStatValue() {
     if (_isQuotaLoading || _quotaError != null) return _kPending;
     if (_aiTokenLimit <= 0) return _kPending;
-    return '$_aiTokensRemaining';
+    return _percentLeftLabel();
+  }
+
+  int _percentLeft() => (_aiRemainingRatio * 100).clamp(0.0, 100.0).round();
+
+  /// A sliver of quota left still rounds to 0%; saying "0%" while something
+  /// remains reads as a bug, so it becomes "<1%".
+  String _percentLeftLabel() {
+    final int percent = _percentLeft();
+    if (_aiTokensRemaining > 0 && percent == 0) return '<1%';
+    return '$percent%';
   }
 
   Widget _buildAiTokenCard(NfTokens t) {
@@ -445,7 +448,7 @@ class _NfProfilePageState extends State<NfProfilePage>
               Expanded(
                 child: Text(
                   // TODO(i18n): needs a key
-                  'Daily AI tokens',
+                  'AI usage',
                   style: NfTokens.display(size: NfFont.s16, color: t.ink),
                 ),
               ),
@@ -493,99 +496,55 @@ class _NfProfilePageState extends State<NfProfilePage>
       ];
     }
 
-    final int percent =
-        (_aiRemainingRatio * 100).clamp(0.0, 100.0).round();
-    // "Exhausted" is not just zero: below about a sixth of the day's allowance
-    // the learner hits the wall inside one sitting, so it is honest to warn
-    // there rather than at the moment the last token goes.
-    final bool depleted = _aiTokensRemaining <= 0 || percent <= 15;
-    final Color statusColor = depleted ? t.wrong : t.correct;
-    // A sliver of quota left still rounds to 0%; saying "0% left" next to a
-    // non-zero token count reads as a bug.
-    final String percentLabel = _aiTokensRemaining > 0 && percent == 0
-        // TODO(i18n): needs a key
-        ? '<1% left'
-        // TODO(i18n): needs a key
-        : '$percent% left';
-    final String? estimate = _estimateLine();
+    final int percent = _percentLeft();
+    // Below a fifth of the allowance the learner hits the wall inside one
+    // sitting, so the warning chip appears there rather than at the moment
+    // the last token goes. Above that line the meter stays quiet on purpose:
+    // no raw token counts, no usage estimates — just how much is left.
+    final bool runningLow = _aiTokensRemaining <= 0 || percent < 20;
+    // TODO(i18n): needs a key
+    final String percentLabel = '${_percentLeftLabel()} left';
 
     return <Widget>[
       Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
         children: <Widget>[
           Expanded(
             child: Text(
-              '$_aiTokensRemaining / $_aiTokenLimit',
+              percentLabel,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: NfTokens.display(size: NfFont.s18, color: t.ink),
+              style: NfTokens.body(
+                size: NfFont.s135,
+                weight: NfTokens.bodyEmphasisWeight,
+                color: t.inkMuted,
+              ),
             ),
           ),
-          const SizedBox(width: NfSpace.s8),
-          Text(
-            percentLabel,
-            style: NfTokens.display(size: NfFont.s14, color: statusColor),
-          ),
+          if (runningLow) ...<Widget>[
+            const SizedBox(width: NfSpace.s8),
+            const NfChip(
+              // TODO(i18n): needs a key
+              label: 'Running low',
+              icon: Icons.bolt_outlined,
+              variant: NfChipVariant.streak,
+              dense: true,
+            ),
+          ],
         ],
       ),
       const SizedBox(height: NfSpace.s10),
       NfProgressBar(
         value: _aiRemainingRatio,
-        fillColor: statusColor,
+        height: NfSize.progressQuiet,
         semanticsLabel: percentLabel,
       ),
-      if (estimate != null) ...<Widget>[
-        const SizedBox(height: NfSpace.s10),
-        Text(
-          estimate,
-          style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
-        ),
-      ],
     ];
-  }
-
-  /// Turns the backend's token→action estimates into the line the learner
-  /// actually cares about. Null when the server sent nothing usable, so the
-  /// raw token counts above are left to speak for themselves.
-  String? _estimateLine() {
-    final Map<String, int>? estimates = _aiActivityEstimates;
-    if (estimates == null || estimates.isEmpty) return null;
-
-    final int conversations = estimates['conversations'] ?? 0;
-    final int checks = estimates['translationChecks'] ?? 0;
-
-    final List<String> parts = <String>[];
-    // TODO(i18n): needs a key
-    if (conversations > 0) {
-      parts.add('$conversations conversation${conversations == 1 ? '' : 's'}');
-    }
-    // TODO(i18n): needs a key
-    if (checks > 0) {
-      parts.add('$checks translation check${checks == 1 ? '' : 's'}');
-    }
-    if (parts.isEmpty) return null;
-
-    return '≈ ${parts.join(' · ')}';
-  }
-
-  /// Leaves the preview. Looked up nullably so the page still renders in a
-  /// test or a host that never registered the notifier.
-  void _switchToClassicDesign() {
-    final NfFrontendPreference? preference =
-        Provider.of<NfFrontendPreference?>(context, listen: false);
-    if (preference == null) {
-      return;
-    }
-    unawaited(preference.setUseNewFrontend(false));
   }
 
   Widget _buildSettingsCard(NfTokens t) {
     final bool isDark = t.isDark;
     final String languageCode =
         context.l10n.locale.languageCode.toUpperCase();
-    final bool canLeavePreview =
-        Provider.of<NfFrontendPreference?>(context) != null;
 
     return NfCard(
       padding: EdgeInsets.zero,
@@ -607,12 +566,9 @@ class _NfProfilePageState extends State<NfProfilePage>
             onTap: widget.onOpenNotifications,
           ),
           _Divider(tokens: t),
-          // Labelled as settings, not as "Language". The only way back to the
-          // classic design is the switch on `SettingsPage`, and a row named
-          // after one card on that screen hid it: a learner who wanted out of
-          // the preview had no reason to tap "Language". The language code
-          // stays as the trailing value because it is genuinely useful, but it
-          // is a detail of the destination now, not its name.
+          // Labelled as settings, not as "Language". The language code stays as
+          // the trailing value because it is genuinely useful, but it is a
+          // detail of the destination, not its name.
           _SettingsRow(
             icon: Icons.settings_outlined,
             label: context.tr('settings.title'),
@@ -623,19 +579,10 @@ class _NfProfilePageState extends State<NfProfilePage>
             ),
             onTap: widget.onOpenSettings,
           ),
-          // The preview needs a visible exit of its own. Everything else on
-          // this card is a destination; this one is the switch itself, so it
-          // says where it leads rather than opening a screen to say it.
-          if (canLeavePreview) ...<Widget>[
-            _Divider(tokens: t),
-            _SettingsRow(
-              icon: Icons.swap_horiz_rounded,
-              // TODO(i18n): needs a key
-              label: 'Switch to classic design',
-              tokens: t,
-              onTap: _switchToClassicDesign,
-            ),
-          ],
+          // A "switch to classic design" row used to sit here, from when this
+          // frontend was a preview. It is gone with the preview: the preference
+          // it wrote is no longer read, so the row would have looked like a
+          // choice and done nothing.
           _Divider(tokens: t),
           _SettingsRow(
             icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
