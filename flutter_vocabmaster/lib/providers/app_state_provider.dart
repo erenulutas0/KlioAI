@@ -872,6 +872,35 @@ class AppStateProvider extends ChangeNotifier {
     await _loadUserData();
   }
 
+  /// Takes a word the server has just created and makes it real on this device.
+  ///
+  /// The dictionary creates words through [ApiService] directly, because the
+  /// offline queue has no field for meanings. But `OfflineSyncService
+  /// .getAllWords` returns the *local* cache the moment it is non-empty and
+  /// only syncs behind it — so a word that exists only on the server is
+  /// invisible until some later sync lands. A learner saved "bank" with two
+  /// meanings, was told "Kelime bugüne eklendi!", went to their word list and
+  /// found nothing there.
+  ///
+  /// Writing it into the cache here closes that window: the next read includes
+  /// it, and a later sync simply overwrites the same row.
+  Future<void> adoptServerWord(Word word) async {
+    try {
+      await _localDb.saveWord(word);
+    } catch (e) {
+      // The in-memory list below still shows it; the cache catches up on sync.
+      debugPrint('AppStateProvider: could not cache server word: $e');
+    }
+
+    final index = _allWords.indexWhere((w) => w.id == word.id);
+    if (index == -1) {
+      _allWords.insert(0, word);
+    } else {
+      _allWords[index] = word;
+    }
+    notifyListeners();
+  }
+
   /// Word Galaxy ve benzeri akislardan SRS review submit et.
   /// The word today's recall reminder should ask about.
   ///

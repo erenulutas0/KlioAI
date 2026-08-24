@@ -247,6 +247,9 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
         ],
       );
 
+      // The freshest server copy of the word, for the provider to adopt below.
+      Word latest = created;
+
       // Each example sentence goes under the meaning it illustrates. The id is
       // matched by translation because that is the only key both sides share;
       // a miss degrades to an unassigned sentence, which is the legacy shape.
@@ -260,7 +263,7 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
           }
         }
         try {
-          await _apiService.addSentenceToWord(
+          latest = await _apiService.addSentenceToWord(
             wordId: created.id,
             sentence: m.example,
             translation: m.exampleTranslation,
@@ -284,9 +287,14 @@ class _NfDictionaryPageState extends State<NfDictionaryPage> {
       }
 
       if (!mounted) return;
-      // The provider re-reads its stores so Words / Today see the new word
-      // without a restart.
-      unawaited(context.read<AppStateProvider>().refreshWords());
+      // Adopt before refreshing. `refreshWords` reads the local cache, which
+      // this word is not in - it was created straight on the server, because
+      // the offline queue cannot carry meanings. Without this the learner is
+      // told the word was saved and their list does not change.
+      final AppStateProvider appState = context.read<AppStateProvider>();
+      await appState.adoptServerWord(latest);
+      if (!mounted) return;
+      unawaited(appState.refreshWords());
       _showMessage(context.tr('dict.saved'));
       // Re-run the search so the screen now shows the word as "Saved".
       unawaited(_search());
