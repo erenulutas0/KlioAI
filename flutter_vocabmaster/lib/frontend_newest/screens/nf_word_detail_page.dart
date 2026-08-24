@@ -275,8 +275,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       _nudgeProviderSync();
     } catch (e) {
       debugPrint('NfWordDetailPage: add meaning failed ($e)');
-      // TODO(i18n): needs a key
-      _showMessage('The meaning could not be saved. Are you online?');
+      _showMessage(context.tr('word.err.meaningSave'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -301,8 +300,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       _nudgeProviderSync();
     } catch (e) {
       debugPrint('NfWordDetailPage: update meaning failed ($e)');
-      // TODO(i18n): needs a key
-      _showMessage('The meaning could not be updated. Are you online?');
+      _showMessage(context.tr('word.err.meaningUpdate'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -310,10 +308,8 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
 
   Future<void> _deleteMeaning(WordMeaning meaning) async {
     final bool confirmed = await _confirm(
-      // TODO(i18n): needs a key
-      title: 'Delete this meaning?',
-      // TODO(i18n): needs a key
-      body: 'Its sentences stay on the word and move to Unassigned.',
+      title: context.tr('word.deleteMeaningTitle'),
+      body: context.tr('word.deleteMeaningBody'),
       // TODO(i18n): needs a key
       confirmLabel: 'Delete',
     );
@@ -336,8 +332,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       _showMessage(e.message);
     } catch (e) {
       debugPrint('NfWordDetailPage: delete meaning failed ($e)');
-      // TODO(i18n): needs a key
-      _showMessage('The meaning could not be deleted. Are you online?');
+      _showMessage(context.tr('word.err.meaningDelete'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -355,8 +350,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
 
     final AppStateProvider appState = context.read<AppStateProvider>();
     if (appState.hasSentenceForWord(_word, draft.sentence)) {
-      // TODO(i18n): needs a key
-      _showMessage('This sentence is already on the word.');
+      _showMessage(context.tr('word.err.sentenceDuplicate'));
       return;
     }
 
@@ -387,8 +381,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     );
     if (!mounted) return;
     if (updated == null) {
-      // TODO(i18n): needs a key
-      _showMessage('The sentence could not be added.');
+      _showMessage(context.tr('word.err.sentenceAdd'));
       return;
     }
     setState(() => _word = _mergeProviderWord(updated));
@@ -427,20 +420,16 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       if (!mounted) return;
       await _addSentenceViaProvider(appState, draft);
       if (!mounted) return;
-      // TODO(i18n): needs a key
       _showMessage(
-        'Saved without its meaning — the server could not be reached. '
-        'Assign it from Unassigned later.',
+        context.tr('word.warn.savedWithoutMeaning'),
       );
     }
   }
 
   Future<void> _deleteSentence(Sentence sentence) async {
     final bool confirmed = await _confirm(
-      // TODO(i18n): needs a key
-      title: 'Delete this sentence?',
-      // TODO(i18n): needs a key
-      body: 'This cannot be undone.',
+      title: context.tr('word.deleteSentenceTitle'),
+      body: context.tr('word.deleteSentenceBody'),
       // TODO(i18n): needs a key
       confirmLabel: 'Delete',
     );
@@ -457,8 +446,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
       if (deleted) {
         setState(() => _word = _withoutSentence(_word, sentence.id));
       } else {
-        // TODO(i18n): needs a key
-        _showMessage('The sentence could not be deleted.');
+        _showMessage(context.tr('word.err.sentenceDelete'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -517,17 +505,14 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
         // there. Refetch so the screen shows the true (duplicated) state
         // rather than guessing.
         unawaited(_hydrate());
-        // TODO(i18n): needs a key
         _showMessage(
-          'Assigned, but the old copy could not be removed. '
-          'You can delete it from Unassigned.',
+          context.tr('word.warn.oldCopyKept'),
         );
       }
       _nudgeProviderSync();
     } catch (e) {
       debugPrint('NfWordDetailPage: assign failed ($e)');
-      // TODO(i18n): needs a key
-      _showMessage('Could not assign the sentence. Are you online?');
+      _showMessage(context.tr('word.err.assign'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -587,8 +572,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
         child: Column(
           children: <Widget>[
             _Header(
-              // TODO(i18n): needs a key
-              title: 'Word details',
+              title: context.tr('word.title'),
               tokens: t,
               onBack: () => Navigator.of(context).maybePop(),
             ),
@@ -626,8 +610,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
                         ordinal: i + 1,
                         definition: meanings[i].definition,
                         sentences: byMeaning[meanings[i].id] ?? const <Sentence>[],
-                        // TODO(i18n): needs a key
-                        emptyLine: 'No sentences for this meaning yet.',
+                        emptyLine: context.tr('word.noSentencesForMeaning'),
                         onAddSentence: _busy
                             ? null
                             : () => unawaited(
@@ -649,13 +632,10 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
                     const SizedBox(height: NfSpace.s14),
                     NfMeaningSection(
                       headword: _word.englishWord,
-                      // TODO(i18n): needs a key
-                      title: 'Unassigned sentences',
+                      title: context.tr('word.unassignedTitle'),
                       unassigned: true,
-                      // TODO(i18n): needs a key
                       explainer:
-                          'Not linked to a meaning yet — assign each one to '
-                          'the sense it shows.',
+                          context.tr('word.unassignedExplainer'),
                       sentences: unassigned,
                       onDeleteSentence: _busy
                           ? null
@@ -668,10 +648,8 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
                               } else {
                                 // A locally created sentence still waiting to
                                 // sync has no server row to re-create from.
-                                // TODO(i18n): needs a key
                                 _showMessage(
-                                  'This sentence is still syncing — try again '
-                                  'in a moment.',
+                                  context.tr('word.warn.stillSyncing'),
                                 );
                               }
                             },
@@ -682,8 +660,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
                   if (serverBacked) ...<Widget>[
                     const SizedBox(height: NfSpace.s18),
                     NfSecondaryButton(
-                      // TODO(i18n): needs a key
-                      label: 'Add meaning',
+                      label: context.tr('word.addMeaning'),
                       icon: Icons.add_rounded,
                       tone: NfButtonTone.primary,
                       busy: _busy,
@@ -769,7 +746,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
               if (due || isNew) const SizedBox(width: NfSpace.s10),
               Expanded(
                 child: Text(
-                  _srsLine(due),
+                  _srsLine(context, due),
                   style: NfTokens.body(size: NfFont.s125, color: t.inkFaint),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -782,9 +759,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
           if (_hydrateFailed) ...<Widget>[
             const SizedBox(height: NfSpace.s10),
             Text(
-              // TODO(i18n): needs a key
-              'Could not reach the server — showing what is saved on this '
-              'device. Meanings may be missing.',
+              context.tr('word.warn.offline'),
               style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
             ),
           ],
@@ -801,11 +776,9 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     final String meaning = _word.displayMeaning;
     String? explainer;
     if (!serverBacked) {
-      // TODO(i18n): needs a key
-      explainer = 'Meanings can be edited once this word has finished syncing.';
+      explainer = context.tr('word.warn.meaningsAfterSync');
     } else if (_hydrateFailed) {
-      // TODO(i18n): needs a key
-      explainer = 'Meanings can be edited once the server is reachable.';
+      explainer = context.tr('word.warn.meaningsWhenOnline');
     }
 
     return <Widget>[
@@ -815,8 +788,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
         title: meaning.isEmpty ? _word.englishWord : meaning,
         explainer: explainer,
         sentences: _word.sentences,
-        // TODO(i18n): needs a key
-        emptyLine: 'No example sentences yet.',
+        emptyLine: context.tr('word.noSentences'),
         onAddSentence:
             _busy ? null : () => unawaited(_addSentence(defaultMeaning: null)),
         onDeleteSentence:
@@ -826,22 +798,24 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
     ];
   }
 
-  String _srsLine(bool due) {
+  String _srsLine(BuildContext context, bool due) {
     // TODO(i18n): needs a key — every string below, and a plural rule.
     final String reviews = _word.reviewCount == 1
-        ? 'Reviewed once'
-        : 'Reviewed ${_word.reviewCount} times';
+        ? context.tr('word.srs.once')
+        : context.tr('word.srs.times')
+            .replaceAll('{n}', '${_word.reviewCount}');
     if (_word.reviewCount <= 0) {
-      return 'Not reviewed yet';
+      return context.tr('word.srs.never');
     }
     if (due) {
-      return '$reviews · due now';
+      return '$reviews · ${context.tr('word.srs.dueNow')}';
     }
     final DateTime? next = _word.nextReviewDate;
     if (next == null) {
       return reviews;
     }
-    return '$reviews · next on ${next.day}.${next.month}.${next.year}';
+    return '$reviews · '
+        '${context.tr('word.srs.nextOn').replaceAll('{date}', '${next.day}.${next.month}.${next.year}')}';
   }
 
   // ---------------------------------------------------------------------------
@@ -892,8 +866,7 @@ class _NfWordDetailPageState extends State<NfWordDetailPage> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              // TODO(i18n): needs a key
-              'Which meaning does this sentence show?',
+              context.tr('word.assignPicker'),
               style: NfTokens.display(size: NfFont.s18, color: t.ink),
             ),
             const SizedBox(height: NfSpace.s12),
@@ -1162,33 +1135,29 @@ class _MeaningEditorSheetState extends State<_MeaningEditorSheet> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          // TODO(i18n): needs a key
-          editing ? 'Edit meaning' : 'Add meaning',
+          editing ? context.tr('word.editMeaning') : 'Add meaning',
           style: NfTokens.display(size: NfFont.s18, color: t.ink),
         ),
         const SizedBox(height: NfSpace.s14),
         _SheetField(
           tokens: t,
           controller: _translation,
-          // TODO(i18n): needs a key
-          label: 'Translation',
-          // TODO(i18n): needs a key
-          hint: 'e.g. bank (river edge)',
+          label: context.tr('word.translationLabel'),
+          hint: context.tr('word.translationHint'),
         ),
         const SizedBox(height: NfSpace.s12),
         _SheetField(
           tokens: t,
           controller: _definition,
-          // TODO(i18n): needs a key
-          label: 'Definition (optional)',
-          // TODO(i18n): needs a key
-          hint: 'A short note on when this sense applies',
+          label: context.tr('word.definitionLabel'),
+          hint: context.tr('word.definitionHint'),
           maxLines: 2,
         ),
         const SizedBox(height: NfSpace.s16),
         NfPrimaryButton(
-          // TODO(i18n): needs a key
-          label: editing ? 'Save meaning' : 'Add meaning',
+          label: editing
+              ? context.tr('word.saveMeaning')
+              : context.tr('word.addMeaning'),
           onPressed: _canSave ? _save : null,
         ),
       ],
@@ -1270,35 +1239,29 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          // TODO(i18n): needs a key
-          'Add sentence',
+          context.tr('word.addSentence'),
           style: NfTokens.display(size: NfFont.s18, color: t.ink),
         ),
         const SizedBox(height: NfSpace.s14),
         _SheetField(
           tokens: t,
           controller: _sentence,
-          // TODO(i18n): needs a key
-          label: 'Sentence',
-          // TODO(i18n): needs a key
-          hint: 'An example sentence using the word',
+          label: context.tr('word.sentenceLabel'),
+          hint: context.tr('word.sentenceHint'),
           maxLines: 2,
         ),
         const SizedBox(height: NfSpace.s12),
         _SheetField(
           tokens: t,
           controller: _translation,
-          // TODO(i18n): needs a key
-          label: 'Translation',
-          // TODO(i18n): needs a key
-          hint: 'What the sentence means',
+          label: context.tr('word.translationLabel'),
+          hint: context.tr('word.sentenceTranslationHint'),
           maxLines: 2,
         ),
         if (widget.meanings.isNotEmpty) ...<Widget>[
           const SizedBox(height: NfSpace.s14),
           Text(
-            // TODO(i18n): needs a key
-            'For which meaning?',
+            context.tr('word.whichMeaning'),
             style: NfTokens.body(
               size: NfFont.s13,
               weight: NfTokens.bodyEmphasisWeight,
@@ -1311,8 +1274,7 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
             runSpacing: NfSpace.s8,
             children: <Widget>[
               NfChip(
-                // TODO(i18n): needs a key
-                label: 'No specific meaning',
+                label: context.tr('word.noSpecificMeaning'),
                 variant: _meaningId == null
                     ? NfChipVariant.selected
                     : NfChipVariant.unselected,
@@ -1331,8 +1293,7 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
         ],
         const SizedBox(height: NfSpace.s14),
         Text(
-          // TODO(i18n): needs a key
-          'How hard is it?',
+          context.tr('word.difficultyQuestion'),
           style: NfTokens.body(
             size: NfFont.s13,
             weight: NfTokens.bodyEmphasisWeight,
@@ -1357,8 +1318,7 @@ class _SentenceEditorSheetState extends State<_SentenceEditorSheet> {
         ),
         const SizedBox(height: NfSpace.s16),
         NfPrimaryButton(
-          // TODO(i18n): needs a key
-          label: 'Add sentence',
+          label: context.tr('word.addSentence'),
           onPressed: _canSave ? _save : null,
         ),
       ],

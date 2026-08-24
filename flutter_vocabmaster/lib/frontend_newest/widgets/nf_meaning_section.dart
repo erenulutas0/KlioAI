@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
 import '../theme/nf_tokens.dart';
 import 'nf_card.dart';
@@ -100,7 +101,7 @@ class NfMeaningSection extends StatelessWidget {
               NfSpace.s8,
               NfSpace.s14,
             ),
-            child: _buildHeader(t),
+            child: _buildHeader(context, t),
           ),
           if (sentences.isEmpty && emptyLine != null) ...<Widget>[
             _divider(t),
@@ -137,7 +138,7 @@ class NfMeaningSection extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(NfTokens t) {
+  Widget _buildHeader(BuildContext context, NfTokens t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -155,8 +156,7 @@ class NfMeaningSection extends StatelessWidget {
                   children: <Widget>[
                     if (ordinal != null) ...<Widget>[
                       NfChip(
-                        // TODO(i18n): needs a key
-                        label: 'MEANING $ordinal',
+                        label: context.tr('word.meaningOrdinal').replaceAll('{n}', '$ordinal'),
                         variant: NfChipVariant.selected,
                         dense: true,
                       ),
@@ -185,16 +185,14 @@ class NfMeaningSection extends StatelessWidget {
             if (onEditMeaning != null)
               _IconAction(
                 icon: Icons.edit_outlined,
-                // TODO(i18n): needs a key
-                semanticLabel: 'Edit meaning',
+                semanticLabel: context.tr('word.editMeaning'),
                 color: t.inkMuted,
                 onTap: onEditMeaning!,
               ),
             if (onDeleteMeaning != null)
               _IconAction(
                 icon: Icons.delete_outline_rounded,
-                // TODO(i18n): needs a key
-                semanticLabel: 'Delete meaning',
+                semanticLabel: context.tr('word.deleteMeaning'),
                 color: t.inkMuted,
                 onTap: onDeleteMeaning!,
               ),
@@ -237,8 +235,7 @@ class _AddSentenceRow extends StatelessWidget {
 
     return Semantics(
       button: true,
-      // TODO(i18n): needs a key
-      label: 'Add sentence for this meaning',
+      label: context.tr('word.addSentenceForMeaning'),
       excludeSemantics: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -254,7 +251,7 @@ class _AddSentenceRow extends StatelessWidget {
                 const SizedBox(width: NfSpace.s6),
                 Text(
                   // TODO(i18n): needs a key
-                  'Add sentence',
+                  context.tr('word.addSentence'),
                   style:
                       NfTokens.display(size: NfFont.s14, color: t.primaryText),
                 ),
@@ -319,16 +316,14 @@ class _NfSentenceTileState extends State<_NfSentenceTile> {
               if (widget.onSpeak != null)
                 _IconAction(
                   icon: Icons.volume_up_rounded,
-                  // TODO(i18n): needs a key
-                  semanticLabel: 'Listen',
+                  semanticLabel: context.tr('word.listen'),
                   color: t.primaryText,
                   onTap: widget.onSpeak!,
                 ),
               if (widget.onDelete != null)
                 _IconAction(
                   icon: Icons.delete_outline_rounded,
-                  // TODO(i18n): needs a key
-                  semanticLabel: 'Delete sentence',
+                  semanticLabel: context.tr('word.deleteSentence'),
                   color: t.inkFaint,
                   onTap: widget.onDelete!,
                 ),
@@ -367,10 +362,8 @@ class _NfSentenceTileState extends State<_NfSentenceTile> {
                 if (hasTranslation)
                   NfChip(
                     label: _showTranslation
-                        // TODO(i18n): needs a key
-                        ? 'Hide translation'
-                        // TODO(i18n): needs a key
-                        : 'Show translation',
+                        ? context.tr('word.hideTranslation')
+                        : context.tr('word.showTranslation'),
                     icon: _showTranslation
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
@@ -381,8 +374,7 @@ class _NfSentenceTileState extends State<_NfSentenceTile> {
                   ),
                 if (widget.onAssign != null)
                   NfChip(
-                    // TODO(i18n): needs a key
-                    label: 'Assign to meaning',
+                    label: context.tr('word.assignToMeaning'),
                     icon: Icons.label_outline_rounded,
                     variant: NfChipVariant.selected,
                     dense: true,
@@ -466,18 +458,18 @@ class _DifficultyChip extends StatelessWidget {
     switch (value) {
       case 'easy':
       case 'kolay':
-        label = 'Easy'; // TODO(i18n): needs a key
+        label = context.tr('word.difficulty.easy');
         variant = NfChipVariant.correct;
         break;
       case 'hard':
       case 'zor':
-        label = 'Hard'; // TODO(i18n): needs a key
+        label = context.tr('word.difficulty.hard');
         variant = NfChipVariant.wrong;
         break;
       case 'medium':
       case 'orta':
       default:
-        label = 'Medium'; // TODO(i18n): needs a key
+        label = context.tr('word.difficulty.medium');
         variant = NfChipVariant.streak;
         break;
     }
