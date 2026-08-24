@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -514,8 +515,57 @@ class NfSettingsPage extends StatelessWidget {
             context.tr('settings.about.subtitle'),
             style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
           ),
+          const SizedBox(height: NfSpace.s10),
+          const _AppVersionLine(),
         ],
       ),
+    );
+  }
+}
+
+/// The installed version, read from the package rather than written down.
+///
+/// The previous profile screen showed this and the new frontend did not carry
+/// it over, which only matters at the moment it matters most: someone reports
+/// something odd and neither of us can say which build they are on.
+class _AppVersionLine extends StatefulWidget {
+  const _AppVersionLine();
+
+  @override
+  State<_AppVersionLine> createState() => _AppVersionLineState();
+}
+
+class _AppVersionLineState extends State<_AppVersionLine> {
+  String? _label;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final PackageInfo info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _label = '${info.version} (${info.buildNumber})');
+    } catch (error) {
+      // A missing version line is a smaller problem than a crashed settings
+      // screen, so this stays silent and simply renders nothing.
+      debugPrint('NfSettingsPage: app version unavailable ($error)');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String? label = _label;
+    if (label == null) {
+      return const SizedBox.shrink();
+    }
+    final NfTokens t = NfTokens.of(context);
+    return Text(
+      '${context.tr('settings.about.version')} $label',
+      style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
     );
   }
 }
