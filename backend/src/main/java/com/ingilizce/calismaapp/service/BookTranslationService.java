@@ -178,6 +178,18 @@ public class BookTranslationService {
         prompt.append("- A learner reads the two lines together, so keep the ")
                 .append("correspondence close enough to follow, while still sounding natural in ")
                 .append(language).append(".\n");
+        // Everything below this line was written against real failures on the
+        // first Peter Rabbit run, not guessed at. Both models made the same two
+        // kinds of mistake, which is why a bigger model did not fix them.
+        prompt.append("- An idiom means what it means as a whole. Translate the meaning, not the ")
+                .append("words: \"run along\" is a dismissal, not running.\n");
+        prompt.append("- Everyday concrete nouns — plants, animals, foods, clothes, tools — must be ")
+                .append("the specific word a native speaker uses for that exact thing. A learner taps ")
+                .append("one precisely to find out what it is, so a near-miss teaches them something ")
+                .append("false.\n");
+        prompt.append("- Some of these words are old or belong to another country's kitchen or ")
+                .append("countryside. Work out what the object actually is before naming it; do not ")
+                .append("reach for a modern word that merely sounds similar.\n");
         prompt.append("- Keep names and place names as they are.\n");
         prompt.append("- Return every number you were given, even if a sentence is a fragment.\n\n");
         prompt.append("Return JSON exactly like {\"translations\":[{\"n\":1,\"t\":\"...\"}]} ")
