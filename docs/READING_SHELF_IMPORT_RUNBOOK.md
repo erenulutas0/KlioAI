@@ -71,7 +71,7 @@ docker compose -f docker-compose.app.yml config >/dev/null && echo "compose stil
 The `${VAR:-default}` form means this is the only compose edit ever needed —
 every later job is a `.env` change and a restart.
 
-## Recreating is not deploying
+## New code needs a deploy, not a restart
 
 `docker compose up -d --force-recreate backend` rebuilds nothing. It recreates
 the container from the image that is already there, which is exactly what a job
@@ -83,15 +83,21 @@ So: deploy once when the code changes, recreate freely when only `.env` changed.
 
 ## Running a job
 
-Spring Boot takes the better part of a minute to start. `logs --tail=200` run
-immediately after `up -d` returns prints the tail of the *previous* boot, or
-nothing at all. Follow the log instead and wait for the line:
+`up -d` returns as soon as the container starts; Spring Boot needs the better
+part of a minute after that, and the bootstrap logs during boot. So there is a
+window in which the job has not run yet and the log looks empty.
+
+Do not try to catch it with `logs -f --tail=0` after the fact: that prints only
+lines written from the moment you start following, and the boot lines are
+already behind you. Wait for the boot to finish, then read back over it:
 
 ```bash
-docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered BOOKS
+sleep 45 && docker compose -f docker-compose.app.yml logs --tail=500 backend | grep BOOKS
 ```
 
-Ctrl-C once the line you are waiting for appears.
+A translation run of a few hundred sentences takes longer than that. If the
+line has not appeared, wait and run the `logs` half again — it reads history,
+so it is safe to repeat.
 
 ### 1. Import the shelf (free, do this first)
 
@@ -99,7 +105,7 @@ Ctrl-C once the line you are waiting for appears.
 cd /opt/vocabmaster/deploy
 echo "APP_BOOKS_IMPORT_ON_STARTUP=true" >> .env
 docker compose -f docker-compose.app.yml up -d --force-recreate backend
-docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered BOOKS
+sleep 45 && docker compose -f docker-compose.app.yml logs --tail=500 backend | grep BOOKS
 ```
 
 Expect one line per book and a total. Then take the switch back out:
@@ -117,7 +123,7 @@ it actually cost, and only then decide.
 cd /opt/vocabmaster/deploy
 printf 'APP_BOOKS_TRANSLATE_ON_STARTUP=100\nAPP_BOOKS_TRANSLATE_SLUG=peter-rabbit\n' >> .env
 docker compose -f docker-compose.app.yml up -d --force-recreate backend
-docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered "BOOKS translate"
+sleep 45 && docker compose -f docker-compose.app.yml logs --tail=500 backend | grep "BOOKS translate"
 ```
 
 The line that matters ends with `tokensPerSentence=N`. Multiply it by the
