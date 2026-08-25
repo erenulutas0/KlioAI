@@ -48,44 +48,51 @@ Production does **not** use the repository's `docker-compose.yml`. It uses
 repository — `scripts/deploy-backend-vps.ps1` only checks that it exists, and
 never uploads it. So the variables have to be added there, once.
 
-Do not infer this from the compose file. `env_file:` being present proves
-nothing about whether the `.env` you just edited reaches the container: on this
-stack the deploy directory's `.env` feeds `${...}` *substitution* inside the
-compose file, and only keys named in a service's `environment:` block are
-injected into it. Appending to `.env` and restarting therefore looks like it
-worked and changes nothing at all.
+The backend service takes its environment from `env_file`, not from the deploy
+directory's `.env`:
 
-The only answer that settles it comes from inside the running container:
+```yaml
+  backend:
+    env_file:
+      - ../secrets/backend.env
+      - ../secrets/redis.env
+      - ../secrets/redis-security.env
+```
+
+So the switches go in `/opt/vocabmaster/secrets/backend.env`. Everything in that
+file is injected into the container as-is; no compose edit is needed at all.
+
+`/opt/vocabmaster/deploy/.env` is a different thing wearing the same name. It
+feeds `${...}` substitution *inside* the compose file, so a key that the compose
+file never mentions goes nowhere. Appending `APP_BOOKS_*` there looks like it
+worked, restarts cleanly, and sets nothing.
+
+Append with a leading newline and keep a backup — this file holds secrets, and
+if it does not end in one, a plain append lands on the same line as the last
+value and corrupts it:
+
+```bash
+cd /opt/vocabmaster
+cp secrets/backend.env secrets/backend.env.bak
+printf '\nAPP_BOOKS_IMPORT_ON_STARTUP=true\n' >> secrets/backend.env
+tail -2 secrets/backend.env
+```
+
+Blank lines in an env file are ignored, so the leading newline is free
+insurance. `tail -2` shows only what you just added, not the secrets above it.
+
+Then confirm it actually arrived, from inside the running container. This is the
+only check that settles it — a restart that changed nothing looks identical to
+one that worked:
 
 ```bash
 cd /opt/vocabmaster/deploy
-docker compose -f docker-compose.app.yml exec -T backend env | grep APP_BOOKS
+docker compose -f docker-compose.app.yml up -d --force-recreate backend
+sleep 25 && docker compose -f docker-compose.app.yml exec -T backend env | grep APP_BOOKS
 ```
 
-**If the variables are listed**, they are reaching the app. Skip to *Running a
-job*.
-
-**If nothing prints**, name them in the backend service's `environment:` block.
-This copies the indentation of the line it anchors to, and the `test` refuses to
-go on unless that anchor is unique:
-
-```bash
-cd /opt/vocabmaster/deploy
-n=$(grep -c "APP_SECURITY_JWT_SECRET:" docker-compose.app.yml) && echo "anchors: $n" && test "$n" = "1"
-cp docker-compose.app.yml docker-compose.app.yml.bak
-awk '{print} /APP_SECURITY_JWT_SECRET:/{match($0,/^[ 	]*/); ind=substr($0,1,RLENGTH); print ind "APP_BOOKS_IMPORT_ON_STARTUP: ${APP_BOOKS_IMPORT_ON_STARTUP:-false}"; print ind "APP_BOOKS_TRANSLATE_ON_STARTUP: ${APP_BOOKS_TRANSLATE_ON_STARTUP:-0}"; print ind "APP_BOOKS_TRANSLATE_SLUG: ${APP_BOOKS_TRANSLATE_SLUG:-}"; print ind "APP_BOOKS_TRANSLATE_INTO: ${APP_BOOKS_TRANSLATE_INTO:-Turkish}"}' docker-compose.app.yml.bak > docker-compose.app.yml
-grep -n "APP_BOOKS" docker-compose.app.yml
-docker compose -f docker-compose.app.yml config >/dev/null && echo "compose still valid"
-```
-
-`compose still valid` prints happily when awk inserted nothing, which is exactly
-the case where you want to be stopped — so check that the `grep` really lists
-four lines.
-
-Written as `${VAR:-default}` so the compose file names the keys once and `.env`
-still supplies the values: this is the only compose edit ever needed, and every
-later job is a `.env` change plus a restart. Confirm it with the `exec ... env`
-check above before trusting it.
+If that prints nothing, stop. Nothing downstream can work, and the log will be
+empty in a way that looks like broken code rather than an unset variable.
 
 ## New code needs a deploy, not a restart
 
