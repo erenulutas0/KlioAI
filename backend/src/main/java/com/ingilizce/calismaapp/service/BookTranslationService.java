@@ -53,8 +53,24 @@ public class BookTranslationService {
         this.completionProvider = completionProvider;
     }
 
-    /** What a translation run achieved, for the operator who started it. */
-    public record TranslationResult(int translated, int remaining, int failedBatches) {
+    /**
+     * What a translation run achieved, for the operator who started it.
+     *
+     * <p>Token counts are reported because this is the one part of the reading
+     * feature that costs money, and a shelf is only affordable if the number is
+     * measured rather than assumed. Multiply by the remaining sentence count and
+     * the whole library's bill is known before it is spent.
+     */
+    public record TranslationResult(int translated, int remaining, int failedBatches,
+            long promptTokens, long completionTokens) {
+
+        public long totalTokens() {
+            return promptTokens + completionTokens;
+        }
+    }
+
+    /** One batch's outcome: how many landed, and what it cost to ask. */
+    private record BatchOutcome(int applied, int promptTokens, int completionTokens) {
     }
 
     /**
@@ -66,7 +82,7 @@ public class BookTranslationService {
     public TranslationResult translateBook(Long bookId, String targetLanguage, int maxSentences) {
         List<BookSentence> pending = sentenceRepository.findUntranslated(bookId);
         if (pending.isEmpty()) {
-            return new TranslationResult(0, 0, 0);
+            return new TranslationResult(0, 0, 0, 0, 0);
         }
         if (maxSentences > 0 && pending.size() > maxSentences) {
             pending = pending.subList(0, maxSentences);
@@ -74,12 +90,17 @@ public class BookTranslationService {
 
         int translated = 0;
         int failedBatches = 0;
+        long promptTokens = 0;
+        long completionTokens = 0;
 
         for (int start = 0; start < pending.size(); start += BATCH_SIZE) {
             List<BookSentence> batch = pending.subList(start,
                     Math.min(start + BATCH_SIZE, pending.size()));
             try {
-                translated += translateBatch(batch, targetLanguage);
+                BatchOutcome outcome = translateBatch(batch, targetLanguage);
+                translated += outcome.applied();
+                promptTokens += outcome.promptTokens();
+                completionTokens += outcome.completionTokens();
             } catch (Exception e) {
                 // Keep going. One bad batch is a gap to fill on the next run,
                 // not a reason to abandon the other ninety-five per cent.
@@ -89,9 +110,9 @@ public class BookTranslationService {
         }
 
         int remaining = sentenceRepository.findUntranslated(bookId).size();
-        log.info("Book {} translated={} remaining={} failedBatches={}",
-                bookId, translated, remaining, failedBatches);
-        return new TranslationResult(translated, remaining, failedBatches);
+        log.info("Book {} translated={} remaining={} failedBatches={} promptTokens={} completionTokens={}",
+                bookId, translated, remaining, failedBatches, promptTokens, completionTokens);
+        return new TranslationResult(translated, remaining, failedBatches, promptTokens, completionTokens);
     }
 
     /**
@@ -100,7 +121,7 @@ public class BookTranslationService {
      * @return how many sentences came back with a usable translation
      */
     @Transactional
-    protected int translateBatch(List<BookSentence> batch, String targetLanguage) throws Exception {
+    protected BatchOutcome translateBatch(List<BookSentence> batch, String targetLanguage) throws Exception {
         String prompt = buildPrompt(batch, targetLanguage);
 
         List<Map<String, String>> messages = List.of(
@@ -130,7 +151,7 @@ public class BookTranslationService {
             applied++;
         }
         sentenceRepository.saveAll(batch);
-        return applied;
+        return new BatchOutcome(applied, completion.promptTokens(), completion.completionTokens());
     }
 
     static String buildPrompt(List<BookSentence> batch, String targetLanguage) {
