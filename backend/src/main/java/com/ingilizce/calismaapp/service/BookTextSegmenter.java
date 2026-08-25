@@ -91,6 +91,32 @@ public final class BookTextSegmenter {
     private static final Pattern CAPITALISED_TITLE = Pattern.compile(
             "^[A-Z][A-Z0-9 .,'’—-]{3,59}$");
 
+    /**
+     * A line that stands in for a picture the book had and this one does not:
+     * {@code [Illustration]}, {@code [Picture: Book cover]}.
+     *
+     * <p>Twenty-nine of Peter Rabbit's ninety-one sentences are these. Left in,
+     * a beginner meets one every third tap, taps it to see its meaning, and is
+     * shown a translation of the word "Illustration".
+     */
+    private static final Pattern IMAGE_MARKER = Pattern.compile("^\\[[^\\]]*\\]$");
+
+    /**
+     * A row of asterisks used as a section break.
+     *
+     * <p>Carries no meaning to translate and nothing to read aloud.
+     */
+    private static final Pattern ORNAMENTAL_BREAK = Pattern.compile("^[*\\s]{3,}$");
+
+    /**
+     * Gutenberg's plain-text italics: {@code always _the_ woman}.
+     *
+     * <p>A hundred and sixteen of them across the shelf. The underscores are
+     * typesetting the reader should never see, and a learner tapping {@code _the_}
+     * is looking up a word that does not exist.
+     */
+    private static final Pattern PLAIN_TEXT_ITALICS = Pattern.compile("_([^_\\n]{1,200})_");
+
     /** One sentence of a book, with the position it holds in its chapter. */
     public record BookSentence(int index, String text) {
     }
@@ -215,7 +241,8 @@ public final class BookTextSegmenter {
 
         for (String paragraph : paragraphs) {
             String flat = paragraph.replaceAll("\\s*\n\\s*", " ").strip();
-            if (flat.isEmpty()) {
+            flat = PLAIN_TEXT_ITALICS.matcher(flat).replaceAll("$1");
+            if (flat.isEmpty() || isPresentational(flat)) {
                 continue;
             }
             int start = 0;
@@ -229,18 +256,31 @@ public final class BookTextSegmenter {
                     continue;
                 }
                 String candidate = flat.substring(start, end).strip();
-                if (!candidate.isEmpty()) {
+                if (!candidate.isEmpty() && !isPresentational(candidate)) {
                     sentences.add(candidate);
                 }
                 start = end;
                 i = end - 1;
             }
             String tail = flat.substring(start).strip();
-            if (!tail.isEmpty()) {
+            if (!tail.isEmpty() && !isPresentational(tail)) {
                 sentences.add(tail);
             }
         }
         return sentences;
+    }
+
+    /**
+     * True for a line that is typography rather than text.
+     *
+     * <p>These survive segmentation looking exactly like short sentences: they
+     * are stored, counted, paid to translate, and shown to a learner as
+     * something to read. None of that is true of them.
+     */
+    static boolean isPresentational(String sentence) {
+        String trimmed = sentence.strip();
+        return IMAGE_MARKER.matcher(trimmed).matches()
+                || ORNAMENTAL_BREAK.matcher(trimmed).matches();
     }
 
     /**

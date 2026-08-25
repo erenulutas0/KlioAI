@@ -103,6 +103,73 @@ class BookLibraryTest {
                 book.slug() + " left " + absurdlyLong + " unsplit runs");
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("books")
+    @DisplayName("both boundary markers are found in the file they belong to")
+    void boundaryMarkersActuallyMatch(ShelvedBook book) throws Exception {
+        String raw = BookLibrary.readRaw(book);
+
+        // The dangerous failure here is silence. A marker with a typo in it, or
+        // one written from a different edition of the same book, trims nothing
+        // at all: the import succeeds, the front matter comes back, and nobody
+        // finds out until a learner reads a printer's colophon as sentence four.
+        assertTrue(raw.contains(book.startsAt()),
+                book.slug() + " never contains its startsAt: " + book.startsAt());
+        if (!book.endsAt().isBlank()) {
+            assertTrue(raw.contains(book.endsAt()),
+                    book.slug() + " never contains its endsAt: " + book.endsAt());
+        }
+
+        String trimmed = BookLibrary.readText(book);
+        assertTrue(trimmed.startsWith(book.startsAt()),
+                book.slug() + " does not begin at its own first line");
+        // Trimming to a fraction of the file would mean a marker matched
+        // somewhere absurd — in the table of contents, say, which names every
+        // chapter the book has.
+        assertTrue(trimmed.length() > raw.length() * 0.5,
+                book.slug() + " lost more than half its text to trimming");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("books")
+    @DisplayName("a book begins with its own first sentence, not its title page")
+    void frontMatterIsGone(ShelvedBook book) throws Exception {
+        List<BookChapter> chapters = BookTextSegmenter.segment(BookLibrary.readText(book));
+        String first = chapters.get(0).sentences().get(0).text();
+
+        assertTrue(book.startsAt().startsWith(first) || first.startsWith(book.startsAt()),
+                book.slug() + " opens on something other than its first line: " + first);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("books")
+    @DisplayName("nothing a learner taps is typography rather than text")
+    void noPresentationalSentences(ShelvedBook book) throws Exception {
+        for (BookChapter chapter : BookTextSegmenter.segment(BookLibrary.readText(book))) {
+            for (BookTextSegmenter.BookSentence sentence : chapter.sentences()) {
+                String text = sentence.text();
+
+                // Spelled out here rather than delegated to
+                // BookTextSegmenter.isPresentational on purpose. Asking the
+                // filter whether its own output got filtered is not a test:
+                // break the predicate and the production path and the assertion
+                // fail together, so the suite stays green while twenty-nine
+                // "[Illustration]" sentences walk back into the A1 book. That
+                // is not hypothetical — this test was written that way first,
+                // and it passed against exactly that mutation.
+                assertFalse(text.startsWith("[") && text.endsWith("]"),
+                        book.slug() + " kept an image marker: " + text);
+                assertFalse(text.replace(" ", "").matches("[*]{2,}"),
+                        book.slug() + " kept an ornamental break: " + text);
+
+                // Gutenberg's plain-text italics. A learner tapping _the_ is
+                // looking up a word that does not exist.
+                assertFalse(text.matches(".*_[^_]{1,200}_.*"),
+                        book.slug() + " kept italics markup: " + text);
+            }
+        }
+    }
+
     @Test
     @DisplayName("the whole shelf is a sane amount of text to translate")
     void wholeShelfIsAffordable() throws Exception {
