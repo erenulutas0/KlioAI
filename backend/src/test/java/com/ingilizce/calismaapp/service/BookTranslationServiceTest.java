@@ -36,6 +36,49 @@ class BookTranslationServiceTest {
     }
 
     @Nested
+    @DisplayName("choosing the model")
+    class ModelChoice {
+
+        /** Records what the provider was actually asked for. */
+        private final java.util.List<String> modelsAsked = new java.util.ArrayList<>();
+
+        private BookTranslationService serviceRecordingModel() {
+            AiCompletionProvider provider = (messages, json, maxTokens, temperature, model) -> {
+                modelsAsked.add(model);
+                return new AiCompletionProvider.CompletionResult(
+                        "{\"translations\":[{\"n\":1,\"t\":\"bir\"}]}", 10, 10, 20);
+            };
+            return new BookTranslationService(
+                    org.mockito.Mockito.mock(
+                            com.ingilizce.calismaapp.repository.BookSentenceRepository.class),
+                    provider);
+        }
+
+        @Test
+        @DisplayName("a chosen model reaches the provider")
+        void modelIsPassedThrough() throws Exception {
+            BookTranslationService svc = serviceRecordingModel();
+
+            svc.translateBatch(batchOf("One."), "Turkish", "openai/gpt-oss-120b");
+
+            // The whole point of the switch is comparing two models on the same
+            // sentences. An override that never arrives would leave both runs
+            // identical and the comparison would quietly measure nothing.
+            assertEquals(List.of("openai/gpt-oss-120b"), modelsAsked);
+        }
+
+        @Test
+        @DisplayName("blank means the configured default, not a model named \"\"")
+        void blankMeansDefault() throws Exception {
+            BookTranslationService svc = serviceRecordingModel();
+
+            svc.translateBatch(batchOf("One."), "Turkish", "   ");
+
+            assertNull(modelsAsked.get(0));
+        }
+    }
+
+    @Nested
     @DisplayName("reading the model's answer")
     class Parsing {
 

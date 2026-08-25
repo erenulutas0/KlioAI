@@ -61,7 +61,7 @@ class BookAdminControllerTest {
 
         // The refusal has to come first. Checking the role after calling the
         // model would still return 403 and still have paid for the answer.
-        verify(translationService, never()).translateBook(anyLong(), anyString(), any(Integer.class));
+        verify(translationService, never()).translateBook(anyLong(), anyString(), any(Integer.class), anyString());
     }
 
     @Test
@@ -94,7 +94,7 @@ class BookAdminControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
 
-        verify(translationService, never()).translateBook(anyLong(), anyString(), any(Integer.class));
+        verify(translationService, never()).translateBook(anyLong(), anyString(), any(Integer.class), anyString());
     }
 
     @Test

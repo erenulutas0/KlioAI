@@ -257,7 +257,11 @@ class BookTextSegmenterTest {
                 .toList();
 
         assertEquals(6, sentences.size());
-        assertEquals("To Sherlock Holmes she is always _the_ woman.", sentences.get(0));
+        // The underscores are Gutenberg's plain-text italics, and they do not
+        // survive: they are typesetting, and a learner tapping "_the_" to see
+        // what it means is looking up a word that does not exist. The emphasis
+        // is lost with them, which is the cheaper of the two losses.
+        assertEquals("To Sherlock Holmes she is always the woman.", sentences.get(0));
         assertEquals("I have seldom heard him mention her under any other name.", sentences.get(1));
         assertEquals("\"You have been in Afghanistan, I perceive.\"", sentences.get(4));
         assertEquals("He said it quietly.", sentences.get(5));

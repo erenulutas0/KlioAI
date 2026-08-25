@@ -44,6 +44,7 @@ class BookShelfBootstrapTest {
         ReflectionTestUtils.setField(bootstrap, "translateOnStartup", translateMax);
         ReflectionTestUtils.setField(bootstrap, "translateSlug", slug);
         ReflectionTestUtils.setField(bootstrap, "translateInto", "Turkish");
+        ReflectionTestUtils.setField(bootstrap, "translateModel", "");
         return bootstrap;
     }
 
@@ -79,21 +80,21 @@ class BookShelfBootstrapTest {
                 anyString(), anyString(), anyString(), anyString());
         // The two switches are separate on purpose: importing is free and
         // repeatable, translating is neither.
-        verify(translationService, never()).translateBook(anyLong(), anyString(), anyInt());
+        verify(translationService, never()).translateBook(anyLong(), anyString(), anyInt(), anyString());
     }
 
     @Test
     @DisplayName("the sentence ceiling is passed through, not ignored")
     void honoursTheCeiling() {
         when(bookRepository.findBySlug("peter-rabbit")).thenReturn(Optional.of(bookNamed("peter-rabbit", 7L)));
-        when(translationService.translateBook(anyLong(), anyString(), anyInt()))
+        when(translationService.translateBook(anyLong(), anyString(), anyInt(), anyString()))
                 .thenReturn(new BookTranslationService.TranslationResult(100, 0, 0, 5000, 4000));
 
         bootstrap(false, 100, "peter-rabbit").run(null);
 
         // A ceiling that quietly became "the whole novel" would be found by the
         // invoice, not by anything else.
-        verify(translationService).translateBook(eq(7L), eq("Turkish"), eq(100));
+        verify(translationService).translateBook(eq(7L), eq("Turkish"), eq(100), anyString());
     }
 
     @Test
@@ -105,14 +106,14 @@ class BookShelfBootstrapTest {
         when(bookRepository.findBySlug(second.slug())).thenReturn(Optional.of(bookNamed(second.slug(), 2L)));
         when(sentenceRepository.countUntranslated(1L)).thenReturn(0L);
         when(sentenceRepository.countUntranslated(2L)).thenReturn(500L);
-        when(translationService.translateBook(anyLong(), anyString(), anyInt()))
+        when(translationService.translateBook(anyLong(), anyString(), anyInt(), anyString()))
                 .thenReturn(new BookTranslationService.TranslationResult(20, 480, 0, 1000, 800));
 
         bootstrap(false, 20, "").run(null);
 
         // Otherwise every deploy would re-pick the finished first book and the
         // rest of the shelf would never be translated at all.
-        verify(translationService).translateBook(eq(2L), anyString(), anyInt());
+        verify(translationService).translateBook(eq(2L), anyString(), anyInt(), anyString());
     }
 
     @Test
@@ -122,7 +123,7 @@ class BookShelfBootstrapTest {
 
         bootstrap(false, 50, "peter-rabbit").run(null);
 
-        verify(translationService, never()).translateBook(anyLong(), anyString(), anyInt());
+        verify(translationService, never()).translateBook(anyLong(), anyString(), anyInt(), anyString());
     }
 
     @Test

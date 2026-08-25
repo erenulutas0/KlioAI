@@ -62,6 +62,17 @@ public class BookShelfBootstrap implements ApplicationRunner {
     @Value("${app.books.translate-into:Turkish}")
     private String translateInto;
 
+    /**
+     * Which model translates. Blank uses the configured default.
+     *
+     * <p>Worth a switch of its own: the shelf is translated once and read for
+     * years, so a better model is a one-off cost against a permanent gain, and
+     * the only way to choose honestly is to run the same sentences through two
+     * models and read both.
+     */
+    @Value("${app.books.translate-model:}")
+    private String translateModel;
+
     public BookShelfBootstrap(BookImportService importService,
             BookTranslationService translationService,
             BookRepository bookRepository,
@@ -117,12 +128,14 @@ public class BookShelfBootstrap implements ApplicationRunner {
             return;
         }
 
-        log.warn("BOOKS translate starting for {} (max {} sentences into {}). "
+        log.warn("BOOKS translate starting for {} (max {} sentences into {}, model {}). "
                 + "This spends money on every boot until APP_BOOKS_TRANSLATE_ON_STARTUP is unset.",
-                book.getSlug(), translateOnStartup, translateInto);
+                book.getSlug(), translateOnStartup, translateInto,
+                translateModel.isBlank() ? "default" : translateModel);
 
         BookTranslationService.TranslationResult result =
-                translationService.translateBook(book.getId(), translateInto, translateOnStartup);
+                translationService.translateBook(book.getId(), translateInto, translateOnStartup,
+                        translateModel);
 
         long perSentence = result.translated() == 0
                 ? 0
@@ -131,9 +144,10 @@ public class BookShelfBootstrap implements ApplicationRunner {
         // One line, tagged, carrying the number the whole decision turns on.
         // An operator reading `docker logs | grep BOOKS` should not have to do
         // arithmetic to find out what the rest of the shelf will cost.
-        log.info("BOOKS translate {} translated={} remaining={} failedBatches={} "
+        log.info("BOOKS translate {} model={} translated={} remaining={} failedBatches={} "
                 + "promptTokens={} completionTokens={} totalTokens={} tokensPerSentence={}",
-                book.getSlug(), result.translated(), result.remaining(), result.failedBatches(),
+                book.getSlug(), translateModel.isBlank() ? "default" : translateModel,
+                result.translated(), result.remaining(), result.failedBatches(),
                 result.promptTokens(), result.completionTokens(), result.totalTokens(), perSentence);
     }
 

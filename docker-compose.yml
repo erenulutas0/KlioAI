@@ -137,6 +137,7 @@ services:
       APP_BOOKS_TRANSLATE_ON_STARTUP: ${APP_BOOKS_TRANSLATE_ON_STARTUP:-0}
       APP_BOOKS_TRANSLATE_SLUG: ${APP_BOOKS_TRANSLATE_SLUG:-}
       APP_BOOKS_TRANSLATE_INTO: ${APP_BOOKS_TRANSLATE_INTO:-Turkish}
+      APP_BOOKS_TRANSLATE_MODEL: ${APP_BOOKS_TRANSLATE_MODEL:-}
       # Keep secure defaults in compose; relax only via explicit local override if needed.
       APP_SECURITY_JWT_ENFORCE_AUTH: ${APP_SECURITY_JWT_ENFORCE_AUTH:-true}
       # Required: set APP_SECURITY_JWT_SECRET in your .env (not committed) to start the backend.

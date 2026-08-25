@@ -114,7 +114,8 @@ public class BookAdminController {
     @PostMapping("/{slug}/translate")
     public ResponseEntity<Map<String, Object>> translate(@PathVariable String slug,
             @RequestParam(defaultValue = "0") int max,
-            @RequestParam(defaultValue = "Turkish") String into) {
+            @RequestParam(defaultValue = "Turkish") String into,
+            @RequestParam(defaultValue = "") String model) {
         if (forbidden()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Admin role required"));
@@ -126,7 +127,7 @@ public class BookAdminController {
         }
 
         BookTranslationService.TranslationResult result =
-                translationService.translateBook(book.getId(), into, max);
+                translationService.translateBook(book.getId(), into, max, model);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("slug", slug);

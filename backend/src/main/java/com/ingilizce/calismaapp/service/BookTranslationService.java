@@ -78,8 +78,13 @@ public class BookTranslationService {
      *
      * @param maxSentences a ceiling for one run, so an operator can try a
      *                     chapter's worth before committing to a novel
+     * @param model        which model to ask, or blank for the configured
+     *                     default. A shelf is translated once and read for
+     *                     years, so the choice is worth making per run and
+     *                     comparing on real sentences rather than assuming
      */
-    public TranslationResult translateBook(Long bookId, String targetLanguage, int maxSentences) {
+    public TranslationResult translateBook(Long bookId, String targetLanguage, int maxSentences,
+            String model) {
         List<BookSentence> pending = sentenceRepository.findUntranslated(bookId);
         if (pending.isEmpty()) {
             return new TranslationResult(0, 0, 0, 0, 0);
@@ -97,7 +102,7 @@ public class BookTranslationService {
             List<BookSentence> batch = pending.subList(start,
                     Math.min(start + BATCH_SIZE, pending.size()));
             try {
-                BatchOutcome outcome = translateBatch(batch, targetLanguage);
+                BatchOutcome outcome = translateBatch(batch, targetLanguage, model);
                 translated += outcome.applied();
                 promptTokens += outcome.promptTokens();
                 completionTokens += outcome.completionTokens();
@@ -110,8 +115,9 @@ public class BookTranslationService {
         }
 
         long remaining = sentenceRepository.countUntranslated(bookId);
-        log.info("Book {} translated={} remaining={} failedBatches={} promptTokens={} completionTokens={}",
-                bookId, translated, remaining, failedBatches, promptTokens, completionTokens);
+        log.info("Book {} model={} translated={} remaining={} failedBatches={} promptTokens={} completionTokens={}",
+                bookId, model == null || model.isBlank() ? "default" : model,
+                translated, remaining, failedBatches, promptTokens, completionTokens);
         return new TranslationResult(translated, (int) remaining, failedBatches, promptTokens, completionTokens);
     }
 
@@ -121,7 +127,8 @@ public class BookTranslationService {
      * @return how many sentences came back with a usable translation
      */
     @Transactional
-    protected BatchOutcome translateBatch(List<BookSentence> batch, String targetLanguage) throws Exception {
+    protected BatchOutcome translateBatch(List<BookSentence> batch, String targetLanguage,
+            String model) throws Exception {
         String prompt = buildPrompt(batch, targetLanguage);
 
         List<Map<String, String>> messages = List.of(
@@ -130,7 +137,8 @@ public class BookTranslationService {
                 Map.of("role", "user", "content", prompt));
 
         AiCompletionProvider.CompletionResult completion =
-                completionProvider.chatCompletionWithUsage(messages, true, null, 0.2, null);
+                completionProvider.chatCompletionWithUsage(messages, true, null, 0.2,
+                        model == null || model.isBlank() ? null : model.strip());
 
         String content = completion == null ? null : completion.content();
         if (content == null || content.isBlank()) {

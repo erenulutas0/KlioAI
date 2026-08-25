@@ -29,6 +29,7 @@ The endpoints stay in place for when there is a real admin account.
 | `APP_BOOKS_TRANSLATE_ON_STARTUP` | `0` | Sentences to translate at boot. **Spends money.** `0` disables it. |
 | `APP_BOOKS_TRANSLATE_SLUG` | *(blank)* | Which book. Blank means the first shelved book with untranslated sentences left. |
 | `APP_BOOKS_TRANSLATE_INTO` | `Turkish` | Target language. |
+| `APP_BOOKS_TRANSLATE_MODEL` | *(blank)* | Which model translates. Blank uses the configured default. |
 
 Both jobs are safe to leave switched on by accident, which is the point — a flag
 that is dangerous when forgotten will eventually be forgotten:
@@ -168,6 +169,38 @@ untranslated sentences, so repeated deploys move through the library in order.
 
 Batches commit individually, so a run that dies halfway keeps what it finished.
 Run it again to pick up the rest.
+
+## Comparing two models on the same sentences
+
+The shelf is translated once and read for years, so a better model is a one-off
+cost against a permanent gain. The difference is small enough in money that the
+only real question is whether it is visible in the Turkish -- and the only way
+to answer that is to run the same sentences through both and read them.
+
+Peter Rabbit is the book for this: 58 sentences, so a full pass is seconds and
+fractions of a cent.
+
+Translation only touches sentences that have no translation yet, so pointing a
+second model at an already-translated book does nothing at all. Re-import first
+-- it replaces the sentences, which drops their translations with them:
+
+```bash
+cd /opt/vocabmaster
+sed -i '/APP_BOOKS_/d' secrets/backend.env
+printf '
+APP_BOOKS_IMPORT_ON_STARTUP=true
+APP_BOOKS_TRANSLATE_ON_STARTUP=100
+APP_BOOKS_TRANSLATE_SLUG=peter-rabbit
+APP_BOOKS_TRANSLATE_MODEL=openai/gpt-oss-120b
+' >> secrets/backend.env
+cd deploy && docker compose -f docker-compose.app.yml up -d --force-recreate backend
+sleep 60 && docker compose -f docker-compose.app.yml logs --tail=500 backend | grep BOOKS
+```
+
+Then read the same ten sentences and compare them against the previous model's,
+which the log line records by name. Judge the concrete nouns hardest: a learner
+taps a word to find out what it means, so "blackberries" coming back as the
+wrong berry teaches them the wrong word, while a slightly stiff clause does not.
 
 ## Checking the result
 
