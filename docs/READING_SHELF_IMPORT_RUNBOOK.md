@@ -48,28 +48,44 @@ Production does **not** use the repository's `docker-compose.yml`. It uses
 repository — `scripts/deploy-backend-vps.ps1` only checks that it exists, and
 never uploads it. So the variables have to be added there, once.
 
-First find out whether that file already reads a `.env`:
+Do not infer this from the compose file. `env_file:` being present proves
+nothing about whether the `.env` you just edited reaches the container: on this
+stack the deploy directory's `.env` feeds `${...}` *substitution* inside the
+compose file, and only keys named in a service's `environment:` block are
+injected into it. Appending to `.env` and restarting therefore looks like it
+worked and changes nothing at all.
+
+The only answer that settles it comes from inside the running container:
 
 ```bash
 cd /opt/vocabmaster/deploy
-grep -n "env_file" docker-compose.app.yml
+docker compose -f docker-compose.app.yml exec -T backend env | grep APP_BOOKS
 ```
 
-**If `env_file` is present**, no compose edit is needed. Put the variables in the
-`.env` it points at and skip to *Running a job*.
+**If the variables are listed**, they are reaching the app. Skip to *Running a
+job*.
 
-**If it is not**, add the four lines once, next to the other `APP_` variables.
-This preserves the indentation of the line it anchors to:
+**If nothing prints**, name them in the backend service's `environment:` block.
+This copies the indentation of the line it anchors to, and the `test` refuses to
+go on unless that anchor is unique:
 
 ```bash
 cd /opt/vocabmaster/deploy
+n=$(grep -c "APP_SECURITY_JWT_SECRET:" docker-compose.app.yml) && echo "anchors: $n" && test "$n" = "1"
 cp docker-compose.app.yml docker-compose.app.yml.bak
-awk '{print} /APP_SECURITY_JWT_SECRET:/{match($0,/^[ \t]*/); ind=substr($0,1,RLENGTH); print ind "APP_BOOKS_IMPORT_ON_STARTUP: ${APP_BOOKS_IMPORT_ON_STARTUP:-false}"; print ind "APP_BOOKS_TRANSLATE_ON_STARTUP: ${APP_BOOKS_TRANSLATE_ON_STARTUP:-0}"; print ind "APP_BOOKS_TRANSLATE_SLUG: ${APP_BOOKS_TRANSLATE_SLUG:-}"; print ind "APP_BOOKS_TRANSLATE_INTO: ${APP_BOOKS_TRANSLATE_INTO:-Turkish}"}' docker-compose.app.yml.bak > docker-compose.app.yml
+awk '{print} /APP_SECURITY_JWT_SECRET:/{match($0,/^[ 	]*/); ind=substr($0,1,RLENGTH); print ind "APP_BOOKS_IMPORT_ON_STARTUP: ${APP_BOOKS_IMPORT_ON_STARTUP:-false}"; print ind "APP_BOOKS_TRANSLATE_ON_STARTUP: ${APP_BOOKS_TRANSLATE_ON_STARTUP:-0}"; print ind "APP_BOOKS_TRANSLATE_SLUG: ${APP_BOOKS_TRANSLATE_SLUG:-}"; print ind "APP_BOOKS_TRANSLATE_INTO: ${APP_BOOKS_TRANSLATE_INTO:-Turkish}"}' docker-compose.app.yml.bak > docker-compose.app.yml
+grep -n "APP_BOOKS" docker-compose.app.yml
 docker compose -f docker-compose.app.yml config >/dev/null && echo "compose still valid"
 ```
 
-The `${VAR:-default}` form means this is the only compose edit ever needed —
-every later job is a `.env` change and a restart.
+`compose still valid` prints happily when awk inserted nothing, which is exactly
+the case where you want to be stopped — so check that the `grep` really lists
+four lines.
+
+Written as `${VAR:-default}` so the compose file names the keys once and `.env`
+still supplies the values: this is the only compose edit ever needed, and every
+later job is a `.env` change plus a restart. Confirm it with the `exec ... env`
+check above before trusting it.
 
 ## New code needs a deploy, not a restart
 
