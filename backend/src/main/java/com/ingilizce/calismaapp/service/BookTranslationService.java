@@ -109,10 +109,10 @@ public class BookTranslationService {
             }
         }
 
-        int remaining = sentenceRepository.findUntranslated(bookId).size();
+        long remaining = sentenceRepository.countUntranslated(bookId);
         log.info("Book {} translated={} remaining={} failedBatches={} promptTokens={} completionTokens={}",
                 bookId, translated, remaining, failedBatches, promptTokens, completionTokens);
-        return new TranslationResult(translated, remaining, failedBatches, promptTokens, completionTokens);
+        return new TranslationResult(translated, (int) remaining, failedBatches, promptTokens, completionTokens);
     }
 
     /**

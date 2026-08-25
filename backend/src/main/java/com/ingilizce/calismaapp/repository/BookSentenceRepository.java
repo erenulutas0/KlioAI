@@ -30,6 +30,17 @@ public interface BookSentenceRepository extends JpaRepository<BookSentence, Long
     @Query("DELETE FROM BookSentence s WHERE s.book.id = :bookId")
     void deleteByBookId(@Param("bookId") Long bookId);
 
+    /**
+     * How much of a book is still waiting, without loading any of it.
+     *
+     * <p>Separate from {@link #findUntranslated} because the two questions have
+     * very different costs: asking how many are left should not drag several
+     * thousand sentences into memory to count them.
+     */
+    @Query("SELECT COUNT(s) FROM BookSentence s WHERE s.book.id = :bookId "
+            + "AND s.translation IS NULL")
+    long countUntranslated(@Param("bookId") Long bookId);
+
     /** Sentences still waiting for a translation, oldest position first. */
     @Query("SELECT s FROM BookSentence s WHERE s.book.id = :bookId "
             + "AND s.translation IS NULL ORDER BY s.sentenceIndex ASC")
