@@ -67,6 +67,30 @@ public final class BookTextSegmenter {
     private static final Pattern CHAPTER_HEADING = Pattern.compile(
             "(?i)^\\s*(?:chapter|part|book)\\s+([IVXLCDM]+|\\d+)\\b.*$|^\\s*([IVXLCDM]+)\\.?\\s*$");
 
+    /**
+     * A numbered title: {@code III. A CASE OF IDENTITY}.
+     *
+     * <p>How a Victorian story collection separates its stories, and the reason
+     * the twelve Sherlock Holmes adventures arrived as five chapters before this
+     * existed.
+     */
+    private static final Pattern NUMBERED_TITLE = Pattern.compile(
+            "^[IVXLCDM]+\\.\\s+\\S.{1,58}$");
+
+    /**
+     * A title in capitals on a line of its own: {@code THE CAREW MURDER CASE}.
+     *
+     * <p>Jekyll and Hyde names its chapters this way and nothing else, so
+     * without this the whole novella was one unbroken run of twelve hundred
+     * sentences.
+     *
+     * <p>Books that centre a title in ordinary case are deliberately not matched.
+     * That shape is indistinguishable from a short line of prose, and a wrongly
+     * split book reads worse than one with no chapter list at all.
+     */
+    private static final Pattern CAPITALISED_TITLE = Pattern.compile(
+            "^[A-Z][A-Z0-9 .,'’—-]{3,59}$");
+
     /** One sentence of a book, with the position it holds in its chapter. */
     public record BookSentence(int index, String text) {
     }
@@ -153,7 +177,23 @@ public final class BookTextSegmenter {
         if (trimmed.isEmpty() || trimmed.length() > 60) {
             return false;
         }
-        return CHAPTER_HEADING.matcher(trimmed).matches();
+        if (CHAPTER_HEADING.matcher(trimmed).matches()) {
+            return true;
+        }
+        // A heading is a label, not a sentence. Requiring no closing punctuation
+        // keeps a short line of dialogue or a one-line paragraph from being read
+        // as the start of a chapter.
+        char last = trimmed.charAt(trimmed.length() - 1);
+        if (last == '.' || last == '!' || last == '?' || last == ',' || last == ';' || last == ':') {
+            return false;
+        }
+        if (NUMBERED_TITLE.matcher(trimmed).matches()) {
+            return true;
+        }
+        // At least two letters, so a row of asterisks or a page number does not
+        // qualify as a chapter.
+        long letters = trimmed.chars().filter(Character::isLetter).count();
+        return letters >= 4 && CAPITALISED_TITLE.matcher(trimmed).matches();
     }
 
     /**
