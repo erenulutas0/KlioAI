@@ -10,6 +10,7 @@ import '../providers/app_state_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_reminder_service.dart';
 import 'nf_frontend_preference.dart';
+import 'screens/nf_books_page.dart';
 import 'screens/nf_dictionary_page.dart';
 import 'screens/nf_grammar_page.dart';
 import 'screens/nf_notifications_page.dart';
@@ -277,6 +278,8 @@ class _NfShellState extends State<NfShell> {
         _pushNf(NfTranslationPracticePage(
           subMode: hasWords ? 'random' : 'select',
         ));
+      case NfPracticeModes.books:
+        _pushNf(const NfBooksPage());
       case NfPracticeModes.reading:
         _pushNf(const NfReadingPracticePage());
       case NfPracticeModes.writing:

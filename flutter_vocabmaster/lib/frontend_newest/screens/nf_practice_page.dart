@@ -21,6 +21,10 @@ class NfPracticeModes {
 
   static const String translate = 'translate';
   static const String reading = 'reading';
+
+  /// Reading whole public-domain books, as opposed to the generated
+  /// comprehension passages [reading] serves.
+  static const String books = 'books';
   static const String writing = 'writing';
   static const String grammar = 'grammar';
   static const String speaking = 'speaking';
@@ -34,6 +38,7 @@ class NfPracticeModes {
   /// than one that is not offered. Its code still exists under `lib/screens/`.
   static const List<String> all = <String>[
     translate,
+    books,
     reading,
     writing,
     grammar,
@@ -279,6 +284,12 @@ List<_NfModeSpec> _modeSpecs(BuildContext context) {
       icon: Icons.translate_rounded,
       name: context.tr('practice.mode.translate'),
       description: context.tr('practice.translate.desc'),
+    ),
+    _NfModeSpec(
+      id: NfPracticeModes.books,
+      icon: Icons.auto_stories_rounded,
+      name: context.tr('practice.mode.books'),
+      description: context.tr('practice.books.subtitle'),
     ),
     _NfModeSpec(
       id: NfPracticeModes.reading,

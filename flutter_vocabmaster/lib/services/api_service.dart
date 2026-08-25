@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../models/book.dart';
 import '../models/language_profile.dart';
 import '../models/word.dart';
 import '../models/sentence_practice.dart';
@@ -1675,6 +1676,80 @@ class ApiService {
       throw _upgradeFromResponse(response);
     }
     throw Exception('Writing değerlendirme başarısız: ${response.statusCode}');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reading shelf
+  //
+  // These are ordinary protected calls, not AI ones: the books are imported and
+  // stored server-side, so reading costs no quota and cannot be rate limited.
+  // The AI cost in this feature is one tap on one word, which goes through
+  // chatbotDictionaryExplainWordInSentence like everywhere else.
+  // ---------------------------------------------------------------------------
+
+  /// GET /books → the shelf, easiest first, with this reader's bookmarks.
+  Future<List<BookShelfEntry>> getBookShelf() async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(Uri.parse('$url/books'), headers: headers),
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body) as List<dynamic>;
+      return data
+          .map((dynamic e) =>
+              BookShelfEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    throw Exception('Kitaplık yüklenemedi: ${response.statusCode}');
+  }
+
+  /// GET /books/{slug}/sentences → a window of the book.
+  ///
+  /// [from] is a sentence index, not a page number, so a reader opens exactly
+  /// where they stopped rather than at the top of the page containing it.
+  Future<ReaderWindow> getBookSentences({
+    required String slug,
+    required int from,
+    int size = 50,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/books/$slug/sentences?from=$from&size=$size'),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode == 200) {
+      return ReaderWindow.fromJson(
+          Map<String, dynamic>.from(json.decode(response.body) as Map));
+    }
+    throw Exception('Kitap yüklenemedi: ${response.statusCode}');
+  }
+
+  /// PUT /books/{slug}/progress → the bookmark the server actually kept.
+  ///
+  /// Returns the server's value rather than the one sent, because the server
+  /// only ever moves a bookmark forward: scrolling back to re-read must not
+  /// undo an afternoon. The caller should trust what comes back.
+  Future<int> saveBookProgress({
+    required String slug,
+    required int sentenceIndex,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.put(
+        Uri.parse('$url/books/$slug/progress'),
+        headers: headers,
+        body: json.encode(<String, dynamic>{'sentenceIndex': sentenceIndex}),
+      ),
+      json: true,
+    );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data =
+          Map<String, dynamic>.from(json.decode(response.body) as Map);
+      return (data['lastSentenceIndex'] as num?)?.toInt() ?? sentenceIndex;
+    }
+    throw Exception('İlerleme kaydedilemedi: ${response.statusCode}');
   }
 
 }
