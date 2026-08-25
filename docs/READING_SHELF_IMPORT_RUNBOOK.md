@@ -71,7 +71,27 @@ docker compose -f docker-compose.app.yml config >/dev/null && echo "compose stil
 The `${VAR:-default}` form means this is the only compose edit ever needed —
 every later job is a `.env` change and a restart.
 
+## Recreating is not deploying
+
+`docker compose up -d --force-recreate backend` rebuilds nothing. It recreates
+the container from the image that is already there, which is exactly what a job
+below needs — the variables are read fresh at boot — and is useless for shipping
+code. New backend code reaches the VPS only through the deploy workflow, which
+rsyncs the source and runs `docker compose build`.
+
+So: deploy once when the code changes, recreate freely when only `.env` changed.
+
 ## Running a job
+
+Spring Boot takes the better part of a minute to start. `logs --tail=200` run
+immediately after `up -d` returns prints the tail of the *previous* boot, or
+nothing at all. Follow the log instead and wait for the line:
+
+```bash
+docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered BOOKS
+```
+
+Ctrl-C once the line you are waiting for appears.
 
 ### 1. Import the shelf (free, do this first)
 
@@ -79,7 +99,7 @@ every later job is a `.env` change and a restart.
 cd /opt/vocabmaster/deploy
 echo "APP_BOOKS_IMPORT_ON_STARTUP=true" >> .env
 docker compose -f docker-compose.app.yml up -d --force-recreate backend
-docker compose -f docker-compose.app.yml logs --tail=200 backend | grep BOOKS
+docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered BOOKS
 ```
 
 Expect one line per book and a total. Then take the switch back out:
@@ -97,7 +117,7 @@ it actually cost, and only then decide.
 cd /opt/vocabmaster/deploy
 printf 'APP_BOOKS_TRANSLATE_ON_STARTUP=100\nAPP_BOOKS_TRANSLATE_SLUG=peter-rabbit\n' >> .env
 docker compose -f docker-compose.app.yml up -d --force-recreate backend
-docker compose -f docker-compose.app.yml logs --tail=200 backend | grep "BOOKS translate"
+docker compose -f docker-compose.app.yml logs -f --tail=0 backend | grep --line-buffered "BOOKS translate"
 ```
 
 The line that matters ends with `tokensPerSentence=N`. Multiply it by the
