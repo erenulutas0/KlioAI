@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/book.dart';
+import '../../models/word.dart';
 import '../../services/api_service.dart';
+import '../../providers/app_state_provider.dart';
 import '../../services/groq_service.dart';
 import '../../utils/sentence_tokens.dart';
 import '../theme/nf_tokens.dart';
+import '../widgets/nf_button.dart';
 
 /// Reading a book, one sentence at a time.
 ///
@@ -160,7 +164,11 @@ class _NfReaderPageState extends State<NfReaderPage> {
     final int span = _sentences.last.index - first;
     final int here = first + (span * fraction).round();
     if (here > _reached) {
-      _reached = here;
+      // setState, not a bare assignment: the header's percentage and bar read
+      // _reached, and without a rebuild they sit at zero for the whole book
+      // while the shelf behind them shows the real number. Crossing a sentence
+      // boundary is rare enough that rebuilding here costs nothing.
+      setState(() => _reached = here);
       _scheduleProgress();
     }
   }
@@ -191,11 +199,18 @@ class _NfReaderPageState extends State<NfReaderPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext sheetContext) => _WordSheet(
+      builder: (BuildContext sheetContext) => ReaderWordSheet(
         word: word,
         sentence: sentence.text,
         sentenceTranslation: sentence.translation,
         api: _api,
+        // The server keeps the word either way; this is what puts it in front
+        // of the learner. Without it the save succeeds, the sheet says so, and
+        // the Words screen goes on showing the list it loaded at startup --
+        // which reads, to the person who just saved it, exactly like the save
+        // having failed.
+        onSaved: (Word saved) =>
+            context.read<AppStateProvider>().adoptServerWord(saved),
       ),
     );
   }
@@ -476,12 +491,19 @@ class _TappableSentenceState extends State<_TappableSentence> {
 }
 
 /// What a tapped word shows: its meaning in this sentence, and a way to keep it.
-class _WordSheet extends StatefulWidget {
-  const _WordSheet({
+///
+/// Public, and its lookup injectable, so a test can drive the save. The bug
+/// this guards against is silent: the word reaches the server, the sheet says
+/// so, and the deck the learner then opens has never heard of it.
+class ReaderWordSheet extends StatefulWidget {
+  const ReaderWordSheet({
+    super.key,
+    this.lookUp,
     required this.word,
     required this.sentence,
     required this.sentenceTranslation,
     required this.api,
+    required this.onSaved,
   });
 
   final String word;
@@ -492,11 +514,18 @@ class _WordSheet extends StatefulWidget {
 
   final ApiService api;
 
+  /// Called with the word the server created, so the rest of the app learns
+  /// about it without waiting for a restart.
+  final void Function(Word word) onSaved;
+
+  /// How to explain the word in its sentence. Defaults to the app's dictionary.
+  final Future<String> Function(String word, String sentence)? lookUp;
+
   @override
-  State<_WordSheet> createState() => _WordSheetState();
+  State<ReaderWordSheet> createState() => ReaderWordSheetState();
 }
 
-class _WordSheetState extends State<_WordSheet> {
+class ReaderWordSheetState extends State<ReaderWordSheet> {
   String? _definition;
   String? _error;
   bool _loading = true;
@@ -515,10 +544,9 @@ class _WordSheetState extends State<_WordSheet> {
       _error = null;
     });
     try {
-      final String definition = await GroqService.explainWordInSentence(
-        widget.word,
-        widget.sentence,
-      );
+      final Future<String> Function(String, String) lookUp =
+          widget.lookUp ?? GroqService.explainWordInSentence;
+      final String definition = await lookUp(widget.word, widget.sentence);
       if (!mounted) return;
       setState(() {
         _definition = definition;
@@ -561,6 +589,7 @@ class _WordSheetState extends State<_WordSheet> {
           translation: sentenceTranslation.trim(),
         );
       }
+      widget.onSaved(word);
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -586,11 +615,16 @@ class _WordSheetState extends State<_WordSheet> {
           top: Radius.circular(NfSpace.s20),
         ),
       ),
+      // viewInsets is the keyboard; viewPadding is the system navigation bar.
+      // Only the first was accounted for, so on a device with on-screen
+      // navigation the save button sat underneath it.
       padding: EdgeInsets.fromLTRB(
         NfSpace.s20,
         NfSpace.s16,
         NfSpace.s20,
-        NfSpace.s20 + MediaQuery.of(context).viewInsets.bottom,
+        NfSpace.s20 +
+            MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).viewPadding.bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -641,20 +675,14 @@ class _WordSheetState extends State<_WordSheet> {
               ),
             ),
           const SizedBox(height: NfSpace.s20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: (_loading || _saving || _saved || _definition == null)
-                  ? null
-                  : _save,
-              child: Text(
-                _saved
-                    ? context.tr('books.word.saved')
-                    : _saving
-                        ? context.tr('books.word.saving')
-                        : context.tr('books.word.save'),
-              ),
-            ),
+          NfPrimaryButton(
+            label: _saved
+                ? context.tr('books.word.saved')
+                : context.tr('books.word.save'),
+            busy: _saving,
+            onPressed: (_loading || _saving || _saved || _definition == null)
+                ? null
+                : _save,
           ),
         ],
       ),

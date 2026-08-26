@@ -147,42 +147,73 @@ void main() {
             '${offenders.join('\n')}');
   });
 
-  test('Turkish is written with its own letters', () {
-    // The app shipped with "Sozluk", "Konusma", "Gercek Zamanli Degerlendirme"
-    // and thirty-odd more. Turkish readers are the entire audience, and to them
-    // a missing ö or ş does not read as a typo — it reads as a machine wrote it.
+  test('Turkish spells each word one way', () {
+    // Turkish readers are the entire audience, and to them a missing ö or ş
+    // does not read as a typo — it reads as a machine wrote it.
     //
-    // Only whole words whose diacritic form is the only correct one. Anything
-    // ambiguous is left out: a guard that cries wolf gets switched off.
-    const stripped = <String>[
-      'icin', 'gunluk', 'ogren', 'ogrenme', 'ogrenilen', 'konusma', 'konusmaci',
-      'sozluk', 'degerlendirme', 'degerlendir', 'gecmis', 'basla', 'baslat',
-      'hazir', 'farkli', 'gercek', 'zamanli', 'bugun', 'henuz', 'ornek',
-      'cumle', 'tum', 'arayuz', 'pratigi', 'guncellendi', 'hazirlaniyor',
-      'anlayin', 'yazilar', 'aninda', 'bulunamadi',
-    ];
-    final word = RegExp('(?:${stripped.join('|')})', caseSensitive: false);
-
+    // This used to be a hand-written list of thirty stripped words. That guard
+    // only ever caught what someone had remembered to enumerate: it passed
+    // while the file carried "Giris" beside "giriş", "Gunun" beside "Günün",
+    // "Turkce" beside "Türkçe" — forty-odd words spelled both ways at once.
+    //
+    // So it asks a question the file can answer about itself instead. If the
+    // same word appears with its diacritics somewhere and without them
+    // somewhere else, one of the two is wrong, and no dictionary is needed to
+    // know that. It cannot catch a word that is stripped everywhere — nothing
+    // short of a dictionary can — but it makes the file's own inconsistency
+    // impossible to reintroduce.
     final block = RegExp("^    'tr': \\{(.*?)^    \\},",
             multiLine: true, dotAll: true)
         .firstMatch(source);
     expect(block, isNotNull);
 
-    final offenders = <String>[];
+    // Turkish's own casing rules, applied before comparing. Without these,
+    // "YENİ" and "Yeni" look like a contradiction when they are simply the
+    // same word cased two ways: in Turkish, i uppercases to İ and I lowercases
+    // to ı. A guard that failed on those would be reporting correct spelling
+    // as an error, and a guard that cries wolf gets switched off.
+    String turkishLower(String s) =>
+        s.replaceAll('İ', 'i').replaceAll('I', 'ı').toLowerCase();
+    String foldDiacritics(String s) {
+      const from = 'çğıöşüÇĞİÖŞÜ';
+      const to = 'cgiosuCGIOSU';
+      final buffer = StringBuffer();
+      for (final rune in s.runes) {
+        final char = String.fromCharCode(rune);
+        final at = from.indexOf(char);
+        buffer.write(at < 0 ? char : to[at]);
+      }
+      return buffer.toString();
+    }
+
+    // folded spelling -> the distinct Turkish-lowercased forms seen for it,
+    // each with an example key so a failure names somewhere to look.
+    final spellings = <String, Map<String, String>>{};
     final entry = RegExp(r"^\s+'([^']+)': '([^']*)',", multiLine: true);
     for (final m in entry.allMatches(block!.group(1)!)) {
-      final value = m.group(2)!;
-      for (final token in value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
-        if (token.isEmpty) continue;
-        if (word.stringMatch(token) == token) {
-          offenders.add('${m.group(1)}: "$value"  →  "$token"');
-          break;
-        }
+      final key = m.group(1)!;
+      for (final token
+          in m.group(2)!.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
+        // Two letters and under is mostly abbreviations and roman numerals,
+        // where a stripped form is not evidence of anything.
+        if (token.length < 3) continue;
+        final folded = foldDiacritics(token).toLowerCase();
+        (spellings[folded] ??= <String, String>{})
+            .putIfAbsent(turkishLower(token), () => key);
       }
     }
 
+    final offenders = <String>[];
+    for (final MapEntry<String, Map<String, String>> e in spellings.entries) {
+      if (e.value.length < 2) continue;
+      final variants = e.value.entries
+          .map((v) => '"${v.key}" (${v.value})')
+          .join('  vs  ');
+      offenders.add('  ${e.key}: $variants');
+    }
+
     expect(offenders, isEmpty,
-        reason: 'Turkish written without its diacritics:\n'
+        reason: 'The same Turkish word is spelled more than one way:\n'
             '${offenders.join('\n')}');
   });
 }

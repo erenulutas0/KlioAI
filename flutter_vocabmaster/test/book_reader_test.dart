@@ -9,6 +9,8 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_books_page.dart';
+import 'package:vocabmaster/frontend_newest/screens/nf_reader_page.dart';
+import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/services/api_service.dart';
 import 'package:vocabmaster/services/auth_service.dart';
@@ -179,6 +181,99 @@ void main() {
         await api.saveBookProgress(slug: 'peter-rabbit', sentenceIndex: 12),
         40,
       );
+    });
+  });
+
+  group('saving a tapped word', () {
+    testWidgets('the deck is told about the word, not just the server',
+        (WidgetTester tester) async {
+      // This is the failure the feature cannot afford, and it is silent: the
+      // word reaches the server, the sheet says "added", and the Words screen
+      // the learner opens next has never heard of it. On the device that read
+      // exactly like a save that had failed -- the word was there the whole
+      // time, one restart away.
+      final List<Word> adopted = <Word>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          if (request.url.path.endsWith('/words')) {
+            return http.Response(
+              json.encode(<String, Object?>{
+                'id': 77,
+                'englishWord': 'underneath',
+                'turkishMeaning': 'altında',
+                'learnedDate': '2026-08-27',
+              }),
+              201,
+              headers: <String, String>{'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{}', 200,
+              headers: <String, String>{'content-type': 'application/json'});
+        }),
+      );
+
+      await tester.pumpWidget(host(Scaffold(
+        body: ReaderWordSheet(
+          word: 'underneath',
+          sentence: 'They lived underneath a fir-tree.',
+          sentenceTranslation: null,
+          api: api,
+          onSaved: adopted.add,
+          lookUp: (String w, String s) async => 'bir şeyin alt kısmında',
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Desteye ekle'));
+      await tester.pumpAndSettle();
+
+      expect(adopted, hasLength(1));
+      expect(adopted.single.id, 77);
+    });
+
+    testWidgets('a sentence with no translation is not attached to the word',
+        (WidgetTester tester) async {
+      // The sentences endpoint requires a translation. Sending an empty one
+      // would store a sentence whose translation looks like it failed to load
+      // rather than one the book never had -- and most of the shelf is
+      // untranslated on purpose.
+      final List<String> paths = <String>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          paths.add(request.url.path);
+          return http.Response(
+            json.encode(<String, Object?>{
+              'id': 77,
+              'englishWord': 'underneath',
+              'turkishMeaning': 'altında',
+              'learnedDate': '2026-08-27',
+            }),
+            201,
+            headers: <String, String>{'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      await tester.pumpWidget(host(Scaffold(
+        body: ReaderWordSheet(
+          word: 'underneath',
+          sentence: 'They lived underneath a fir-tree.',
+          sentenceTranslation: null,
+          api: api,
+          onSaved: (_) {},
+          lookUp: (String w, String s) async => 'bir şeyin alt kısmında',
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Desteye ekle'));
+      await tester.pumpAndSettle();
+
+      expect(paths.where((p) => p.contains('/sentences')), isEmpty);
     });
   });
 }
