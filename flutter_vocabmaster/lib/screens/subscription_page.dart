@@ -451,7 +451,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         content: Text(
           message ??
               _text(
-                'PRO uyeliginiz başarıyla aktif edildi. Keyifle ogrenin!',
+                'PRO üyeliğiniz başarıyla aktif edildi. Keyifle öğrenin!',
                 'Your PRO membership is active. Enjoy learning!',
               ),
           style: const TextStyle(color: Colors.white70),
@@ -555,11 +555,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         child: Text(
                           _subscriptionEndDateLabel == null
                               ? _text(
-                                  'Aboneliginiz aktif.',
+                                  'Aboneliğiniz aktif.',
                                   'Your subscription is active.',
                                 )
                               : _text(
-                                  'Aboneliginiz aktif. Bitiş: $_subscriptionEndDateLabel',
+                                  'Aboneliğiniz aktif. Bitiş: $_subscriptionEndDateLabel',
                                   'Your subscription is active. Ends: $_subscriptionEndDateLabel',
                                 ),
                           style: const TextStyle(

@@ -278,7 +278,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         // Yeni karakterin hoşgeldin mesajı
         _addBotMessage(
           _text(
-              'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksaniyla konusacagim için cok heyecanliyim. Hadi başlayalım.',
+              'Selam! Ben ${voice.name}. Seninle ${voice.accent} aksanıyla konuşacağım için çok heyecanlıyım. Hadi başlayalım.',
               'Hi! I am ${voice.name}. I am excited to practice with you in a ${voice.accent} accent. Let us get started.'),
           speak: true,
         );

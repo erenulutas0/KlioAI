@@ -239,11 +239,11 @@ class _WordsPageState extends State<WordsPage> {
                             title: _text('Kelimeler Sayfası', 'Words Page'),
                             steps: [
                               _text(
-                                'Takvimden gün secip o tarihte ogrendiginiz kelimeleri inceleyin.',
+                                'Takvimden gün seçip o tarihte öğrendiğiniz kelimeleri inceleyin.',
                                 'Pick a day on the calendar to review the words learned on that date.',
                               ),
                               _text(
-                                'İşaretli günler, kelime calismasi yaptiginiz aktif gunleri gösterir.',
+                                'İşaretli günler, kelime çalışması yaptığınız aktif günleri gösterir.',
                                 'Marked days show when you practiced vocabulary.',
                               ),
                               _text(
@@ -255,7 +255,7 @@ class _WordsPageState extends State<WordsPage> {
                                 'Set a difficulty level for each word to manage review flow.',
                               ),
                               _text(
-                                'Eklediginiz kelimelere örnek cümleler ekleyerek kaliciligi artirin.',
+                                'Eklediğiniz kelimelere örnek cümleler ekleyerek kalıcılığı artırın.',
                                 'Add example sentences to make each word easier to retain.',
                               ),
                             ],

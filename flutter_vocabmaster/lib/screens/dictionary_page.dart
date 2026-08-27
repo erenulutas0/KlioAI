@@ -769,7 +769,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
           const SizedBox(height: 16),
           Text(
             _text(
-              'Kaydetmek istediginiz anlamları secebilirsiniz',
+              'Kaydetmek istediğiniz anlamları seçebilirsiniz',
               'You can choose which meanings to save',
             ),
             style: TextStyle(

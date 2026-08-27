@@ -149,7 +149,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         subtitle:
                             widget.mode == NeuralGameMode.turkishTranslation
                                 ? _text(
-                                    'Türkçe karsiligini yaz',
+                                    'Türkçe karşılığını yaz',
                                     'Type the Turkish meaning',
                                   )
                                 : _text(
@@ -220,7 +220,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         hintText:
                             widget.mode == NeuralGameMode.turkishTranslation
                                 ? _text(
-                                    'Türkçe karsiligini yaz',
+                                    'Türkçe karşılığını yaz',
                                     'Type the Turkish meaning',
                                   )
                                 : _text(

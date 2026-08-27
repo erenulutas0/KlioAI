@@ -1885,7 +1885,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         content: Text(
           _text(
-            'Bu cihazdan çıkış yapılacak. Kelimelerin, aboneliğin ve AI kotan Google hesabina bağlı kalır.',
+            'Bu cihazdan çıkış yapılacak. Kelimelerin, aboneliğin ve AI kotan Google hesabına bağlı kalır.',
             'You will be signed out on this device. Your words, subscription, and AI quota stay linked to your Google account.',
           ),
           style: const TextStyle(color: Colors.white70, height: 1.35),

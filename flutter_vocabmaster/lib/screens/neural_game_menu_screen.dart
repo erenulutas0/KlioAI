@@ -116,7 +116,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                           const SizedBox(height: 4),
                                           Text(
                                             _text(
-                                              '60 saniyede kelime agini tamamla.',
+                                              '60 saniyede kelime ağını tamamla.',
                                               'Build your word network in 60 seconds.',
                                             ),
                                             maxLines: 2,

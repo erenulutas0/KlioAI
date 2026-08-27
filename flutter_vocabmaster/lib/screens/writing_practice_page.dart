@@ -177,7 +177,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                 const SizedBox(height: 4),
                 Text(
                   _text(
-                    'Seviyene uygun konularda yaz, yapay zeka degerlendirsin',
+                    'Seviyene uygun konularda yaz, yapay zeka değerlendirsin',
                     'Write on level-appropriate topics and get AI evaluation',
                   ),
                   style: const TextStyle(
@@ -531,7 +531,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _text('Yazinizi Buraya Yazın', 'Write Here'),
+                    _text('Yazınızı Buraya Yazın', 'Write Here'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -592,7 +592,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               ),
               decoration: InputDecoration(
                 hintText: _text(
-                  'Yazinizi buraya yazın... Duygularinizi ve dusuncelerinizi ozgurce ifade edin. Her kelime öğrenme yolculugunuzda bir adimdir.',
+                  'Yazınızı buraya yazın... Duygularınızı ve düşüncelerinizi özgürce ifade edin. Her kelime öğrenme yolculuğunuzda bir adımdır.',
                   'Write here... Express your ideas clearly and freely. Every word is a step in your learning journey.',
                 ),
                 hintStyle: const TextStyle(

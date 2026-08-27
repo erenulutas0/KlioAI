@@ -162,7 +162,7 @@ class SubscriptionService {
 
       if (productId.isEmpty) {
         onPurchaseError?.call(_text(
-          'Bu plan için magazada urun bulunamadı.',
+          'Bu plan için mağazada ürün bulunamadı.',
           'No store product was found for this plan.',
         ));
         return false;
@@ -173,7 +173,7 @@ class SubscriptionService {
 
       if (product == null) {
         onPurchaseError?.call(_text(
-          'Mağaza urunu bulunamadı: $productId. Play Console urunu/base planı aktif mi ve bu test hesabina açık mi kontrol edin.',
+          'Mağaza ürünü bulunamadı: $productId. Play Console ürünü/base planı aktif mi ve bu test hesabına açık mı kontrol edin.',
           'Store product not found: $productId. Check that the Play Console product/base plan is active and available to this tester.',
         ));
         return false;
@@ -257,7 +257,7 @@ class SubscriptionService {
         if (verified) {
           _lastVerificationError = null;
           onPurchaseSuccess?.call(_text(
-            'Aboneliginiz başarıyla aktiflestirildi.',
+            'Aboneliğiniz başarıyla aktifleştirildi.',
             'Your subscription was activated successfully.',
           ));
         } else {
@@ -296,7 +296,7 @@ class SubscriptionService {
         }
         if (userId == null || userId <= 0) {
           _lastVerificationError = _text(
-            'Kullanıcı kimligi bulunamadı. Lütfen tekrar deneyin.',
+            'Kullanıcı kimliği bulunamadı. Lütfen tekrar deneyin.',
             'Your account identity could not be resolved. Please try again.',
           );
           debugPrint('Backend verification failed: missing userId');
@@ -505,7 +505,7 @@ class SubscriptionService {
     if (statusCode == 401 || statusCode == 403) {
       if (normalized.contains('user identity mismatch')) {
         return _text(
-          'Hesap oturumu ile kullanıcı bilgisi eslesmedi. Oturum otomatik yenileniyor; işlemi tekrar deneyin.',
+          'Hesap oturumu ile kullanıcı bilgisi eşleşmedi. Oturum otomatik yenileniyor; işlemi tekrar deneyin.',
           'Your stored account data did not match the active session. The session is being repaired automatically; please try the purchase again.',
         );
       }
@@ -523,13 +523,13 @@ class SubscriptionService {
     if (statusCode == 400 &&
         normalized.contains('unable to map google product/base plan')) {
       return _text(
-        'Play Console urun-planı backend ile eslesmedi. Destek ekibiyle iletisime gecin.',
+        'Play Console ürün-planı backend ile eşleşmedi. Destek ekibiyle iletişime geçin.',
         'The Play Console product plan does not match the backend mapping. Please contact support.',
       );
     }
     if (statusCode == 400 && normalized.contains('mapped plan not found')) {
       return _text(
-        'Backend plan eslemesi eksik. Destek ekibiyle iletisime gecin.',
+        'Backend plan eslemesi eksik. Destek ekibiyle iletişime geçin.',
         'The backend plan mapping is missing. Please contact support.',
       );
     }

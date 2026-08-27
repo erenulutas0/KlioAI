@@ -373,7 +373,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _text('En sevdigin ses tonunu seç',
+                  _text('En sevdiğin ses tonunu seç',
                       'Choose your preferred voice'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
