@@ -2376,7 +2376,7 @@ public class ChatbotController {
         payload.put("tokensRemaining", decision.tokensRemaining());
 
         if ("ai-access-disabled".equalsIgnoreCase(decision.reason())) {
-            payload.put("error", "AI ozellikleri su an pasif. Devam etmek icin premium plana gecin.");
+            payload.put("error", "AI özellikleri şu an pasif. Devam etmek için premium plana geçin.");
             payload.put("upgradeRequired", true);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
         }

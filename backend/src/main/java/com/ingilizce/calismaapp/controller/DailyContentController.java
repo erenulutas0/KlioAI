@@ -123,7 +123,7 @@ public class DailyContentController {
         payload.put("success", false);
         payload.put("reason", "ai-access-disabled");
         payload.put("upgradeRequired", true);
-        payload.put("error", "AI ozellikleri su an pasif. Devam etmek icin premium plana gecin.");
+        payload.put("error", "AI özellikleri şu an pasif. Devam etmek için premium plana geçin.");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
     }
 }

@@ -999,7 +999,7 @@ JSON Format:
         String word = extractWordHint(userPrompt);
         Map<String, Object> meaning = new HashMap<>();
         meaning.put("translation", "Anlam gecici olarak getirilemedi");
-        meaning.put("context", "Lutfen bir kac saniye sonra tekrar deneyin.");
+        meaning.put("context", "Lütfen birkaç saniye sonra tekrar deneyin.");
         meaning.put("example", word.isBlank()
                 ? "Please try again in a moment."
                 : "Please try searching \"" + word + "\" again in a moment.");
@@ -1022,7 +1022,7 @@ JSON Format:
         meaning.put("example", word.isBlank()
                 ? "Please try again in a moment."
                 : "Please try searching \"" + word + "\" again in a moment.");
-        meaning.put("exampleTranslation", "Lutfen biraz sonra tekrar deneyin.");
+        meaning.put("exampleTranslation", "Lütfen biraz sonra tekrar deneyin.");
 
         Map<String, Object> fallback = new HashMap<>();
         fallback.put("word", word);
@@ -1136,7 +1136,7 @@ JSON Format:
         fallback.put("grammar", "");
         fallback.put("vocabulary", "");
         fallback.put("coherence", "");
-        fallback.put("overall", "Lutfen yazinizi tekrar degerlendirin.");
+        fallback.put("overall", "Lütfen yazınızı tekrar değerlendirin.");
         fallback.put("contextRelevance", "");
         fallback.put("fallback", true);
         return fallback;

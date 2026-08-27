@@ -272,7 +272,7 @@ class AiProxyServiceTest {
 
         assertTrue((Boolean) result.json().get("fallback"));
         assertEquals(0, result.json().get("score"));
-        assertEquals("Lutfen yazinizi tekrar degerlendirin.", result.json().get("overall"));
+        assertEquals("Lütfen yazınızı tekrar değerlendirin.", result.json().get("overall"));
     }
 
     @Test
