@@ -46,7 +46,14 @@ public class BookImportService {
     }
 
     /** What an import did, for the operator running it. */
-    public record ImportResult(Long bookId, String slug, int chapters, int sentences, boolean replaced) {
+    /**
+     * @param verified how many hand-checked translations were applied, and how
+     *                 many the book has on file. The two differing means an
+     *                 edition whose sentences no longer match the corrections,
+     *                 which is otherwise a silent failure.
+     */
+    public record ImportResult(Long bookId, String slug, int chapters, int sentences, boolean replaced,
+            int verifiedApplied, int verifiedOnFile) {
     }
 
     /**
@@ -144,7 +151,8 @@ public class BookImportService {
         log.info("Imported book slug={} chapters={} sentences={} replaced={} verified={}/{}",
                 slug, chapters.size(), rows.size(), replaced, verifiedApplied, verified.size());
 
-        return new ImportResult(book.getId(), slug, chapters.size(), rows.size(), replaced);
+        return new ImportResult(book.getId(), slug, chapters.size(), rows.size(), replaced,
+                verifiedApplied, verified.size());
     }
 
     private static String blankToNull(String value) {

@@ -89,7 +89,9 @@ public class BookAdminController {
                         "bookId", result.bookId(),
                         "chapters", result.chapters(),
                         "sentences", result.sentences(),
-                        "replaced", result.replaced()));
+                        "replaced", result.replaced(),
+                        "verifiedApplied", result.verifiedApplied(),
+                        "verifiedOnFile", result.verifiedOnFile()));
             } catch (Exception e) {
                 // One unreadable book must not stop the shelf: the others are
                 // fine and the operator needs to know which failed.

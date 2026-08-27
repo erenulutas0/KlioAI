@@ -110,9 +110,12 @@ public class BookShelfBootstrap implements ApplicationRunner {
                         book.level(), book.source(), BookLibrary.readText(book));
                 books++;
                 sentences += result.sentences();
-                log.info("BOOKS import {} level={} chapters={} sentences={} replaced={}",
+                // The verified counts are on the operator's own line, not
+                // buried in the service's: an edition that stopped matching its
+                // corrections looks exactly like one that has none.
+                log.info("BOOKS import {} level={} chapters={} sentences={} replaced={} verified={}/{}",
                         result.slug(), book.level(), result.chapters(), result.sentences(),
-                        result.replaced());
+                        result.replaced(), result.verifiedApplied(), result.verifiedOnFile());
             } catch (Exception e) {
                 // One unreadable book must not cost the operator the other five.
                 log.warn("BOOKS import failed for {}: {}", book.slug(), e.toString());

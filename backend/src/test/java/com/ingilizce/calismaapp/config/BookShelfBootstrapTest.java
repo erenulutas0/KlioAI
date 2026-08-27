@@ -72,7 +72,7 @@ class BookShelfBootstrapTest {
     void importDoesNotSpendMoney() {
         when(importService.importBook(anyString(), anyString(), anyString(), anyString(),
                 anyString(), anyString(), anyString()))
-                .thenReturn(new BookImportService.ImportResult(1L, "slug", 3, 90, false));
+                .thenReturn(new BookImportService.ImportResult(1L, "slug", 3, 90, false, 0, 0));
 
         bootstrap(true, 0, "").run(null);
 
