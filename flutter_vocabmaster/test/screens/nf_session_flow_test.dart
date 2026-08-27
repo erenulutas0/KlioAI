@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nested/nested.dart';
@@ -133,6 +134,78 @@ void main() {
         reason: 'the session did not hand over to its summary');
     expect(find.text('Tap to reveal the meaning'), findsNothing);
   });
+  testWidgets('a fill-in-the-blank card hides the word and the button that says it',
+      (WidgetTester tester) async {
+    // The second card is the cloze one: cards alternate so a session keeps both
+    // directions of recall. What matters here is that neither the word nor the
+    // pronounce button is on screen — a button that reads the answer aloud is
+    // not a hint, it is the answer, and the card would look perfectly fine
+    // while giving itself away.
+    final _RecordingAppState appState = _RecordingAppState(<Word>[
+      _word(1, 'first', reviewIn: const Duration(days: -2)),
+      _word(2, 'underneath',
+          reviewIn: const Duration(days: -1),
+          sentence: 'They lived underneath a fir-tree.'),
+    ]);
+
+    await _pumpSession(tester, appState);
+
+    // Grade past the first card to reach the cloze one.
+    await tester.tap(find.byIcon(LucideIcons.eye));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Good'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('_____'), findsOneWidget);
+    expect(find.text('underneath'), findsNothing);
+    expect(find.byIcon(LucideIcons.volume2), findsNothing);
+  });
+
+  testWidgets('revealing a fill-in-the-blank card gives up the word',
+      (WidgetTester tester) async {
+    final _RecordingAppState appState = _RecordingAppState(<Word>[
+      _word(1, 'first', reviewIn: const Duration(days: -2)),
+      _word(2, 'underneath',
+          reviewIn: const Duration(days: -1),
+          sentence: 'They lived underneath a fir-tree.'),
+    ]);
+
+    await _pumpSession(tester, appState);
+    await tester.tap(find.byIcon(LucideIcons.eye));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Good'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(LucideIcons.eye));
+    await tester.pumpAndSettle();
+
+    // The answer, and the way to hear it, both arrive with the reveal.
+    expect(find.text('underneath'), findsOneWidget);
+    expect(find.byIcon(LucideIcons.volume2), findsOneWidget);
+  });
+
+  testWidgets('a word with no usable sentence is still asked the plain way',
+      (WidgetTester tester) async {
+    // Most of a deck built before the reader existed has no sentence at all,
+    // and hand-added words often carry an example that does not contain them.
+    // Those cards must not turn into a blank with nothing taken out.
+    final _RecordingAppState appState = _RecordingAppState(<Word>[
+      _word(1, 'first', reviewIn: const Duration(days: -2)),
+      _word(2, 'absent',
+          reviewIn: const Duration(days: -1),
+          sentence: 'This example never uses the saved word.'),
+    ]);
+
+    await _pumpSession(tester, appState);
+    await tester.tap(find.byIcon(LucideIcons.eye));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Good'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('_____'), findsNothing);
+    expect(find.text('absent'), findsOneWidget);
+  });
+
 }
 
 // ---------------------------------------------------------------------------
@@ -170,13 +243,24 @@ Future<void> _pumpSession(
   await tester.pumpAndSettle();
 }
 
-Word _word(int id, String english, {Duration? reviewIn}) => Word(
+Word _word(int id, String english, {Duration? reviewIn, String? sentence}) => Word(
       id: id,
       englishWord: english,
       turkishMeaning: '$english-tr',
       learnedDate: DateTime(2026, 1, 1),
       difficulty: 'medium',
       nextReviewDate: reviewIn == null ? null : DateTime.now().add(reviewIn),
+      sentences: sentence == null
+          ? const <Sentence>[]
+          : <Sentence>[
+              Sentence(
+                id: id * 100,
+                sentence: sentence,
+                translation: '',
+                wordId: id,
+                difficulty: 'medium',
+              ),
+            ],
     );
 
 class _Review {

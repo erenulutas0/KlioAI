@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
+import '../../utils/cloze.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/in_app_review_service.dart';
 import '../../services/xp_manager.dart';
@@ -252,6 +253,27 @@ class _NfSessionPageState extends State<NfSessionPage> {
   // Build
   // ---------------------------------------------------------------------------
 
+  /// Whether this card asks the word or asks for it.
+  ///
+  /// Alternating rather than always: the two directions are different work.
+  /// The plain card asks what a word means, which is recognition; a sentence
+  /// with the word missing asks the learner to produce it, which is harder and
+  /// holds better. A session made only of one loses the other, so cards take
+  /// turns — and a word with no usable sentence always gets the plain card,
+  /// which is most of a deck built before the reader existed.
+  ///
+  /// Keyed on position, not chance: the same card twice in one session should
+  /// not change the question between visits.
+  String? _clozeFor(Word word, int index) {
+    if (index.isEven) return null;
+    if (word.sentences.isEmpty) return null;
+    for (final Sentence sentence in word.sentences) {
+      final String? cloze = Cloze.build(sentence.sentence, word.englishWord);
+      if (cloze != null) return cloze;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
@@ -331,6 +353,7 @@ class _NfSessionPageState extends State<NfSessionPage> {
                       // animation state.
                       key: ValueKey<int>(_index),
                       word: word,
+                      cloze: _clozeFor(word, _index),
                       revealed: _revealed,
                       sentenceTranslationShown: _sentenceTranslationShown,
                       onReveal: _reveal,
@@ -493,6 +516,7 @@ class _RecallCard extends StatelessWidget {
   const _RecallCard({
     super.key,
     required this.word,
+    required this.cloze,
     required this.revealed,
     required this.sentenceTranslationShown,
     required this.onReveal,
@@ -501,6 +525,12 @@ class _RecallCard extends StatelessWidget {
   });
 
   final Word word;
+
+  /// The word's own sentence with the word taken out, or null to ask the word
+  /// itself. Null whenever no sentence contains it, which is most hand-added
+  /// words and every word saved before the reader existed.
+  final String? cloze;
+
   final bool revealed;
   final bool sentenceTranslationShown;
   final VoidCallback onReveal;
@@ -540,7 +570,10 @@ class _RecallCard extends StatelessWidget {
               // Difficulty is data from the word record, not copy.
               NfChip(label: word.difficulty.toUpperCase(), dense: true),
               const Spacer(),
-              Semantics(
+              // Hidden while the word is the thing being recalled: a button
+              // that says the answer out loud is not a hint, it is the answer.
+              if (cloze == null || revealed)
+                Semantics(
                 button: true,
                 label: context.tr('common.pronounce'),
                 child: InkWell(
@@ -563,14 +596,28 @@ class _RecallCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: NfSpace.s26),
-          Text(
-            word.englishWord,
-            textAlign: TextAlign.center,
-            style: NfTokens.display(
-              size: _wordFontSize(word.englishWord),
-              color: t.ink,
+          if (cloze != null && !revealed)
+            // The sentence reads as prose, not as a headline: it is something
+            // to read for the gap in it, and the display face at 34pt would
+            // wrap a whole line into three.
+            Text(
+              cloze!,
+              textAlign: TextAlign.center,
+              style: NfTokens.body(
+                size: NfFont.s17,
+                weight: NfTokens.bodyEmphasisWeight,
+                color: t.ink,
+              ),
+            )
+          else
+            Text(
+              word.englishWord,
+              textAlign: TextAlign.center,
+              style: NfTokens.display(
+                size: _wordFontSize(word.englishWord),
+                color: t.ink,
+              ),
             ),
-          ),
           const SizedBox(height: NfSpace.s20),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
