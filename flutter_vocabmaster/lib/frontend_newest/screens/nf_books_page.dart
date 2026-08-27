@@ -140,7 +140,7 @@ class _NfBooksPageState extends State<NfBooksPage> {
 
   Widget _buildBody(NfTokens t) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: t.primary));
     }
     if (_error != null) {
       return _buildMessage(

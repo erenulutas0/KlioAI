@@ -10,7 +10,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_books_page.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_reader_page.dart';
+import 'package:provider/provider.dart';
 import 'package:vocabmaster/models/book.dart';
+import 'package:vocabmaster/providers/app_state_provider.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/services/api_service.dart';
@@ -29,7 +31,12 @@ import 'package:vocabmaster/services/locale_text_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  /// The reader marks the learner's own words as it renders, so it needs the
+  /// app state the way the running app has it. Empty unless a test seeds it.
+  late AppStateProvider state;
+
   setUp(() async {
+    state = AppStateProvider();
     SharedPreferences.setMockInitialValues(<String, Object>{});
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
     LocaleTextService.setAppLocale(const Locale('tr'));
@@ -59,7 +66,9 @@ void main() {
   /// No NfThemeScope: NfTokens.of falls back to the platform brightness when
   /// there is no theme above it, so the pages paint without dragging the
   /// frontend-preference provider into a test about the shelf.
-  Widget host(Widget child) => MaterialApp(
+  Widget host(Widget child) => ChangeNotifierProvider<AppStateProvider>.value(
+      value: state,
+      child: MaterialApp(
         locale: const Locale('tr'),
         localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           AppLocalizations.delegate,
@@ -69,7 +78,7 @@ void main() {
         ],
         supportedLocales: AppLocalizations.supportedLocales,
         home: child,
-      );
+      ));
 
   group('shelf', () {
     testWidgets('lists books with their level and length', (WidgetTester tester) async {
@@ -558,4 +567,95 @@ void main() {
       expect(find.text('Anlam alınamadı.'), findsNothing);
     });
   });
+  group('the learner sees their own words', () {
+    /// A book window with one sentence, so the assertion is about spans and not
+    /// about which sentence a scroll happened to reach.
+    ApiService reading(String sentence) => apiServing(<String, Object?>{
+          'slug': 'peter-rabbit',
+          'title': 'The Tale of Peter Rabbit',
+          'from': 0,
+          'sentenceCount': 1,
+          'sentences': <Map<String, Object?>>[
+            <String, Object?>{
+              'index': 0,
+              'chapterIndex': 0,
+              'chapterTitle': 'I',
+              'text': sentence,
+              'translation': null,
+            },
+          ],
+        });
+
+    /// Every word in the rendered sentence that carries an underline.
+    Set<String> marked(WidgetTester tester, String sentence) {
+      final Iterable<RichText> texts = tester.widgetList<RichText>(find.byType(RichText));
+      final Set<String> found = <String>{};
+      for (final RichText rich in texts) {
+        rich.text.visitChildren((InlineSpan span) {
+          if (span is TextSpan &&
+              span.text != null &&
+              span.style?.decoration == TextDecoration.underline) {
+            found.add(span.text!);
+          }
+          return true;
+        });
+      }
+      return found;
+    }
+
+    Future<void> open(WidgetTester tester, String sentence) async {
+      await tester.pumpWidget(host(NfReaderPage(
+        slug: 'peter-rabbit',
+        title: 'The Tale of Peter Rabbit',
+        startAt: 0,
+        sentenceCount: 1,
+        apiService: reading(sentence),
+      )));
+      await tester.pumpAndSettle();
+    }
+
+    Word saved(String english) => Word(
+          id: english.hashCode,
+          englishWord: english,
+          turkishMeaning: 'x',
+          learnedDate: DateTime(2026, 1, 1),
+          difficulty: 'easy',
+        );
+
+    testWidgets('a saved word is marked where the book uses it',
+        (WidgetTester tester) async {
+      await state.adoptServerWord(saved('rabbit'));
+      await open(tester, 'The rabbit ran home.');
+
+      expect(marked(tester, 'The rabbit ran home.'), <String>{'rabbit'});
+    });
+
+    testWidgets('an inflected form of a saved word is still their word',
+        (WidgetTester tester) async {
+      // The reason this feature needs more than string equality: someone saves
+      // "flight" and the book prints "flights". Leaving that unmarked is the
+      // case the learner would most want to see marked.
+      await state.adoptServerWord(saved('flight'));
+      await open(tester, 'The flights were delayed.');
+
+      expect(marked(tester, 'The flights were delayed.'), <String>{'flights'});
+    });
+
+    testWidgets('a word merely sharing a prefix is not marked',
+        (WidgetTester tester) async {
+      // A wrong mark is worse than no mark: it tells someone learning the
+      // language that two unrelated words are the same one.
+      await state.adoptServerWord(saved('read'));
+      await open(tester, 'The reader waited.');
+
+      expect(marked(tester, 'The reader waited.'), isEmpty);
+    });
+
+    testWidgets('an empty deck marks nothing at all', (WidgetTester tester) async {
+      await open(tester, 'The rabbit ran home.');
+
+      expect(marked(tester, 'The rabbit ran home.'), isEmpty);
+    });
+  });
+
 }

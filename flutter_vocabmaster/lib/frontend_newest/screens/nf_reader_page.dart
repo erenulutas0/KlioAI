@@ -18,6 +18,7 @@ import '../../providers/app_state_provider.dart';
 import '../../services/groq_service.dart';
 import '../../services/piper_tts_service.dart';
 import '../../utils/sentence_tokens.dart';
+import '../../utils/word_family.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
 
@@ -333,7 +334,7 @@ class _NfReaderPageState extends State<NfReaderPage> {
     final bool alreadySaved = context
         .read<AppStateProvider>()
         .allWords
-        .any((Word w) => w.englishWord.trim().toLowerCase() == word);
+        .any((Word w) => WordFamily.matches(word, w.englishWord));
 
     await showModalBottomSheet<void>(
       context: context,
@@ -448,7 +449,7 @@ class _NfReaderPageState extends State<NfReaderPage> {
 
   Widget _buildBody(NfTokens t) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: t.primary));
     }
     if (_error != null) {
       return Center(
@@ -485,9 +486,9 @@ class _NfReaderPageState extends State<NfReaderPage> {
       itemCount: _sentences.length + (_loadingMore ? 1 : 0),
       itemBuilder: (BuildContext context, int i) {
         if (i >= _sentences.length) {
-          return const Padding(
-            padding: EdgeInsets.all(NfSpace.s16),
-            child: Center(child: CircularProgressIndicator()),
+          return Padding(
+            padding: const EdgeInsets.all(NfSpace.s16),
+            child: Center(child: CircularProgressIndicator(color: t.primary)),
           );
         }
         return _buildSentence(t, _sentences[i], i);
@@ -577,9 +578,24 @@ class _NfReaderPageState extends State<NfReaderPage> {
   Widget _buildTappableText(NfTokens t, ReaderSentence sentence) {
     return _TappableSentence(
       text: sentence.text,
+      saved: _savedWords,
+      savedColor: t.primary,
       onWordTapped: (String token) => _onWordTapped(token, sentence),
     );
   }
+
+  /// The learner's own vocabulary, as the reader needs to ask about it.
+  ///
+  /// Built once per frame rather than per word: a chapter is a few hundred
+  /// words and a deck can be a few hundred entries, and asking the list a
+  /// question per word per rebuild is the kind of quiet quadratic that only
+  /// shows up on the phone of the person who has been using the app longest.
+  Set<String> get _savedWords => context
+      .watch<AppStateProvider>()
+      .allWords
+      .map((Word w) => w.englishWord.trim().toLowerCase())
+      .where((String w) => w.isNotEmpty)
+      .toSet();
 }
 
 /// One sentence, with every word its own tap target.
@@ -593,10 +609,16 @@ class _TappableSentence extends StatefulWidget {
   const _TappableSentence({
     required this.text,
     required this.onWordTapped,
+    this.saved = const <String>{},
+    this.savedColor,
   });
 
   final String text;
   final void Function(String token) onWordTapped;
+
+  /// Words the learner has saved, lowercased. Marked where they appear.
+  final Set<String> saved;
+  final Color? savedColor;
 
   @override
   State<_TappableSentence> createState() => _TappableSentenceState();
@@ -636,6 +658,23 @@ class _TappableSentenceState extends State<_TappableSentence> {
     _recognizers.clear();
   }
 
+  /// Whether this token is one of the learner's own words.
+  ///
+  /// A dotted underline rather than a highlight: a page of highlights is a page
+  /// nobody reads, and the point is to notice your own vocabulary in the middle
+  /// of a story, not to have the story marked up. Inflections count -- someone
+  /// who saved "flight" should see it in "the flights were delayed", which is
+  /// the sentence that shows the word is theirs.
+  bool _isSaved(String token) {
+    if (widget.saved.isEmpty) return false;
+    final String word = SentenceTokens.word(token);
+    if (word.isEmpty) return false;
+    for (final String form in WordFamily.baseForms(word)) {
+      if (widget.saved.contains(form)) return true;
+    }
+    return false;
+  }
+
   void _rebuildTokens() {
     _disposeRecognizers();
     _tokens = SentenceTokens.split(widget.text);
@@ -661,9 +700,18 @@ class _TappableSentenceState extends State<_TappableSentence> {
         spans.add(TextSpan(text: token));
         continue;
       }
+      final bool mine = _isSaved(token);
       spans.add(TextSpan(
         text: token,
         recognizer: _recognizers[recognizerIndex++],
+        style: mine
+            ? TextStyle(
+                decoration: TextDecoration.underline,
+                decorationStyle: TextDecorationStyle.dotted,
+                decorationColor: widget.savedColor ?? t.primary,
+                decorationThickness: 2,
+              )
+            : null,
       ));
     }
 
@@ -851,9 +899,9 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
           ),
           const SizedBox(height: NfSpace.s12),
           if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: NfSpace.s16),
-              child: Center(child: CircularProgressIndicator()),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: NfSpace.s16),
+              child: Center(child: CircularProgressIndicator(color: t.primary)),
             )
           else if (_error != null)
             Text(
