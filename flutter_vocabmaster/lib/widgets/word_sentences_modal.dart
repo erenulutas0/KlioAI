@@ -281,7 +281,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                     children: [
                       Text(
                         _text(
-                          'Ornek Cumleler ($count)',
+                          'Örnek Cümleler ($count)',
                           'Example Sentences ($count)',
                         ),
                         style: const TextStyle(
@@ -344,7 +344,7 @@ class _WordSentencesModalState extends State<WordSentencesModal>
           const SizedBox(height: 16),
           Text(
             _text(
-              'Henuz ornek cumle bulunmuyor.',
+              'Henüz örnek cümle bulunmuyor.',
               'No example sentences yet.',
             ),
             style: const TextStyle(color: Colors.white70, fontSize: 16),
@@ -563,8 +563,8 @@ class _WordSentencesModalState extends State<WordSentencesModal>
                                 Text(
                                   isExpanded
                                       ? _text(
-                                          'Ceviriyi Gizle', 'Hide Translation')
-                                      : _text('Ceviriyi Goster',
+                                          'Çeviriyi Gizle', 'Hide Translation')
+                                      : _text('Çeviriyi Göster',
                                           'Show Translation'),
                                   style: TextStyle(
                                     color: selectedTheme.colors.textSecondary,

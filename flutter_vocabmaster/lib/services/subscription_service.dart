@@ -149,7 +149,7 @@ class SubscriptionService {
       final available = await isIAPAvailable();
       if (!available) {
         onPurchaseError?.call(_text(
-          'Uygulama ici satin alma su an kullanilamiyor.',
+          'Uygulama ici satın alma su an kullanilamiyor.',
           'In-app purchases are not available right now.',
         ));
         return false;
@@ -162,7 +162,7 @@ class SubscriptionService {
 
       if (productId.isEmpty) {
         onPurchaseError?.call(_text(
-          'Bu plan icin magazada urun bulunamadi.',
+          'Bu plan için magazada urun bulunamadı.',
           'No store product was found for this plan.',
         ));
         return false;
@@ -173,7 +173,7 @@ class SubscriptionService {
 
       if (product == null) {
         onPurchaseError?.call(_text(
-          'Magaza urunu bulunamadi: $productId. Play Console urunu/base plani aktif mi ve bu test hesabina acik mi kontrol edin.',
+          'Mağaza urunu bulunamadı: $productId. Play Console urunu/base planı aktif mi ve bu test hesabina açık mi kontrol edin.',
           'Store product not found: $productId. Check that the Play Console product/base plan is active and available to this tester.',
         ));
         return false;
@@ -188,7 +188,7 @@ class SubscriptionService {
       );
       if (!started) {
         onPurchaseError?.call(_text(
-          'Satin alma baslatilamadi.',
+          'Satın alma başlatılamadı.',
           'The purchase could not be started.',
         ));
       }
@@ -199,7 +199,7 @@ class SubscriptionService {
         try {
           await syncOwnedPurchases(force: true);
           onPurchaseError?.call(_text(
-            'Mevcut magaza aboneligi bulundu, hesabiniza aktariliyor...',
+            'Mevcut mağaza aboneliği bulundu, hesabiniza aktariliyor...',
             'An existing store subscription was found and is being restored to your account...',
           ));
           return false;
@@ -213,7 +213,7 @@ class SubscriptionService {
         return false;
       }
       onPurchaseError?.call(_text(
-        'Satin alma baslatilamadi: $e',
+        'Satın alma başlatılamadı: $e',
         'The purchase could not be started: $e',
       ));
       return false;
@@ -230,12 +230,12 @@ class SubscriptionService {
           try {
             await syncOwnedPurchases(force: true);
             onPurchaseError?.call(_text(
-              'Mevcut magaza aboneligi bulundu, hesabiniza aktariliyor...',
+              'Mevcut mağaza aboneliği bulundu, hesabiniza aktariliyor...',
               'An existing store subscription was found and is being restored to your account...',
             ));
           } catch (e) {
             onPurchaseError?.call(_text(
-              'Mevcut abonelik geri yuklenemedi: $e',
+              'Mevcut abonelik geri yüklenemedi: $e',
               'The existing subscription could not be restored: $e',
             ));
           }
@@ -244,7 +244,7 @@ class SubscriptionService {
           onPurchaseError?.call(
             mapped ??
                 purchaseDetails.error?.message ??
-                _text('Satin alma hatasi', 'Purchase error'),
+                _text('Satın alma hatası', 'Purchase error'),
           );
         }
         if (purchaseDetails.pendingCompletePurchase) {
@@ -257,14 +257,14 @@ class SubscriptionService {
         if (verified) {
           _lastVerificationError = null;
           onPurchaseSuccess?.call(_text(
-            'Aboneliginiz basariyla aktiflestirildi.',
+            'Aboneliginiz başarıyla aktiflestirildi.',
             'Your subscription was activated successfully.',
           ));
         } else {
           onPurchaseError?.call(
             _lastVerificationError ??
                 _text(
-                  'Satin alma dogrulanamadi.',
+                  'Satın alma doğrulanamadı.',
                   'The purchase could not be verified.',
                 ),
           );
@@ -296,7 +296,7 @@ class SubscriptionService {
         }
         if (userId == null || userId <= 0) {
           _lastVerificationError = _text(
-            'Kullanici kimligi bulunamadi. Lutfen tekrar deneyin.',
+            'Kullanıcı kimligi bulunamadı. Lütfen tekrar deneyin.',
             'Your account identity could not be resolved. Please try again.',
           );
           debugPrint('Backend verification failed: missing userId');
@@ -311,7 +311,7 @@ class SubscriptionService {
         }
         if (token == null || token.isEmpty) {
           _lastVerificationError = _text(
-            'Oturum yenilenemedi. Lutfen satin alma ekranini tekrar acip yeniden deneyin.',
+            'Oturum yenilenemedi. Lütfen satın alma ekranini tekrar açıp yeniden deneyin.',
             'Your session could not be refreshed. Reopen the purchase screen and try again.',
           );
           debugPrint('Backend verification failed: missing token');
@@ -320,7 +320,7 @@ class SubscriptionService {
       }
       if (purchaseToken.isEmpty) {
         _lastVerificationError = _text(
-          'Satin alma tokeni bos geldi. Lutfen satin alimlarini geri yukleyin.',
+          'Satın alma tokeni boş geldi. Lütfen satın alimlarini geri yukleyin.',
           'The purchase token is empty. Please restore your purchases and try again.',
         );
         debugPrint(
@@ -388,7 +388,7 @@ class SubscriptionService {
       return true;
     } catch (e) {
       _lastVerificationError = _text(
-        'Dogrulama sirasinda baglanti hatasi: $e',
+        'Dogrulama sirasinda bağlantı hatası: $e',
         'A connection error occurred during verification: $e',
       );
       debugPrint('Backend verification failed: $e');
@@ -416,13 +416,13 @@ class SubscriptionService {
     final message = error.message.toLowerCase();
     if (message.contains('pg-gemf-02') || code.contains('pg-gemf-02')) {
       return _text(
-        'Google Play odeme tarafinda hata olustu (PG-GEMF-02). Play hesabinizi kontrol edip satin alimlarini geri yukleyin ve tekrar deneyin.',
+        'Google Play ödeme tarafinda hata oluştu (PG-GEMF-02). Play hesabinizi kontrol edip satın alimlarini geri yukleyin ve tekrar deneyin.',
         'Google Play returned a payment error (PG-GEMF-02). Check your Play account, restore purchases, and try again.',
       );
     }
     if (code == 'error' || code.contains('billingresponse.error')) {
       return _text(
-        'Google Play gecici hata verdi (BillingResponse.error). Lutfen 1-2 dakika sonra tekrar deneyin veya geri yukleme yapin.',
+        'Google Play geçici hata verdi (BillingResponse.error). Lütfen 1-2 dakika sonra tekrar deneyin veya geri yükleme yapın.',
         'Google Play returned a temporary error (BillingResponse.error). Please try again in 1-2 minutes or restore purchases.',
       );
     }
@@ -433,21 +433,21 @@ class SubscriptionService {
     final lower = rawError.toLowerCase();
     if (lower.contains('pg-gemf-02')) {
       return _text(
-        'Google Play odeme tarafinda hata olustu (PG-GEMF-02). Play Store > Odemeler ve abonelikler > Abonelikler ekranindan geri yukleyip tekrar deneyin.',
+        'Google Play ödeme tarafinda hata oluştu (PG-GEMF-02). Play Store > Odemeler ve abonelikler > Abonelikler ekranindan geri yukleyip tekrar deneyin.',
         'Google Play returned a payment error (PG-GEMF-02). Restore the subscription from Play Store > Payments & subscriptions > Subscriptions, then try again.',
       );
     }
     if (lower.contains('billingresponse.error') ||
         lower.contains('service unavailable')) {
       return _text(
-        'Google Play gecici hata verdi (BillingResponse.error). Lutfen 1-2 dakika sonra tekrar deneyin.',
+        'Google Play geçici hata verdi (BillingResponse.error). Lütfen 1-2 dakika sonra tekrar deneyin.',
         'Google Play returned a temporary error (BillingResponse.error). Please try again in 1-2 minutes.',
       );
     }
     if (lower.contains('itemalreadyowned') ||
         lower.contains('item_already_owned')) {
       return _text(
-        'Mevcut magaza aboneligi bulundu. Satin alimlariniz hesabiniza aktariliyor.',
+        'Mevcut mağaza aboneliği bulundu. Satın alimlariniz hesabiniza aktariliyor.',
         'An existing store subscription was found. Your purchases are being restored to your account.',
       );
     }
@@ -505,25 +505,25 @@ class SubscriptionService {
     if (statusCode == 401 || statusCode == 403) {
       if (normalized.contains('user identity mismatch')) {
         return _text(
-          'Hesap oturumu ile kullanici bilgisi eslesmedi. Oturum otomatik yenileniyor; islemi tekrar deneyin.',
+          'Hesap oturumu ile kullanıcı bilgisi eslesmedi. Oturum otomatik yenileniyor; işlemi tekrar deneyin.',
           'Your stored account data did not match the active session. The session is being repaired automatically; please try the purchase again.',
         );
       }
       return _text(
-        'Oturum dogrulama hatasi. Lutfen tekrar deneyin. Sorun devam ederse uygulamayi yeniden acin.',
+        'Oturum dogrulama hatası. Lütfen tekrar deneyin. Sorun devam ederse uygulamayi yeniden acin.',
         'Session verification failed. Please try again. If the issue continues, reopen the app and try once more.',
       );
     }
     if (statusCode == 400 && normalized.contains('purchasetoken is required')) {
       return _text(
-        'Satin alma tokeni eksik geldi. Abonelik sayfasindan geri yukleme yapip tekrar deneyin.',
+        'Satın alma tokeni eksik geldi. Abonelik sayfasından geri yükleme yapip tekrar deneyin.',
         'The purchase token was missing. Restore purchases from the subscription page and try again.',
       );
     }
     if (statusCode == 400 &&
         normalized.contains('unable to map google product/base plan')) {
       return _text(
-        'Play Console urun-plani backend ile eslesmedi. Destek ekibiyle iletisime gecin.',
+        'Play Console urun-planı backend ile eslesmedi. Destek ekibiyle iletisime gecin.',
         'The Play Console product plan does not match the backend mapping. Please contact support.',
       );
     }
@@ -535,7 +535,7 @@ class SubscriptionService {
     }
     if (statusCode == 400 && code == 'INVALID_PURCHASE') {
       return _text(
-        'Google satin alma kaydi dogrulanamadi. Satin alma gecmisiyle tekrar deneyin.',
+        'Google satın alma kaydı doğrulanamadı. Satın alma gecmisiyle tekrar deneyin.',
         'Google could not verify this purchase. Please try again from your purchase history.',
       );
     }
@@ -546,10 +546,10 @@ class SubscriptionService {
       );
     }
     if (error != null && error.isNotEmpty) {
-      return _text('Dogrulama hatasi: $error', 'Verification error: $error');
+      return _text('Dogrulama hatası: $error', 'Verification error: $error');
     }
     return _text(
-      'Satin alma dogrulanamadi (HTTP $statusCode).',
+      'Satın alma doğrulanamadı (HTTP $statusCode).',
       'The purchase could not be verified (HTTP $statusCode).',
     );
   }
@@ -594,7 +594,7 @@ class SubscriptionService {
 
     if (userId == null || userId <= 0) {
       throw Exception(_text(
-        'Kullanici oturumu bulunamadi.',
+        'Kullanıcı oturumu bulunamadı.',
         'The account session could not be resolved.',
       ));
     }

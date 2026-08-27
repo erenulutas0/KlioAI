@@ -256,7 +256,7 @@ class _LoginPageState extends State<LoginPage>
               const SizedBox(height: 8),
               Text(
                 _text(
-                  'Tek hesapla kelimelerin, aboneligin ve gunluk AI kotan senkron kalir.',
+                  'Tek hesapla kelimelerin, aboneliğin ve günlük AI kotan senkron kalır.',
                   'Keep your words, subscription, and daily AI quota synced with one account.',
                 ),
                 textAlign: TextAlign.center,
@@ -285,7 +285,7 @@ class _LoginPageState extends State<LoginPage>
                   label: Text(
                     _isSigningIn
                         ? _text(
-                            'Google hesabi kontrol ediliyor',
+                            'Google hesabı kontrol ediliyor',
                             'Checking Google account',
                           )
                         : context.tr('login.social.google'),
@@ -316,7 +316,7 @@ class _LoginPageState extends State<LoginPage>
   Widget _buildTrustLine() {
     return Text(
       _text(
-        'KlioAI sadece Google Sign-In kullanir. Sifre saklamaz.',
+        'KlioAI sadece Google Sign-In kullanır. Şifre saklamaz.',
         'KlioAI uses Google Sign-In only and never stores passwords.',
       ),
       textAlign: TextAlign.center,

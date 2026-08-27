@@ -100,7 +100,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Ticket listesi yuklenemedi: $e',
+            'Ticket listesi yüklenemedi: $e',
             'The ticket list could not be loaded: $e',
           )),
           backgroundColor: Colors.red,
@@ -151,11 +151,11 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                       items: [
                         DropdownMenuItem(
                           value: 'REQUEST',
-                          child: Text(_text('Istek', 'Request')),
+                          child: Text(_text('İstek', 'Request')),
                         ),
                         DropdownMenuItem(
                           value: 'COMPLAINT',
-                          child: Text(_text('Sikayet', 'Complaint')),
+                          child: Text(_text('Şikayet', 'Complaint')),
                         ),
                         DropdownMenuItem(
                           value: 'BUG',
@@ -172,7 +172,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                       controller: titleController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: _text('Baslik', 'Title'),
+                        labelText: _text('Başlık', 'Title'),
                         labelStyle: const TextStyle(color: Colors.white70),
                         focusedBorder: UnderlineInputBorder(
                           borderSide:
@@ -202,7 +202,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    _text('Iptal', 'Cancel'),
+                    _text('İptal', 'Cancel'),
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ),
@@ -223,7 +223,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                             ScaffoldMessenger.of(this.context).showSnackBar(
                               SnackBar(
                                 content: Text(_text(
-                                  'Baslik ve mesaj gerekli.',
+                                  'Başlık ve mesaj gerekli.',
                                   'Title and message are required.',
                                 )),
                                 backgroundColor: Colors.red,
@@ -238,7 +238,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                             message: message,
                           );
                         },
-                  child: Text(_text('Gonder', 'Submit')),
+                  child: Text(_text('Gönder', 'Submit')),
                 ),
               ],
             );
@@ -281,11 +281,11 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
       if (!mounted) return;
       final message = e.statusCode == 429
           ? _text(
-              'Bugun icin 3 ticket hakkini doldurdun.',
+              'Bugün için 3 ticket hakkini doldurdun.',
               'You have reached the 3-ticket daily limit.',
             )
           : _text(
-              'Ticket gonderilemedi: ${e.message}',
+              'Ticket gönderilemedi: ${e.message}',
               'The ticket could not be submitted: ${e.message}',
             );
       ScaffoldMessenger.of(context).showSnackBar(
@@ -366,7 +366,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                     children: [
                       Text(
                         _text(
-                          'Gunluk hak: $_remainingToday / $_dailyLimit',
+                          'Günlük hak: $_remainingToday / $_dailyLimit',
                           'Daily quota: $_remainingToday / $_dailyLimit',
                         ),
                         style: const TextStyle(
@@ -378,7 +378,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                       const SizedBox(height: 6),
                       Text(
                         _text(
-                          'Ticketlar 7 gun tutulur ve sonra otomatik silinir.',
+                          'Ticketlar 7 gün tutulur ve sonra otomatik silinir.',
                           'Tickets are kept for 7 days and then deleted automatically.',
                         ),
                         style: const TextStyle(color: Colors.white70),
@@ -395,7 +395,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                         ? Center(
                             child: Text(
                               _text(
-                                'Henuz ticket olusturmadin.',
+                                'Henüz ticket olusturmadin.',
                                 'You have not created any tickets yet.',
                               ),
                               style: const TextStyle(color: Colors.white70),

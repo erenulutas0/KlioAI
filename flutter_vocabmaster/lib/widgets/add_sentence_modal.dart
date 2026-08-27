@@ -115,7 +115,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
     if (validSentences.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(_text('Lutfen en az bir cumle ve cevirisini girin.',
+            content: Text(_text('Lütfen en az bir cümle ve çevirisini girin.',
                 'Please enter at least one sentence and its translation.'))),
       );
       return;
@@ -142,7 +142,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(_text(
-                '${validSentences.length} cumle basariyla eklendi! (+${validSentences.length * 5} XP)',
+                '${validSentences.length} cümle başarıyla eklendi! (+${validSentences.length * 5} XP)',
                 '${validSentences.length} sentence(s) added successfully! (+${validSentences.length * 5} XP)',
               )),
               backgroundColor: Colors.green),
@@ -152,7 +152,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('${_text('Hata olustu', 'An error occurred')}: $e'),
+              content: Text('${_text('Hata oluştu', 'An error occurred')}: $e'),
               backgroundColor: Colors.red),
         );
       }
@@ -376,7 +376,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _text('Cumle Ekle', 'Add Sentence'),
+                        _text('Cümle Ekle', 'Add Sentence'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -395,7 +395,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                           Expanded(
                             child: Text(
                               _text(
-                                '${widget.word.englishWord} kelimesi icin cumleler',
+                                '${widget.word.englishWord} kelimesi için cümleler',
                                 'Sentences for ${widget.word.englishWord}',
                               ),
                               style: TextStyle(
@@ -504,7 +504,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          _text('Cumle', 'Sentence'),
+                          _text('Cümle', 'Sentence'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -542,7 +542,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _text('Ingilizce Cumle', 'English Sentence'),
+                      _text('İngilizce Cümle', 'English Sentence'),
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
@@ -602,7 +602,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _text('Ceviri', 'Translation'),
+                      _text('Çeviri', 'Translation'),
                       style: TextStyle(
                         color: selectedTheme.colors.textSecondary,
                         fontSize: 12,
@@ -616,7 +616,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                       maxLines: null,
                       decoration: InputDecoration(
                         hintText: _text(
-                          'Cumlenin Turkce cevirisi...',
+                          'Cümlenin Türkçe cevirisi...',
                           'Translation of the sentence...',
                         ),
                         hintStyle: const TextStyle(
@@ -784,7 +784,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _text('Yeni Cumle Ekle', 'Add New Sentence'),
+                    _text('Yeni Cümle Ekle', 'Add New Sentence'),
                     style: TextStyle(
                       color: selectedTheme.colors.textSecondary,
                       fontSize: 16,
@@ -841,7 +841,7 @@ class _AddSentenceModalState extends State<AddSentenceModal>
                     ),
                   ),
                   child: Text(
-                    _text('Iptal', 'Cancel'),
+                    _text('İptal', 'Cancel'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,

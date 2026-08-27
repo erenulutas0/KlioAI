@@ -206,20 +206,42 @@ void main() {
       turkishStrings.add(MapEntry<String, String>(m.group(1)!, m.group(2)!));
     }
 
-    // The first argument of pick() is the Turkish one.
-    final pick = RegExp(r"LocaleTextService\.pick\(\s*'([^']*)'", dotAll: true);
+    // The Turkish argument comes first in both bilingual helpers: the shared
+    // LocaleTextService.pick, and the per-file `String _text(String tr, String
+    // en)` that the older screens declare for themselves. The second is by far
+    // the larger corpus -- 497 calls across 24 files against pick()'s 42 -- and
+    // was the last place user-facing Turkish could go unread.
+    final helpers = <String, RegExp>{
+      'pick': RegExp(r"LocaleTextService\.pick\(\s*'([^']*)'", dotAll: true),
+      '_text': RegExp(r"_text\(\s*'([^']*)'", dotAll: true),
+    };
+    final found = <String, int>{'l10n': turkishStrings.length};
     for (final file in Directory('lib')
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))) {
       final code = file.readAsStringSync();
-      for (final m in pick.allMatches(code)) {
-        turkishStrings.add(MapEntry<String, String>(file.path, m.group(1)!));
+      for (final MapEntry<String, RegExp> helper in helpers.entries) {
+        for (final m in helper.value.allMatches(code)) {
+          turkishStrings.add(MapEntry<String, String>(file.path, m.group(1)!));
+          found[helper.key] = (found[helper.key] ?? 0) + 1;
+        }
       }
     }
 
-    expect(turkishStrings.length, greaterThan(500),
-        reason: 'the scanner found almost nothing, so it is measuring nothing');
+    // Per source, not one total. A single number hides the failure that
+    // matters: one of the three stops matching -- a renamed helper, a
+    // reformatted map, a screen switching to double quotes -- and the total
+    // still looks healthy because the other two carry it. That is how 497
+    // strings went unread for as long as they did, and a combined count of 794
+    // was misread as proof they were covered while the new scanner found none
+    // of them.
+    const floors = <String, int>{'l10n': 200, 'pick': 20, '_text': 300};
+    for (final MapEntry<String, int> floor in floors.entries) {
+      expect(found[floor.key] ?? 0, greaterThan(floor.value),
+          reason: 'the ${floor.key} scanner has gone blind: it found '
+              '${found[floor.key] ?? 0}, so that whole corpus is unchecked');
+    }
 
     // folded spelling -> the distinct Turkish-lowercased forms seen for it,
     // each with an example source so a failure names somewhere to look.
@@ -249,5 +271,46 @@ void main() {
     expect(offenders, isEmpty,
         reason: 'The same Turkish word is spelled more than one way:\n'
             '${offenders.join('\n')}');
+
+    // A stricter second question, because the check above has a blind spot it
+    // cannot report on itself: it only sees a word spelled BOTH ways inside
+    // the pool. A word stripped in every user-facing string looks perfectly
+    // consistent. One was -- "olustu" appeared in every place a learner could
+    // read it, and a sweep meant to add diacritics quietly removed one more.
+    //
+    // But the app ships thousands of lines of Turkish grammar prose, and that
+    // prose is spelled properly. So the rest of lib/ is the dictionary: if a
+    // bare word in a user-facing string has an accented twin somewhere in the
+    // source, and exactly one such twin, the bare one is the mistake. This
+    // found 90 stripped words the pool alone could not see.
+    final dictionary = <String, Set<String>>{};
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      for (final token in file.readAsStringSync().split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
+        if (token.length < 4) continue;
+        if (foldDiacritics(token) == token) continue;
+        (dictionary[foldDiacritics(token).toLowerCase()] ??= <String>{})
+            .add(turkishLower(token));
+      }
+    }
+
+    final stripped = <String>{};
+    for (final m in turkishStrings) {
+      for (final token in m.value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
+        if (token.length < 4) continue;
+        if (foldDiacritics(token) != token) continue;
+        final twins = dictionary[token.toLowerCase()];
+        if (twins == null || twins.length != 1) continue;
+        if (twins.contains(turkishLower(token))) continue;
+        stripped.add(
+            '  ${turkishLower(token)} -> ${twins.first}   (${m.key})');
+      }
+    }
+
+    expect(stripped, isEmpty,
+        reason: 'Spelled bare here, spelled properly elsewhere in the same '
+            'app:\n${stripped.join('\n')}');
   });
 }

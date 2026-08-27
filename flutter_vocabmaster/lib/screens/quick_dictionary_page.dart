@@ -171,7 +171,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                 Expanded(
                   child: _buildOptionButton(
                     icon: Icons.visibility,
-                    label: _text('Direkt Gor', 'View Now'),
+                    label: _text('Direkt Gör', 'View Now'),
                     color: const Color(0xFF06b6d4),
                     onTap: () {
                       Navigator.pop(context);
@@ -262,7 +262,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _text('Bu cumledeki anlami:', 'Meaning in this sentence:'),
+                  _text('Bu cümledeki anlamı:', 'Meaning in this sentence:'),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
@@ -454,10 +454,10 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
 
       if (mounted) {
         String message =
-            _text('Kelime basariyla eklendi! (+10 XP)', 'Word added! (+10 XP)');
+            _text('Kelime başarıyla eklendi! (+10 XP)', 'Word added! (+10 XP)');
         if (meaning.example.isNotEmpty) {
           message = _text(
-            'Kelime ve cumle basariyla eklendi! (+15 XP)',
+            'Kelime ve cümle başarıyla eklendi! (+15 XP)',
             'Word and sentence added! (+15 XP)',
           );
         }
@@ -502,7 +502,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _text('Hizli Sozluk', 'Quick Dictionary'),
+                        _text('Hızlı Sözlük', 'Quick Dictionary'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -524,7 +524,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
                         onSubmitted: (_) => _searchWord(),
                         decoration: InputDecoration(
                           hintText: _text(
-                            'Ingilizce kelime yazin (orn: bring about)',
+                            'İngilizce kelime yazın (örn: bring about)',
                             'Type an English word (e.g. bring about)',
                           ),
                           hintStyle: TextStyle(
@@ -647,7 +647,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const SizedBox(height: 12),
             Text(
               _text(
-                'Ingilizce kelime veya deyim girebilirsiniz',
+                'İngilizce kelime veya deyim girebilirsiniz',
                 'You can enter an English word or expression',
               ),
               style: TextStyle(
@@ -670,7 +670,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const CircularProgressIndicator(color: Color(0xFF06b6d4)),
             const SizedBox(height: 16),
             Text(
-              _text('AI sozluk araniyor...', 'Searching AI dictionary...'),
+              _text('AI sözlük araniyor...', 'Searching AI dictionary...'),
               style: const TextStyle(color: Colors.white70),
             ),
           ],
@@ -699,7 +699,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
     if (_meanings.isEmpty) {
       return Center(
         child: Text(
-          _text('Sonuc bulunamadi', 'No result found'),
+          _text('Sonuç bulunamadı', 'No result found'),
           style: const TextStyle(color: Colors.white70),
         ),
       );
@@ -880,7 +880,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
           if (meaning.example.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
-              _text('Ornek Cumle', 'Example Sentence'),
+              _text('Örnek Cümle', 'Example Sentence'),
               style: const TextStyle(
                 color: Color(0xFF06b6d4),
                 fontSize: 12,

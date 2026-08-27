@@ -619,7 +619,7 @@ class _ReadingPracticePageState extends State<ReadingPracticePage> {
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.exit_to_app, color: Colors.white70),
               label: Text(
-                _text('Baska Seviye Sec', 'Choose Another Level'),
+                _text('Başka Seviye Seç', 'Choose Another Level'),
                 style: TextStyle(color: Colors.white70),
               ),
               style: OutlinedButton.styleFrom(

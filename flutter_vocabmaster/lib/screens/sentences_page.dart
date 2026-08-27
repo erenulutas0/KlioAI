@@ -84,7 +84,7 @@ class _SentencesPageState extends State<SentencesPage> {
       case 'hard':
         return _text('Zor', 'Hard');
       default:
-        return _text('Tumu', 'All');
+        return _text('Tümü', 'All');
     }
   }
 
@@ -175,7 +175,7 @@ class _SentencesPageState extends State<SentencesPage> {
           SnackBar(
             content: Text(
               _text(
-                '$addedCount cumle eklendi! +${addedCount * 5} XP',
+                '$addedCount cümle eklendi! +${addedCount * 5} XP',
                 '$addedCount sentences added! +${addedCount * 5} XP',
               ),
             ),
@@ -293,7 +293,7 @@ class _SentencesPageState extends State<SentencesPage> {
                       decoration: InputDecoration(
                         icon: const Icon(Icons.search, color: Colors.white54),
                         hintText:
-                            _text('Cumlelerde ara...', 'Search sentences...'),
+                            _text('Cümlelerde ara...', 'Search sentences...'),
                         hintStyle: const TextStyle(color: Colors.white54),
                         border: InputBorder.none,
                       ),
@@ -349,18 +349,18 @@ class _SentencesPageState extends State<SentencesPage> {
     String message;
     if (_activeFilter == 'all') {
       message = _text(
-        'Henuz cumle eklenmedi.',
+        'Henüz cümle eklenmedi.',
         'No sentences have been added yet.',
       );
     } else if (_activeFilter == 'hard') {
       message = _text(
-        'Daha zor cumle eklenmedi.',
+        'Daha zor cümle eklenmedi.',
         'No hard sentences are available yet.',
       );
     } else {
       final label = _filterLabel(_activeFilter).toLowerCase();
       message = _text(
-        'Henuz $label seviyesinde cumle eklenmedi.',
+        'Henüz $label seviyesinde cümle eklenmedi.',
         'No $label sentences are available yet.',
       );
     }
@@ -397,7 +397,7 @@ class _SentencesPageState extends State<SentencesPage> {
         if (numericSentenceId == null) {
           throw Exception(
             _text(
-              'Gecersiz cumle ID: $sentenceId',
+              'Geçersiz cümle ID: $sentenceId',
               'Invalid sentence ID: $sentenceId',
             ),
           );
@@ -411,7 +411,7 @@ class _SentencesPageState extends State<SentencesPage> {
       if (!deleted) {
         throw Exception(
           _text(
-            'Cumle silinemedi, lutfen tekrar deneyin.',
+            'Cümle silinemedi, lütfen tekrar deneyin.',
             'The sentence could not be deleted. Please try again.',
           ),
         );
@@ -420,7 +420,7 @@ class _SentencesPageState extends State<SentencesPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_text('Cumle silindi!', 'Sentence deleted!')),
+          content: Text(_text('Cümle silindi!', 'Sentence deleted!')),
           backgroundColor: Colors.green,
         ),
       );
@@ -765,8 +765,8 @@ class _SentenceCardState extends State<SentenceCard> {
                         const SizedBox(width: 8),
                         Text(
                           _isMeaningVisible
-                              ? _text('Anlami Gizle', 'Hide Meaning')
-                              : _text('Anlami Goster', 'Show Meaning'),
+                              ? _text('Anlamı Gizle', 'Hide Meaning')
+                              : _text('Anlamı Göster', 'Show Meaning'),
                           style: TextStyle(
                             color: selectedTheme.colors.accent,
                             fontWeight: FontWeight.bold,
@@ -805,14 +805,14 @@ class _SentenceCardState extends State<SentenceCard> {
             ),
             const SizedBox(width: 12),
             Text(
-              _text('Cumleyi Sil', 'Delete Sentence'),
+              _text('Cümleyi Sil', 'Delete Sentence'),
               style: const TextStyle(color: Colors.white, fontSize: 18),
             ),
           ],
         ),
         content: Text(
           _text(
-            'Bu cumleyi silmek istediginize emin misiniz?',
+            'Bu cümleyi silmek istediğinize emin misiniz?',
             'Are you sure you want to delete this sentence?',
           ),
           style: const TextStyle(color: Colors.white70),
@@ -821,7 +821,7 @@ class _SentenceCardState extends State<SentenceCard> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              _text('Iptal', 'Cancel'),
+              _text('İptal', 'Cancel'),
               style: const TextStyle(color: Colors.white54),
             ),
           ),

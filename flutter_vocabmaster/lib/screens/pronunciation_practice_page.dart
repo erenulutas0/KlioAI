@@ -296,11 +296,11 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
     await _playTtsText(
       _targetText,
       unavailableMessage: _text(
-        'Model sesi su an uretilemedi.',
+        'Model sesi su an üretilemedi.',
         'Model voice could not be generated right now.',
       ),
       failedMessage: _text(
-        'Model sesi calinamadi.',
+        'Model sesi çalınamadı.',
         'Model voice could not be played.',
       ),
     );
@@ -318,11 +318,11 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
     await _playTtsText(
       cleanWord,
       unavailableMessage: _text(
-        'Kelime sesi su an uretilemedi.',
+        'Kelime sesi su an üretilemedi.',
         'Word pronunciation could not be generated right now.',
       ),
       failedMessage: _text(
-        'Kelime sesi calinamadi.',
+        'Kelime sesi çalınamadı.',
         'Word pronunciation could not be played.',
       ),
     );
@@ -398,7 +398,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
       _recordingTimer = Timer(const Duration(seconds: 45), _stopAndEvaluate);
     } catch (e) {
       _showSnack(_text(
-        'Kayit baslatilamadi.',
+        'Kayıt başlatılamadı.',
         'Recording could not be started.',
       ));
     }
@@ -428,7 +428,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
 
     if (path == null || path.trim().isEmpty) {
       if (mounted) setState(() => _isTranscribing = false);
-      _showSnack(_text('Kayit alinamadi.', 'Recording could not be captured.'));
+      _showSnack(_text('Kayıt alınamadı.', 'Recording could not be captured.'));
       return;
     }
 
@@ -443,7 +443,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
       if (transcript.isEmpty) {
         setState(() => _isTranscribing = false);
         _showSnack(_text(
-          'Konusma algilanamadi. Biraz daha net tekrar dene.',
+          'Konuşma algılanamadı. Biraz daha net tekrar dene.',
           'No speech was detected. Try one clearer repetition.',
         ));
         return;
@@ -478,7 +478,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
       _showSnack(AiErrorMessageFormatter.forError(
         e,
         fallback: _text(
-          'Telaffuz raporu su an hazirlanamadi.',
+          'Telaffuz raporu su an hazırlanamadı.',
           'The pronunciation report could not be prepared right now.',
         ),
       ));
@@ -561,8 +561,8 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
                 // doc); phoneme-level pronunciation scoring is roadmap, and the
                 // title should not claim it before it exists.
                 widget.placementMode
-                    ? _text('Seviye Olcumu', 'Level Check')
-                    : _text('Okuma Netligi Raporu', 'Reading Clarity Report'),
+                    ? _text('Seviye Ölçümü', 'Level Check')
+                    : _text('Okuma Netliği Raporu', 'Reading Clarity Report'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -624,7 +624,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
                         : Icons.refresh,
                     size: 16,
                   ),
-                  label: Text(_text('Degistir', 'Change')),
+                  label: Text(_text('Değiştir', 'Change')),
                 ),
             ],
           ),
@@ -744,7 +744,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              _text('Ses yazıya cevriliyor ve rapor hazirlaniyor...',
+              _text('Ses yazıya çevriliyor ve rapor hazırlanıyor...',
                   'Transcribing speech and preparing the report...'),
               style: const TextStyle(color: Colors.white, height: 1.35),
             ),
@@ -815,12 +815,12 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
           const SizedBox(height: 18),
           _buildMetricRow(
             selectedTheme,
-            _text('Metin eslesmesi', 'Text match'),
+            _text('Metin eşleşmesi', 'Text match'),
             report.accuracyScore,
           ),
           _buildMetricRow(
             selectedTheme,
-            _text('Okuma hizi', 'Reading pace'),
+            _text('Okuma hızı', 'Reading pace'),
             report.paceScore,
             detail: '${report.wordsPerMinute.round()} WPM',
           ),
@@ -903,7 +903,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _text('Algilanan metin', 'Detected speech'),
+            _text('Algılanan metin', 'Detected speech'),
             style: TextStyle(
               color: selectedTheme.colors.textSecondary,
               fontSize: 12,
@@ -1026,7 +1026,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _text('Onerilen baslangic', 'Suggested start'),
+                  _text('Önerilen başlangıç', 'Suggested start'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1081,7 +1081,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
             Expanded(
               child: Text(
                 _text(
-                  'Tum kelimeler hedef metinle eslesti.',
+                  'Tüm kelimeler hedef metinle eşleşti.',
                   'All words matched the target text.',
                 ),
                 style: TextStyle(
@@ -1100,7 +1100,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _text('Kelime kontrolu', 'Word review'),
+          _text('Kelime kontrolü', 'Word review'),
           style: TextStyle(
             color: selectedTheme.colors.textSecondary,
             fontSize: 12,
@@ -1203,7 +1203,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
             selectedTheme,
             icon: Icons.refresh_rounded,
             label: widget.placementMode
-                ? _text('Tekrar olc', 'Check again')
+                ? _text('Tekrar ölç', 'Check again')
                 : _text('Yeni metin', 'New text'),
             onTap: _pickAnotherText,
             emphasized: true,
@@ -1300,14 +1300,14 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
         if (hasMissing)
           _buildChipGroup(
             selectedTheme,
-            _text('Eksik/yanlis algilanan', 'Missing or unclear'),
+            _text('Eksik/yanlış algılanan', 'Missing or unclear'),
             report.missingWords,
           ),
         if (hasExtra) ...[
           const SizedBox(height: 12),
           _buildChipGroup(
             selectedTheme,
-            _text('Fazladan algilanan', 'Extra detected'),
+            _text('Fazladan algılanan', 'Extra detected'),
             report.extraWords,
           ),
         ],
@@ -1334,7 +1334,7 @@ class _PronunciationPracticePageState extends State<PronunciationPracticePage> {
         const SizedBox(height: 4),
         Text(
           _text(
-            'Dinlemek icin kelimeye dokun.',
+            'Dinlemek için kelimeye dokun.',
             'Tap a word to hear it.',
           ),
           style: TextStyle(

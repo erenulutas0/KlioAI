@@ -207,7 +207,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_text('Ses calinamadi: ${e.toString()}',
+            content: Text(_text('Ses çalınamadı: ${e.toString()}',
                 'Voice sample could not be played: ${e.toString()}')),
             backgroundColor: Colors.red,
           ),
@@ -228,7 +228,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
       debugPrint('Save voice error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_text('Kaydetme basarisiz', 'Saving failed'))),
+          SnackBar(content: Text(_text('Kaydetme başarısız', 'Saving failed'))),
         );
       }
     }
@@ -364,7 +364,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _text('Konusmaci Sec', 'Choose Speaker'),
+                  _text('Konuşmacı Seç', 'Choose Speaker'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -373,7 +373,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _text('En sevdigin ses tonunu sec',
+                  _text('En sevdigin ses tonunu seç',
                       'Choose your preferred voice'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
@@ -758,7 +758,7 @@ class _VoiceSelectionModalState extends State<VoiceSelectionModal>
                     ),
                     child: Center(
                       child: Text(
-                        _text('Iptal', 'Cancel'),
+                        _text('İptal', 'Cancel'),
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,

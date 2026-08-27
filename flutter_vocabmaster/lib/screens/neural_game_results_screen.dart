@@ -123,7 +123,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _text('Oturum Tamamlandi', 'Run Complete'),
+                            _text('Oturum Tamamlandı', 'Run Complete'),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -145,7 +145,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           Text(
                             widget.result.mode.name == 'turkishTranslation'
                                 ? _text(
-                                    'Mod: Turkce Karsilik',
+                                    'Mod: Türkçe Karşılık',
                                     'Mode: Turkish Meaning',
                                   )
                                 : _text(
@@ -235,7 +235,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           TextButton.icon(
                             onPressed: widget.onBackToMenu,
                             icon: const Icon(Icons.grid_view_rounded),
-                            label: Text(_text('Menuye Don', 'Back to Menu')),
+                            label: Text(_text('Menuye Dön', 'Back to Menu')),
                             style: TextButton.styleFrom(
                                 foregroundColor:
                                     selectedTheme.colors.textSecondary),

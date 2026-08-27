@@ -727,7 +727,7 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                               const SizedBox(height: 4),
                               Text(
                                 _text(
-                                  'Kartlara dokun, cumlelerini ac ve yeni cumle ekle.',
+                                  'Kartlara dokun, cümlelerini ac ve yeni cümle ekle.',
                                   'Tap a card to open its sentences and add new ones.',
                                 ),
                                 style: const TextStyle(
@@ -830,7 +830,7 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                       padding: const EdgeInsets.all(24),
                                       child: Text(
                                         _text(
-                                          'Bu alan icin henuz kelime yok.',
+                                          'Bu alan için henüz kelime yok.',
                                           'There are no words here yet.',
                                         ),
                                         textAlign: TextAlign.center,
@@ -936,7 +936,7 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                           vertical: 8,
                                         ),
                                         child: Text(
-                                          _text('Surukle ve yakinlastir',
+                                          _text('Sürükle ve yakınlaştır',
                                               'Drag and zoom'),
                                           style: const TextStyle(
                                             color: Colors.white70,
@@ -1024,7 +1024,7 @@ class _WordGalaxyPageState extends State<WordGalaxyPage> {
                                             size: 18,
                                           ),
                                           label: Text(
-                                            _text('Merkeze Don', 'Recenter'),
+                                            _text('Merkeze Dön', 'Recenter'),
                                           ),
                                         ),
                                       ],
@@ -1416,22 +1416,22 @@ class _WordQuickActionSheet extends StatelessWidget {
                 icon: Icons.visibility_outlined,
                 title: _text('Onizleme Ac', 'Open Preview'),
                 subtitle: _text(
-                    'Cumleleri ve formu ac', 'Open sentences and the form'),
+                    'Cümleleri ve formu ac', 'Open sentences and the form'),
                 onTap: () =>
                     Navigator.of(context).pop(_WordNodeQuickAction.preview),
               ),
               _QuickActionTile(
                 icon: Icons.auto_awesome_rounded,
-                title: _text('AI Cumle Ac', 'Open AI Preview'),
-                subtitle: _text('Ornek cumleleri AI ile doldur',
+                title: _text('AI Cümle Ac', 'Open AI Preview'),
+                subtitle: _text('Örnek cümleleri AI ile doldur',
                     'Open preview and generate AI examples'),
                 onTap: () =>
                     Navigator.of(context).pop(_WordNodeQuickAction.aiPreview),
               ),
               _QuickActionTile(
                 icon: Icons.article_outlined,
-                title: _text('Tum Cumleler', 'View All Sentences'),
-                subtitle: _text('Bu kelimenin tum cumle gecmisini ac',
+                title: _text('Tüm Cümleler', 'View All Sentences'),
+                subtitle: _text('Bu kelimenin tüm cümle geçmişini ac',
                     'Open the full sentence history'),
                 onTap: () => Navigator.of(context)
                     .pop(_WordNodeQuickAction.viewAllSentences),
@@ -1639,7 +1639,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
           SnackBar(
             content: Text(
               _text(
-                'AI ornek cumle uretemedi. Tekrar dene.',
+                'AI örnek cümle üretemedi. Tekrar dene.',
                 'AI could not generate example sentences. Try again.',
               ),
             ),
@@ -1664,7 +1664,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
       }
       final message = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : _text('AI cumle uretimi su an basarisiz.',
+          : _text('AI cümle üretimi su an başarısız.',
               'AI sentence generation failed right now.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1684,7 +1684,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
         SnackBar(
           content: Text(
             _text(
-              'Lutfen cumleyi gir.',
+              'Lütfen cümleyi gir.',
               'Enter the sentence.',
             ),
           ),
@@ -1717,7 +1717,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
         SnackBar(
           content: Text(
             _text(
-              'Cumle kaydedilemedi. Tekrar dene.',
+              'Cümle kaydedilemedi. Tekrar dene.',
               'The sentence could not be saved. Try again.',
             ),
           ),
@@ -1738,7 +1738,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _text('Cumle eklendi. (+5 XP)', 'Sentence added. (+5 XP)'),
+          _text('Cümle eklendi. (+5 XP)', 'Sentence added. (+5 XP)'),
         ),
         backgroundColor: Colors.green,
       ),
@@ -1748,9 +1748,9 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
   String _reviewLabel(int quality) {
     switch (quality) {
       case 1:
-        return _text('Yine Goster', 'Show Again');
+        return _text('Yine Göster', 'Show Again');
       case 3:
-        return _text('Zorlandim', 'Struggled');
+        return _text('Zorlandım', 'Struggled');
       case 5:
         return _text('Bildim', 'Got It');
       default:
@@ -1943,7 +1943,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      _text('Cumleler', 'Sentences'),
+                      _text('Cümleler', 'Sentences'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -1963,7 +1963,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                         ),
                         child: Text(
                           _text(
-                            'Bu kelime icin henuz cumle yok. Asagidan ilk cumleni ekleyebilirsin.',
+                            'Bu kelime için henüz cümle yok. Aşağıdan ilk cumleni ekleyebilirsin.',
                             'There are no sentences for this word yet. Add the first one below.',
                           ),
                           style: const TextStyle(
@@ -2008,7 +2008,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                       ),
                     const SizedBox(height: 14),
                     Text(
-                      _text('Yeni Cumle', 'New Sentence'),
+                      _text('Yeni Cümle', 'New Sentence'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -2041,7 +2041,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                               )
                             : const Icon(Icons.auto_awesome_rounded),
                         label: Text(
-                          _text('AI Ornek Cumle Uret', 'Generate AI Example'),
+                          _text('AI Örnek Cümle Üret', 'Generate AI Example'),
                         ),
                       ),
                     ),
@@ -2066,7 +2066,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: _text(
-                          'Ingilizce cumleyi yaz',
+                          'İngilizce cümleyi yaz',
                           'Write the English sentence',
                         ),
                         hintStyle: const TextStyle(color: Colors.white54),
@@ -2117,7 +2117,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                                   color: Colors.black,
                                 ),
                               )
-                            : Text(_text('Cumleyi Kaydet', 'Save Sentence')),
+                            : Text(_text('Cümleyi Kaydet', 'Save Sentence')),
                       ),
                     ),
                   ],
@@ -2139,7 +2139,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text(_text('Tum Cumleler', 'View All')),
+                      child: Text(_text('Tüm Cümleler', 'View All')),
                     ),
                   ),
                   const SizedBox(width: 10),

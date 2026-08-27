@@ -592,7 +592,7 @@ class _AddSentenceFromSentencesModalState
                 ),
               ),
               child: Text(
-                _modalText('Iptal', 'Cancel'),
+                _modalText('İptal', 'Cancel'),
                 style: const TextStyle(
                   color: SentenceModalColors.textWhite,
                   fontSize: 14,

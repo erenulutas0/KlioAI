@@ -132,7 +132,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         child: TextButton.icon(
                           onPressed: widget.onExit,
                           icon: const Icon(Icons.arrow_back, size: 18),
-                          label: Text(_text('Menu', 'Menu')),
+                          label: Text(_text('Menü', 'Menu')),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white70,
                             backgroundColor: selectedTheme.colors.background
@@ -149,7 +149,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         subtitle:
                             widget.mode == NeuralGameMode.turkishTranslation
                                 ? _text(
-                                    'Turkce karsiligini yaz',
+                                    'Türkçe karsiligini yaz',
                                     'Type the Turkish meaning',
                                   )
                                 : _text(
@@ -220,7 +220,7 @@ class _NeuralGamePlayScreenState extends State<NeuralGamePlayScreen>
                         hintText:
                             widget.mode == NeuralGameMode.turkishTranslation
                                 ? _text(
-                                    'Turkce karsiligini yaz',
+                                    'Türkçe karsiligini yaz',
                                     'Type the Turkish meaning',
                                   )
                                 : _text(

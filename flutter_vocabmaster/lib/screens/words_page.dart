@@ -239,23 +239,23 @@ class _WordsPageState extends State<WordsPage> {
                             title: _text('Kelimeler Sayfası', 'Words Page'),
                             steps: [
                               _text(
-                                'Takvimden gun secip o tarihte ogrendiginiz kelimeleri inceleyin.',
+                                'Takvimden gün secip o tarihte ogrendiginiz kelimeleri inceleyin.',
                                 'Pick a day on the calendar to review the words learned on that date.',
                               ),
                               _text(
-                                'Isaretli gunler, kelime calismasi yaptiginiz aktif gunleri gosterir.',
+                                'İşaretli günler, kelime calismasi yaptiginiz aktif gunleri gösterir.',
                                 'Marked days show when you practiced vocabulary.',
                               ),
                               _text(
-                                'Gecmis veya gelecek tarihleri secerek yeni kelimeler ekleyebilirsiniz.',
+                                'Geçmiş veya gelecek tarihleri secerek yeni kelimeler ekleyebilirsiniz.',
                                 'You can select past or future dates and add new words.',
                               ),
                               _text(
-                                'Her kelime icin zorluk seviyesi belirleyerek sureci yonetin.',
+                                'Her kelime için zorluk seviyesi belirleyerek sureci yonetin.',
                                 'Set a difficulty level for each word to manage review flow.',
                               ),
                               _text(
-                                'Eklediginiz kelimelere ornek cumleler ekleyerek kaliciligi artirin.',
+                                'Eklediginiz kelimelere örnek cümleler ekleyerek kaliciligi artirin.',
                                 'Add example sentences to make each word easier to retain.',
                               ),
                             ],
@@ -352,7 +352,7 @@ class _WordsPageState extends State<WordsPage> {
                   // Learned Words List Header
                   Text(
                     _text(
-                      '${_selectedDate.day} ${_getMonthName(_selectedDate.month)} - Ogrenilen Kelimeler',
+                      '${_selectedDate.day} ${_getMonthName(_selectedDate.month)} - Öğrenilen Kelimeler',
                       '${_getMonthName(_selectedDate.month)} ${_selectedDate.day} - Learned Words',
                     ),
                     style: const TextStyle(
@@ -395,7 +395,7 @@ class _WordsPageState extends State<WordsPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _text('Henuz kelime yok', 'No words yet'),
+                            _text('Henüz kelime yok', 'No words yet'),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -764,7 +764,7 @@ class _WordsPageState extends State<WordsPage> {
                                             .showSnackBar(
                                           SnackBar(
                                             content: Text(_text(
-                                                'Kelime ve cumleleri silindi!',
+                                                'Kelime ve cümleleri silindi!',
                                                 'Word and related sentences were deleted.')),
                                             backgroundColor: Colors.green,
                                           ),
@@ -774,7 +774,7 @@ class _WordsPageState extends State<WordsPage> {
                                             .showSnackBar(
                                           SnackBar(
                                             content: Text(_text(
-                                                'Kelime silinemedi, lutfen tekrar deneyin.',
+                                                'Kelime silinemedi, lütfen tekrar deneyin.',
                                                 'Word could not be deleted. Please try again.')),
                                             backgroundColor: Colors.red,
                                           ),
@@ -914,7 +914,7 @@ class _WordsPageState extends State<WordsPage> {
                     children: [
                       Expanded(
                         child: NeonButton(
-                          label: _text('Cumleler', 'Sentences'),
+                          label: _text('Cümleler', 'Sentences'),
                           icon: Icons.article_outlined,
                           isCyan: true,
                           onTap: () => _showSentencesDialog(word),
@@ -923,7 +923,7 @@ class _WordsPageState extends State<WordsPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: NeonButton(
-                          label: _text('Cumle Ekle', 'Add Sentence'),
+                          label: _text('Cümle Ekle', 'Add Sentence'),
                           icon: Icons.add,
                           isCyan: false,
                           onTap: () => _showAddSentenceDialog(word),
@@ -1046,12 +1046,12 @@ class _WordsPageState extends State<WordsPage> {
         children: [
           _buildTextField(
             _englishWordController,
-            _text('Ingilizce Kelime', 'English Word'),
+            _text('İngilizce Kelime', 'English Word'),
           ),
           const SizedBox(height: 12),
           _buildTextField(
             _turkishMeaningController,
-            _text('Ceviri / Anlam', 'Translation / Meaning'),
+            _text('Çeviri / Anlam', 'Translation / Meaning'),
           ),
           const SizedBox(height: 12),
           _buildFormDifficultyDropdown(),

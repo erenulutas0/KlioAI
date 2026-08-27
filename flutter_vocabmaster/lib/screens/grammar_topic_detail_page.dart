@@ -241,7 +241,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                     ),
                     const SizedBox(height: 20),
                     _buildSectionHeader(
-                      _text('Yapi / Formul', 'Formula'),
+                      _text('Yapı / Formül', 'Formula'),
                       Icons.functions,
                     ),
                     Container(
@@ -289,7 +289,7 @@ class _GrammarTopicDetailPageState extends State<GrammarTopicDetailPage> {
                       const SizedBox(height: 20),
                     ],
                     _buildSectionHeader(
-                      _text('Ornekler', 'Examples'),
+                      _text('Örnekler', 'Examples'),
                       Icons.check_circle_outline,
                     ),
                     ...subtopic.examples

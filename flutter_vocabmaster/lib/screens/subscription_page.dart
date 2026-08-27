@@ -105,7 +105,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Mevcut magaza aboneligi kontrol ediliyor...',
+            'Mevcut mağaza aboneliği kontrol ediliyor...',
             'Checking your existing store subscription...',
           )),
           backgroundColor: Colors.orange,
@@ -315,7 +315,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Abonelik satin alma sadece mobil uygulamada desteklenir.',
+            'Abonelik satın alma sadece mobil uygulamada desteklenir.',
             'Subscription purchases are supported only in the mobile app.',
           )),
           backgroundColor: Colors.orange,
@@ -335,7 +335,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Bu buildde mobil satin alma kapali.',
+            'Bu buildde mobil satın alma kapalı.',
             'Mobile purchases are disabled in this build.',
           )),
           backgroundColor: Colors.orange,
@@ -367,7 +367,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_text('Odeme hatasi: $e', 'Payment error: $e')),
+          content: Text(_text('Ödeme hatası: $e', 'Payment error: $e')),
         ),
       );
     }
@@ -392,7 +392,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       setState(() => _isPurchasing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_text('Demo hatasi: $e', 'Demo error: $e')),
+          content: Text(_text('Demo hatası: $e', 'Demo error: $e')),
           backgroundColor: Colors.red,
         ),
       );
@@ -409,7 +409,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Geri yukleme baslatildi. Abonelik senkronu bekleniyor...',
+            'Geri yükleme başlatıldı. Abonelik senkronu bekleniyor...',
             'Restore started. Waiting for subscription sync...',
           )),
           backgroundColor: Colors.orange,
@@ -429,7 +429,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Geri yukleme hatasi: $e',
+            'Geri yükleme hatası: $e',
             'Restore error: $e',
           )),
           backgroundColor: Colors.red,
@@ -451,7 +451,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         content: Text(
           message ??
               _text(
-                'PRO uyeliginiz basariyla aktif edildi. Keyifle ogrenin!',
+                'PRO uyeliginiz başarıyla aktif edildi. Keyifle ogrenin!',
                 'Your PRO membership is active. Enjoy learning!',
               ),
           style: const TextStyle(color: Colors.white70),
@@ -478,7 +478,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          _text('PRO Uyelik', 'PRO Membership'),
+          _text('PRO Üyelik', 'PRO Membership'),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -507,7 +507,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         ),
                         child: Text(
                           _text(
-                            'DEMO ODEME MODU AKTIF',
+                            'DEMO ÖDEME MODU AKTİF',
                             'DEMO PAYMENT MODE ACTIVE',
                           ),
                           textAlign: TextAlign.center,
@@ -534,7 +534,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     const SizedBox(height: 12),
                     Text(
                       _text(
-                        'Cumle uretme, konusma ve tekrar tek planda.',
+                        'Cümle üretme, konuşma ve tekrar tek planda.',
                         'Create sentences, practice speaking, and review in one plan.',
                       ),
                       textAlign: TextAlign.center,
@@ -559,7 +559,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                                   'Your subscription is active.',
                                 )
                               : _text(
-                                  'Aboneliginiz aktif. Bitis: $_subscriptionEndDateLabel',
+                                  'Aboneliginiz aktif. Bitiş: $_subscriptionEndDateLabel',
                                   'Your subscription is active. Ends: $_subscriptionEndDateLabel',
                                 ),
                           style: const TextStyle(
@@ -573,7 +573,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Text(
                           _text(
-                            'Abonelik plani su anda bulunamadi.',
+                            'Abonelik planı su anda bulunamadı.',
                             'No subscription plan is available right now.',
                           ),
                           style: const TextStyle(
@@ -591,7 +591,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                           onPressed: _isPurchasing ? null : _restorePurchases,
                           child: Text(
                             _text(
-                              'Satin alimlari geri yukle',
+                              'Satın alımları geri yükle',
                               'Restore purchases',
                             ),
                             style: const TextStyle(color: Colors.white70),
@@ -630,8 +630,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                   children: [
                     Text(
                       plan.name.contains('ANNUAL')
-                          ? _text('Yillik Plan', 'Annual Plan')
-                          : _text('Aylik Plan', 'Monthly Plan'),
+                          ? _text('Yıllık Plan', 'Annual Plan')
+                          : _text('Aylık Plan', 'Monthly Plan'),
                       style: const TextStyle(
                           color: Color(0xFF22D3EE),
                           fontSize: 18,
@@ -665,7 +665,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     Text(
                       plan.durationDays == 30
                           ? _text(' / ay', ' / month')
-                          : _text(' / yil', ' / year'),
+                          : _text(' / yıl', ' / year'),
                       style:
                           const TextStyle(color: Colors.white60, fontSize: 16),
                     ),
@@ -675,17 +675,17 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 _buildPerk(
                   Icons.check_circle,
                   _text(
-                      'AI destekli gunluk pratik', 'AI-powered daily practice'),
+                      'AI destekli günlük pratik', 'AI-powered daily practice'),
                 ),
                 _buildPerk(
                   Icons.check_circle,
-                  _text('Cumle uretme ve ceviri destegi',
+                  _text('Cümle üretme ve çeviri desteği',
                       'Sentence creation and translation support'),
                 ),
                 _buildPerk(
                   Icons.check_circle,
                   _text(
-                      'Konusma ve tekrar modlari', 'Speaking and review modes'),
+                      'Konuşma ve tekrar modları', 'Speaking and review modes'),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -704,7 +704,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     child: Text(
                       _hasActiveSubscription
                           ? _text('Abonelik Aktif', 'Subscription Active')
-                          : _text('Hemen Yukselt', 'Upgrade Now'),
+                          : _text('Hemen Yükselt', 'Upgrade Now'),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -719,7 +719,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 Text(
                   key: const ValueKey('paywall-trial-note'),
                   _text(
-                    'Yeni hesaplar 7 gunluk deneme AI kotasiyla baslar. '
+                    'Yeni hesaplar 7 günlük deneme AI kotasıyla başlar. '
                         'Aboneligi istedigin zaman Google Play uzerinden iptal edebilirsin.',
                     'New accounts start with a 7-day trial AI quota. '
                         'Cancel your subscription anytime in Google Play.',

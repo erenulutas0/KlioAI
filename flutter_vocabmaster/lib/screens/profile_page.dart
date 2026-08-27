@@ -976,7 +976,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileCard() {
-    final displayName = _user?['displayName'] ?? _text('Kullanici', 'User');
+    final displayName = _user?['displayName'] ?? _text('Kullanıcı', 'User');
     // XP/seviye icin tek kaynak: appState.userStats'tan doldurulan _level/_totalXp.
     // Onceden _user haritasindan okunuyordu ama oradaki anahtar 'xp' (Home da
     // onu kullaniyor); 'totalXp' hep null donup 0'a dusuyor ve Profile, Home ile
@@ -1206,7 +1206,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white54, size: 16),
                 const SizedBox(width: 6),
                 Text(
-                  _text('Ucretsiz Plan', 'Free Plan'),
+                  _text('Ücretsiz Plan', 'Free Plan'),
                   style: const TextStyle(color: Colors.white54, fontSize: 14),
                 ),
               ],
@@ -1268,7 +1268,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 }
               },
               icon: const Icon(Icons.settings_outlined, size: 18),
-              label: Text(_text('Aboneligi Yonet', 'Manage Subscription')),
+              label: Text(_text('Aboneliği Yönet', 'Manage Subscription')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
                 foregroundColor: Colors.white,
@@ -1297,7 +1297,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _text('XP Ilerlemesi', 'XP Progress'),
+                      _text('XP İlerlemesi', 'XP Progress'),
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),
@@ -1328,7 +1328,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 8),
                 Text(
                   _text(
-                    'Sonraki seviyeye $xpRemaining XP kaldi',
+                    'Sonraki seviyeye $xpRemaining XP kaldı',
                     '$xpRemaining XP to the next level',
                   ),
                   style: TextStyle(
@@ -1367,7 +1367,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: _buildStatItem(
                   Icons.calendar_today_outlined,
                   '$_streak',
-                  _text('Gun Serisi', 'Streak'),
+                  _text('Gün Serisi', 'Streak'),
                   selectedTheme.colors.primary,
                 ),
               ),
@@ -1458,7 +1458,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _text('Tema Secimi', 'Theme Selection'),
+                    _text('Tema Seçimi', 'Theme Selection'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -1503,7 +1503,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       SnackBar(
                         content: Text(
                           _text(
-                            '${theme.name} icin ${theme.xpRequired} XP gerekli. Kalan: $remaining',
+                            '${theme.name} için ${theme.xpRequired} XP gerekli. Kalan: $remaining',
                             '${theme.name} requires ${theme.xpRequired} XP. Remaining: $remaining',
                           ),
                         ),
@@ -1782,7 +1782,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 12),
           _buildSettingsTile(
             Icons.logout,
-            _text('Bu cihazdan cikis yap', 'Sign out on this device'),
+            _text('Bu cihazdan çıkış yap', 'Sign out on this device'),
             _showLogoutDialog,
             color: Colors.redAccent,
           ),
@@ -1880,12 +1880,12 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: selectedTheme.colors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          _text('Cikis yap', 'Sign out'),
+          _text('Çıkış yap', 'Sign out'),
           style: const TextStyle(color: Colors.white),
         ),
         content: Text(
           _text(
-            'Bu cihazdan cikis yapilacak. Kelimelerin, aboneligin ve AI kotan Google hesabina bagli kalir.',
+            'Bu cihazdan çıkış yapılacak. Kelimelerin, aboneliğin ve AI kotan Google hesabina bağlı kalır.',
             'You will be signed out on this device. Your words, subscription, and AI quota stay linked to your Google account.',
           ),
           style: const TextStyle(color: Colors.white70, height: 1.35),
@@ -1894,7 +1894,7 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(
-              _text('Vazgec', 'Cancel'),
+              _text('Vazgeç', 'Cancel'),
               style: TextStyle(color: selectedTheme.colors.accent),
             ),
           ),
@@ -1904,7 +1904,7 @@ class _ProfilePageState extends State<ProfilePage> {
               await _handleLogout();
             },
             child: Text(
-              _text('Cikis yap', 'Sign out'),
+              _text('Çıkış yap', 'Sign out'),
               style: const TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -1936,7 +1936,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         content: Text(
           _text(
-            'Bu talep hesabinizi ve kelime, cumle, ilerleme ve XP dahil bagli verilerinizi silme surecini baslatir. Talepler genellikle 30 gun icinde islenir. Aktif bir Google Play aboneligin varsa, ayrica Google Play uzerinden iptal etmen gerekir.',
+            'Bu talep hesabinizi ve kelime, cümle, ilerleme ve XP dahil bağlı verilerinizi silme surecini başlatır. Talepler genellikle 30 gün içinde islenir. Aktif bir Google Play aboneliğin varsa, ayrıca Google Play üzerinden iptal etmen gerekir.',
             'This request starts the process of deleting your account and connected data, including words, sentences, progress, and XP. Requests are normally processed within 30 days. If you have an active Google Play subscription, you must also cancel it separately in Google Play.',
           ),
           style: const TextStyle(color: Colors.white70, height: 1.35),
@@ -1945,7 +1945,7 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(
-              _text('Vazgec', 'Cancel'),
+              _text('Vazgeç', 'Cancel'),
               style: TextStyle(color: selectedTheme.colors.accent),
             ),
           ),
@@ -1957,7 +1957,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     await _submitAccountDeletionRequest();
                   },
             child: Text(
-              _text('Silme talebi gonder', 'Request deletion'),
+              _text('Silme talebi gönder', 'Request deletion'),
               style: const TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -1974,7 +1974,7 @@ class _ProfilePageState extends State<ProfilePage> {
         type: 'ACCOUNT_DELETION',
         title: _text('Hesap silme talebi', 'Account deletion request'),
         message: _text(
-          'Kullanici uygulama icinden hesabinin ve bagli verilerinin silinmesini talep etti.',
+          'Kullanıcı uygulama icinden hesabinin ve bağlı verilerinin silinmesini talep etti.',
           'The user requested deletion of their account and connected data from within the app.',
         ),
         locale: _isTurkish ? 'tr' : 'en',
@@ -1983,7 +1983,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Silme talebin alindi. En gec 30 gun icinde islenecek.',
+            'Silme talebin alındı. En geç 30 gün içinde islenecek.',
             'Your deletion request has been received. It will be processed within 30 days.',
           )),
           backgroundColor: Colors.green,
@@ -1993,11 +1993,11 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       final message = e.statusCode == 429
           ? _text(
-              'Bugun icin destek talebi hakkini doldurdun. Lutfen yarin tekrar dene veya support@klioai.app adresine yaz.',
+              'Bugün için destek talebi hakkini doldurdun. Lütfen yarın tekrar dene veya support@klioAI.app adresine yaz.',
               'You have reached today\'s support request limit. Please try again tomorrow or email support@klioai.app.',
             )
           : _text(
-              'Talep gonderilemedi: ${e.message}',
+              'Talep gönderilemedi: ${e.message}',
               'The request could not be submitted: ${e.message}',
             );
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2008,7 +2008,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Talep gonderilemedi: $e',
+            'Talep gönderilemedi: $e',
             'The request could not be submitted: $e',
           )),
           backgroundColor: Colors.red,
@@ -2373,7 +2373,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: Colors.white.withValues(alpha: 0.3), size: 48),
                   const SizedBox(height: 12),
                   Text(
-                    _text('Henuz arkadasiniz yok', 'No friends yet'),
+                    _text('Henüz arkadasiniz yok', 'No friends yet'),
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 16,

@@ -76,7 +76,7 @@ class _GrammarTabState extends State<GrammarTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _text('Gramer Calisma', 'Grammar Practice'),
+                      _text('Gramer Çalışma', 'Grammar Practice'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -87,7 +87,7 @@ class _GrammarTabState extends State<GrammarTab> {
                     ),
                     Text(
                       _text(
-                        'Konu anlatimlari ve detayli notlar',
+                        'Konu anlatımları ve detayli notlar',
                         'Grammar notes and topic guides',
                       ),
                       maxLines: 2,
@@ -136,13 +136,13 @@ class _GrammarTabState extends State<GrammarTab> {
       case 'core':
         return _text('Temel', 'Core');
       case 'advanced':
-        return _text('Ileri', 'Advanced');
+        return _text('İleri', 'Advanced');
       case 'exam':
-        return _text('Sinav', 'Exam');
+        return _text('Sınav', 'Exam');
       case 'bonus':
         return 'Bonus';
       default:
-        return _text('Tumu', 'All');
+        return _text('Tümü', 'All');
     }
   }
 
@@ -198,7 +198,7 @@ class _GrammarTabState extends State<GrammarTab> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content:
-                    Text(_text('Bu icerik yakinda eklenecek!', 'Coming soon!')),
+                    Text(_text('Bu içerik yakında eklenecek!', 'Coming soon!')),
                 duration: const Duration(seconds: 1),
               ),
             );
@@ -272,9 +272,9 @@ class _GrammarTabState extends State<GrammarTab> {
                     ),
                     child: Text(
                       isComingSoon
-                          ? _text('Yakinda', 'Soon')
+                          ? _text('Yakında', 'Soon')
                           : _text(
-                              '$subtopicCount Baslik', '$subtopicCount Topics'),
+                              '$subtopicCount Başlık', '$subtopicCount Topics'),
                       style: TextStyle(
                         color: isComingSoon ? Colors.white54 : Colors.white70,
                         fontSize: 10,
@@ -287,7 +287,7 @@ class _GrammarTabState extends State<GrammarTab> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         _text(
-                            '$exampleCount+ Ornek', '$exampleCount+ Examples'),
+                            '$exampleCount+ Örnek', '$exampleCount+ Examples'),
                         style: TextStyle(
                           color: accent.withValues(alpha: 0.85),
                           fontSize: 10,

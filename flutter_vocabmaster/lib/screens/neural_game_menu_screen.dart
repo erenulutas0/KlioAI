@@ -141,7 +141,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                     Expanded(
                                       child: _buildInfoTile(
                                         selectedTheme,
-                                        _text('Sure', 'Time'),
+                                        _text('Süre', 'Time'),
                                         _text('60 sn', '60 sec'),
                                         verySmall,
                                       ),
@@ -163,7 +163,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                         _selectedMode ==
                                                 NeuralGameMode.relatedWords
                                             ? _text('Ag kur', 'Build links')
-                                            : _text('Ceviri', 'Translate'),
+                                            : _text('Çeviri', 'Translate'),
                                         verySmall,
                                       ),
                                     ),
@@ -187,7 +187,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                         size: verySmall ? 18 : 20,
                                       ),
                                       label: Text(
-                                        _text('Oyunu Baslat', 'Start Game'),
+                                        _text('Oyunu Başlat', 'Start Game'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: verySmall ? 13 : 14,
@@ -218,7 +218,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
                                     ),
                                     label: Text(
                                       _text(
-                                        'Pratik ekranina don',
+                                        'Pratik ekranina dön',
                                         'Back to practice',
                                       ),
                                       style: TextStyle(
@@ -373,7 +373,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
             mode: NeuralGameMode.relatedWords,
             title: _text('Iliskili Kelime', 'Related Word'),
             subtitle: _text(
-              'Ingilizce baglantili kelime yaz',
+              'İngilizce baglantili kelime yaz',
               'Type an English word with a clear connection',
             ),
           ),
@@ -384,9 +384,9 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
             selectedTheme: selectedTheme,
             compact: compact,
             mode: NeuralGameMode.turkishTranslation,
-            title: _text('Turkce Karsilik', 'Turkish Meaning'),
+            title: _text('Türkçe Karşılık', 'Turkish Meaning'),
             subtitle: _text(
-              'Turkce anlami yaz',
+              'Türkçe anlamı yaz',
               'Write the Turkish meaning',
             ),
           ),
