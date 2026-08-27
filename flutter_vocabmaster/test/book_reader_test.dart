@@ -443,4 +443,48 @@ void main() {
       expect(queries.single, contains('from=30'));
     });
   });
+
+  group('listening', () {
+    /// A window holding one ordinary sentence and one too long to synthesise.
+    Map<String, Object?> windowWithLongSentence() => <String, Object?>{
+          'slug': 'jekyll-and-hyde',
+          'title': 'The Strange Case of Dr Jekyll and Mr Hyde',
+          'from': 0,
+          'sentenceCount': 2,
+          'sentences': <Map<String, Object?>>[
+            <String, Object?>{
+              'index': 0,
+              'chapterIndex': 0,
+              'chapterTitle': null,
+              'text': 'Mr. Utterson the lawyer was a man of a rugged countenance.',
+              'translation': null,
+            },
+            <String, Object?>{
+              'index': 1,
+              'chapterIndex': 0,
+              'chapterTitle': null,
+              // 39 of the shelf's 13,441 sentences are past the server's limit;
+              // the longest is 678 characters.
+              'text': 'A very long sentence. ' * 40,
+              'translation': null,
+            },
+          ],
+        };
+
+    testWidgets('a sentence too long to speak gets no speaker at all',
+        (WidgetTester tester) async {
+      // The alternative is a control that answers with an error. A reader who
+      // taps it learns nothing except that the app is broken, which it is not:
+      // the limit is the server refusing to fork a synthesis job of unbounded
+      // size on a shared machine.
+      await tester.pumpWidget(host(NfReaderPage(
+        slug: 'jekyll-and-hyde',
+        title: 'Jekyll',
+        apiService: apiServing(windowWithLongSentence()),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    });
+  });
 }

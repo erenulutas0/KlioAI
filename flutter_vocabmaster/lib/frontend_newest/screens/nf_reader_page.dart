@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -10,6 +14,7 @@ import '../../models/word.dart';
 import '../../services/api_service.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/groq_service.dart';
+import '../../services/piper_tts_service.dart';
 import '../../utils/sentence_tokens.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
@@ -55,6 +60,14 @@ class NfReaderPage extends StatefulWidget {
 }
 
 class _NfReaderPageState extends State<NfReaderPage> {
+  /// The longest sentence the speech endpoint will accept.
+  ///
+  /// Mirrors `app.tts.max-text-length` on the server, which caps how much work
+  /// one synthesis request can ask a shared machine for. Thirty-nine of the
+  /// shelf's 13,441 sentences are longer; they get no speaker rather than one
+  /// that answers with an error.
+  static const int _maxSpokenLength = 400;
+
   /// How many sentences to fetch at a time.
   ///
   /// Enough to fill a screen several times over, so scrolling is smooth, and
@@ -63,6 +76,12 @@ class _NfReaderPageState extends State<NfReaderPage> {
 
   late final ApiService _api;
   final ScrollController _scroll = ScrollController();
+  final PiperTtsService _tts = PiperTtsService();
+  final AudioPlayer _player = AudioPlayer();
+
+  /// Which sentence is speaking, so only one can be, and so the tapped one can
+  /// show that something is happening. Null when nothing is.
+  int? _speakingIndex;
 
   final List<ReaderSentence> _sentences = <ReaderSentence>[];
   int _sentenceCount = 0;
@@ -111,6 +130,9 @@ class _NfReaderPageState extends State<NfReaderPage> {
     _flushProgress();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
+    // Leaving the page should stop the voice with it; an audio player that
+    // outlives its screen goes on reading to nobody.
+    _player.dispose();
     super.dispose();
   }
 
@@ -250,6 +272,56 @@ class _NfReaderPageState extends State<NfReaderPage> {
           .saveBookProgress(slug: widget.slug, sentenceIndex: target)
           .catchError((Object _) => target),
     );
+  }
+
+  /// Reads one sentence aloud.
+  ///
+  /// The audio is synthesised once per sentence on the server and cached there
+  /// by its text, so the first reader of a book pays for it and everyone after
+  /// gets it free — the same economics as the translations.
+  Future<void> _speak(ReaderSentence sentence) async {
+    // Tapping the speaker of the sentence already playing stops it, which is
+    // what a second tap on a play button is expected to do.
+    if (_speakingIndex == sentence.index) {
+      await _player.stop();
+      if (mounted) setState(() => _speakingIndex = null);
+      return;
+    }
+
+    await _player.stop();
+    setState(() => _speakingIndex = sentence.index);
+    try {
+      final Uint8List? audio = await _tts.synthesize(sentence.text, voice: 'default');
+      if (!mounted) return;
+      if (audio == null || audio.isEmpty) {
+        setState(() => _speakingIndex = null);
+        return;
+      }
+      // A reader who taps another sentence while this one was being fetched has
+      // already moved on; playing it now would be answering a question they
+      // stopped asking.
+      if (_speakingIndex != sentence.index) return;
+
+      final Directory dir = await getTemporaryDirectory();
+      // The slug is in the name because the index alone is not unique across
+      // books: sentence 12 of Peter Rabbit and sentence 12 of Jekyll would
+      // share a path, and a player asked twice for the same path can answer
+      // with what it read the first time.
+      final File file =
+          File('${dir.path}/klioai_reader_${widget.slug}_${sentence.index}.wav');
+      await file.writeAsBytes(audio, flush: true);
+      if (!mounted || _speakingIndex != sentence.index) return;
+
+      await _player.setFilePath(file.path);
+      await _player.play();
+      if (mounted && _speakingIndex == sentence.index) {
+        setState(() => _speakingIndex = null);
+      }
+    } catch (_) {
+      // Silence is the failure here, and it is self-explanatory: nothing plays.
+      // A snackbar over a page someone is reading costs more than it explains.
+      if (mounted) setState(() => _speakingIndex = null);
+    }
   }
 
   Future<void> _onWordTapped(String rawToken, ReaderSentence sentence) async {
@@ -448,10 +520,44 @@ class _NfReaderPageState extends State<NfReaderPage> {
                   ),
                 ),
               ],
+              _buildSpeaker(t, sentence),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// The listen control for one sentence.
+  ///
+  /// Faint and small: it appears beside every sentence in the book, so anything
+  /// louder would compete with the text a reader came here for. Absent
+  /// entirely on the few sentences too long for the speech endpoint — a
+  /// control that cannot work is worse than no control.
+  Widget _buildSpeaker(NfTokens t, ReaderSentence sentence) {
+    if (sentence.text.length > _maxSpokenLength) {
+      return const SizedBox.shrink();
+    }
+    final bool speaking = _speakingIndex == sentence.index;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        onTap: () => _speak(sentence),
+        borderRadius: BorderRadius.circular(NfSpace.s16),
+        child: Padding(
+          // Generous around a small icon: the drawn mark stays quiet while the
+          // tap target stays big enough to hit without aiming.
+          padding: const EdgeInsets.symmetric(
+              horizontal: NfSpace.s8, vertical: NfSpace.s6),
+          child: Icon(
+            speaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+            size: NfFont.s16,
+            color: speaking ? t.primary : t.inkFaint,
+            semanticLabel: context.tr('books.listen'),
+          ),
+        ),
+      ),
     );
   }
 
