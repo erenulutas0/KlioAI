@@ -179,9 +179,22 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.eye));
     await tester.pumpAndSettle();
 
-    // The answer, and the way to hear it, both arrive with the reveal.
-    expect(find.text('underneath'), findsOneWidget);
+    // The answer arrives in the gap it was asked for, in the same line and the
+    // same place. Swapping the sentence for the bare word put it somewhere the
+    // reader was not looking, and the card read as though it had moved on.
+    expect(find.textContaining('_____'), findsNothing);
+    // findRichText, because the filled line marks the answer inside it and is
+    // therefore spans rather than a plain Text.
+    expect(
+        find.textContaining('They lived underneath a fir-tree.',
+            findRichText: true),
+        findsOneWidget);
     expect(find.byIcon(LucideIcons.volume2), findsOneWidget);
+
+    // And the sentence is not printed twice: the answer block's example box
+    // would be saying the same line again, right underneath it.
+    expect(find.textContaining('"They lived underneath a fir-tree."'),
+        findsNothing);
   });
 
   testWidgets('a word with no usable sentence is still asked the plain way',

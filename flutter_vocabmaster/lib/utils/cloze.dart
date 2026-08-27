@@ -1,3 +1,7 @@
+import 'dart:ui' show TextRange;
+
+import 'package:flutter/foundation.dart';
+
 import 'sentence_tokens.dart';
 
 /// Turning a saved sentence into a fill-in-the-blank prompt.
@@ -26,31 +30,45 @@ class Cloze {
   /// inflections the matcher will not stretch to. A card with no blank in it is
   /// worse than no cloze card, so the caller falls back to asking the word
   /// itself.
-  static String? build(String sentence, String word) {
+  static ClozePrompt? build(String sentence, String word) {
     final String target = SentenceTokens.word(word);
     if (target.isEmpty || sentence.trim().isEmpty) return null;
 
     final List<String> tokens = SentenceTokens.split(sentence);
-    bool replacedAny = false;
+    final StringBuffer blanked = StringBuffer();
+    final StringBuffer filled = StringBuffer();
+    final List<TextRange> answers = <TextRange>[];
 
-    final StringBuffer out = StringBuffer();
     for (final String token in tokens) {
       if (token.trim().isEmpty) {
-        out.write(token);
+        blanked.write(token);
+        filled.write(token);
         continue;
       }
       if (_matches(token, target)) {
         // Punctuation attached to the word stays: blanking "gate!" to "_____"
         // would quietly remove the exclamation mark the sentence was written
         // with, and the learner is being asked for a word, not a full stop.
-        out.write(_maskKeepingPunctuation(token));
-        replacedAny = true;
+        final _Split split = _split(token);
+        blanked.write('${split.before}$blank${split.after}');
+        filled.write(split.before);
+        answers.add(TextRange(
+          start: filled.length,
+          end: filled.length + split.word.length,
+        ));
+        filled..write(split.word)..write(split.after);
       } else {
-        out.write(token);
+        blanked.write(token);
+        filled.write(token);
       }
     }
 
-    return replacedAny ? out.toString() : null;
+    if (answers.isEmpty) return null;
+    return ClozePrompt(
+      blanked: blanked.toString(),
+      filled: filled.toString(),
+      answers: List<TextRange>.unmodifiable(answers),
+    );
   }
 
   /// Whether this token is the word being asked for.
@@ -64,11 +82,42 @@ class Cloze {
     return SentenceTokens.isSearched(bare, target);
   }
 
-  /// Replaces the letters of a token and leaves whatever was hanging off it.
-  static String _maskKeepingPunctuation(String token) {
+  /// A token pulled apart into its leading punctuation, its letters, and its
+  /// trailing punctuation.
+  static _Split _split(String token) {
     final RegExpMatch? match =
         RegExp(r'^(\W*)(.*?)(\W*)$', dotAll: true).firstMatch(token);
-    if (match == null) return blank;
-    return '${match.group(1)}$blank${match.group(3)}';
+    if (match == null) return _Split('', token, '');
+    return _Split(match.group(1)!, match.group(2)!, match.group(3)!);
   }
+}
+
+/// Both halves of one fill-in-the-blank question.
+///
+/// [blanked] is what is asked; [filled] is the same line with the word back in
+/// it, and [answers] says where. Revealing used to replace the whole sentence
+/// with the bare word, which put the answer somewhere the reader was not
+/// looking — the gap is where their eye is, so the gap is where the answer has
+/// to appear.
+@immutable
+class ClozePrompt {
+  const ClozePrompt({
+    required this.blanked,
+    required this.filled,
+    required this.answers,
+  });
+
+  final String blanked;
+  final String filled;
+
+  /// Where the word sits inside [filled], so it can be marked when shown. More
+  /// than one when the sentence uses the word more than once.
+  final List<TextRange> answers;
+}
+
+class _Split {
+  const _Split(this.before, this.word, this.after);
+  final String before;
+  final String word;
+  final String after;
 }

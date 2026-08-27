@@ -10,7 +10,7 @@ import 'package:vocabmaster/utils/cloze.dart';
 void main() {
   test('the word is replaced by a gap', () {
     expect(
-      Cloze.build('They lived underneath a fir-tree.', 'underneath'),
+      Cloze.build('They lived underneath a fir-tree.', 'underneath')?.blanked,
       'They lived _____ a fir-tree.',
     );
   });
@@ -27,7 +27,7 @@ void main() {
     // failure that looks most like success: there is a blank, the card renders,
     // and the exercise is gone.
     expect(
-      Cloze.build('Run along, and run fast.', 'run'),
+      Cloze.build('Run along, and run fast.', 'run')?.blanked,
       '_____ along, and _____ fast.',
     );
   });
@@ -36,14 +36,14 @@ void main() {
     // Blanking "gate!" to "_____" would quietly delete the exclamation mark the
     // sentence was written with.
     expect(
-      Cloze.build('He squeezed under the gate!', 'gate'),
+      Cloze.build('He squeezed under the gate!', 'gate')?.blanked,
       'He squeezed under the _____!',
     );
   });
 
   test('case does not hide the word', () {
     expect(
-      Cloze.build('Underneath the root it was dark.', 'underneath'),
+      Cloze.build('Underneath the root it was dark.', 'underneath')?.blanked,
       '_____ the root it was dark.',
     );
   });
@@ -53,7 +53,7 @@ void main() {
     // no. A learner asked for "delay" who is shown "delayed" in the line has
     // been given the answer.
     expect(
-      Cloze.build('The train was delayed again.', 'delay'),
+      Cloze.build('The train was delayed again.', 'delay')?.blanked,
       'The train was _____ again.',
     );
   });
@@ -62,12 +62,42 @@ void main() {
     // "a" must not match "along", "and", "at". The prefix rule has a floor for
     // exactly this, and it is worth pinning: without it the most common words
     // in English blank everything around them.
-    expect(Cloze.build('A rabbit ran along and ate.', 'a'), 'A rabbit ran along and ate.'
-        .replaceFirst('A', '_____'));
+    expect(Cloze.build('A rabbit ran along and ate.', 'a')?.blanked,
+        '_____ rabbit ran along and ate.');
   });
 
   test('an empty word or sentence is refused rather than guessed at', () {
     expect(Cloze.build('Some sentence here.', ''), isNull);
     expect(Cloze.build('   ', 'word'), isNull);
+  });
+
+  test('the answer comes back with the sentence it belongs in', () {
+    // Revealing used to swap the whole sentence for the bare word, which puts
+    // the answer somewhere the reader is not looking. The gap is where their
+    // eye is, so the filled line comes back with the word marked in place.
+    final ClozePrompt? prompt =
+        Cloze.build('They lived underneath a fir-tree.', 'underneath');
+
+    expect(prompt, isNotNull);
+    expect(prompt!.filled, 'They lived underneath a fir-tree.');
+    expect(prompt.answers, hasLength(1));
+    expect(
+      prompt.filled.substring(
+          prompt.answers.single.start, prompt.answers.single.end),
+      'underneath',
+    );
+  });
+
+  test('a sentence using the word twice marks both places', () {
+    final ClozePrompt prompt =
+        Cloze.build('Run along, and run fast.', 'run')!;
+
+    expect(prompt.filled, 'Run along, and run fast.');
+    expect(
+      prompt.answers
+          .map((r) => prompt.filled.substring(r.start, r.end))
+          .toList(),
+      <String>['Run', 'run'],
+    );
   });
 }

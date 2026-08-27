@@ -264,11 +264,12 @@ class _NfSessionPageState extends State<NfSessionPage> {
   ///
   /// Keyed on position, not chance: the same card twice in one session should
   /// not change the question between visits.
-  String? _clozeFor(Word word, int index) {
+  ClozePrompt? _clozeFor(Word word, int index) {
     if (index.isEven) return null;
     if (word.sentences.isEmpty) return null;
     for (final Sentence sentence in word.sentences) {
-      final String? cloze = Cloze.build(sentence.sentence, word.englishWord);
+      final ClozePrompt? cloze =
+          Cloze.build(sentence.sentence, word.englishWord);
       if (cloze != null) return cloze;
     }
     return null;
@@ -526,10 +527,10 @@ class _RecallCard extends StatelessWidget {
 
   final Word word;
 
-  /// The word's own sentence with the word taken out, or null to ask the word
+  /// The word's own sentence, blanked and filled, or null to ask the word
   /// itself. Null whenever no sentence contains it, which is most hand-added
   /// words and every word saved before the reader existed.
-  final String? cloze;
+  final ClozePrompt? cloze;
 
   final bool revealed;
   final bool sentenceTranslationShown;
@@ -596,19 +597,15 @@ class _RecallCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: NfSpace.s26),
-          if (cloze != null && !revealed)
-            // The sentence reads as prose, not as a headline: it is something
-            // to read for the gap in it, and the display face at 34pt would
-            // wrap a whole line into three.
-            Text(
-              cloze!,
-              textAlign: TextAlign.center,
-              style: NfTokens.body(
-                size: NfFont.s17,
-                weight: NfTokens.bodyEmphasisWeight,
-                color: t.ink,
-              ),
-            )
+          if (cloze != null)
+            // Before and after the reveal this is the same line in the same
+            // place; only the gap changes. Swapping it for the bare word put
+            // the answer where the reader was not looking, and the card read as
+            // though it had moved on to something else.
+            //
+            // Prose, not a headline: the display face at 34pt wraps one
+            // sentence into three.
+            _ClozeLine(prompt: cloze!, revealed: revealed)
           else
             Text(
               word.englishWord,
@@ -669,8 +666,12 @@ class _RecallCard extends StatelessWidget {
   }
 
   Widget _buildAnswer(BuildContext context, NfTokens t) {
-    final Sentence? example =
-        word.sentences.isNotEmpty ? word.sentences.first : null;
+    // On a cloze card the sentence is already on screen, filled in, right above
+    // this. Printing it again in a box says the same thing twice and pushes the
+    // meaning off the bottom of a small phone.
+    final Sentence? example = cloze != null
+        ? null
+        : (word.sentences.isNotEmpty ? word.sentences.first : null);
 
     return Column(
       key: const ValueKey<String>('answer'),
@@ -825,6 +826,56 @@ class _GradeBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// One sentence with a gap in it, before and after the gap is filled.
+///
+/// The same widget in the same place either way: only the gap changes. Built as
+/// a single RichText rather than two so the line does not re-wrap when the
+/// answer arrives — a sentence that reflows as it is answered reads as a
+/// different sentence.
+class _ClozeLine extends StatelessWidget {
+  const _ClozeLine({required this.prompt, required this.revealed});
+
+  final ClozePrompt prompt;
+  final bool revealed;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final TextStyle base = NfTokens.body(
+      size: NfFont.s17,
+      weight: NfTokens.bodyEmphasisWeight,
+      color: t.ink,
+    );
+
+    if (!revealed) {
+      return Text(prompt.blanked, textAlign: TextAlign.center, style: base);
+    }
+
+    // The word is marked where it sits, so the eye lands on the answer in the
+    // place it was just asked for.
+    final List<InlineSpan> spans = <InlineSpan>[];
+    int cursor = 0;
+    for (final TextRange answer in prompt.answers) {
+      if (answer.start > cursor) {
+        spans.add(TextSpan(text: prompt.filled.substring(cursor, answer.start)));
+      }
+      spans.add(TextSpan(
+        text: prompt.filled.substring(answer.start, answer.end),
+        style: base.copyWith(color: t.primaryText),
+      ));
+      cursor = answer.end;
+    }
+    if (cursor < prompt.filled.length) {
+      spans.add(TextSpan(text: prompt.filled.substring(cursor)));
+    }
+
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(style: base, children: spans),
     );
   }
 }
