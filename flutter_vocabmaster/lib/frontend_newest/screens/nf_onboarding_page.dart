@@ -330,6 +330,20 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
                   'onboarding.tour.deck.p3',
                 ],
               ),
+              // Second, not last: reading is where the words in that list come
+              // from, so it belongs beside the list rather than after the
+              // practice modes. A learner who never finds it never finds the
+              // one part of the app that supplies its own material.
+              _TourSlide(
+                icon: LucideIcons.bookOpen,
+                titleKey: 'onboarding.tour.reading.title',
+                bodyKey: 'onboarding.tour.reading.body',
+                pointKeys: <String>[
+                  'onboarding.tour.reading.p1',
+                  'onboarding.tour.reading.p2',
+                  'onboarding.tour.reading.p3',
+                ],
+              ),
               _TourSlide(
                 icon: LucideIcons.repeat,
                 titleKey: 'onboarding.tour.review.title',
@@ -752,7 +766,12 @@ class _Dots extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// How many slides the tour has.
-const int _kTourSlideCount = 3;
+///
+/// Written down separately from the slides themselves because the dots and the
+/// profile page's index are computed from it. A test keeps the two in step:
+/// drifting apart shows up as a dot count that does not match the pages, and as
+/// "skip" landing on the wrong one.
+const int _kTourSlideCount = 4;
 
 /// One tour slide: a mark, a claim, and three lines that back it up.
 ///

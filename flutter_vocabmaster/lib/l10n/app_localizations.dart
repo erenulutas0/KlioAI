@@ -972,6 +972,12 @@ class AppLocalizations {
       'onboarding.tour.deck.p1': 'Meanings in your own language',
       'onboarding.tour.deck.p2': 'Example sentences you can listen to',
       'onboarding.tour.deck.p3': 'One list that stays with you',
+      'onboarding.tour.reading.title': 'Read a real book',
+      'onboarding.tour.reading.body':
+          'Tap a word you do not know and it is explained in the sentence it came from.',
+      'onboarding.tour.reading.p1': 'Whole books, free to read',
+      'onboarding.tour.reading.p2': 'One tap for a meaning in context',
+      'onboarding.tour.reading.p3': 'The word joins your list with its sentence',
       'onboarding.tour.review.title': 'Review before you forget',
       'onboarding.tour.review.body':
           'Each word comes back on the day you are about to lose it, not earlier and not later.',
@@ -1338,7 +1344,7 @@ class AppLocalizations {
       'home.info.step3':
           'Hızlı erisim kartlariyla kelime, cumle ve tekrar bolumune git.',
       'home.info.step4': 'Haftalık aktivite kartindan serini takip et.',
-      'home.info.step5': 'Artidan kelimeyi tek veya cumlesiyle ekleyebilirsin.',
+      'home.info.step5': 'Artidan kelimeyi tek veya cümlesiyle ekleyebilirsin.',
       'home.dailyWords.title': 'Günün Kelimeleri',
       'home.firstSteps.title': 'Buradan başla',
       'home.firstSteps.body':
@@ -1367,11 +1373,11 @@ class AppLocalizations {
       'home.snack.addFailed': 'Kelime eklenirken bir sorun olustu.',
       'home.snack.alreadyAdded': 'Bu içerik zaten ekli.',
       'home.snack.wordAdded': 'Kelime eklendi.',
-      'home.snack.wordSentenceAdded': 'Kelime cumlesiyle eklendi.',
+      'home.snack.wordSentenceAdded': 'Kelime cümlesiyle eklendi.',
       'home.sheet.addWord': 'Kelimeyi Ekle',
       'home.sheet.addWordSubtitle': 'Sadece kelimeyi ekle',
       'home.sheet.wordAlreadyAdded': 'Kelime zaten eklendi',
-      'home.sheet.addWordWithSentence': 'Kelimeyi Cumlesiyle Ekle',
+      'home.sheet.addWordWithSentence': 'Kelimeyi Cümlesiyle Ekle',
       'home.sheet.addWordWithSentenceSubtitle':
           'Kelimeyi ve ornek cumleyi birlikte ekle',
       'home.sheet.noExampleSentence': 'Bu kelime için örnek cümle yok',
@@ -1400,7 +1406,7 @@ class AppLocalizations {
       'wotd.quiz.wrongPrefix': 'Yanlış cevap:',
       'wotd.great': 'Harika Is!',
       'wotd.learnedSuffix': 'kelimesini öğrendin.',
-      'wotd.addWithSentence': 'Kelimeyi Cumlesiyle Ekle',
+      'wotd.addWithSentence': 'Kelimeyi Cümlesiyle Ekle',
       'wotd.addWordOnly': 'Kelimeyi Ekle',
       'wotd.wordAdded': 'Kelime ekli',
       'wotd.addSentenceToo': 'Cumlesini de ekle',
@@ -1929,6 +1935,12 @@ class AppLocalizations {
       'onboarding.tour.deck.p1': 'Anlamlar kendi dilinde',
       'onboarding.tour.deck.p2': 'Dinleyebileceğin örnek cümleler',
       'onboarding.tour.deck.p3': 'Hep yanında kalan tek liste',
+      'onboarding.tour.reading.title': 'Gerçek bir kitap oku',
+      'onboarding.tour.reading.body':
+          'Bilmediğin kelimeye dokun, geldiği cümlenin içinde anlamını gör.',
+      'onboarding.tour.reading.p1': 'Baştan sona okunabilen kitaplar',
+      'onboarding.tour.reading.p2': 'Tek dokunuşla, bağlamıyla anlam',
+      'onboarding.tour.reading.p3': 'Kelime cümlesiyle birlikte listene girer',
       'onboarding.tour.review.title': 'Unutmadan tekrar et',
       'onboarding.tour.review.body':
           'Her kelime tam unutmak üzereyken karşına çıkar. Ne erken ne geç.',
@@ -2914,6 +2926,12 @@ class AppLocalizations {
       'onboarding.tour.deck.p1': 'Bedeutungen in deiner Sprache',
       'onboarding.tour.deck.p2': 'Beispielsätze zum Anhören',
       'onboarding.tour.deck.p3': 'Eine Liste, die bei dir bleibt',
+      'onboarding.tour.reading.title': 'Lies ein echtes Buch',
+      'onboarding.tour.reading.body':
+          'Tippe ein unbekanntes Wort an und sieh seine Bedeutung im Satz, aus dem es stammt.',
+      'onboarding.tour.reading.p1': 'Ganze Buecher, frei zu lesen',
+      'onboarding.tour.reading.p2': 'Ein Tippen, Bedeutung im Kontext',
+      'onboarding.tour.reading.p3': 'Das Wort kommt mit seinem Satz in deine Liste',
       'onboarding.tour.review.title': 'Wiederholen, bevor du vergisst',
       'onboarding.tour.review.body':
           'Jedes Wort kommt an dem Tag zurück, an dem du es zu vergessen drohst. Nicht früher, nicht später.',
