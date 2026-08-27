@@ -183,7 +183,12 @@ class BookImportServiceTest {
         assertEquals("Pirinç düğmeli, mavi bir ceketti; hem de yepyeni.",
                 jacket.getTranslation());
 
-        // And the rest of the book is left for the model, not silently blanked.
-        assertTrue(all.stream().anyMatch(s -> s.getTranslation() == null));
+        // Peter Rabbit is on file in full, so the import leaves nothing for the
+        // model: the translation run finds no untranslated sentence and costs
+        // nothing, for ever. That is what a verified book is supposed to mean,
+        // and it is the reason the file holds the whole book and not a patch.
+        assertTrue(all.stream().allMatch(s -> s.getTranslation() != null),
+                "a fully verified book should have no sentence left untranslated");
+        assertEquals(all.size(), VerifiedTranslations.forSlug("peter-rabbit").size());
     }
 }
