@@ -231,6 +231,31 @@ be equal — a difference means sentences that no longer match their corrections
 which is otherwise completely silent. And `VerifiedTranslationsTest` fails the
 build on any line that matches nothing in the book.
 
+## The audio cache is what makes listening affordable
+
+The reader speaks a sentence by asking Piper for it, and Piper is a native
+process forked per request on the same box that serves everything else. What
+keeps that from being a per-tap cost is the cache: synthesis is deterministic
+for a given (voice, text), so a sentence is generated once and every later
+reader of that book is served the file.
+
+The cache therefore has to outlive the container. In the repository's
+`docker-compose.yml` it does — a named `tts_cache` volume mounted at
+`/var/cache/piper-tts`. Production uses `docker-compose.app.yml`, which is not
+in the repository, so this is worth confirming there rather than assuming:
+
+```bash
+cd /opt/vocabmaster/deploy
+grep -n "piper-tts" docker-compose.app.yml
+docker compose -f docker-compose.app.yml exec -T backend sh -lc 'ls /var/cache/piper-tts | wc -l'
+```
+
+The first should name a volume, not just the environment variable. The second
+should be non-zero once anyone has played a sentence, and should stay non-zero
+across a `--force-recreate`. If it resets, the cache lives inside the container
+and every restart throws away every sentence anyone has ever listened to --
+which is invisible except as CPU on a shared machine.
+
 ## Checking the result
 
 ```sql
