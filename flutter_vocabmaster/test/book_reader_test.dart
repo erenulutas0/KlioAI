@@ -487,4 +487,47 @@ void main() {
       expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
     });
   });
+
+  group('a word already in the deck', () {
+    testWidgets('is reported as already there, and cannot be added twice',
+        (WidgetTester tester) async {
+      // Prose repeats itself: meeting the same word twice in one book is the
+      // normal case. Nothing on the server refuses a second copy, so without
+      // this the deck fills with duplicates of whatever the book says often --
+      // and each duplicate is reviewed as its own card.
+      final List<String> posted = <String>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          posted.add(request.url.path);
+          return http.Response('{}', 200,
+              headers: <String, String>{'content-type': 'application/json'});
+        }),
+      );
+
+      await tester.pumpWidget(host(Scaffold(
+        body: ReaderWordSheet(
+          word: 'underneath',
+          sentence: 'They lived underneath a fir-tree.',
+          sentenceTranslation: null,
+          api: api,
+          onSaved: (_) {},
+          alreadySaved: true,
+          lookUp: (String w, String s) async => 'bir şeyin alt kısmında',
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      // "Already there" and "just added" are different news and read
+      // differently.
+      expect(find.text('Zaten destende'), findsOneWidget);
+      expect(find.text('Desteye ekle'), findsNothing);
+
+      await tester.tap(find.text('Zaten destende'));
+      await tester.pumpAndSettle();
+
+      expect(posted.where((String p) => p.endsWith('/words')), isEmpty);
+    });
+  });
 }

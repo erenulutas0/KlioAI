@@ -328,6 +328,11 @@ class _NfReaderPageState extends State<NfReaderPage> {
     final String word = SentenceTokens.word(rawToken);
     if (word.isEmpty) return;
 
+    final bool alreadySaved = context
+        .read<AppStateProvider>()
+        .allWords
+        .any((Word w) => w.englishWord.trim().toLowerCase() == word);
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -337,6 +342,12 @@ class _NfReaderPageState extends State<NfReaderPage> {
         sentence: sentence.text,
         sentenceTranslation: sentence.translation,
         api: _api,
+        // Prose repeats itself, so meeting a word twice in one book is the
+        // normal case rather than the odd one. Nothing on the server refuses a
+        // second copy, so without this the deck quietly fills with the same
+        // word over and over — and the learner reviews it twice as often for
+        // no reason.
+        alreadySaved: alreadySaved,
         // The server keeps the word either way; this is what puts it in front
         // of the learner. Without it the save succeeds, the sheet says so, and
         // the Words screen goes on showing the list it loaded at startup --
@@ -682,6 +693,7 @@ class ReaderWordSheet extends StatefulWidget {
     required this.sentenceTranslation,
     required this.api,
     required this.onSaved,
+    this.alreadySaved = false,
   });
 
   final String word;
@@ -698,6 +710,10 @@ class ReaderWordSheet extends StatefulWidget {
 
   /// How to explain the word in its sentence. Defaults to the app's dictionary.
   final Future<String> Function(String word, String sentence)? lookUp;
+
+  /// Whether this word is in the deck already, so the sheet can say so instead
+  /// of offering to add a second copy of it.
+  final bool alreadySaved;
 
   @override
   State<ReaderWordSheet> createState() => ReaderWordSheetState();
@@ -848,11 +864,20 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
             ),
           const SizedBox(height: NfSpace.s20),
           NfPrimaryButton(
+            // Three different states, three different sentences. "Added" and
+            // "already there" are not the same news: one is the result of the
+            // tap, the other is why the tap does nothing.
             label: _saved
                 ? context.tr('books.word.saved')
-                : context.tr('books.word.save'),
+                : widget.alreadySaved
+                    ? context.tr('books.word.already')
+                    : context.tr('books.word.save'),
             busy: _saving,
-            onPressed: (_loading || _saving || _saved || _definition == null)
+            onPressed: (_loading ||
+                    _saving ||
+                    _saved ||
+                    widget.alreadySaved ||
+                    _definition == null)
                 ? null
                 : _save,
           ),
