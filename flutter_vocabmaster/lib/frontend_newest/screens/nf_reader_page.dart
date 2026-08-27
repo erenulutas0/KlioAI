@@ -31,6 +31,7 @@ class NfReaderPage extends StatefulWidget {
     required this.slug,
     required this.title,
     this.startAt = 0,
+    this.sentenceCount = 0,
     this.apiService,
   });
 
@@ -39,6 +40,12 @@ class NfReaderPage extends StatefulWidget {
 
   /// The sentence to open at — the reader's bookmark.
   final int startAt;
+
+  /// How long the book is, from the shelf.
+  ///
+  /// Only used to notice a finished book. Zero means "not told", and then the
+  /// reader simply opens at [startAt].
+  final int sentenceCount;
 
   /// Injectable for tests. Defaults to the shared [ApiService].
   final ApiService? apiService;
@@ -71,10 +78,24 @@ class _NfReaderPageState extends State<NfReaderPage> {
   Timer? _progressDebounce;
   int _savedProgress = 0;
 
+  /// Where to open the book.
+  ///
+  /// A reader who finished it gets the first page, not the last line. Opening
+  /// a finished book at its bookmark showed one sentence and a screenful of
+  /// nothing, with no way to scroll back — which is a strange way to be told
+  /// "you have read this".
+  int get _openAt =>
+      widget.sentenceCount > 1 && widget.startAt >= widget.sentenceCount - 1
+          ? 0
+          : widget.startAt;
+
   @override
   void initState() {
     super.initState();
     _api = widget.apiService ?? ApiService();
+    // _reached keeps the bookmark even when the view opens elsewhere: reading
+    // a finished book again should not tell the shelf you are back at the
+    // start.
     _reached = widget.startAt;
     _savedProgress = widget.startAt;
     _scroll.addListener(_onScroll);
@@ -101,7 +122,7 @@ class _NfReaderPageState extends State<NfReaderPage> {
     try {
       final ReaderWindow window = await _api.getBookSentences(
         slug: widget.slug,
-        from: widget.startAt,
+        from: _openAt,
         size: _windowSize,
       );
       if (!mounted) return;
@@ -112,6 +133,46 @@ class _NfReaderPageState extends State<NfReaderPage> {
         _sentenceCount = window.sentenceCount;
         _loading = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  /// Reopens the book at its first sentence.
+  ///
+  /// A window that starts at the bookmark cannot be scrolled back past it, so
+  /// without this there is no way to re-read a chapter — or to read a finished
+  /// book again.
+  ///
+  /// Deliberately does not touch the bookmark. "How far have I got" and "where
+  /// am I looking" are different questions, and the server only ever moves a
+  /// bookmark forward anyway; re-reading chapter one should not tell the shelf
+  /// you are back at the start.
+  Future<void> _restart() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final ReaderWindow window = await _api.getBookSentences(
+        slug: widget.slug,
+        from: 0,
+        size: _windowSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _sentences
+          ..clear()
+          ..addAll(window.sentences);
+        _sentenceCount = window.sentenceCount;
+        _loading = false;
+      });
+      if (_scroll.hasClients) _scroll.jumpTo(0);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -233,8 +294,11 @@ class _NfReaderPageState extends State<NfReaderPage> {
   }
 
   Widget _buildHeader(NfTokens t) {
-    final double fraction =
-        _sentenceCount <= 0 ? 0 : (_reached / _sentenceCount).clamp(0, 1);
+    // Same arithmetic as the shelf card, and for the same reason: the index is
+    // a position in 0..count-1, so the count is one too many to divide by.
+    final double fraction = _sentenceCount <= 1
+        ? 0
+        : (_reached / (_sentenceCount - 1)).clamp(0, 1);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -263,6 +327,14 @@ class _NfReaderPageState extends State<NfReaderPage> {
                   ),
                 ),
               ),
+              if (_sentences.isNotEmpty && _sentences.first.index > 0)
+                IconButton(
+                  onPressed: _restart,
+                  iconSize: NfFont.s18,
+                  color: t.inkMuted,
+                  icon: const Icon(Icons.restart_alt_rounded),
+                  tooltip: context.tr('books.restart'),
+                ),
               if (_sentenceCount > 0)
                 Text(
                   '%${(fraction * 100).round()}',
@@ -573,22 +645,16 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
         addedDate: DateTime.now(),
       );
       // The sentence is the point of learning a word here: a word kept with the
-      // line it came from has somewhere to be reviewed.
-      //
-      // It is only attached when the book actually has a translation for it.
-      // The API requires one, and passing an empty string would store a
-      // sentence whose translation looks like it failed to load rather than
-      // like it was never there — the exact confusion the reader API avoids by
-      // sending null. Most of the shelf is untranslated on purpose, so most
-      // saves keep the word and its meaning without the line.
-      final String? sentenceTranslation = widget.sentenceTranslation;
-      if (sentenceTranslation != null && sentenceTranslation.trim().isNotEmpty) {
-        await widget.api.addSentenceToWord(
-          wordId: word.id,
-          sentence: widget.sentence,
-          translation: sentenceTranslation.trim(),
-        );
-      }
+      // line it came from has somewhere to be reviewed. It is attached whether
+      // or not the book has a translation for it — five of the six books have
+      // none, and a word saved from those would otherwise arrive in the deck
+      // with no context at all, which is most of what makes reading worth
+      // learning from.
+      await widget.api.addSentenceToWord(
+        wordId: word.id,
+        sentence: widget.sentence,
+        translation: widget.sentenceTranslation,
+      );
       widget.onSaved(word);
       if (!mounted) return;
       setState(() {

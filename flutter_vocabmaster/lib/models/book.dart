@@ -37,10 +37,16 @@ class BookShelfEntry {
   /// Whether this reader has ever opened the book.
   final bool started;
 
-  /// How far through, from 0 to 1. Zero-length books read as unstarted rather
+  /// How far through, from 0 to 1.
+  ///
+  /// Divides by the last index rather than the count, because
+  /// [lastSentenceIndex] is a position and not a tally: in a 58-sentence book
+  /// the indices run 0..57, so dividing by 58 leaves a finished book showing
+  /// 98% forever. Zero-length and one-sentence books read as unstarted rather
   /// than dividing by zero.
-  double get fraction =>
-      sentenceCount <= 0 ? 0 : (lastSentenceIndex / sentenceCount).clamp(0, 1);
+  double get fraction => sentenceCount <= 1
+      ? 0
+      : (lastSentenceIndex / (sentenceCount - 1)).clamp(0, 1);
 
   factory BookShelfEntry.fromJson(Map<String, dynamic> json) => BookShelfEntry(
         slug: (json['slug'] ?? '') as String,

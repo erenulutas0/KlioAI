@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_books_page.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_reader_page.dart';
+import 'package:vocabmaster/models/book.dart';
 import 'package:vocabmaster/models/word.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/services/api_service.dart';
@@ -233,18 +234,29 @@ void main() {
       expect(adopted.single.id, 77);
     });
 
-    testWidgets('a sentence with no translation is not attached to the word',
+    testWidgets('the line the word came from is kept even with no translation',
         (WidgetTester tester) async {
-      // The sentences endpoint requires a translation. Sending an empty one
-      // would store a sentence whose translation looks like it failed to load
-      // rather than one the book never had -- and most of the shelf is
-      // untranslated on purpose.
+      // Five of the six books have no translation. If the sentence were only
+      // attached when one existed, almost every word saved from the shelf would
+      // land in the deck with no context -- and the context is most of what
+      // makes reading worth learning from.
+      //
+      // An earlier version did exactly that, on the theory that an empty
+      // translation would look like one that failed to load. It would not: the
+      // review surface branches on hasTranslation and simply draws the sentence
+      // alone. So the sentence goes, and the translation key is omitted rather
+      // than sent empty.
       final List<String> paths = <String>[];
+      final List<Map<String, dynamic>> bodies = <Map<String, dynamic>>[];
 
       final ApiService api = ApiService(
         baseUrl: base,
         client: MockClient((http.Request request) async {
           paths.add(request.url.path);
+          if (request.body.isNotEmpty) {
+            bodies.add(
+                Map<String, dynamic>.from(json.decode(request.body) as Map));
+          }
           return http.Response(
             json.encode(<String, Object?>{
               'id': 77,
@@ -273,7 +285,162 @@ void main() {
       await tester.tap(find.text('Desteye ekle'));
       await tester.pumpAndSettle();
 
-      expect(paths.where((p) => p.contains('/sentences')), isEmpty);
+      expect(paths.where((p) => p.contains('/sentences')), hasLength(1));
+
+      final Map<String, dynamic> sentenceBody =
+          bodies.firstWhere((b) => b.containsKey('sentence'));
+      expect(sentenceBody['sentence'], 'They lived underneath a fir-tree.');
+      expect(sentenceBody.containsKey('translation'), isFalse);
+    });
+
+    testWidgets('a book that has a translation sends it with the sentence',
+        (WidgetTester tester) async {
+      final List<Map<String, dynamic>> bodies = <Map<String, dynamic>>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          if (request.body.isNotEmpty) {
+            bodies.add(
+                Map<String, dynamic>.from(json.decode(request.body) as Map));
+          }
+          return http.Response(
+            json.encode(<String, Object?>{
+              'id': 78,
+              'englishWord': 'underneath',
+              'turkishMeaning': 'altında',
+              'learnedDate': '2026-08-27',
+            }),
+            201,
+            headers: <String, String>{'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      await tester.pumpWidget(host(Scaffold(
+        body: ReaderWordSheet(
+          word: 'underneath',
+          sentence: 'They lived underneath a fir-tree.',
+          sentenceTranslation: 'Bir köknar ağacının altında yaşıyorlardı.',
+          api: api,
+          onSaved: (_) {},
+          lookUp: (String w, String s) async => 'bir şeyin alt kısmında',
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Desteye ekle'));
+      await tester.pumpAndSettle();
+
+      final Map<String, dynamic> sentenceBody =
+          bodies.firstWhere((b) => b.containsKey('sentence'));
+      expect(sentenceBody['translation'],
+          'Bir köknar ağacının altında yaşıyorlardı.');
+    });
+  });
+
+  group('finishing a book', () {
+    test('the last sentence reads as finished, not as ninety-eight per cent', () {
+      // lastSentenceIndex is a position, not a tally: a 58-sentence book has
+      // indices 0..57, so dividing by 58 would leave someone who read every
+      // word of it looking permanently almost-done.
+      const BookShelfEntry finished = BookShelfEntry(
+        slug: 'peter-rabbit',
+        title: 'The Tale of Peter Rabbit',
+        author: 'Beatrix Potter',
+        level: 'A1',
+        sentenceCount: 58,
+        lastSentenceIndex: 57,
+        started: true,
+      );
+
+      expect(finished.fraction, 1.0);
+    });
+
+    test('an unopened book is at zero, and a one-line book cannot divide by zero',
+        () {
+      const BookShelfEntry fresh = BookShelfEntry(
+        slug: 'x', title: 'X', author: 'A', level: 'A1',
+        sentenceCount: 58, lastSentenceIndex: 0, started: false,
+      );
+      const BookShelfEntry tiny = BookShelfEntry(
+        slug: 'y', title: 'Y', author: 'A', level: 'A1',
+        sentenceCount: 1, lastSentenceIndex: 0, started: true,
+      );
+
+      expect(fresh.fraction, 0);
+      expect(tiny.fraction, 0);
+    });
+
+    testWidgets('a finished book opens at its first page, not its last line',
+        (WidgetTester tester) async {
+      // Opening at the bookmark showed one sentence and a screenful of nothing,
+      // with no way to scroll back — a strange way to be told "you have read
+      // this".
+      final List<String> queries = <String>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          queries.add(request.url.query);
+          return http.Response(
+            json.encode(<String, Object?>{
+              'slug': 'peter-rabbit',
+              'title': 'The Tale of Peter Rabbit',
+              'from': 0,
+              'sentenceCount': 58,
+              'sentences': <Map<String, Object?>>[],
+            }),
+            200,
+            headers: <String, String>{'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      await tester.pumpWidget(host(NfReaderPage(
+        slug: 'peter-rabbit',
+        title: 'The Tale of Peter Rabbit',
+        startAt: 57,
+        sentenceCount: 58,
+        apiService: api,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(queries.single, contains('from=0'));
+    });
+
+    testWidgets('an unfinished book still opens where it was left',
+        (WidgetTester tester) async {
+      final List<String> queries = <String>[];
+
+      final ApiService api = ApiService(
+        baseUrl: base,
+        client: MockClient((http.Request request) async {
+          queries.add(request.url.query);
+          return http.Response(
+            json.encode(<String, Object?>{
+              'slug': 'peter-rabbit',
+              'title': 'The Tale of Peter Rabbit',
+              'from': 30,
+              'sentenceCount': 58,
+              'sentences': <Map<String, Object?>>[],
+            }),
+            200,
+            headers: <String, String>{'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      await tester.pumpWidget(host(NfReaderPage(
+        slug: 'peter-rabbit',
+        title: 'The Tale of Peter Rabbit',
+        startAt: 30,
+        sentenceCount: 58,
+        apiService: api,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(queries.single, contains('from=30'));
     });
   });
 }

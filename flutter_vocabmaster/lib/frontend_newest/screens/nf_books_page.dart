@@ -68,6 +68,7 @@ class _NfBooksPageState extends State<NfBooksPage> {
           slug: book.slug,
           title: book.title,
           startAt: book.lastSentenceIndex,
+          sentenceCount: book.sentenceCount,
           apiService: widget.apiService,
         ),
       ),

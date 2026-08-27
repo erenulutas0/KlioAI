@@ -107,7 +107,7 @@ class FakeSyncApiService extends ApiService {
   Future<Word> addSentenceToWord({
     required int wordId,
     required String sentence,
-    required String translation,
+    String? translation,
     String difficulty = 'easy',
     int? meaningId,
   }) async {
@@ -123,9 +123,12 @@ class FakeSyncApiService extends ApiService {
         );
 
     // Backend-like idempotency: same sentence + translation should not create duplicates.
+    // A null translation is stored as empty, which is what the server does with
+    // a sentence whose book has no translation.
+    final storedTranslation = translation?.trim() ?? '';
     final alreadyExists = existing.sentences.any((s) =>
         s.sentence.trim() == sentence.trim() &&
-        s.translation.trim() == translation.trim());
+        s.translation.trim() == storedTranslation);
     if (alreadyExists) {
       return existing;
     }
@@ -133,7 +136,7 @@ class FakeSyncApiService extends ApiService {
     final newSentence = Sentence(
       id: ++_sentenceSeq,
       sentence: sentence,
-      translation: translation,
+      translation: storedTranslation,
       wordId: wordId,
       difficulty: difficulty,
     );

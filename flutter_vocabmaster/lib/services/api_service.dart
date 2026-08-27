@@ -436,7 +436,7 @@ class ApiService {
   Future<Word> addSentenceToWord({
     required int wordId,
     required String sentence,
-    required String translation,
+    String? translation,
     String difficulty = 'easy',
     int? meaningId,
   }) async {
@@ -448,8 +448,14 @@ class ApiService {
           headers: headers,
           body: json.encode({
             'sentence': sentence,
-            'translation': translation,
-            'sourceTranslation': translation,
+            // Omitted rather than sent empty when there is none. The server
+            // stores null, and the review surface has an explicit branch for a
+            // sentence without a translation — it draws the line on its own,
+            // which is the honest rendering of "this book has no translation".
+            if (translation != null && translation.trim().isNotEmpty) ...<String, dynamic>{
+              'translation': translation.trim(),
+              'sourceTranslation': translation.trim(),
+            },
             'difficulty': difficulty,
             if (meaningId != null) 'meaningId': meaningId,
           }),
