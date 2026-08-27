@@ -37,7 +37,7 @@ void main() {
       ),
     );
 
-    expect(message, contains('Anormal AI kullanimi algilandi.'));
+    expect(message, contains('Anormal AI kullanımı algılandı.'));
     expect(message, contains('Ban seviyesi: 2.'));
     expect(message, contains('Sonraki ihlalde bekleme: 2 dk.'));
   });

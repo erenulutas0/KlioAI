@@ -11,6 +11,8 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/book.dart';
 import '../../models/word.dart';
+import '../../services/ai_error_message_formatter.dart';
+import '../../services/ai_paywall_handler.dart';
 import '../../services/api_service.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/groq_service.dart';
@@ -748,8 +750,18 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
       });
     } catch (e) {
       if (!mounted) return;
+      // Reading is the flow that runs out of quota: a learner meets an unknown
+      // word every few lines and taps each one. Showing them "could not get the
+      // meaning" for a daily limit tells them the app is broken when it is
+      // doing exactly what it was told to, and showing it for a plan limit
+      // hides the one thing they could do about it.
+      final bool upgradeShown =
+          await AiPaywallHandler.handleIfUpgradeRequired(context, e);
+      if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = upgradeShown || e is! ApiQuotaExceededException
+            ? AiErrorMessageFormatter.forError(e)
+            : AiErrorMessageFormatter.forQuota(e);
         _loading = false;
       });
     }
@@ -845,7 +857,7 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
             )
           else if (_error != null)
             Text(
-              context.tr('books.word.failed'),
+              _error!,
               style: TextStyle(
                 color: t.wrong,
                 fontSize: NfFont.s14,

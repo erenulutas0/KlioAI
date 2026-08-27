@@ -8,24 +8,24 @@ class AiErrorMessageFormatter {
 
     if (reason == 'abuse-ban' || (e.banLevel ?? 0) > 0) {
       buffer.write(LocaleTextService.pick(
-        'Anormal AI kullanimi algilandi. Gecici erisim kisitlandi.',
+        'Anormal AI kullanımı algılandı. Geçici olarak erişim kısıtlandı.',
         'Abnormal AI usage was detected. Access is temporarily limited.',
       ));
     } else if (reason == 'daily-token-quota') {
       buffer.write(LocaleTextService.pick(
-        'Gunluk AI hakkin doldu.',
+        'Günlük AI hakkın doldu.',
         'Your daily AI quota is exhausted.',
       ));
     } else if (reason == 'daily-quota' ||
         reason == 'user-burst' ||
         reason == 'ip-burst') {
       buffer.write(LocaleTextService.pick(
-        'AI istek limitine ulasildi.',
+        'AI istek limitine ulaşıldı.',
         'The AI request limit has been reached.',
       ));
     } else if (reason == 'redis-fail-closed') {
       buffer.write(LocaleTextService.pick(
-        'AI servisi su an koruma modunda. Lutfen biraz sonra tekrar dene.',
+        'AI servisi şu an koruma modunda. Lütfen biraz sonra tekrar dene.',
         'The AI service is currently in protection mode. Please try again shortly.',
       ));
     } else {
@@ -33,7 +33,7 @@ class AiErrorMessageFormatter {
         e.message.isNotEmpty
             ? e.message
             : LocaleTextService.pick(
-                'AI istegi su an tamamlanamadi.',
+                'AI isteği şu an tamamlanamadı.',
                 'The AI request could not be completed right now.',
               ),
       );
@@ -61,7 +61,7 @@ class AiErrorMessageFormatter {
         e.tokensUsed != null &&
         e.tokenLimit != null) {
       buffer.write(
-        '\n${LocaleTextService.pick('Gunluk kullanim', 'Daily usage')}: ${e.tokensUsed}/${e.tokenLimit} token.',
+        '\n${LocaleTextService.pick('Günlük kullanım', 'Daily usage')}: ${e.tokensUsed}/${e.tokenLimit} token.',
       );
     }
 
@@ -74,7 +74,7 @@ class AiErrorMessageFormatter {
   }) {
     final normalizedFallback = fallback ??
         LocaleTextService.pick(
-          'Islem su an tamamlanamadi.',
+          'İşlem şu an tamamlanamadı.',
           'The action could not be completed right now.',
         );
     if (e is ApiQuotaExceededException) {
@@ -85,7 +85,7 @@ class AiErrorMessageFormatter {
     }
     if (e is ApiAiServiceException) {
       return LocaleTextService.pick(
-        'KlioAI su an yanit uretirken zorlandi. Biraz sonra tekrar dene.',
+        'KlioAI şu an yanıt üretirken zorlandı. Biraz sonra tekrar dene.',
         'KlioAI could not generate a response right now. Please try again shortly.',
       );
     }

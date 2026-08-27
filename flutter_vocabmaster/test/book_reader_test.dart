@@ -530,4 +530,32 @@ void main() {
       expect(posted.where((String p) => p.endsWith('/words')), isEmpty);
     });
   });
+
+  group('running out of AI quota while reading', () {
+    testWidgets('says the daily limit is reached, not that something broke',
+        (WidgetTester tester) async {
+      // Reading is the flow that exhausts the quota: an unknown word every few
+      // lines, and a tap on each one. "Could not get the meaning" tells the
+      // learner the app is broken when it is doing exactly what it was told,
+      // and gives them nothing to act on.
+      await tester.pumpWidget(host(Scaffold(
+        body: ReaderWordSheet(
+          word: 'underneath',
+          sentence: 'They lived underneath a fir-tree.',
+          sentenceTranslation: null,
+          api: apiServing(<String, Object?>{}),
+          onSaved: (_) {},
+          // The reason the server actually sends when the daily allowance is
+          // gone. Without it the formatter falls back to the raw message and
+          // the test would be checking nothing about quotas.
+          lookUp: (String w, String s) async => throw ApiQuotaExceededException(
+              message: 'quota', reason: 'daily-token-quota'),
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Günlük AI hakkın doldu'), findsOneWidget);
+      expect(find.text('Anlam alınamadı.'), findsNothing);
+    });
+  });
 }
