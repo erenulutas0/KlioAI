@@ -186,14 +186,48 @@ void main() {
       return buffer.toString();
     }
 
-    // folded spelling -> the distinct Turkish-lowercased forms seen for it,
-    // each with an example key so a failure names somewhere to look.
-    final spellings = <String, Map<String, String>>{};
+    // Every piece of Turkish the app can put on screen, not just the map.
+    //
+    // The guard used to read app_localizations.dart and stop there, while
+    // `LocaleTextService.pick('<turkish>', '<english>')` writes user-facing
+    // Turkish straight into services and screens. Eight strings in the AI error
+    // formatter sat stripped of their diacritics for as long as this test has
+    // existed, because the test could not see the file they were in.
+    //
+    // Pooling them matters in both directions: the map is large and mostly
+    // right, so it exposes a stripped word in a service file, and a correctly
+    // spelled service string exposes a stripped one in the map. Two of the
+    // seven found this way were in the map itself.
+    final List<MapEntry<String, String>> turkishStrings =
+        <MapEntry<String, String>>[];
+
     final entry = RegExp(r"^\s+'([^']+)': '([^']*)',", multiLine: true);
     for (final m in entry.allMatches(block!.group(1)!)) {
-      final key = m.group(1)!;
+      turkishStrings.add(MapEntry<String, String>(m.group(1)!, m.group(2)!));
+    }
+
+    // The first argument of pick() is the Turkish one.
+    final pick = RegExp(r"LocaleTextService\.pick\(\s*'([^']*)'", dotAll: true);
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      final code = file.readAsStringSync();
+      for (final m in pick.allMatches(code)) {
+        turkishStrings.add(MapEntry<String, String>(file.path, m.group(1)!));
+      }
+    }
+
+    expect(turkishStrings.length, greaterThan(500),
+        reason: 'the scanner found almost nothing, so it is measuring nothing');
+
+    // folded spelling -> the distinct Turkish-lowercased forms seen for it,
+    // each with an example source so a failure names somewhere to look.
+    final spellings = <String, Map<String, String>>{};
+    for (final m in turkishStrings) {
+      final key = m.key;
       for (final token
-          in m.group(2)!.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
+          in m.value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
         // Two letters and under is mostly abbreviations and roman numerals,
         // where a stripped form is not evidence of anything.
         if (token.length < 3) continue;

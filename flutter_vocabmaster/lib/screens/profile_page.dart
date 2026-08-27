@@ -498,7 +498,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      debugPrint('AI token quota yuklenemedi: $e');
+      debugPrint('AI token quota yüklenemedi: $e');
       if (mounted) {
         setState(() {
           // A failed request must not render as "quota is not active" - a
@@ -507,10 +507,10 @@ class _ProfilePageState extends State<ProfilePage> {
           // the failure is an auth problem rather than network/server.
           _aiQuotaError = e is ApiUnauthorizedException
               ? LocaleTextService.pick(
-                  'Oturum dogrulanamadi. Cikip yeniden giris yapmayi deneyin.',
+                  'Oturum doğrulanamadı. Çıkıp yeniden giriş yapmayı deneyin.',
                   'Session could not be verified. Try signing in again.')
               : LocaleTextService.pick(
-                  'Kota bilgisi yuklenemedi.',
+                  'Kota bilgisi yüklenemedi.',
                   'Could not load quota info.');
           _isAiQuotaLoading = false;
         });

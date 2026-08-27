@@ -96,14 +96,14 @@ class AiErrorMessageFormatter {
     final reason = (e.reason ?? '').trim().toLowerCase();
     if (reason == 'ai-access-disabled') {
       return LocaleTextService.pick(
-        'Ucretsiz AI suresi bitti. Devam etmek icin Premium plana gec.',
+        'Ücretsiz AI süresi bitti. Devam etmek için Premium plana geç.',
         'Your free AI period has ended. Upgrade to Premium to continue.',
       );
     }
     return e.message.isNotEmpty
         ? e.message
         : LocaleTextService.pick(
-            'AI ozellikleri icin abonelik gerekli.',
+            'AI özellikleri için abonelik gerekli.',
             'A subscription is required for AI features.',
           );
   }

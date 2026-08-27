@@ -1190,7 +1190,7 @@ class AppLocalizations {
       'landing.feature.social.h1': 'Canli Feed',
       'landing.feature.social.h2': 'Etkilesimli Gonderiler',
       'landing.feature.social.h3': 'Arkadaslik Sistemi',
-      'landing.feature.progress.title': 'Akıllı Ilerleme Takibi',
+      'landing.feature.progress.title': 'Akıllı İlerleme Takibi',
       'landing.feature.progress.subtitle': 'Günlük & Haftalık Hedefler',
       'landing.feature.progress.description':
           'Gelismis analitik ve neon tasarimli kartlarla motivasyonunuzu koruyun',
@@ -1356,7 +1356,7 @@ class AppLocalizations {
       'home.firstSteps.cta': 'Konuşma pratiği dene',
       'home.dailyWords.empty': 'Bugün için günlük kelime bulunamadı.',
       'wotd.senseCount': '{count} anlam',
-      'home.quickAccess.title': 'Hızlı Erisim',
+      'home.quickAccess.title': 'Hızlı Erişim',
       'home.quick.words.title': 'Kelimeler',
       'home.quick.words.subtitle': 'Kelime listeni ac',
       'home.quick.sentences.title': 'Cümleler',
