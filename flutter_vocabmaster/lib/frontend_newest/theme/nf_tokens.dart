@@ -218,15 +218,34 @@ class NfTokens {
     double? letterSpacing,
     TextDecoration? decoration,
   }) {
-    return GoogleFonts.fredoka(
+    return GoogleFonts.baloo2(
       fontSize: size,
       fontWeight: weight,
       color: color,
       height: height,
       letterSpacing: letterSpacing,
       decoration: decoration,
-    );
+    ).copyWith(fontFamilyFallback: _turkishFallback);
   }
+
+  /// Display type is Baloo 2 because Fredoka cannot draw s-cedilla, and every
+  /// other Turkish sentence has one.
+  ///
+  /// On a real phone the home screen greeted people with "Hos,geldin" -- the
+  /// cedilla detached from its letter and sitting in the following space. The
+  /// same word one line below, set in body type, was perfect, and both come
+  /// from the same correctly spelled string: that is what identified the face
+  /// rather than the text. Adding a fallback family fixed nothing, which is
+  /// itself the diagnosis -- Fredoka does carry a combining cedilla, so no
+  /// glyph was ever missing for a fallback to supply; what it lacks is the
+  /// anchor that would attach the mark to the s. Only changing the face helps.
+  ///
+  /// The fallback stays anyway, for whatever Baloo 2 turns out not to have.
+  /// The family name is read from the package rather than written out, so it
+  /// cannot drift out of step with what body() actually loads.
+  static final List<String> _turkishFallback = <String>[
+    GoogleFonts.nunito().fontFamily ?? 'Nunito',
+  ];
 
   static TextStyle body({
     double size = NfFont.s14,
