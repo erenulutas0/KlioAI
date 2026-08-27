@@ -24,6 +24,12 @@ import org.slf4j.LoggerFactory;
  * already changed twice; the work would be lost silently, which is the worst
  * way to lose it.
  *
+ * <p>A file may hold a handful of corrections or a book's entire translation,
+ * and the second is what "verified" should eventually mean. A patch leaves the
+ * rest of the book at the mercy of the next translation run, which produces
+ * different text nobody has read; a whole book on file is reproducible, costs
+ * nothing to reimport, and is never quietly replaced by a worse answer.
+ *
  * <p>Entries are keyed by the sentence's own text rather than its position, for
  * the same reason. A re-segmentation moves every index but leaves the sentences
  * themselves alone, so a text key still finds its translation afterwards — and

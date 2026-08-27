@@ -202,6 +202,35 @@ which the log line records by name. Judge the concrete nouns hardest: a learner
 taps a word to find out what it means, so "blackberries" coming back as the
 wrong berry teaches them the wrong word, while a slightly stiff clause does not.
 
+## Freezing a book someone has read
+
+Machine translation is good at the easy end of this shelf and poor at the hard
+one -- about a fifth of Peter Rabbit's sentences came back with a real error,
+four fifths of Conrad's. A wrong translation teaches worse than none, because a
+learner cannot see that it is wrong, so a book is only shown with translations
+once a person has read them.
+
+Reading them is not enough on its own: an import rewrites every sentence row, so
+the next one throws the reading away. What was checked has to go into
+`backend/src/main/resources/books/verified/<slug>.tsv`, which the import applies
+and the translation run then skips.
+
+Export what is in the database as the file's own format -- `-At -F` gives
+tuples-only, tab-separated output, which is exactly it:
+
+```bash
+docker exec -i vocabmaster-postgres psql -U postgres -d EnglishApp -At -F$'	'   -c "SELECT s.text, s.translation FROM book_sentences s JOIN books b ON b.id = s.book_id       WHERE b.slug = 'peter-rabbit' AND s.translation IS NOT NULL ORDER BY s.sentence_index;"
+```
+
+Paste that under the file's header, commit, and the book is reproducible: every
+later import restores exactly the translation that was read, and no model is
+ever asked for those sentences again.
+
+Two counts guard it. The import logs `verified=applied/onFile`, and they should
+be equal — a difference means sentences that no longer match their corrections,
+which is otherwise completely silent. And `VerifiedTranslationsTest` fails the
+build on any line that matches nothing in the book.
+
 ## Checking the result
 
 ```sql
