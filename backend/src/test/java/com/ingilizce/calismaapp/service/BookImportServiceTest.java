@@ -152,4 +152,38 @@ class BookImportServiceTest {
 
         assertEquals(3, sentenceRepository.findUntranslated(result.bookId()).size());
     }
+
+    @Test
+    @DisplayName("a checked translation survives the import that would have wiped it")
+    void appliesVerifiedTranslations() throws Exception {
+        // The whole reason corrections live in the build rather than in the
+        // database: a re-import deletes every sentence row and writes them
+        // again. Applied here, the checking survives; applied by hand to the
+        // database, it would be gone the next time the segmenter changed.
+        BookLibrary.ShelvedBook peter = BookLibrary.BOOKS.stream()
+                .filter(b -> b.slug().equals("peter-rabbit"))
+                .findFirst()
+                .orElseThrow();
+
+        BookImportService.ImportResult result = importService.importBook(
+                peter.slug(), peter.title(), peter.author(), "English",
+                peter.level(), peter.source(), BookLibrary.readText(peter));
+
+        List<BookSentence> all =
+                sentenceRepository.findWindow(result.bookId(), 0, result.sentences());
+
+        long translated = all.stream().filter(s -> s.getTranslation() != null).count();
+        assertEquals(VerifiedTranslations.forSlug("peter-rabbit").size(), translated,
+                "every correction on file should have landed on a sentence");
+
+        BookSentence jacket = all.stream()
+                .filter(s -> s.getText().startsWith("It was a blue jacket"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Pirinç düğmeli, mavi bir ceketti; hem de yepyeni.",
+                jacket.getTranslation());
+
+        // And the rest of the book is left for the model, not silently blanked.
+        assertTrue(all.stream().anyMatch(s -> s.getTranslation() == null));
+    }
 }

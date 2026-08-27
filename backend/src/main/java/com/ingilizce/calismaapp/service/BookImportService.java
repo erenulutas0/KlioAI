@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Puts a public-domain book on the shelf: segments the text and stores every
@@ -113,18 +114,35 @@ public class BookImportService {
         }
         book = bookRepository.save(book);
 
+        // Corrections a person has read, applied here so that re-importing a
+        // book does not throw away the checking. A sentence that already has a
+        // verified translation is also one the translation run will skip, so
+        // nobody pays a model to produce a worse answer than the one on file.
+        Map<String, String> verified = VerifiedTranslations.forSlug(slug);
+        int verifiedApplied = 0;
+
         List<BookSentence> rows = new ArrayList<>(pending.size());
         for (int position = 0; position < pending.size(); position++) {
             PendingSentence p = pending.get(position);
-            rows.add(new BookSentence(book, position, p.chapterIndex(), p.chapterTitle(), p.text()));
+            BookSentence row = new BookSentence(book, position, p.chapterIndex(),
+                    p.chapterTitle(), p.text());
+            String checked = verified.get(VerifiedTranslations.normalise(p.text()));
+            if (checked != null) {
+                row.setTranslation(checked);
+                verifiedApplied++;
+            }
+            rows.add(row);
         }
 
         sentenceRepository.saveAll(rows);
         book.setSentenceCount(rows.size());
         book = bookRepository.save(book);
 
-        log.info("Imported book slug={} chapters={} sentences={} replaced={}",
-                slug, chapters.size(), rows.size(), replaced);
+        // The count is logged because a mismatch is the failure to fear: an
+        // edition whose sentences no longer match the file leaves every
+        // correction unapplied, and silently.
+        log.info("Imported book slug={} chapters={} sentences={} replaced={} verified={}/{}",
+                slug, chapters.size(), rows.size(), replaced, verifiedApplied, verified.size());
 
         return new ImportResult(book.getId(), slug, chapters.size(), rows.size(), replaced);
     }
