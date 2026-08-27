@@ -149,7 +149,7 @@ class SubscriptionService {
       final available = await isIAPAvailable();
       if (!available) {
         onPurchaseError?.call(_text(
-          'Uygulama ici satın alma su an kullanilamiyor.',
+          'Uygulama ici satın alma su an kullanılamıyor.',
           'In-app purchases are not available right now.',
         ));
         return false;
@@ -199,7 +199,7 @@ class SubscriptionService {
         try {
           await syncOwnedPurchases(force: true);
           onPurchaseError?.call(_text(
-            'Mevcut mağaza aboneliği bulundu, hesabiniza aktariliyor...',
+            'Mevcut mağaza aboneliği bulundu, hesabiniza aktarılıyor...',
             'An existing store subscription was found and is being restored to your account...',
           ));
           return false;
@@ -230,7 +230,7 @@ class SubscriptionService {
           try {
             await syncOwnedPurchases(force: true);
             onPurchaseError?.call(_text(
-              'Mevcut mağaza aboneliği bulundu, hesabiniza aktariliyor...',
+              'Mevcut mağaza aboneliği bulundu, hesabiniza aktarılıyor...',
               'An existing store subscription was found and is being restored to your account...',
             ));
           } catch (e) {
@@ -320,7 +320,7 @@ class SubscriptionService {
       }
       if (purchaseToken.isEmpty) {
         _lastVerificationError = _text(
-          'Satın alma tokeni boş geldi. Lütfen satın alimlarini geri yukleyin.',
+          'Satın alma tokeni boş geldi. Lütfen satın alımlarını geri yükleyin.',
           'The purchase token is empty. Please restore your purchases and try again.',
         );
         debugPrint(
@@ -388,7 +388,7 @@ class SubscriptionService {
       return true;
     } catch (e) {
       _lastVerificationError = _text(
-        'Dogrulama sirasinda bağlantı hatası: $e',
+        'Dogrulama sırasında bağlantı hatası: $e',
         'A connection error occurred during verification: $e',
       );
       debugPrint('Backend verification failed: $e');
@@ -416,7 +416,7 @@ class SubscriptionService {
     final message = error.message.toLowerCase();
     if (message.contains('pg-gemf-02') || code.contains('pg-gemf-02')) {
       return _text(
-        'Google Play ödeme tarafinda hata oluştu (PG-GEMF-02). Play hesabinizi kontrol edip satın alimlarini geri yukleyin ve tekrar deneyin.',
+        'Google Play ödeme tarafında hata oluştu (PG-GEMF-02). Play hesabinizi kontrol edip satın alımlarını geri yükleyin ve tekrar deneyin.',
         'Google Play returned a payment error (PG-GEMF-02). Check your Play account, restore purchases, and try again.',
       );
     }
@@ -433,7 +433,7 @@ class SubscriptionService {
     final lower = rawError.toLowerCase();
     if (lower.contains('pg-gemf-02')) {
       return _text(
-        'Google Play ödeme tarafinda hata oluştu (PG-GEMF-02). Play Store > Odemeler ve abonelikler > Abonelikler ekranindan geri yukleyip tekrar deneyin.',
+        'Google Play ödeme tarafında hata oluştu (PG-GEMF-02). Play Store > Ödemeler ve abonelikler > Abonelikler ekranindan geri yükleyip tekrar deneyin.',
         'Google Play returned a payment error (PG-GEMF-02). Restore the subscription from Play Store > Payments & subscriptions > Subscriptions, then try again.',
       );
     }
@@ -447,7 +447,7 @@ class SubscriptionService {
     if (lower.contains('itemalreadyowned') ||
         lower.contains('item_already_owned')) {
       return _text(
-        'Mevcut mağaza aboneliği bulundu. Satın alimlariniz hesabiniza aktariliyor.',
+        'Mevcut mağaza aboneliği bulundu. Satın alımlarınız hesabiniza aktarılıyor.',
         'An existing store subscription was found. Your purchases are being restored to your account.',
       );
     }
@@ -510,13 +510,13 @@ class SubscriptionService {
         );
       }
       return _text(
-        'Oturum dogrulama hatası. Lütfen tekrar deneyin. Sorun devam ederse uygulamayi yeniden acin.',
+        'Oturum dogrulama hatası. Lütfen tekrar deneyin. Sorun devam ederse uygulamayı yeniden acin.',
         'Session verification failed. Please try again. If the issue continues, reopen the app and try once more.',
       );
     }
     if (statusCode == 400 && normalized.contains('purchasetoken is required')) {
       return _text(
-        'Satın alma tokeni eksik geldi. Abonelik sayfasından geri yükleme yapip tekrar deneyin.',
+        'Satın alma tokeni eksik geldi. Abonelik sayfasından geri yükleme yapıp tekrar deneyin.',
         'The purchase token was missing. Restore purchases from the subscription page and try again.',
       );
     }
@@ -541,7 +541,7 @@ class SubscriptionService {
     }
     if (statusCode == 503 && code == 'PROVIDER_UNAVAILABLE') {
       return _text(
-        'Google dogrulama servisi su an ulasilamiyor. Biraz sonra tekrar deneyin.',
+        'Google dogrulama servisi su an ulaşılamıyor. Biraz sonra tekrar deneyin.',
         'The Google verification service is currently unavailable. Please try again shortly.',
       );
     }

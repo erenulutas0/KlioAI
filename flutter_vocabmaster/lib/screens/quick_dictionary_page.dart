@@ -670,7 +670,7 @@ class _QuickDictionaryPageState extends State<QuickDictionaryPage> {
             const CircularProgressIndicator(color: Color(0xFF06b6d4)),
             const SizedBox(height: 16),
             Text(
-              _text('AI sözlük araniyor...', 'Searching AI dictionary...'),
+              _text('AI sözlük aranıyor...', 'Searching AI dictionary...'),
               style: const TextStyle(color: Colors.white70),
             ),
           ],

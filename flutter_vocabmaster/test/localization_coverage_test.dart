@@ -9,6 +9,28 @@ import 'package:vocabmaster/l10n/app_localizations.dart';
 /// so a German user sees English and nothing anywhere says so. Or a string is written into a
 /// widget directly, which is worse: the fallback cannot help, and a German user reads
 /// Turkish. Four files were doing the second when this test was written.
+/// Turkish's own casing rules, applied before comparing. Without these, "YENİ"
+/// and "Yeni" look like a contradiction when they are simply the same word
+/// cased two ways: in Turkish, i uppercases to İ and I lowercases to ı. A guard
+/// that failed on those would be reporting correct spelling as an error, and a
+/// guard that cries wolf gets switched off.
+String turkishLower(String s) =>
+    s.replaceAll('İ', 'i').replaceAll('I', 'ı').toLowerCase();
+
+/// The same word with its Turkish marks removed, so "çöz" and "coz" can be
+/// recognised as two spellings of one word.
+String foldDiacritics(String s) {
+  const from = 'çğıöşüÇĞİÖŞÜ';
+  const to = 'cgiosuCGIOSU';
+  final buffer = StringBuffer();
+  for (final rune in s.runes) {
+    final char = String.fromCharCode(rune);
+    final at = from.indexOf(char);
+    buffer.write(at < 0 ? char : to[at]);
+  }
+  return buffer.toString();
+}
+
 void main() {
   final source = File('lib/l10n/app_localizations.dart').readAsStringSync();
 
@@ -172,19 +194,6 @@ void main() {
     // same word cased two ways: in Turkish, i uppercases to İ and I lowercases
     // to ı. A guard that failed on those would be reporting correct spelling
     // as an error, and a guard that cries wolf gets switched off.
-    String turkishLower(String s) =>
-        s.replaceAll('İ', 'i').replaceAll('I', 'ı').toLowerCase();
-    String foldDiacritics(String s) {
-      const from = 'çğıöşüÇĞİÖŞÜ';
-      const to = 'cgiosuCGIOSU';
-      final buffer = StringBuffer();
-      for (final rune in s.runes) {
-        final char = String.fromCharCode(rune);
-        final at = from.indexOf(char);
-        buffer.write(at < 0 ? char : to[at]);
-      }
-      return buffer.toString();
-    }
 
     // Every piece of Turkish the app can put on screen, not just the map.
     //
@@ -313,4 +322,108 @@ void main() {
         reason: 'Spelled bare here, spelled properly elsewhere in the same '
             'app:\n${stripped.join('\n')}');
   });
+
+  test('no Turkish word quietly breaks vowel harmony', () {
+    // The last rule that can find a stripped word with no correct twin to
+    // compare it against -- and there is no dictionary here to do it any other
+    // way.
+    //
+    // Turkish vowels come in two sets, and a native word uses one or the
+    // other. Stripping diacritics moves vowels across that line: ı becomes i,
+    // ö becomes o, ü becomes u. So a word that mixes the sets, and that could
+    // be un-mixed by putting the marks back, is almost always a word someone
+    // typed without them. "calismasi" and "yukleyin" were found exactly this
+    // way -- 60 of them, in sentences the two comparison guards read as
+    // perfectly consistent because every copy was equally bare.
+    //
+    // Turkish also borrows freely, and a loanword answers to no harmony:
+    // "kitap", "sohbet", "profil", "tarih". Those are listed below. The list
+    // is the exceptions, NOT the words this test knows about -- a new bare
+    // word fails here by default, and passing it means either fixing it or
+    // saying in writing why it is allowed. That direction is the whole point:
+    // the enumerated list this file used to rely on could only ever catch what
+    // somebody had remembered to write down.
+    const back = 'aıou';
+    const front = 'eiöü';
+    const known = <String>{
+      'aktif', 'bekleniyor', 'bekliyor', 'biraz', 'birazdan',
+      'buildde', 'cihazdan', 'dahil', 'dakika', 'ediliyor',
+      'ekleniyor', 'endonezce', 'galaksisi', 'hangi', 'harika',
+      'haziran', 'iptal', 'ispanyolca', 'istiyor', 'istiyorsunuz',
+      'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
+      'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
+      'nisan', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
+      'profil', 'profili', 'profiller', 'rozetler', 'sakin',
+      'senkron', 'senkronu', 'sohbet', 'sohbete', 'sohbeti',
+      'sonraki', 'soyisim', 'takibi', 'takip', 'takviminiz',
+      'tarih', 'temmuz', 'tempo', 'tokeni', 'vermiyor',
+      'yenileniyor',
+    };
+
+    String strip(String s) => s
+        .replaceAll(RegExp(r'\$\{[^}]*\}'), ' ')
+        .replaceAll(RegExp(r'\$[A-Za-z_][A-Za-z0-9_.]*'), ' ');
+    final splitter = RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+');
+
+    // English is the other half of every bilingual pair, so the app can say
+    // which of its own words are not Turkish without being told.
+    final english = <String>{};
+    final turkish = <MapEntry<String, String>>[];
+    final pair = RegExp(
+        r"^\s+'[^']+': '([^']*)',", multiLine: true);
+    for (final code in <String>['tr', 'en']) {
+      final block = RegExp("^    '$code': "+r"\{(.*?)^    \},",
+              multiLine: true, dotAll: true)
+          .firstMatch(source);
+      for (final m in pair.allMatches(block!.group(1)!)) {
+        if (code == 'tr') {
+          turkish.add(MapEntry<String, String>('l10n', m.group(1)!));
+        } else {
+          english.addAll(strip(m.group(1)!).split(splitter).map((w) => w.toLowerCase()));
+        }
+      }
+    }
+    final helpers = <RegExp>[
+      RegExp(r"LocaleTextService\.pick\(\s*'([^']*)'\s*,\s*'([^']*)'", dotAll: true),
+      RegExp(r"_text\(\s*'([^']*)'\s*,\s*'([^']*)'", dotAll: true),
+    ];
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      final code = file.readAsStringSync();
+      for (final helper in helpers) {
+        for (final m in helper.allMatches(code)) {
+          turkish.add(MapEntry<String, String>(file.path, m.group(1)!));
+          english.addAll(strip(m.group(2)!).split(splitter).map((w) => w.toLowerCase()));
+        }
+      }
+    }
+
+    final offenders = <String>{};
+    for (final entry in turkish) {
+      for (final token in strip(entry.value).split(splitter)) {
+        final word = turkishLower(token);
+        if (word.length < 5 || known.contains(word)) continue;
+        if (english.contains(word)) continue;
+        if (foldDiacritics(word) != word) continue;
+        final vowels =
+            word.split('').where((c) => back.contains(c) || front.contains(c)).toList();
+        if (vowels.length < 2) continue;
+        final mixed = vowels.any(back.contains) && vowels.any(front.contains);
+        if (!mixed) continue;
+        // Only a/e are stuck where they are; i, o and u each have a partner on
+        // the other side, so a word holding both an a and an e cannot be
+        // repaired by adding marks and is simply a borrowing.
+        if (vowels.contains('a') && vowels.contains('e')) continue;
+        offenders.add('  $word   (${entry.key})');
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These mix Turkish back and front vowels, which usually means '
+            'the diacritics were left out. Fix the word, or add it to `known` '
+            'if it is a borrowing:\n${offenders.join('\n')}');
+  });
+
 }

@@ -251,7 +251,7 @@ class _WordsPageState extends State<WordsPage> {
                                 'You can select past or future dates and add new words.',
                               ),
                               _text(
-                                'Her kelime için zorluk seviyesi belirleyerek sureci yonetin.',
+                                'Her kelime için zorluk seviyesi belirleyerek süreci yönetin.',
                                 'Set a difficulty level for each word to manage review flow.',
                               ),
                               _text(
@@ -405,7 +405,7 @@ class _WordsPageState extends State<WordsPage> {
                           const SizedBox(height: 8),
                           Text(
                             _text(
-                                'Yukaridaki formu kullanarak bu gune yeni bir kelime ekleyin.',
+                                'Yukarıdaki formu kullanarak bu gune yeni bir kelime ekleyin.',
                                 'Use the form above to add a new word to this day.'),
                             textAlign: TextAlign.center,
                             style: TextStyle(

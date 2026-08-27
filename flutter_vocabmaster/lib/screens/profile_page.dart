@@ -1936,7 +1936,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         content: Text(
           _text(
-            'Bu talep hesabinizi ve kelime, cümle, ilerleme ve XP dahil bağlı verilerinizi silme surecini başlatır. Talepler genellikle 30 gün içinde islenir. Aktif bir Google Play aboneliğin varsa, ayrıca Google Play üzerinden iptal etmen gerekir.',
+            'Bu talep hesabinizi ve kelime, cümle, ilerleme ve XP dahil bağlı verilerinizi silme sürecini başlatır. Talepler genellikle 30 gün içinde islenir. Aktif bir Google Play aboneliğin varsa, ayrıca Google Play üzerinden iptal etmen gerekir.',
             'This request starts the process of deleting your account and connected data, including words, sentences, progress, and XP. Requests are normally processed within 30 days. If you have an active Google Play subscription, you must also cancel it separately in Google Play.',
           ),
           style: const TextStyle(color: Colors.white70, height: 1.35),
@@ -1993,7 +1993,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       final message = e.statusCode == 429
           ? _text(
-              'Bugün için destek talebi hakkini doldurdun. Lütfen yarın tekrar dene veya support@klioAI.app adresine yaz.',
+              'Bugün için destek talebi hakkını doldurdun. Lütfen yarın tekrar dene veya support@klioAI.app adresine yaz.',
               'You have reached today\'s support request limit. Please try again tomorrow or email support@klioai.app.',
             )
           : _text(
@@ -2373,7 +2373,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: Colors.white.withValues(alpha: 0.3), size: 48),
                   const SizedBox(height: 12),
                   Text(
-                    _text('Henüz arkadasiniz yok', 'No friends yet'),
+                    _text('Henüz arkadaşınız yok', 'No friends yet'),
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 16,

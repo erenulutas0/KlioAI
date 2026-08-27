@@ -373,7 +373,7 @@ class _NeuralGameMenuScreenState extends State<NeuralGameMenuScreen>
             mode: NeuralGameMode.relatedWords,
             title: _text('Iliskili Kelime', 'Related Word'),
             subtitle: _text(
-              'İngilizce baglantili kelime yaz',
+              'İngilizce bağlantılı kelime yaz',
               'Type an English word with a clear connection',
             ),
           ),

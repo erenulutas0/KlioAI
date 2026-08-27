@@ -1414,7 +1414,7 @@ class _WordQuickActionSheet extends StatelessWidget {
               ),
               _QuickActionTile(
                 icon: Icons.visibility_outlined,
-                title: _text('Onizleme Ac', 'Open Preview'),
+                title: _text('Önizleme Ac', 'Open Preview'),
                 subtitle: _text(
                     'Cümleleri ve formu ac', 'Open sentences and the form'),
                 onTap: () =>
@@ -1963,7 +1963,7 @@ class _WordPreviewSheetState extends State<_WordPreviewSheet> {
                         ),
                         child: Text(
                           _text(
-                            'Bu kelime için henüz cümle yok. Aşağıdan ilk cumleni ekleyebilirsin.',
+                            'Bu kelime için henüz cümle yok. Aşağıdan ilk cümleni ekleyebilirsin.',
                             'There are no sentences for this word yet. Add the first one below.',
                           ),
                           style: const TextStyle(

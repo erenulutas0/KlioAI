@@ -479,7 +479,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         final errorText = e.toString();
         // User-friendly connection error message
         String errorMsg = _text(
-            'Bağlantı hatası. İnternet baglantinizi kontrol edip tekrar deneyin.',
+            'Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.',
             'Connection error. Check your internet connection and try again.');
         if (errorText.contains('SocketException') ||
             errorText.contains('Failed host lookup')) {
@@ -582,7 +582,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                 _resetSpeakingSessionXp();
               });
               _addBotMessage(_text(
-                  'Yeni bir sohbete basladik. Seninle konuşmak güzel.',
+                  'Yeni bir sohbete başladık. Seninle konuşmak güzel.',
                   'We started a new chat. It is great to talk with you.'));
             },
             child: Text(_text('Evet', 'Yes'),
@@ -620,7 +620,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         'id': 'disagreement_colleague',
         'name': 'Disagreement with Colleague',
         'subtitle':
-            _text('Meslektasla Anlasmazlik', 'Disagreement with a colleague'),
+            _text('Meslektasla Anlaşmazlık', 'Disagreement with a colleague'),
         'icon': Icons.people_outline,
         'color': const Color(0xFFf59e0b),
         'welcomeMessage':
@@ -630,7 +630,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         'id': 'explaining_to_manager',
         'name': 'Explaining to Manager',
         'subtitle':
-            _text('Yoneticiye Açıklama', 'Explain a situation to your manager'),
+            _text('Yöneticiye Açıklama', 'Explain a situation to your manager'),
         'icon': Icons.person_outline,
         'color': const Color(0xFF10b981),
         'welcomeMessage':
@@ -2154,7 +2154,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
                   Expanded(
                     child: Text(
                       _text(
-                        'Groq Whisper metni hazirliyor.',
+                        'Groq Whisper metni hazırlıyor.',
                         'Groq Whisper is preparing the transcript.',
                       ),
                       style: const TextStyle(
@@ -2220,7 +2220,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
               const SizedBox(width: 12),
               Text(
                 _autoSendMode
-                    ? _text('Whisper metni alinca otomatik gönderir',
+                    ? _text('Whisper metni alınca otomatik gönderir',
                         'Auto-sends after Whisper transcript')
                     : _text('Sen gönder butonuna bas', 'Tap send manually'),
                 style: const TextStyle(

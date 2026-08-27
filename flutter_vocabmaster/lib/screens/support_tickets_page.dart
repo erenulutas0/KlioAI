@@ -271,7 +271,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_text(
-            'Ticket gonderildi.',
+            'Ticket gönderildi.',
             'Your ticket has been submitted.',
           )),
           backgroundColor: Colors.green,
@@ -281,7 +281,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
       if (!mounted) return;
       final message = e.statusCode == 429
           ? _text(
-              'Bugün için 3 ticket hakkini doldurdun.',
+              'Bugün için 3 ticket hakkını doldurdun.',
               'You have reached the 3-ticket daily limit.',
             )
           : _text(
@@ -395,7 +395,7 @@ class _SupportTicketsPageState extends State<SupportTicketsPage> {
                         ? Center(
                             child: Text(
                               _text(
-                                'Henüz ticket olusturmadin.',
+                                'Henüz ticket oluşturmadın.',
                                 'You have not created any tickets yet.',
                               ),
                               style: const TextStyle(color: Colors.white70),

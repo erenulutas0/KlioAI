@@ -235,7 +235,7 @@ class _NeuralGameResultsScreenState extends State<NeuralGameResultsScreen>
                           TextButton.icon(
                             onPressed: widget.onBackToMenu,
                             icon: const Icon(Icons.grid_view_rounded),
-                            label: Text(_text('Menuye Dön', 'Back to Menu')),
+                            label: Text(_text('Menüye Dön', 'Back to Menu')),
                             style: TextButton.styleFrom(
                                 foregroundColor:
                                     selectedTheme.colors.textSecondary),

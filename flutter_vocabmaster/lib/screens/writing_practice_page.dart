@@ -288,7 +288,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               ),
               child: Text(
                 _text(
-                  'Bu seviyedeki günlük yazma alistirmasi tamamlandı. Aynı konuyu tekrar cozebilirsin.',
+                  'Bu seviyedeki günlük yazma alıştırması tamamlandı. Aynı konuyu tekrar çözebilirsin.',
                   'Today\'s writing task for this level is already completed. You can still retry the same topic.',
                 ),
                 style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -332,7 +332,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           const SizedBox(height: 10),
           Text(
             _text(
-              'Her seviye için günlük tek konu verilir. Aynı seviyede tekrar aynı konu acilir.',
+              'Her seviye için günlük tek konu verilir. Aynı seviyede tekrar aynı konu açılır.',
               'Each level provides one daily topic. Reopening the same level brings back the same topic.',
             ),
             style: const TextStyle(
@@ -638,7 +638,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
                         ),
                         TextSpan(
                           text: _text(
-                            'Cumlelerinizi net ve anlasilir tutun. Geçiş kelimelerini kullanarak fikirlerinizi birbirine baglayin. Yaratıcı olun ve kendi sesinizi bulmaktan cekinmeyin.',
+                            'Cümlelerinizi net ve anlaşılır tutun. Geçiş kelimelerini kullanarak fikirlerinizi birbirine bağlayın. Yaratıcı olun ve kendi sesinizi bulmaktan cekinmeyin.',
                             'Keep your sentences clear and organized. Use transition words to connect your ideas. Be creative and write in your own voice.',
                           ),
                         ),
@@ -760,7 +760,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_text(
-            'Değerlendirme su an yapilamadi. Yazın duruyor, tekrar deneyebilirsin.',
+            'Değerlendirme su an yapılamadı. Yazın duruyor, tekrar deneyebilirsin.',
             'The evaluation could not be made right now. Your text is safe — try again.',
           )),
         ));
@@ -926,7 +926,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _text('100 üzerinden puaniniz', 'Your score out of 100'),
+            _text('100 üzerinden puanınız', 'Your score out of 100'),
             style: const TextStyle(
               color: Color(0xFFF5D0FE),
               fontSize: 16,
@@ -967,7 +967,7 @@ class _WritingPracticePageState extends State<WritingPracticePage> {
               ),
               const SizedBox(width: 8),
               Text(
-                _text('Güçlü Yonler', 'Strengths'),
+                _text('Güçlü Yönler', 'Strengths'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
