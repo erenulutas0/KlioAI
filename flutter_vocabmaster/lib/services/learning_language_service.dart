@@ -3,7 +3,22 @@ import 'locale_text_service.dart';
 class LearningLanguageService {
   const LearningLanguageService._();
 
-  static const String defaultSourceLanguage = 'Turkish';
+  /// The learner's own language before they have told us, taken from the
+  /// interface they are already reading.
+  ///
+  /// It was the constant 'Turkish', which is right for most of this app's
+  /// audience and wrong in the one case that matters: someone using the app in
+  /// German got German menus and German-language AI feedback was never even
+  /// offered to the server. A default that contradicts the language on screen
+  /// is a strange thing to make someone correct by hand.
+  ///
+  /// English rather than Turkish for anything else, because that is what the
+  /// interface itself falls back to.
+  static String get defaultSourceLanguage => switch (LocaleTextService.appLanguageCode) {
+        'tr' => 'Turkish',
+        'de' => 'German',
+        _ => 'English',
+      };
   static const String targetLanguage = 'English';
   static const List<String> supportedSourceLanguages = [
     'Turkish',
@@ -33,18 +48,35 @@ class LearningLanguageService {
     'Travel',
   ];
 
-  static String _sourceLanguage = defaultSourceLanguage;
+  // Not initialised from the getter: a static initialiser would freeze
+  // whatever the locale was at class-load time, which on a cold start is
+  // before the app has read the stored language.
+  static String? _sourceLanguageOverride;
   static String _englishLevel = defaultEnglishLevel;
   static String _learningGoal = defaultLearningGoal;
 
-  static String get sourceLanguage => _sourceLanguage;
+  static String get sourceLanguage =>
+      _sourceLanguageOverride ?? defaultSourceLanguage;
   static String get englishLevel => _englishLevel;
   static String get learningGoal => _learningGoal;
-  static String get feedbackLanguage =>
-      LocaleTextService.isTurkish ? 'Turkish' : 'English';
+  /// The language the AI explains and corrects in.
+  ///
+  /// The learner's own language, which is exactly what onboarding asks for and
+  /// what it promises: "meanings and corrections arrive in this language".
+  ///
+  /// It used to be a single boolean -- Turkish if the interface was Turkish,
+  /// English otherwise -- so of the seven languages the server accepts
+  /// (LearningLanguageProfile.SUPPORTED_FEEDBACK_LANGUAGES) the app could ask
+  /// for two. A learner who told us they speak German, Spanish or Portuguese
+  /// was answered in English anyway, by a server that would have obliged.
+  ///
+  /// The two lists are the same seven, which is not a coincidence to rely on
+  /// quietly: a source language the server does not accept comes back as its
+  /// own fallback there rather than breaking anything here.
+  static String get feedbackLanguage => sourceLanguage;
 
   static void setSourceLanguage(String language) {
-    _sourceLanguage = normalizeSupported(language, defaultSourceLanguage);
+    _sourceLanguageOverride = normalizeSupported(language, defaultSourceLanguage);
   }
 
   static void setEnglishLevel(String level) {
@@ -57,7 +89,7 @@ class LearningLanguageService {
 
   static Map<String, String> currentProfile() {
     return {
-      'sourceLanguage': _sourceLanguage,
+      'sourceLanguage': sourceLanguage,
       'targetLanguage': targetLanguage,
       'feedbackLanguage': feedbackLanguage,
       'englishLevel': _englishLevel,

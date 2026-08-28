@@ -8,6 +8,7 @@ import 'package:vocabmaster/providers/language_provider.dart';
 import 'package:vocabmaster/providers/learning_language_provider.dart';
 import 'package:vocabmaster/screens/settings_page.dart';
 import 'package:vocabmaster/services/learning_language_service.dart';
+import 'package:vocabmaster/services/locale_text_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     SharedPreferences.setMockInitialValues({});
-    LearningLanguageService.setSourceLanguage('Turkish');
+    // Pinned rather than inherited from whichever machine runs this. The app
+    // locale now decides what the learner's language defaults to before they
+    // have chosen one, so leaving it to the platform made this test's subject
+    // depend on the tester's own device.
+    LocaleTextService.setAppLocale(const Locale('en'));
 
     final languageProvider = LanguageProvider();
     final learningProvider = LearningLanguageProvider();
@@ -49,7 +54,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Learning Profile'), findsOneWidget);
-    expect(find.textContaining('Native language: Turkish'), findsOneWidget);
+    // English, because nothing is stored and the interface is English.
+    // Someone reading English menus is not asked to correct the app into
+    // explaining things in English.
+    expect(find.textContaining('Native language: English'), findsOneWidget);
     expect(find.textContaining('Practice language: English'), findsOneWidget);
     expect(find.textContaining('English level: B1'), findsOneWidget);
     expect(find.textContaining('Goal: Speaking'), findsOneWidget);

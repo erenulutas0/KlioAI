@@ -152,7 +152,9 @@ void main() {
         expect(body['direction'], 'SOURCE_TO_TARGET');
         expect(body['sourceLanguage'], 'Spanish');
         expect(body['targetLanguage'], 'English');
-        expect(body['feedbackLanguage'], 'English');
+        // Spanish, not English. Feedback follows the language the learner said
+        // they speak, not the one the menus happen to be in.
+        expect(body['feedbackLanguage'], 'Spanish');
         expect(body['englishLevel'], 'B2');
         expect(body['learningGoal'], 'Travel');
 
@@ -545,7 +547,7 @@ void main() {
 
         expect(body['sourceLanguage'], 'Turkish');
         expect(body['targetLanguage'], 'English');
-        expect(body['feedbackLanguage'], 'English');
+        expect(body['feedbackLanguage'], 'Turkish');
 
         if (request.url.path.endsWith('/chatbot/generate-sentences')) {
           expect(body['word'], 'focus');

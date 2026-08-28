@@ -80,9 +80,44 @@ void main() {
 
       expect(profile['sourceLanguage'], 'Spanish');
       expect(profile['targetLanguage'], 'English');
-      expect(profile['feedbackLanguage'], 'Turkish');
+      // Spanish, not Turkish. This used to answer with the INTERFACE language,
+      // so someone who had just told onboarding they speak Spanish was
+      // explained to in Turkish because the menus were Turkish. The answer
+      // they gave wins over the one inferred from their menus -- it is the
+      // question onboarding asks, and the promise it makes when it asks.
+      expect(profile['feedbackLanguage'], 'Spanish');
       expect(profile['englishLevel'], 'C1');
       expect(profile['learningGoal'], 'Work');
+    });
+
+    test('feedback reaches every language the server accepts', () {
+      // Two of seven before this: Turkish if the interface was Turkish,
+      // English otherwise. The server has always taken all seven
+      // (LearningLanguageProfile.SUPPORTED_FEEDBACK_LANGUAGES) and was simply
+      // never asked.
+      for (final String language in LearningLanguageService.supportedSourceLanguages) {
+        LearningLanguageService.setSourceLanguage(language);
+        expect(LearningLanguageService.feedbackLanguage, language);
+      }
+    });
+
+    test('before onboarding, the interface language stands in', () {
+      // Someone reading German menus should not have to correct the app into
+      // explaining things in German.
+      LocaleTextService.setAppLocale(const Locale('de'));
+      LearningLanguageService.setSourceLanguage('');
+      expect(LearningLanguageService.feedbackLanguage, 'German');
+
+      LocaleTextService.setAppLocale(const Locale('tr'));
+      LearningLanguageService.setSourceLanguage('');
+      expect(LearningLanguageService.feedbackLanguage, 'Turkish');
+    });
+
+    test('an interface language the app does not carry falls back to English', () {
+      // Which is what the interface itself falls back to, so the two agree.
+      LocaleTextService.setAppLocale(const Locale('fi'));
+      LearningLanguageService.setSourceLanguage('');
+      expect(LearningLanguageService.feedbackLanguage, 'English');
     });
   });
 }
