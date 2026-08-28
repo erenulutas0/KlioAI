@@ -3,12 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
 
-/// Two ways a learner ends up reading a language they did not choose.
-///
-/// A key can be added to English and forgotten in the others, and `t()` quietly falls back —
-/// so a German user sees English and nothing anywhere says so. Or a string is written into a
-/// widget directly, which is worse: the fallback cannot help, and a German user reads
-/// Turkish. Four files were doing the second when this test was written.
 /// Turkish's own casing rules, applied before comparing. Without these, "YENİ"
 /// and "Yeni" look like a contradiction when they are simply the same word
 /// cased two ways: in Turkish, i uppercases to İ and I lowercases to ı. A guard
@@ -31,6 +25,12 @@ String foldDiacritics(String s) {
   return buffer.toString();
 }
 
+/// Two ways a learner ends up reading a language they did not choose.
+///
+/// A key can be added to English and forgotten in the others, and `t()` quietly falls back —
+/// so a German user sees English and nothing anywhere says so. Or a string is written into a
+/// widget directly, which is worse: the fallback cannot help, and a German user reads
+/// Turkish. Four files were doing the second when this test was written.
 void main() {
   final source = File('lib/l10n/app_localizations.dart').readAsStringSync();
 
@@ -352,11 +352,11 @@ void main() {
       'haziran', 'iptal', 'ispanyolca', 'istiyor', 'istiyorsunuz',
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
       'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
-      // 'otele' is the first inflected borrowing to land here: otel + the
-      // dative -e. The stem is a loanword, so no suffix it takes will ever
-      // harmonise, and 'oteli' or 'otelden' would each need adding too. If that
-      // starts happening, match on stems rather than growing this list.
-      'nisan', 'otele', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
+      // Stems only. Inflected borrowings are handled by withoutBorrowedStem
+      // below, so 'otel' covers otele, oteli and otelden without any of them
+      // being written here -- and without excusing a word that merely starts
+      // the same way.
+      'nisan', 'otel', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
       'profil', 'profili', 'profiller', 'rozetler', 'sakin',
       'senkron', 'senkronu', 'sohbet', 'sohbete', 'sohbeti',
       'sonraki', 'soyisim', 'takibi', 'takip', 'takviminiz',
@@ -404,6 +404,33 @@ void main() {
       }
     }
 
+    // A borrowing keeps breaking harmony once it takes a suffix: "sohbet" is
+    // excused, and so "sohbetlere" arrives asking to be excused again. Listing
+    // every inflection would grow without end, and simply excusing anything
+    // that starts with a listed word gives up too much -- "kitaplari" starts
+    // with "kitap" and is genuinely missing its ı.
+    //
+    // So the stem is excused and its suffixes are not. Turkish suffixes agree
+    // with the last vowel of the word they attach to, borrowed or not, which is
+    // the actual rule: check from that vowel onward. "sohbetlere" is judged on
+    // "etlere" and passes; "kitaplari" on "aplari" and still fails.
+    String withoutBorrowedStem(String word) {
+      String longest = '';
+      for (final stem in known) {
+        if (word.length > stem.length &&
+            word.startsWith(stem) &&
+            stem.length > longest.length) {
+          longest = stem;
+        }
+      }
+      if (longest.isEmpty) return word;
+      final int lastVowel = longest
+          .split('')
+          .lastIndexWhere((c) => back.contains(c) || front.contains(c));
+      if (lastVowel < 0) return word;
+      return word.substring(lastVowel);
+    }
+
     final offenders = <String>{};
     for (final entry in turkish) {
       for (final token in strip(entry.value).split(splitter)) {
@@ -411,8 +438,9 @@ void main() {
         if (word.length < 5 || known.contains(word)) continue;
         if (english.contains(word)) continue;
         if (foldDiacritics(word) != word) continue;
+        final judged = withoutBorrowedStem(word);
         final vowels =
-            word.split('').where((c) => back.contains(c) || front.contains(c)).toList();
+            judged.split('').where((c) => back.contains(c) || front.contains(c)).toList();
         if (vowels.length < 2) continue;
         final mixed = vowels.any(back.contains) && vowels.any(front.contains);
         if (!mixed) continue;

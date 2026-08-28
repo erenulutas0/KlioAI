@@ -9,6 +9,17 @@ import 'package:vocabmaster/screens/onboarding_screen.dart';
 import 'package:vocabmaster/services/app_tour_service.dart';
 import 'package:vocabmaster/services/learning_language_service.dart';
 
+/// The RETIRED onboarding, not the one a first run opens.
+///
+/// `OnboardingScreen` belongs to the old design. Since `main.dart` and the
+/// splash screen switched to `NfOnboardingPage`, nothing in the app builds this
+/// widget -- but the file stays, so this keeps testing it and keeps passing.
+///
+/// That is worth writing down, because a green run here reads like onboarding
+/// is covered and for a long time it was the only onboarding test there was.
+/// The screen learners actually see is tested in
+/// `nf_onboarding_conversation_test.dart`; changes to the real flow belong
+/// there.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

@@ -902,16 +902,80 @@ class _TourPoint extends StatelessWidget {
 /// to `SharedPreferences` and pushes the value into
 /// [LearningLanguageService] — the same path the old screen used, so a learner
 /// who backs out mid-step keeps what they already tapped.
-class _ProfileStep extends StatelessWidget {
+/// The three things the app needs to know, asked one at a time.
+///
+/// This was one page holding all three at once: three headings, three rows of
+/// chips, scrolled. Everything the app needed and nothing a person recognises
+/// as being spoken to -- the first screen of a product whose whole promise is
+/// that talking to it feels like talking to someone, and it opened with a form.
+///
+/// So Amy asks. A question arrives, the answer is a tap, she says something
+/// back about it, and the next question appears. Nothing here calls the model:
+/// the questions and every reply are written down, so the flow is instant, free,
+/// and works before the learner has an account or a connection. A conversation
+/// this short does not need a language model, and paying for one before someone
+/// has seen the product would be a strange place to start.
+///
+/// Answered questions stay on screen with their chips live, so changing your
+/// mind is a tap rather than a restart.
+class _ProfileStep extends StatefulWidget {
   const _ProfileStep();
 
   @override
+  State<_ProfileStep> createState() => _ProfileStepState();
+}
+
+class _ProfileStepState extends State<_ProfileStep> {
+  /// Which questions the learner has answered in this sitting.
+  ///
+  /// Deliberately not "does the provider have a value": it always does, since
+  /// the profile carries defaults. Asking the provider would reveal all three
+  /// questions at once and put us back where we started.
+  bool _askedNative = false;
+  bool _askedLevel = false;
+  bool _askedGoal = false;
+
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Keeps the newest question in view when answering pushes it below the fold.
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) {
+        return;
+      }
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  String _levelReply(BuildContext context, String level) {
+    // Banded rather than one line per CEFR level: six replies would say the
+    // same three things, and the difference that matters to a learner is
+    // whether they will be corrected, not whether they are B1 or B2.
+    final String band = switch (level) {
+      'A1' || 'A2' => 'beginner',
+      'B1' || 'B2' => 'intermediate',
+      _ => 'advanced',
+    };
+    return context.tr('onboarding.chat.level.$band');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final NfTokens t = NfTokens.of(context);
     final LearningLanguageProvider profile =
         context.watch<LearningLanguageProvider>();
 
     return ListView(
+      controller: _scroll,
       padding: const EdgeInsets.fromLTRB(
         NfSpace.s16,
         NfSpace.s16,
@@ -919,118 +983,154 @@ class _ProfileStep extends StatelessWidget {
         NfSpace.s16,
       ),
       children: <Widget>[
-        Text(
-          context.tr('onboarding.setup.title'),
-          style: NfTokens.display(size: NfFont.s23, color: t.ink),
-        ),
+        _TutorLine(text: context.tr('onboarding.chat.intro')),
+        const SizedBox(height: NfSpace.s16),
+        _TutorLine(text: context.tr('onboarding.setup.native')),
         const SizedBox(height: NfSpace.s10),
-        Text(
-          context.tr('onboarding.setup.subtitle'),
-          style: NfTokens.body(size: NfFont.s14, color: t.inkMuted),
-        ),
-        const SizedBox(height: NfSpace.s18),
-        _ChoiceSection(
-          title: context.tr('onboarding.setup.native'),
-          hint: context.tr('onboarding.setup.nativeHint'),
+        _AnswerChips(
           children: <Widget>[
             for (final String language
                 in LearningLanguageService.supportedSourceLanguages)
               NfChip(
                 key: ValueKey<String>('onboarding-source-$language'),
                 label: _sourceLanguageLabel(context, language),
-                variant: profile.sourceLanguage == language
+                variant: profile.sourceLanguage == language && _askedNative
                     ? NfChipVariant.selected
                     : NfChipVariant.unselected,
-                onTap: () => profile.selectSourceLanguage(language),
+                onTap: () {
+                  profile.selectSourceLanguage(language);
+                  setState(() => _askedNative = true);
+                  _scrollToEnd();
+                },
               ),
           ],
         ),
-        const SizedBox(height: NfSpace.s12),
-        _ChoiceSection(
-          title: context.tr('onboarding.setup.level'),
-          hint: context.tr('onboarding.setup.levelHint'),
-          children: <Widget>[
-            for (final String level
-                in LearningLanguageService.supportedEnglishLevels)
-              NfChip(
-                key: ValueKey<String>('onboarding-level-$level'),
-                // A CEFR band is the same three characters in every language.
-                label: level,
-                variant: profile.englishLevel == level
-                    ? NfChipVariant.selected
-                    : NfChipVariant.unselected,
-                onTap: () => profile.selectEnglishLevel(level),
-              ),
-          ],
+        if (_askedNative) ...<Widget>[
+          const SizedBox(height: NfSpace.s16),
+          _TutorLine(text: context.tr('onboarding.chat.native')),
+          const SizedBox(height: NfSpace.s16),
+          _TutorLine(text: context.tr('onboarding.setup.level')),
+          const SizedBox(height: NfSpace.s10),
+          _AnswerChips(
+            children: <Widget>[
+              for (final String level
+                  in LearningLanguageService.supportedEnglishLevels)
+                NfChip(
+                  key: ValueKey<String>('onboarding-level-$level'),
+                  // A CEFR band is the same three characters in every language.
+                  label: level,
+                  variant: profile.englishLevel == level && _askedLevel
+                      ? NfChipVariant.selected
+                      : NfChipVariant.unselected,
+                  onTap: () {
+                    profile.selectEnglishLevel(level);
+                    setState(() => _askedLevel = true);
+                    _scrollToEnd();
+                  },
+                ),
+            ],
+          ),
+        ],
+        if (_askedLevel) ...<Widget>[
+          const SizedBox(height: NfSpace.s16),
+          _TutorLine(text: _levelReply(context, profile.englishLevel)),
+          const SizedBox(height: NfSpace.s16),
+          _TutorLine(text: context.tr('onboarding.setup.goal')),
+          const SizedBox(height: NfSpace.s10),
+          _AnswerChips(
+            children: <Widget>[
+              for (final String goal
+                  in LearningLanguageService.supportedLearningGoals)
+                NfChip(
+                  key: ValueKey<String>('onboarding-goal-$goal'),
+                  label: _learningGoalLabel(context, goal),
+                  variant: profile.learningGoal == goal && _askedGoal
+                      ? NfChipVariant.selected
+                      : NfChipVariant.unselected,
+                  onTap: () {
+                    profile.selectLearningGoal(goal);
+                    setState(() => _askedGoal = true);
+                    _scrollToEnd();
+                  },
+                ),
+            ],
+          ),
+        ],
+        if (_askedGoal) ...<Widget>[
+          const SizedBox(height: NfSpace.s16),
+          _TutorLine(
+            text: context.tr('onboarding.chat.goal.${profile.learningGoal}'),
+          ),
+          const SizedBox(height: NfSpace.s10),
+          _TutorLine(text: context.tr('onboarding.chat.done')),
+        ],
+        const SizedBox(height: NfSpace.s8),
+      ],
+    );
+  }
+}
+
+/// One thing Amy says: her mark, then the line.
+///
+/// Left-aligned and unboxed on purpose. A chat bubble would promise a text
+/// field that is not coming -- the answers here are chips, and pretending
+/// otherwise would be the screen's second lie about what it is.
+class _TutorLine extends StatelessWidget {
+  const _TutorLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: t.primarySoft,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            'A',
+            style: NfTokens.display(size: NfFont.s14, color: t.primary),
+          ),
         ),
-        const SizedBox(height: NfSpace.s12),
-        _ChoiceSection(
-          title: context.tr('onboarding.setup.goal'),
-          children: <Widget>[
-            for (final String goal
-                in LearningLanguageService.supportedLearningGoals)
-              NfChip(
-                key: ValueKey<String>('onboarding-goal-$goal'),
-                label: _learningGoalLabel(context, goal),
-                variant: profile.learningGoal == goal
-                    ? NfChipVariant.selected
-                    : NfChipVariant.unselected,
-                onTap: () => profile.selectLearningGoal(goal),
-              ),
-          ],
+        const SizedBox(width: NfSpace.s10),
+        Expanded(
+          child: Text(
+            text,
+            style: NfTokens.body(size: NfFont.s15, color: t.ink, height: 1.45),
+          ),
         ),
       ],
     );
   }
 }
 
-class _ChoiceSection extends StatelessWidget {
-  const _ChoiceSection({
-    required this.title,
-    required this.children,
-    this.hint,
-  });
+/// The answers to one question, indented under it so the pairing is visible.
+class _AnswerChips extends StatelessWidget {
+  const _AnswerChips({required this.children});
 
-  final String title;
-  final String? hint;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final NfTokens t = NfTokens.of(context);
-    final String? hintText = hint;
-
-    return NfCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            title,
-            style: NfTokens.display(size: NfFont.s16, color: t.ink),
-          ),
-          if (hintText != null) ...<Widget>[
-            const SizedBox(height: NfSpace.s4),
-            Text(
-              hintText,
-              style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
-            ),
-          ],
-          const SizedBox(height: NfSpace.s10),
-          Wrap(
-            spacing: NfSpace.s8,
-            runSpacing: NfSpace.s4,
-            children: children,
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 38),
+      child: Wrap(
+        spacing: NfSpace.s8,
+        runSpacing: NfSpace.s8,
+        children: children,
       ),
     );
   }
 }
 
-/// The languages a learner can already speak. These are the app-wide
-/// `language.*` keys, so the name reads the same here as in settings and on the
-/// home tab's language sheet.
 String _sourceLanguageLabel(BuildContext context, String language) {
   switch (language) {
     case 'Turkish':
