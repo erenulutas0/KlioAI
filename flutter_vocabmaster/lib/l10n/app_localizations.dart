@@ -1096,11 +1096,11 @@ class AppLocalizations {
       'language.label': 'Dil',
       'language.setup.title': 'Uygulama dilini seç',
       'language.setup.subtitle':
-          'Bu ayari menu uzerinden sonra da degistirebilirsin.',
+          'Bu ayarı menü üzerinden sonra da değiştirebilirsin.',
       'language.setup.detected': 'Algılanan dil',
       'language.setup.select': 'Dil seç',
       'language.setup.help':
-          'Profesyonel uygulamalar genelde once cihaz dilini kullanir, sonra kullaniciya degistirme secenegi sunar.',
+          'Profesyonel uygulamalar genelde önce cihaz dilini kullanır, sonra kullanıcıya degistirme secenegi sunar.',
       'language.english': 'İngilizce',
       'language.german': 'Almanca',
       'language.spanish': 'İspanyolca',
@@ -1119,7 +1119,7 @@ class AppLocalizations {
       'settings.language.current': 'Geçerli dil',
       'settings.learning.title': 'Öğrenme Profili',
       'settings.learning.subtitle':
-          'Pratigi İngilizce odaginda tutarken AI icin ana/kaynak dilini seç.',
+          'Pratiği İngilizce odağında tutarken AI için ana/kaynak dilini seç.',
       'settings.learning.source': 'Ana dil',
       'settings.learning.target': 'Pratik dili',
       'settings.learning.sourceSheetTitle': 'Ana dili seç',
@@ -1135,7 +1135,7 @@ class AppLocalizations {
       'learning.goal.travel': 'Seyahat',
       'onboarding.profile.title': 'İngilizce yolunu ayarla',
       'onboarding.profile.description':
-          'KlioAI aciklamalari, pratikleri ve geri bildirimi sana gore ayarlasin.',
+          'KlioAI açıklamaları, pratikleri ve geri bildirimi sana göre ayarlasın.',
       'onboarding.profile.sourceLanguage': 'Hangi dili konuşuyorsun?',
       'onboarding.profile.englishLevel': 'İngilizce seviyen nedir?',
       'onboarding.profile.learningGoal': 'İngilizceyi neden öğreniyorsun?',
@@ -1145,7 +1145,7 @@ class AppLocalizations {
       'settings.tour.cta': 'Turu tekrar izle',
       'settings.about.title': 'Hakkında',
       'settings.about.subtitle':
-          'Dil secimi kullanici bazli kaydedilir ve uygulama genelinde uygulanir.',
+          'Dil seçimi kullanıcı bazlı kaydedilir ve uygulama genelinde uygulanır.',
       'splash.loading': 'Öğrenme alanın hazırlanıyor...',
       'nav.home': 'Ana Sayfa',
       'nav.words': 'Kelimeler',
@@ -1176,7 +1176,7 @@ class AppLocalizations {
       'landing.trust.global': 'Global',
       'landing.footer.copy': '© 2025 KlioAI. Tüm hakları saklıdır.',
       'landing.footer.subtitle':
-          'Yapay zeka destekli yeni nesil dil ogrenme deneyimi',
+          'Yapay zeka destekli yeni nesil dil öğrenme deneyimi',
       'landing.stat.aiModels': 'AI Modeller',
       'landing.stat.activeUsers': 'Aktif Kullanıcı',
       'landing.stat.features': 'Özellik',
@@ -1184,7 +1184,7 @@ class AppLocalizations {
       'landing.feature.speaking.title': 'Yapay Zekâ ile Konuşma',
       'landing.feature.speaking.subtitle': '6 Farklı Konuşmacı Modeli',
       'landing.feature.speaking.description':
-          'Sarah, James, Emma ve diger gercekci AI botlarla dogal İngilizce sohbet edin',
+          'Sarah, James, Emma ve diğer gercekci AI botlarla doğal İngilizce sohbet edin',
       'landing.feature.speaking.stats': '6 Bot Modeli',
       'landing.feature.speaking.h1': 'TTS Ses Desteği',
       'landing.feature.speaking.h2': 'Gerçek Zamanlı Yanıt',
@@ -1192,21 +1192,21 @@ class AppLocalizations {
       'landing.feature.writing.title': 'Yapay Zeka Yazma Asistanı',
       'landing.feature.writing.subtitle': 'A1-C2 Seviye Desteği',
       'landing.feature.writing.description':
-          'AI destekli yazma egzersizleri ile yaratici yazim becerilerinizi gelistirin',
+          'AI destekli yazma egzersizleri ile yaratıcı yazım becerilerinizi geliştirin',
       'landing.feature.writing.stats': '6 Seviye',
       'landing.feature.writing.h1': 'Konu Oluşturma',
       'landing.feature.writing.h2': 'Gerçek Zamanlı Değerlendirme',
       'landing.feature.writing.h3': 'Kısa/Orta/Uzun Format',
       'landing.feature.daily.title': 'Günlük Kelimeler & Akıllı Tekrar',
       'landing.feature.daily.description':
-          'Her gun 5 yeni kelime ogren, aralikli tekrar ile kalici hale getir.',
+          'Her gün 5 yeni kelime öğren, aralıklı tekrar ile kalıcı hale getir.',
       'landing.feature.daily.h1': 'Her Gün 5 Yeni Kelime',
       'landing.feature.daily.h2': 'Aralıklı Tekrar (SRS)',
       'landing.feature.daily.h3': 'Seri & Günlük Hedefler',
       'landing.feature.social.title': 'Sosyal Öğrenme Platformu',
       'landing.feature.social.subtitle': 'Global Topluluk',
       'landing.feature.social.description':
-          'Dunya capinda kullanicilarla baglan, paylas ve birlikte ogren',
+          'Dünya çapında kullanıcılarla baglan, paylas ve birlikte öğren',
       'landing.feature.social.stats': '5000+ Kullanıcı',
       'landing.feature.social.h1': 'Canlı Feed',
       'landing.feature.social.h2': 'Etkilesimli Gönderiler',
@@ -1214,7 +1214,7 @@ class AppLocalizations {
       'landing.feature.progress.title': 'Akıllı İlerleme Takibi',
       'landing.feature.progress.subtitle': 'Günlük & Haftalık Hedefler',
       'landing.feature.progress.description':
-          'Gelismis analitik ve neon tasarimli kartlarla motivasyonunuzu koruyun',
+          'Gelismis analitik ve neon tasarımlı kartlarla motivasyonunuzu koruyun',
       'landing.feature.progress.stats': '7 Gün Streak',
       'landing.feature.progress.h1': 'Circular Progress',
       'landing.feature.progress.h2': 'Animated Stats',
@@ -1222,7 +1222,7 @@ class AppLocalizations {
       'landing.feature.speechPractice.title': 'Konuşma Pratiği',
       'landing.feature.speechPractice.subtitle': 'Gerçek Zamanlı Geri Bildirim',
       'landing.feature.speechPractice.description':
-          'Telaffuz, akicilik ve dogruluk uzerine aninda geri bildirim alin',
+          'Telaffuz, akıcılık ve dogruluk üzerine anında geri bildirim alin',
       'landing.feature.speechPractice.stats': 'Real-time TTS',
       'landing.feature.speechPractice.h1': 'Voice Selection',
       'landing.feature.speechPractice.h2': 'Pronunciation Check',
@@ -1280,28 +1280,28 @@ class AppLocalizations {
       'practice.start': 'Pratik Yap',
       'practice.modes.title': 'Pratik Modları',
       'practice.modes.desc':
-          'Farkli pratik modlari arasindan ihtiyaciniza uygun olani secin.',
+          'Farklı pratik modları arasından ihtiyacınıza uygun olanı seçin.',
       'practice.modes.point.read':
-          'Okuma bolumunde seviyenize (A1-C2) uygun metinleri analiz edin.',
+          'Okuma bölümünde seviyenize (A1-C2) uygun metinleri analiz edin.',
       'practice.modes.point.speaking':
-          'Konusma pratiginde yapay zeka asistani ile canli diyaloglar kurun.',
+          'Konuşma pratiginde yapay zeka asistanı ile canlı diyaloglar kurun.',
       'practice.modes.point.writing':
-          'Yazma bolumunde kompozisyonlar olusturup anlik geri bildirim alin.',
+          'Yazma bölümünde kompozisyonlar olusturup anlık geri bildirim alin.',
       'practice.modes.point.consistency':
-          'Duzenli pratik yaparak tum dil becerilerini birlikte gelistirin.',
+          'Düzenli pratik yaparak tüm dil becerilerini birlikte geliştirin.',
       'practice.reading.title': 'Okuma & Anlama',
       'practice.reading.subtitle': 'Metinleri oku ve anla',
       'practice.reading.levelLabel': 'Seviye:',
       'practice.reading.dailyInfo1':
-          'Her seviye icin gunluk tek okuma testi verilir.',
+          'Her seviye için günlük tek okuma testi verilir.',
       'practice.reading.dailyInfo2':
-          'Tikli seviyeler bugun tamamlanan alistirmalari gosterir.',
+          'Tikli seviyeler bugün tamamlanan alıştırmaları gösterir.',
       'practice.reading.start': 'Okumaya Başla',
       'practice.writing.title': 'Yazma Pratiği',
       'practice.writing.subtitle': 'Yapay zekâ destekli yazma ve değerlendirme',
       'practice.writing.card.title': 'Yazma Becerilerini Gelistir',
       'practice.writing.card.desc':
-          'Seviyene uygun konularda yazilar yaz, yapay zeka aninda degerlendirsin.',
+          'Seviyene uygun konularda yazılar yaz, yapay zeka anında değerlendirsin.',
       'practice.speaking.title': 'KlioAI ile Konuşma',
       'practice.speaking.subtitle': 'İngilizce konuşma pratiği için hazırsın!',
       'practice.aiAssistants': 'AI Asistanları',
@@ -1311,7 +1311,7 @@ class AppLocalizations {
       'practice.submode.manual': 'Manuel',
       'practice.submode.mixed': 'Karışık',
       'practice.translation.manualHint':
-          'Cumle icinde kullanilacak kelimeyi girin...',
+          'Cümle içinde kullanılacak kelimeyi girin...',
       'practice.translation.levelLengthTitle': 'Seviye ve Uzunluk',
       'practice.translation.levelLabel': 'Seviye:',
       'practice.translation.lengthLabel': 'Uzunluk:',
@@ -1330,7 +1330,7 @@ class AppLocalizations {
       'practice.neural.title': 'Neural Kelime Agi',
       'practice.neural.start': 'Neural Oyunu Başlat',
       'practice.neural.desc':
-          '60 saniyede merkez kelimeye bagli kelimeleri bul ve combo ile skoru katla.',
+          '60 saniyede merkez kelimeye bağlı kelimeleri bul ve combo ile skoru katla.',
       'practice.neural.info.time': 'Süre',
       'practice.neural.info.timeValue': '60 saniye',
       'practice.neural.info.score': 'Puanlama',
@@ -1341,7 +1341,7 @@ class AppLocalizations {
       'practice.upgradeToPro': "PRO'ya Yukselt",
       'practice.locked': 'Pratik Modu Kilitli',
       'practice.lockedDesc':
-          'İleri seviye pratik modlarina erismek ve dil ogrenme yolculugunu hizlandirmak icin PRO uye olmalisin.',
+          'İleri seviye pratik modlarına erismek ve dil öğrenme yolculugunu hızlandırmak için PRO uye olmalısın.',
       'home.today': 'Bugün',
       'home.thisWeek': 'Bu hafta',
       'home.total': 'Toplam',
@@ -1367,13 +1367,13 @@ class AppLocalizations {
       'home.info.step1': 'Ust karttan XP ve seviye ilerlemeni takip et.',
       'home.info.step2': 'Günlük kelimeleri açıp hızlıca kütüphanene ekle.',
       'home.info.step3':
-          'Hızlı erisim kartlariyla kelime, cumle ve tekrar bolumune git.',
+          'Hızlı erişim kartlarıyla kelime, cümle ve tekrar bölümüne git.',
       'home.info.step4': 'Haftalık aktivite kartından serini takip et.',
       'home.info.step5': 'Artıdan kelimeyi tek veya cümlesiyle ekleyebilirsin.',
       'home.dailyWords.title': 'Günün Kelimeleri',
       'home.firstSteps.title': 'Buradan başla',
       'home.firstSteps.body':
-          'Once asagidaki gunun kelimelerini ogren, sonra kisa bir konusma pratigi dene.',
+          'Önce aşağıdaki günün kelimelerini öğren, sonra kısa bir konuşma pratiği dene.',
       'home.firstSteps.cta': 'Konuşma pratiği dene',
       'home.dailyWords.empty': 'Bugün için günlük kelime bulunamadı.',
       'wotd.senseCount': '{count} anlam',
@@ -1404,7 +1404,7 @@ class AppLocalizations {
       'home.sheet.wordAlreadyAdded': 'Kelime zaten eklendi',
       'home.sheet.addWordWithSentence': 'Kelimeyi Cümlesiyle Ekle',
       'home.sheet.addWordWithSentenceSubtitle':
-          'Kelimeyi ve ornek cumleyi birlikte ekle',
+          'Kelimeyi ve örnek cümleyi birlikte ekle',
       'home.sheet.noExampleSentence': 'Bu kelime için örnek cümle yok',
       'home.sheet.wordAndSentenceAlreadyAdded': 'Kelime ve cümle zaten eklendi',
       'home.card.addSentence': 'Cümlesini Ekle',
@@ -1424,7 +1424,7 @@ class AppLocalizations {
       'wotd.startReadAloud': 'Sesli okuma raporunu başlat',
       'wotd.listenAgain': 'Tekrar Dinle',
       'wotd.pronunciationTip':
-          'Ipucu: Sesi dinleyip tekrar ederek ogrenme hizini artirabilirsin.',
+          'İpucu: Sesi dinleyip tekrar ederek öğrenme hizini artırabilirsin.',
       'wotd.quizTitle': 'Mini Quiz',
       'wotd.quizQuestionSuffix': 'kelimesinin anlamı nedir?',
       'wotd.quiz.correct': 'Doğru cevap!',

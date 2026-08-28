@@ -31,6 +31,23 @@ String foldDiacritics(String s) {
 /// so a German user sees English and nothing anywhere says so. Or a string is written into a
 /// widget directly, which is worse: the fallback cannot help, and a German user reads
 /// Turkish. Four files were doing the second when this test was written.
+/// Words that fold to the same spelling and are not the same word.
+///
+/// Every spelling check in this file rests on one assumption: that a folded
+/// form belongs to a single word, so two spellings of it mean one is wrong.
+/// Turkish has pairs where the mark carries the whole meaning, and for those
+/// the assumption is simply false — both spellings are correct and mean
+/// different things.
+///
+/// This list exists because the settings screen said "Uygulama Türü",
+/// application TYPE, for a guided tour, and every rule here called it correct,
+/// since it is. These are the errors the guards are structurally worst at: a
+/// screen test that pins the actual label is the only thing that can catch one.
+const homographs = <String, String>{
+  'turu': 'tur (a tour) / tür (a kind)',
+  'soyle': 'şöyle (like this) / söyle (say it)',
+};
+
 void main() {
   final source = File('lib/l10n/app_localizations.dart').readAsStringSync();
 
@@ -210,7 +227,14 @@ void main() {
     final List<MapEntry<String, String>> turkishStrings =
         <MapEntry<String, String>>[];
 
-    final entry = RegExp(r"^\s+'([^']+)': '([^']*)',", multiLine: true);
+    // The space between the colon and the value is `\s*`, not a literal space,
+    // so an entry whose value sits on the next line is read too. 103 of the
+    // Turkish entries are wrapped that way -- an eighth of the corpus -- and
+    // every spelling check in this file had been blind to all of them. The
+    // settings screen said "Pratigi Ingilizce odaginda tutarken AI icin" in
+    // front of a Turkish user while these tests ran green.
+    final entry =
+        RegExp(r"^\s+'([^']+)':\s*'([^']*)'", multiLine: true, dotAll: true);
     for (final m in entry.allMatches(block!.group(1)!)) {
       turkishStrings.add(MapEntry<String, String>(m.group(1)!, m.group(2)!));
     }
@@ -271,6 +295,8 @@ void main() {
     final offenders = <String>[];
     for (final MapEntry<String, Map<String, String>> e in spellings.entries) {
       if (e.value.length < 2) continue;
+      // Two spellings, two words. Not a contradiction to report.
+      if (homographs.containsKey(e.key)) continue;
       final variants = e.value.entries
           .map((v) => '"${v.key}" (${v.value})')
           .join('  vs  ');
@@ -317,10 +343,6 @@ void main() {
     // because the settings screen said "Uygulama Türü" -- application TYPE --
     // for a guided tour, and every spelling rule in this file called it
     // correct, since it is.
-    const homographs = <String, String>{
-      'turu': 'tur (a tour) / tür (a kind)',
-    };
-
     final stripped = <String>{};
     for (final m in turkishStrings) {
       for (final token in m.value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
@@ -363,8 +385,9 @@ void main() {
     const back = 'aıou';
     const front = 'eiöü';
     const known = <String>{
-      'aktif', 'biraz', 'birazdan',
-      'buildde', 'cihazdan', 'dahil', 'dakika', 
+      'aktif', 'analitik', 'analiz', 'biraz', 'birazdan', 'diyaloglar',
+      'ipucu', 'kompozisyonlar', 'motivasyonunuzu',
+      'buildde', 'cihaz', 'dahil', 'dakika', 'telefon', 
       'endonezce', 'galaksisi', 'hangi', 'harika',
       'haziran', 'iptal', 'ispanyolca', 
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
@@ -391,7 +414,7 @@ void main() {
     final english = <String>{};
     final turkish = <MapEntry<String, String>>[];
     final pair = RegExp(
-        r"^\s+'[^']+': '([^']*)',", multiLine: true);
+        r"^\s+'[^']+':\s*'([^']*)'", multiLine: true, dotAll: true);
     for (final code in <String>['tr', 'en']) {
       final block = RegExp("^    '$code': "+r"\{(.*?)^    \},",
               multiLine: true, dotAll: true)
@@ -446,6 +469,21 @@ void main() {
       return at > 0 ? word.substring(0, at) : word;
     }
 
+    // -abil-/-ebil- is "bilmek" fused onto another verb, and the seam is a real
+    // break in harmony: "yazabilirsin" is spelled exactly like that.
+    //
+    // The part BEFORE it, for the same reason as -Iyor and not by excusing the
+    // whole word: "artirabilirsin" is genuinely missing its ı, and a rule that
+    // waved through anything containing -abil- would have hidden it. Judged on
+    // "artir" it still fails; "yazabilirsin" judged on "yaz" passes.
+    String beforeAbility(String word) {
+      for (final suffix in <String>['abil', 'ebil']) {
+        final int at = word.indexOf(suffix);
+        if (at > 0) return word.substring(0, at);
+      }
+      return word;
+    }
+
     String withoutBorrowedStem(String word) {
       String longest = '';
       for (final stem in known) {
@@ -470,7 +508,8 @@ void main() {
         if (word.length < 5 || known.contains(word)) continue;
         if (english.contains(word)) continue;
         if (foldDiacritics(word) != word) continue;
-        final judged = beforePresentTense(withoutBorrowedStem(word));
+        final judged =
+            beforeAbility(beforePresentTense(withoutBorrowedStem(word)));
         final vowels =
             judged.split('').where((c) => back.contains(c) || front.contains(c)).toList();
         if (vowels.length < 2) continue;
