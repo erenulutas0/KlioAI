@@ -667,7 +667,26 @@ class _NfTutorPageState extends State<NfTutorPage> {
       ),
       child: Row(
         children: <Widget>[
-          _SpeakerAvatar(voice: _voice, size: 48),
+          // In a scene the face has to go with the name. Leaving the chosen
+          // speaker's photo above "Emma" was the exact mismatch the header
+          // name was changed to avoid, only louder: a portrait of one person
+          // labelled as another. The scene's own mark stands in instead --
+          // there is no photograph of a barista to show, and inventing one
+          // would be a second wrong answer.
+          if (_scene == null)
+            _SpeakerAvatar(voice: _voice, size: 48)
+          else
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: t.primarySoft,
+                borderRadius: NfRadius.iconTileAll,
+                border: Border.fromBorderSide(t.sideOf(t.primary)),
+              ),
+              child: Icon(_scene!.icon, size: 24, color: t.primary),
+            ),
           const SizedBox(width: NfSpace.s12),
           Expanded(
             child: Column(

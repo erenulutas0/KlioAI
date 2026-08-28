@@ -1209,7 +1209,11 @@ class _PlanRow extends StatelessWidget {
               Container(
                 width: 2,
                 height: _gap,
-                color: connectAhead ? t.correct : t.border,
+                // borderStrong, not border: on a light ground the plain
+                // border is so close to the card that the three steps stopped
+                // reading as one route, which is the only thing the spine is
+                // there to do.
+                color: connectAhead ? t.correct : t.borderStrong,
               ),
           ],
         ),
