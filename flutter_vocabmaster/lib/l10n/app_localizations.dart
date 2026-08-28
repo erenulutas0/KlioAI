@@ -507,6 +507,9 @@ class AppLocalizations {
           'Your library is empty — today\'s words are the place to start.',
       'practice.dailyBody':
           'Today\'s words and everything due for review, in one go.',
+      'words.maturity.fresh': 'New',
+      'words.maturity.learning': 'Learning',
+      'words.maturity.known': 'Known',
       'words.title': 'Words',
       'words.unit': 'words',
       'words.search': 'Search your words',
@@ -1136,10 +1139,10 @@ class AppLocalizations {
       'onboarding.profile.sourceLanguage': 'Hangi dili konuşuyorsun?',
       'onboarding.profile.englishLevel': 'İngilizce seviyen nedir?',
       'onboarding.profile.learningGoal': 'İngilizceyi neden öğreniyorsun?',
-      'settings.tour.title': 'Uygulama Türü',
+      'settings.tour.title': 'Uygulama turu',
       'settings.tour.subtitle':
-          'Ana ozellikler icin rehberli tanitimi istedigin zaman yeniden ac.',
-      'settings.tour.cta': 'Türü tekrar oynat',
+          'Ana özellikler için rehberli tanıtımı istediğin zaman yeniden aç.',
+      'settings.tour.cta': 'Turu tekrar izle',
       'settings.about.title': 'Hakkında',
       'settings.about.subtitle':
           'Dil secimi kullanici bazli kaydedilir ve uygulama genelinde uygulanir.',
@@ -1499,6 +1502,9 @@ class AppLocalizations {
           'Kitaplığın boş — başlamak için bugünün kelimeleri var.',
       'practice.dailyBody':
           'Bugünün kelimeleri ve tekrar zamanı gelenler, tek seferde.',
+      'words.maturity.fresh': 'Yeni',
+      'words.maturity.learning': 'Öğreniyor',
+      'words.maturity.known': 'Biliyor',
       'words.title': 'Kelimeler',
       'words.unit': 'kelime',
       'words.search': 'Kelimelerinde ara',
@@ -2485,6 +2491,9 @@ class AppLocalizations {
       'practice.emptyBody':
           'Deine Sammlung ist leer — beginne mit den heutigen Wörtern.',
       'practice.dailyBody': 'Die heutigen Wörter und alles Fällige auf einmal.',
+      'words.maturity.fresh': 'Neu',
+      'words.maturity.learning': 'Am Lernen',
+      'words.maturity.known': 'Gekonnt',
       'words.title': 'Wörter',
       'words.unit': 'Wörter',
       'words.search': 'Wörter durchsuchen',

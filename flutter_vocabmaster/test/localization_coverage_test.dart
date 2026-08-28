@@ -305,11 +305,28 @@ void main() {
       }
     }
 
+    // The one thing this check cannot work out for itself: that two spellings
+    // are two words. It assumes a folded form belongs to a single word, and
+    // Turkish has pairs where the mark carries the whole meaning -- tur is a
+    // tour and tür is a kind, so "uygulama turu" and "uygulama türü" are both
+    // correct Turkish and mean different things. Listed by folded form, with
+    // the pair written out, because a bare entry here would look like an
+    // excuse rather than a fact about the language.
+    //
+    // These are also the errors the guards are worst at: this list exists
+    // because the settings screen said "Uygulama Türü" -- application TYPE --
+    // for a guided tour, and every spelling rule in this file called it
+    // correct, since it is.
+    const homographs = <String, String>{
+      'turu': 'tur (a tour) / tür (a kind)',
+    };
+
     final stripped = <String>{};
     for (final m in turkishStrings) {
       for (final token in m.value.split(RegExp(r'[^A-Za-zçğıöşüÇĞİÖŞÜ]+'))) {
         if (token.length < 4) continue;
         if (foldDiacritics(token) != token) continue;
+        if (homographs.containsKey(token.toLowerCase())) continue;
         final twins = dictionary[token.toLowerCase()];
         if (twins == null || twins.length != 1) continue;
         if (twins.contains(turkishLower(token))) continue;
@@ -346,10 +363,10 @@ void main() {
     const back = 'aıou';
     const front = 'eiöü';
     const known = <String>{
-      'aktif', 'bekleniyor', 'bekliyor', 'biraz', 'birazdan',
-      'buildde', 'cihazdan', 'dahil', 'dakika', 'ediliyor',
-      'ekleniyor', 'endonezce', 'galaksisi', 'hangi', 'harika',
-      'haziran', 'iptal', 'ispanyolca', 'istiyor', 'istiyorsunuz',
+      'aktif', 'biraz', 'birazdan',
+      'buildde', 'cihazdan', 'dahil', 'dakika', 
+      'endonezce', 'galaksisi', 'hangi', 'harika',
+      'haziran', 'iptal', 'ispanyolca', 
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
       'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
       // Stems only. Inflected borrowings are handled by withoutBorrowedStem
@@ -360,8 +377,8 @@ void main() {
       'profil', 'profili', 'profiller', 'rozetler', 'sakin',
       'senkron', 'senkronu', 'sohbet', 'sohbete', 'sohbeti',
       'sonraki', 'soyisim', 'takibi', 'takip', 'takviminiz',
-      'tarih', 'temmuz', 'tempo', 'tokeni', 'vermiyor',
-      'yenileniyor',
+      'tarih', 'temmuz', 'tempo', 'tokeni', 
+      
     };
 
     String strip(String s) => s
@@ -414,6 +431,21 @@ void main() {
     // with the last vowel of the word they attach to, borrowed or not, which is
     // the actual rule: check from that vowel onward. "sohbetlere" is judged on
     // "etlere" and passes; "kitaplari" on "aplari" and still fails.
+    // The present-tense -Iyor carries an invariant o, and everything after it
+    // agrees with that o rather than with the stem: gerekiyor, istiyorsunuz.
+    // Judging the part before it is the only way to read the stem's own
+    // harmony -- and it keeps "araniyor" caught, which is genuinely missing an
+    // ı, while excusing the forms that are simply how Turkish conjugates.
+    //
+    // This rule already existed on the server side of the same guard and was
+    // never brought here, so eight -Iyor forms had been added to `known` one at
+    // a time instead. A list growing where a rule belongs is the thing this
+    // file keeps being written to avoid.
+    String beforePresentTense(String word) {
+      final int at = word.indexOf('yor');
+      return at > 0 ? word.substring(0, at) : word;
+    }
+
     String withoutBorrowedStem(String word) {
       String longest = '';
       for (final stem in known) {
@@ -438,7 +470,7 @@ void main() {
         if (word.length < 5 || known.contains(word)) continue;
         if (english.contains(word)) continue;
         if (foldDiacritics(word) != word) continue;
-        final judged = withoutBorrowedStem(word);
+        final judged = beforePresentTense(withoutBorrowedStem(word));
         final vowels =
             judged.split('').where((c) => back.contains(c) || front.contains(c)).toList();
         if (vowels.length < 2) continue;

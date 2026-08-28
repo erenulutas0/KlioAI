@@ -10,6 +10,7 @@ import '../../providers/learning_language_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/learning_language_service.dart';
 import '../nf_frontend_preference.dart';
+import 'nf_onboarding_page.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
@@ -391,6 +392,26 @@ class NfSettingsPage extends StatelessWidget {
             tokens: t,
             onTap: onManageSubscription,
           ),
+          _RowDivider(tokens: t),
+          // The only way back to the tour. NfOnboardingPage is built in exactly
+          // two places, main.dart and the splash screen, both behind gates that
+          // fire once ever -- so after the first run it had become unreachable.
+          // The strings for this row have been sitting in all three languages
+          // the whole time, waiting for something to render them.
+          _SettingsRow(
+            key: const ValueKey<String>('settings-replay-tour'),
+            icon: Icons.play_circle_outline,
+            label: context.tr('settings.tour.cta'),
+            tokens: t,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                // fromSettings already does everything a replay needs: it skips
+                // the app-language step, tags analytics as a replay, and pops
+                // at the end instead of replacing the shell underneath it.
+                builder: (_) => const NfOnboardingPage(fromSettings: true),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -592,6 +613,7 @@ class _RowDivider extends StatelessWidget {
 /// icon tile, label, optional trailing value, chevron for rows that navigate.
 class _SettingsRow extends StatefulWidget {
   const _SettingsRow({
+    super.key,
     required this.icon,
     required this.label,
     required this.tokens,

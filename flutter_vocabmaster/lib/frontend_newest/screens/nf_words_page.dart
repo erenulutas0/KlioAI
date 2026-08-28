@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
+import '../../models/word_maturity.dart';
 import '../../providers/app_state_provider.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
@@ -137,6 +138,10 @@ class _NfWordsPageState extends State<NfWordsPage> {
                     listedCount: visible.length,
                     dueCount: dueCount,
                     showControls: hasWords,
+                    // The whole deck, not the filtered view. A bar that moved
+                    // while the learner typed a search would be reporting the
+                    // search rather than their progress.
+                    maturity: MaturityCounts.of(all),
                   ),
                 ),
               ),
@@ -176,6 +181,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
     required int listedCount,
     required int dueCount,
     required bool showControls,
+    required MaturityCounts maturity,
   }) {
     final bool showReview = showControls && dueCount > 0 && widget.onStartReview != null;
 
@@ -184,6 +190,10 @@ class _NfWordsPageState extends State<NfWordsPage> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         _TitleRow(count: listedCount, onAddWord: widget.onOpenDictionary),
+        if (maturity.total > 0) ...<Widget>[
+          const SizedBox(height: NfSpace.s14),
+          _MaturityBar(counts: maturity),
+        ],
         if (showControls) ...<Widget>[
           const SizedBox(height: NfSpace.s14),
           _SearchField(
@@ -237,6 +247,115 @@ class _NfWordsPageState extends State<NfWordsPage> {
 // ---------------------------------------------------------------------------
 // Header pieces
 // ---------------------------------------------------------------------------
+
+/// The deck as three stages: new, learning, known.
+///
+/// The list already answers "how well do I know this word" one row at a time,
+/// five dots each. What it has never answered is the question a learner
+/// actually asks — how much of all this has stuck. Counting dots down a
+/// scrolling list is not an answer.
+///
+/// The bands come from [maturityFor], which reads the same interval the dots
+/// read, so a word counted as known is a word showing three dots. The app
+/// already carries three disagreeing opinions about word strength on three
+/// screens; a fourth invented here would be the worst of them, because this one
+/// is a summary and summaries get believed.
+class _MaturityBar extends StatelessWidget {
+  const _MaturityBar({required this.counts});
+
+  final MaturityCounts counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+
+    final List<_MaturityBand> bands = <_MaturityBand>[
+      _MaturityBand(
+        label: context.tr('words.maturity.known'),
+        count: counts.known,
+        color: t.correct,
+        soft: t.correctSoft,
+      ),
+      _MaturityBand(
+        label: context.tr('words.maturity.learning'),
+        count: counts.learning,
+        color: t.streak,
+        soft: t.streakSoft,
+      ),
+      _MaturityBand(
+        label: context.tr('words.maturity.fresh'),
+        count: counts.fresh,
+        color: t.inkFaint,
+        soft: t.border,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ClipRRect(
+          borderRadius: NfRadius.pillAll,
+          child: SizedBox(
+            height: 8,
+            child: Row(
+              children: <Widget>[
+                for (final _MaturityBand band in bands)
+                  if (band.count > 0)
+                    Expanded(
+                      flex: band.count,
+                      child: ColoredBox(color: band.color),
+                    ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: NfSpace.s10),
+        Wrap(
+          spacing: NfSpace.s14,
+          runSpacing: NfSpace.s6,
+          children: <Widget>[
+            for (final _MaturityBand band in bands)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: band.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: NfSpace.s6),
+                  Text(
+                    // Digits read the same in all three languages, so only the
+                    // stage needs translating.
+                    '${band.count} ${band.label}',
+                    style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _MaturityBand {
+  const _MaturityBand({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.soft,
+  });
+
+  final String label;
+  final int count;
+  final Color color;
+  final Color soft;
+}
 
 class _TitleRow extends StatelessWidget {
   const _TitleRow({required this.count, this.onAddWord});
@@ -828,101 +947,10 @@ bool _isDue(Word word, DateTime today) {
 DateTime _startOfDay(DateTime value) =>
     DateTime(value.year, value.month, value.day);
 
-// ---------------------------------------------------------------------------
-// Strength
-// ---------------------------------------------------------------------------
-
-/// How many of the five dots a word has earned.
-///
-/// The dots report the SM-2 **interval** — how many days the scheduler is
-/// currently willing to wait before asking again — because that is the only
-/// number in the model that actually means "this one sticks".
-///
-/// `reviewCount` is the obvious candidate and is the wrong one: the backend
-/// (`SRSService.submitReview`) increments it on every grade, failures included,
-/// and a failed grade (quality < 3) drops the interval back to a single day
-/// without touching the count. A word missed eight times running would wear
-/// five dots. The interval cannot lie that way — it *is* the scheduler's
-/// confidence, expressed in days.
-///
-/// The thresholds are the backend's own ladder rather than round numbers. With
-/// the starting ease of 2.5 its formula (1, 6, then 6 × ease^(n−2)) produces
-/// 1, 6, 15, 38, 94 days, so a word recalled cleanly gains exactly one dot per
-/// review, and a word scraping along at the 1.3 ease floor climbs far more
-/// slowly — which is the truth about it:
-///
-///   0 dots  never graded
-///   1 dot   under 6 days   — first review, or knocked back to 1 by a lapse
-///   2 dots  6–13 days      — the fixed second-review step, and where a
-///                            low-ease word stalls for several reviews
-///   3 dots  14–29 days
-///   4 dots  30–59 days
-///   5 dots  60 days or more
-int strengthDotsFor(Word word) {
-  final int? interval = _scheduledIntervalDays(word);
-  if (interval == null) {
-    return 0;
-  }
-  if (interval < _kSecondInterval) {
-    return 1;
-  }
-  if (interval < 14) {
-    return 2;
-  }
-  if (interval < 30) {
-    return 3;
-  }
-  if (interval < 60) {
-    return 4;
-  }
-  return 5;
-}
-
-/// The gap the scheduler last chose, in days, or null if it has never chosen
-/// one for this word.
-int? _scheduledIntervalDays(Word word) {
-  if (word.reviewCount <= 0) {
-    return null;
-  }
-
-  final DateTime? last = word.lastReviewDate;
-  final DateTime? next = word.nextReviewDate;
-  if (last != null && next != null) {
-    final int days = _startOfDay(next).difference(_startOfDay(last)).inDays;
-    if (days >= 0) {
-      return days;
-    }
-  }
-
-  // Rows that predate both dates being stored — older local-database versions,
-  // or a word rebuilt from a partial payload — can still be placed by replaying
-  // the scheduler's own formula over the count and ease we do have. It assumes
-  // the last grade was a pass, so it reads as an upper bound; better a stated
-  // estimate than an empty row where every other word shows progress.
-  return _sm2Interval(word.reviewCount, word.easeFactor);
-}
-
-/// `SRSService.calculateInterval` for a passing grade.
-int _sm2Interval(int reviewCount, double? easeFactor) {
-  if (reviewCount <= 1) {
-    return 1;
-  }
-  if (reviewCount == 2) {
-    return _kSecondInterval;
-  }
-
-  final double ease = (easeFactor == null || !easeFactor.isFinite)
-      ? _kDefaultEase
-      : easeFactor.clamp(_kMinEase, 5.0);
-
-  final num raw = _kSecondInterval * math.pow(ease, reviewCount - 2);
-  // A corrupt review count can push this past double range, and `.round()`
-  // throws on infinity. Anything this large is mastered by any measure.
-  if (!raw.isFinite || raw > 36500) {
-    return 36500;
-  }
-  return raw.round();
-}
+// Strength moved to lib/models/word_maturity.dart, where it can be tested.
+// It was the app's de-facto answer to "how well does this learner know this
+// word", read by two screens, and living in a screen file meant nothing could
+// ask it a question without building a list first. It had no tests at all.
 
 // ---------------------------------------------------------------------------
 // Search

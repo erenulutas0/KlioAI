@@ -15,7 +15,7 @@ import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
 import '../widgets/nf_meaning_section.dart';
 import '../widgets/nf_progress.dart';
-import 'nf_words_page.dart' show strengthDotsFor;
+import '../../models/word_maturity.dart' show strengthDotsFor;
 
 /// The word detail screen: headword, SRS state, and the word's meanings as
 /// sections — each with its own sentences and its own "add sentence"
