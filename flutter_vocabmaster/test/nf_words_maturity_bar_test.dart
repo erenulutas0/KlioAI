@@ -104,8 +104,8 @@ void main() {
       waiting(90),
     ]);
 
-    expect(find.text('2 Biliyor'), findsOneWidget);
-    expect(find.text('1 Öğreniyor'), findsOneWidget);
+    expect(find.text('2 Bilinen'), findsOneWidget);
+    expect(find.text('1 Öğrenilen'), findsOneWidget);
     expect(find.text('2 Yeni'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -116,7 +116,7 @@ void main() {
     // job at that moment is to get the learner to add their first word.
     await showWords(tester, const <Word>[]);
 
-    expect(find.textContaining('Biliyor'), findsNothing);
+    expect(find.textContaining('Bilinen'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -125,13 +125,13 @@ void main() {
     // The bar takes the whole deck, not the filtered list. One that moved while
     // someone typed would be reporting their search back at them as progress.
     await showWords(tester, <Word>[waiting(90), waiting(3), word()]);
-    expect(find.text('1 Biliyor'), findsOneWidget);
+    expect(find.text('1 Bilinen'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'zzz');
     await tester.pump();
 
-    expect(find.text('1 Biliyor'), findsOneWidget);
-    expect(find.text('1 Öğreniyor'), findsOneWidget);
+    expect(find.text('1 Bilinen'), findsOneWidget);
+    expect(find.text('1 Öğrenilen'), findsOneWidget);
     expect(find.text('1 Yeni'), findsOneWidget);
   });
 }

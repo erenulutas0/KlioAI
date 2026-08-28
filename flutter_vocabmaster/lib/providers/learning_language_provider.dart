@@ -43,13 +43,22 @@ class LearningLanguageProvider extends ChangeNotifier {
       language,
       LearningLanguageService.defaultSourceLanguage,
     );
-    if (_sourceLanguage == normalized) {
-      return;
+    // The write happens even when the answer matches what is already held.
+    // Confirming the default IS an answer, and it has to be stored as one.
+    //
+    // This early return used to be harmless: the default was the constant
+    // 'Turkish', so re-deriving it on the next launch produced the same value
+    // forever. Now that the default follows the interface language, an
+    // unrecorded choice drifts with it — a Turkish learner who taps "Türkçe"
+    // in onboarding stores nothing, and after switching the interface to
+    // English their native language silently becomes English on the next cold
+    // start. Their AI feedback stops arriving in Turkish, and translation
+    // practice asks them to translate English into English.
+    if (_sourceLanguage != normalized) {
+      _sourceLanguage = normalized;
+      LearningLanguageService.setSourceLanguage(_sourceLanguage);
+      notifyListeners();
     }
-
-    _sourceLanguage = normalized;
-    LearningLanguageService.setSourceLanguage(_sourceLanguage);
-    notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sourceLanguageKey, _sourceLanguage);
@@ -57,13 +66,15 @@ class LearningLanguageProvider extends ChangeNotifier {
 
   Future<void> selectEnglishLevel(String level) async {
     final normalized = LearningLanguageService.normalizeEnglishLevel(level);
-    if (_englishLevel == normalized) {
-      return;
+    // Same shape as selectSourceLanguage above, for the same reason. These two
+    // defaults are still constants, so an unrecorded answer cannot drift yet —
+    // but "cannot drift yet" is a property of a value somewhere else, and the
+    // one above stopped being true the moment that value changed.
+    if (_englishLevel != normalized) {
+      _englishLevel = normalized;
+      LearningLanguageService.setEnglishLevel(_englishLevel);
+      notifyListeners();
     }
-
-    _englishLevel = normalized;
-    LearningLanguageService.setEnglishLevel(_englishLevel);
-    notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_englishLevelKey, _englishLevel);
@@ -71,13 +82,15 @@ class LearningLanguageProvider extends ChangeNotifier {
 
   Future<void> selectLearningGoal(String goal) async {
     final normalized = LearningLanguageService.normalizeLearningGoal(goal);
-    if (_learningGoal == normalized) {
-      return;
+    // Same shape as selectSourceLanguage above, for the same reason. These two
+    // defaults are still constants, so an unrecorded answer cannot drift yet —
+    // but "cannot drift yet" is a property of a value somewhere else, and the
+    // one above stopped being true the moment that value changed.
+    if (_learningGoal != normalized) {
+      _learningGoal = normalized;
+      LearningLanguageService.setLearningGoal(_learningGoal);
+      notifyListeners();
     }
-
-    _learningGoal = normalized;
-    LearningLanguageService.setLearningGoal(_learningGoal);
-    notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_learningGoalKey, _learningGoal);

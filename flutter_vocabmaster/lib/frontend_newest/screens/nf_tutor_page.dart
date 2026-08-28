@@ -337,12 +337,19 @@ class _NfTutorPageState extends State<NfTutorPage> {
             _turns[said] = _turns[said].withCorrection(fix);
           }
         }
-        _turns.add(_NfTurn(
-          id: _nextTurnId++,
-          text: reply.text,
-          fromTutor: true,
-          hasAudio: true,
-        ));
+        // A reply can come back empty: the model sometimes answers with the
+        // correction line and nothing else, and stripping it leaves nothing to
+        // say. Appending it anyway drew a blank bubble with a play control that
+        // read out silence -- and the correction above is still shown, so the
+        // turn is not lost, only the empty half of it.
+        if (!reply.isEmpty) {
+          _turns.add(_NfTurn(
+            id: _nextTurnId++,
+            text: reply.text,
+            fromTutor: true,
+            hasAudio: true,
+          ));
+        }
       });
       _scrollToBottom();
       await _maybeAwardSessionXp();

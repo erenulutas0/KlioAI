@@ -299,6 +299,13 @@ class _MaturityBar extends StatelessWidget {
           child: SizedBox(
             height: 8,
             child: Row(
+              // stretch, or the bar draws nothing at all. Expanded settles the
+              // width; the height comes from the cross axis, and a ColoredBox
+              // with no child takes the smallest size it is allowed -- which
+              // under the default centre alignment is zero. The learner saw an
+              // 8px gap where the bar should be, and the test that passed was
+              // only reading the labels underneath it.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 for (final _MaturityBand band in bands)
                   if (band.count > 0)

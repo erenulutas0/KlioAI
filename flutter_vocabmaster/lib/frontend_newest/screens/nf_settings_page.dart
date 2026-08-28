@@ -602,8 +602,13 @@ class _RowDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // width, not just height. The card's Column centres its children, so a
+    // ColoredBox with no child was laid out at zero width and these dividers
+    // have never appeared. Predates the row added above it -- which is simply
+    // the one that made the missing line noticeable.
     return SizedBox(
       height: NfStroke.border,
+      width: double.infinity,
       child: ColoredBox(color: tokens.border),
     );
   }

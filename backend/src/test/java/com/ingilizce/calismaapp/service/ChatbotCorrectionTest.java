@@ -1,7 +1,6 @@
 package com.ingilizce.calismaapp.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -68,14 +67,19 @@ class ChatbotCorrectionTest {
         }
 
         @Test
-        @DisplayName("when the corrected text itself contains an arrow")
-        void arrowInsideCorrection() {
-            String content = "Sure.\n[[FIX]] the sign say A -> B -> the sign says A -> B";
+        @DisplayName("mid-line, where models often put it")
+        void markerNotAtLineStart() {
+            // Models put the marker after a bullet, after a space, or on the end of the
+            // sentence they just finished. Refusing to read it there left the raw
+            // "I go -> I went" sitting in the reply, on screen and read aloud.
+            String content = "Nice work. [[FIX]] I go -> I went";
 
             ChatbotService.Correction correction = ChatbotService.extractCorrection(content);
 
             assertNotNull(correction);
-            assertEquals("the sign say A", correction.said());
+            assertEquals("I go", correction.said());
+            assertEquals("I went", correction.better());
+            assertEquals("Nice work.", ChatbotService.stripCorrection(content));
         }
     }
 
@@ -100,6 +104,23 @@ class ChatbotCorrectionTest {
             assertNull(ChatbotService.extractCorrection(content));
             assertEquals("Nice.", ChatbotService.stripCorrection(content),
                     "a malformed marker must still not reach the screen");
+        }
+
+        @Test
+        @DisplayName("when a second arrow makes the halves ambiguous")
+        void twoArrows() {
+            // "the sign say A -> B" corrected to "the sign says A -> B" is a real
+            // sentence a learner could say, and nothing in the line says which arrow
+            // divides it. Either split produces a confident wrong answer, so this
+            // degrades like every other malformed case: no correction.
+            //
+            // The test that stood here asserted only the half that happened to come
+            // out right, which is how the other half stayed wrong.
+            String content = "Sure.\n[[FIX]] the sign say A -> B -> the sign says A -> B";
+
+            assertNull(ChatbotService.extractCorrection(content));
+            assertEquals("Sure.", ChatbotService.stripCorrection(content),
+                    "an unreadable correction must still not reach the screen");
         }
 
         @Test
@@ -137,19 +158,24 @@ class ChatbotCorrectionTest {
     class NeverLeaks {
 
         @Test
-        @DisplayName("mid-sentence, where it is not a correction at all")
-        void inlineMarker() {
+        @DisplayName("with nothing usable after it")
+        void markerWithoutACorrection() {
             String content = "You could say [[FIX]] here, but it is fine.";
 
             assertNull(ChatbotService.extractCorrection(content));
-            assertFalse(ChatbotService.stripCorrection(content).contains("[[FIX]]"));
+            // Everything from the marker onward is dropped, including the words after
+            // it. The model lost the thread at the marker, and half a sentence beats a
+            // sentence with a correction format in the middle of it.
+            assertEquals("You could say", ChatbotService.stripCorrection(content));
         }
 
         @Test
         @DisplayName("when the whole reply is the marker and nothing else")
         void onlyAMarker() {
-            // The reply is then empty, which the speaking screen already handles. What it
-            // must not do is read the marker aloud.
+            // The reply is then empty. This comment used to say the speaking screen
+            // handled that. It did not: it appended a blank bubble with a play button
+            // that read out nothing. The screen skips it now, and this assertion is
+            // only about what this method returns.
             assertEquals("", ChatbotService.stripCorrection("[[FIX]] a -> b"));
         }
 

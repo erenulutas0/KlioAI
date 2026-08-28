@@ -204,18 +204,27 @@ HOW TO OFFER A CORRECTION:
     if (content == null) {
       return null;
     }
-    // The LAST marker line. A model that repeats itself leaves the earlier ones in the
-    // reply, where stripCorrection removes them; taking the first would show a
-    // correction the model itself went on to replace.
+    // The LAST marker. A model that repeats itself has replaced its own earlier
+    // answer, and taking the first would show the learner something it went on to
+    // think better of.
+    //
+    // Found anywhere on the line, not only at the start. Models put the marker after
+    // a space, after a bullet, or on the end of the sentence they just wrote, and a
+    // marker this method refuses to read is one stripCorrection still has to delete —
+    // otherwise the raw "I go -> I went" is glued onto the reply and read aloud.
     String[] lines = content.split("\\R");
     for (int i = lines.length - 1; i >= 0; i--) {
-      String line = lines[i].trim();
-      if (!line.startsWith(FIX_MARKER)) {
+      int marker = lines[i].indexOf(FIX_MARKER);
+      if (marker < 0) {
         continue;
       }
-      String body = line.substring(FIX_MARKER.length()).trim();
+      String body = lines[i].substring(marker + FIX_MARKER.length()).trim();
+      // Exactly one arrow, or nothing. With two there is no way to tell which one
+      // divides the halves: "the sign say A -> B -> the sign says A -> B" is a real
+      // correction of a real sentence, and either split produces a confident, wrong
+      // answer. Everything else here degrades to no correction, and so does this.
       int at = body.indexOf(FIX_SEPARATOR);
-      if (at <= 0) {
+      if (at <= 0 || body.indexOf(FIX_SEPARATOR, at + FIX_SEPARATOR.length()) >= 0) {
         return null;
       }
       String said = body.substring(0, at).trim();
@@ -241,17 +250,21 @@ HOW TO OFFER A CORRECTION:
     }
     StringBuilder out = new StringBuilder();
     for (String line : content.split("\\R")) {
-      if (line.trim().startsWith(FIX_MARKER)) {
+      int marker = line.indexOf(FIX_MARKER);
+      // From the marker to the end of its line, not just the marker itself.
+      // Deleting the six characters and leaving "I go -> I went" behind put the
+      // raw correction into the reply, where the screen showed it and the voice
+      // read it out.
+      String kept = marker < 0 ? line : line.substring(0, marker);
+      if (kept.trim().isEmpty() && marker >= 0) {
         continue;
       }
       if (out.length() > 0) {
         out.append('\n');
       }
-      out.append(line);
+      out.append(kept);
     }
-    // A marker that turns up mid-sentence rather than on its own line is not a
-    // correction, but it must still never reach the screen.
-    return out.toString().replace(FIX_MARKER, "").trim();
+    return out.toString().trim();
   }
 
   /**
