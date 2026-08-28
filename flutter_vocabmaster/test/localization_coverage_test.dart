@@ -352,7 +352,11 @@ void main() {
       'haziran', 'iptal', 'ispanyolca', 'istiyor', 'istiyorsunuz',
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
       'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
-      'nisan', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
+      // 'otele' is the first inflected borrowing to land here: otel + the
+      // dative -e. The stem is a loanword, so no suffix it takes will ever
+      // harmonise, and 'oteli' or 'otelden' would each need adding too. If that
+      // starts happening, match on stems rather than growing this list.
+      'nisan', 'otele', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
       'profil', 'profili', 'profiller', 'rozetler', 'sakin',
       'senkron', 'senkronu', 'sohbet', 'sohbete', 'sohbeti',
       'sonraki', 'soyisim', 'takibi', 'takip', 'takviminiz',

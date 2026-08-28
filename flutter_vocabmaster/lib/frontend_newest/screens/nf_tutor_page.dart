@@ -59,6 +59,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
   final ScrollController _scrollController = ScrollController();
   final List<_NfTurn> _turns = <_NfTurn>[];
 
+  /// The scene being played, or null for ordinary conversation.
+  NfScene? _scene;
+
   late final NfSpeechCapture _capture;
 
   VoiceModel _voice = _speakers.first;
@@ -308,9 +311,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // The header, the avatar and the voice all say who this is, so the model
       // is told as well — otherwise it introduces itself as whoever the
       // backend's own rotation picked.
+      // In a scene the server prompt names its own character and ignores
+      // speakerName entirely, so sending Amy's name alongside "You are Emma"
+      // would tell the model two different things about who it is.
+      final NfScene? scene = _scene;
       final String reply = await _chatbot.chat(
         trimmed,
-        speakerName: _voice.name,
+        scenario: scene?.id,
+        speakerName: scene == null ? _voice.name : null,
       );
       if (!mounted) {
         return;
@@ -417,6 +425,34 @@ class _NfTutorPageState extends State<NfTutorPage> {
   void _resetSessionXp() {
     _sessionXpId = 'nf_tutor_${DateTime.now().millisecondsSinceEpoch}';
     _sessionXpAwarded = false;
+  }
+
+  /// Switch scenes, which starts the conversation over.
+  ///
+  /// It has to. The server keeps no history for this endpoint, so turns left on
+  /// screen would sit under a character who has never read them, and the
+  /// learner would watch a barista answer a question they asked their doctor.
+  void _selectScene(NfScene? scene) {
+    if (scene?.id == _scene?.id || _capture.isBusy || _isReplying) {
+      return;
+    }
+
+    _stopAudio();
+
+    setState(() {
+      _scene = scene;
+      _turns
+        ..clear()
+        ..add(scene == null
+            ? _greeting(context, _voice)
+            : _NfTurn(
+                id: _nextTurnId++,
+                fromTutor: true,
+                hasAudio: true,
+                text: scene.opening,
+              ));
+      _resetSessionXp();
+    });
   }
 
   Future<void> _selectSpeaker(VoiceModel voice) async {
@@ -608,6 +644,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
         child: Column(
           children: <Widget>[
             _buildHeader(t, level),
+            _buildSceneBar(t),
             Expanded(child: _buildConversation(t)),
             _buildFooter(t),
           ],
@@ -638,7 +675,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  _voice.name,
+                  _scene?.character ?? _voice.name,
                   style: NfTokens.display(size: NfFont.s18, color: t.ink),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -657,9 +694,10 @@ class _NfTutorPageState extends State<NfTutorPage> {
                     const SizedBox(width: NfSpace.s6),
                     Flexible(
                       child: Text(
-                        context
-                            .tr('tutor.header.status')
-                            .replaceAll('{level}', level),
+                        _scene?.nameOf(context) ??
+                            context
+                                .tr('tutor.header.status')
+                                .replaceAll('{level}', level),
                         style: NfTokens.body(
                           size: NfFont.s125,
                           weight: NfTokens.bodyEmphasisWeight,
@@ -693,6 +731,50 @@ class _NfTutorPageState extends State<NfTutorPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// The scenes, as a rail rather than a menu behind a button.
+  ///
+  /// Visible without being asked for, because a feature nobody knows about may
+  /// as well not exist: these roleplay prompts have been on the server all
+  /// along and went unused for exactly that reason. Free chat stays first and
+  /// selected, so the tab still does what it always did for anyone who wants
+  /// nothing to do with a scene.
+  Widget _buildSceneBar(NfTokens t) {
+    return Container(
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(bottom: t.side),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: NfSpace.s8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: NfSpace.s16),
+        child: Row(
+          children: <Widget>[
+            NfChip(
+              label: context.tr('tutor.scene.free'),
+              dense: true,
+              variant: _scene == null
+                  ? NfChipVariant.selected
+                  : NfChipVariant.unselected,
+              onTap: () => _selectScene(null),
+            ),
+            for (final NfScene scene in NfScene.all) ...<Widget>[
+              const SizedBox(width: NfSpace.s6),
+              NfChip(
+                label: scene.nameOf(context),
+                dense: true,
+                variant: scene.id == _scene?.id
+                    ? NfChipVariant.selected
+                    : NfChipVariant.unselected,
+                onTap: () => _selectScene(scene),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1495,4 +1577,89 @@ int _seedFor(String text) {
     hash = ((hash ^ unit) * 0x01000193) & 0x7FFFFFFF;
   }
   return hash;
+}
+
+/// A situation the tutor plays instead of being itself.
+///
+/// The backend has had roleplay prompts since long before this tab existed,
+/// reached through a `scenario` argument that only the retired chat screen ever
+/// filled in. Everything worked except the part a learner could touch: the
+/// server knew how to be a barista and the app never asked it to.
+///
+/// [opening] is written here rather than fetched, for the same reason the plain
+/// greeting is: choosing a scene should not spend a request from someone's
+/// daily quota before they have said a word. [character] is who the model
+/// becomes, and has to match the name in that scene's server prompt -- the
+/// header shows it, and a learner reading "Amy" while the voice says "I am
+/// Emma" is being told the app does not know who is talking.
+class NfScene {
+  const NfScene({
+    required this.id,
+    required this.character,
+    required this.opening,
+    required this.icon,
+  });
+
+  /// Matches the scenario id the backend switches on. Not a display string.
+  final String id;
+  final String character;
+  final String opening;
+  final IconData icon;
+
+  /// The scene's name in the learner's own language.
+  String nameOf(BuildContext context) => context.tr('tutor.scene.$id');
+
+  /// Everyday scenes first. The four that already existed are all office and
+  /// lecture hall, and the person who needs those is not the person who most
+  /// needs this feature.
+  static const List<NfScene> all = <NfScene>[
+    NfScene(
+      id: 'cafe_order',
+      character: 'Emma',
+      opening: 'Hi there! What can I get started for you?',
+      icon: Icons.local_cafe_outlined,
+    ),
+    NfScene(
+      id: 'airport_checkin',
+      character: 'Mark',
+      opening: 'Good morning. Passport, please — and where are you flying to today?',
+      icon: Icons.flight_takeoff_outlined,
+    ),
+    NfScene(
+      id: 'hotel_checkin',
+      character: 'Nina',
+      opening: 'Welcome! Could I have your booking name and some ID?',
+      icon: Icons.hotel_outlined,
+    ),
+    NfScene(
+      id: 'small_talk',
+      character: 'Alex',
+      opening: 'I do not think we have met — I am Alex. How do you know the host?',
+      icon: Icons.waving_hand_outlined,
+    ),
+    NfScene(
+      id: 'doctor_visit',
+      character: 'Dr. Patel',
+      opening: 'Come in, have a seat. So, what has been bothering you?',
+      icon: Icons.medical_services_outlined,
+    ),
+    NfScene(
+      id: 'shopping_return',
+      character: 'Sam',
+      opening: 'Hello! What seems to be the problem with it?',
+      icon: Icons.shopping_bag_outlined,
+    ),
+    NfScene(
+      id: 'job_interview_followup',
+      character: 'Sarah',
+      opening: 'Thanks for calling back. How are you feeling about the role?',
+      icon: Icons.business_center_outlined,
+    ),
+    NfScene(
+      id: 'academic_presentation_qa',
+      character: 'Dr. Johnson',
+      opening: 'Thank you for the presentation. I have a few questions about your method.',
+      icon: Icons.school_outlined,
+    ),
+  ];
 }

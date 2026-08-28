@@ -600,7 +600,7 @@ class _AIBotChatPageState extends State<AIBotChatPage>
         'id': 'job_interview_followup',
         'name': 'Job Interview Follow-up',
         'subtitle':
-            _text('Mulakat Sonrası Takip', 'Follow up after an interview'),
+            _text('Mülakat Sonrası Takip', 'Follow up after an interview'),
         'icon': Icons.business_center,
         'color': const Color(0xFF8b5cf6),
         'welcomeMessage':
