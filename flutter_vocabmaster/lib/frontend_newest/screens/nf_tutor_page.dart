@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/tutor_correction.dart';
 import '../../models/voice_model.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/learning_language_provider.dart';
@@ -315,7 +316,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // speakerName entirely, so sending Amy's name alongside "You are Emma"
       // would tell the model two different things about who it is.
       final NfScene? scene = _scene;
-      final String reply = await _chatbot.chat(
+      final TutorReply reply = await _chatbot.chatTurn(
         trimmed,
         scenario: scene?.id,
         speakerName: scene == null ? _voice.name : null,
@@ -325,9 +326,20 @@ class _NfTutorPageState extends State<NfTutorPage> {
       }
       setState(() {
         _isReplying = false;
+        // The correction hangs off what the LEARNER said, not off the reply.
+        // It is about their sentence, and putting it under the tutor's answer
+        // would leave them looking for which of their own lines it meant.
+        final TutorCorrection? fix = reply.correction;
+        if (fix != null) {
+          final int said =
+              _turns.lastIndexWhere((_NfTurn turn) => !turn.fromTutor);
+          if (said >= 0) {
+            _turns[said] = _turns[said].withCorrection(fix);
+          }
+        }
         _turns.add(_NfTurn(
           id: _nextTurnId++,
-          text: reply,
+          text: reply.text,
           fromTutor: true,
           hasAudio: true,
         ));
@@ -942,6 +954,7 @@ class _NfTurn {
     required this.fromTutor,
     this.hasAudio = false,
     this.note,
+    this.correction,
   });
 
   final int id;
@@ -955,12 +968,29 @@ class _NfTurn {
   /// Inline feedback shown under a learner turn.
   final String? note;
 
+  /// What the tutor would have said instead, shown under the same turn.
+  ///
+  /// Kept apart from [note] rather than folded into it: that slot carries the
+  /// XP notice and is styled as praise, green with a tick. A mistake shown in
+  /// the shape of a reward reads as "well done" for the thing you got wrong.
+  final TutorCorrection? correction;
+
+  _NfTurn withCorrection(TutorCorrection value) => _NfTurn(
+        id: id,
+        text: text,
+        fromTutor: fromTutor,
+        hasAudio: hasAudio,
+        note: note,
+        correction: value,
+      );
+
   _NfTurn withNote(String value) => _NfTurn(
         id: id,
         text: text,
         fromTutor: fromTutor,
         hasAudio: hasAudio,
         note: value,
+        correction: correction,
       );
 }
 
@@ -1019,6 +1049,13 @@ class _TurnView extends StatelessWidget {
           fromTutor ? CrossAxisAlignment.start : CrossAxisAlignment.end,
       children: <Widget>[
         bubble,
+        if (turn.correction != null) ...<Widget>[
+          const SizedBox(height: NfSpace.s8),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: _CorrectionNote(correction: turn.correction!),
+          ),
+        ],
         if (turn.note != null) ...<Widget>[
           const SizedBox(height: NfSpace.s8),
           ConstrainedBox(
@@ -1280,6 +1317,73 @@ class _WaveformPainter extends CustomPainter {
 
 /// Inline feedback under a learner turn. Wraps instead of truncating: praise
 /// the learner cannot finish reading is worse than a two-line chip.
+/// What the learner said, and the way to say it.
+///
+/// The correction the tutor has always been asked for and has never been able
+/// to show. It sat folded into the reply — "that sounds lovely, so you WENT to
+/// Paris" — where the one person who needed to notice it is the one least
+/// likely to.
+///
+/// In streak amber rather than the wrong-answer red. Nothing here was marked
+/// wrong: the learner said something and got understood, which in a
+/// conversation is the whole job. Red would turn a spoken sentence into a
+/// failed question, and the fastest way to stop someone speaking is to score
+/// them while they do it.
+class _CorrectionNote extends StatelessWidget {
+  const _CorrectionNote({required this.correction});
+
+  final TutorCorrection correction;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+
+    return NfCard(
+      backgroundColor: t.streakSoft,
+      borderColor: t.streak,
+      padding: const EdgeInsets.symmetric(
+        horizontal: NfSpace.s12,
+        vertical: NfSpace.s10,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            context.tr('tutor.correction.label'),
+            style: NfTokens.body(
+              size: NfFont.s12,
+              weight: NfTokens.bodyEmphasisWeight,
+              color: t.streakText,
+            ),
+          ),
+          const SizedBox(height: NfSpace.s6),
+          // Struck through, and muted. The corrected line is the one to read,
+          // so it is the one that looks like text; what they said is context
+          // for it rather than the point.
+          Text(
+            correction.said,
+            style: NfTokens.body(
+              size: NfFont.s125,
+              color: t.inkMuted,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          const SizedBox(height: NfSpace.s4),
+          Text(
+            correction.better,
+            style: NfTokens.body(
+              size: NfFont.s135,
+              weight: NfTokens.bodyEmphasisWeight,
+              color: t.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FeedbackNote extends StatelessWidget {
   const _FeedbackNote({required this.text});
 

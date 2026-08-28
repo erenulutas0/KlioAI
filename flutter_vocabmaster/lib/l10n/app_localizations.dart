@@ -696,6 +696,7 @@ class AppLocalizations {
       'subscription.err.payment': 'Payment error: {error}',
       'subscription.err.demo': 'Demo error: {error}',
       'subscription.err.restore': 'Restore error: {error}',
+      'tutor.correction.label': 'Say it like this',
       'tutor.greeting':
           'Hi, I\'m {name}. Hold the button below and tell me about your day — I\'ll answer out loud.',
       'tutor.scene.free': 'Free chat',
@@ -1682,6 +1683,7 @@ class AppLocalizations {
       'subscription.err.payment': 'Ödeme hatası: {error}',
       'subscription.err.demo': 'Demo hatası: {error}',
       'subscription.err.restore': 'Geri yükleme hatası: {error}',
+      'tutor.correction.label': 'Şöyle demek daha doğru',
       'tutor.greeting':
           'Selam, ben {name}. Aşağıdaki düğmeyi basılı tut ve gününü anlat — sesli cevap veririm.',
       'tutor.scene.free': 'Serbest sohbet',
@@ -2674,6 +2676,7 @@ class AppLocalizations {
       'subscription.err.payment': 'Zahlungsfehler: {error}',
       'subscription.err.demo': 'Demo-Fehler: {error}',
       'subscription.err.restore': 'Fehler beim Wiederherstellen: {error}',
+      'tutor.correction.label': 'Sag es lieber so',
       'tutor.greeting':
           'Hi, ich bin {name}. Halte den Knopf unten gedrückt und erzähl mir von deinem Tag — ich antworte laut.',
       'tutor.scene.free': 'Freies Gespräch',

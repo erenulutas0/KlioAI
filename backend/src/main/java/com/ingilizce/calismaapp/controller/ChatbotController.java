@@ -1705,11 +1705,21 @@ public class ChatbotController {
             LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
             // Optional and new: older clients omit it and keep the daily persona rotation.
             String speakerName = request.get("speakerName");
-            ChatbotService.AiCallResult llm = chatbotService.chat(
+            ChatbotService.ChatTurn turn = chatbotService.chatTurn(
                     message.trim(), scenario, scenarioContext, userId, languageProfile, speakerName);
+            ChatbotService.AiCallResult llm = turn.ai();
             consumeAiTokens(userId, httpRequest, "chat", llm.totalTokens());
             Map<String, Object> result = new HashMap<>();
             result.put("response", llm.content());
+            // An added key, so a client that predates it is unaffected: it reads
+            // "response" as it always did and never looks for this one. Absent rather
+            // than empty when there is nothing to show, so "no correction" and "a
+            // correction of nothing" cannot be confused on the other side.
+            if (turn.correction() != null) {
+                result.put("correction", Map.of(
+                        "said", turn.correction().said(),
+                        "better", turn.correction().better()));
+            }
             result.put("timestamp", System.currentTimeMillis());
             return ResponseEntity.ok(result);
         } catch (Exception e) {

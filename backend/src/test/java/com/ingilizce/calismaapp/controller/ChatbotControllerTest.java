@@ -159,8 +159,8 @@ public class ChatbotControllerTest {
 
     @Test
     void chatReturnsOkWhenValid() throws Exception {
-        when(chatbotService.chat("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile(), null))
-                .thenReturn(ai("Hi there!"));
+        when(chatbotService.chatTurn("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile(), null))
+                .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
@@ -178,9 +178,9 @@ public class ChatbotControllerTest {
 
     @Test
     void chatPassesLanguageProfileFromRequestBody() throws Exception {
-        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+        when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
                 nullable(String.class)))
-                .thenReturn(ai("Hi there!"));
+                .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
@@ -197,7 +197,7 @@ public class ChatbotControllerTest {
                         """))
                 .andExpect(status().isOk());
 
-        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(1L),
+        verify(chatbotService).chatTurn(eq("Hello"), any(), any(), eq(1L),
                 argThat((LearningLanguageProfile profile) ->
                         "Spanish".equals(profile.sourceLanguage())
                                 && "A2".equals(profile.englishLevel())
@@ -213,8 +213,45 @@ public class ChatbotControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(chatbotService, never())
-                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class));
+                .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class), nullable(String.class));
+    }
+
+    @Test
+    void chatCarriesTheCorrectionWhenThereIsOne() throws Exception {
+        // The client shows this beside the reply. It travels as its own key rather than
+        // inside the reply text, so the screen never has to parse prose to find it.
+        when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class),
+                anyLong(), any(LearningLanguageProfile.class), nullable(String.class)))
+                .thenReturn(new ChatbotService.ChatTurn(
+                        ai("Where did you go?"),
+                        new ChatbotService.Correction("I go yesterday", "I went yesterday")));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"I go yesterday\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Where did you go?"))
+                .andExpect(jsonPath("$.correction.said").value("I go yesterday"))
+                .andExpect(jsonPath("$.correction.better").value("I went yesterday"));
+    }
+
+    @Test
+    void chatOmitsTheCorrectionKeyWhenThereIsNothingToCorrect() throws Exception {
+        // Absent, not empty. An empty object would give the client something to render a
+        // chip around, and the learner a correction of nothing.
+        when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class),
+                anyLong(), any(LearningLanguageProfile.class), nullable(String.class)))
+                .thenReturn(turn("Sounds good."));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"I went yesterday\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Sounds good."))
+                .andExpect(jsonPath("$.correction").doesNotExist());
     }
 
     @Test
@@ -226,13 +263,13 @@ public class ChatbotControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(chatbotService, never())
-                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class));
+                .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class), nullable(String.class));
     }
 
     @Test
     void chatReturnsInternalServerErrorWhenServiceThrows() throws Exception {
-        when(chatbotService.chat(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+        when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
                 any(LearningLanguageProfile.class), nullable(String.class)))
                 .thenThrow(new RuntimeException("downstream"));
 
@@ -300,7 +337,8 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.retryAfterSeconds").value(120));
 
         verify(chatbotService, never())
-                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong());
+                .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class), nullable(String.class));
         // A blocked request never reaches consumeAiTokens, so it must not
         // credit the streak either.
         verify(progressService, never()).updateStreak(anyLong());
@@ -322,7 +360,8 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.abuseWarning").exists());
 
         verify(chatbotService, never())
-                .chat(anyString(), nullable(String.class), nullable(String.class), anyLong());
+                .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                        any(LearningLanguageProfile.class), nullable(String.class));
     }
 
     @Test
@@ -1124,9 +1163,9 @@ public class ChatbotControllerTest {
         // the message, as a client that has stopped sending language fields would.
         LanguageProfile spanish = new LanguageProfile(7701L, "Spanish", "English", "C1", "Exam", true);
         languageProfileRepository.save(spanish);
-        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+        when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
                 nullable(String.class)))
-                .thenReturn(ai("Hola!"));
+                .thenReturn(turn("Hola!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "7701")
@@ -1134,7 +1173,7 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"Hello\"}"))
                 .andExpect(status().isOk());
 
-        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(7701L),
+        verify(chatbotService).chatTurn(eq("Hello"), any(), any(), eq(7701L),
                 argThat((LearningLanguageProfile profile) ->
                         "Spanish".equals(profile.sourceLanguage())
                                 && "English".equals(profile.targetLanguage())
@@ -1148,9 +1187,9 @@ public class ChatbotControllerTest {
     void chatLetsTheRequestWinOverTheActiveProfile_FieldByField() throws Exception {
         LanguageProfile spanish = new LanguageProfile(7702L, "Spanish", "English", "C1", "Exam", true);
         languageProfileRepository.save(spanish);
-        when(chatbotService.chat(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
+        when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
                 nullable(String.class)))
-                .thenReturn(ai("Hola!"));
+                .thenReturn(turn("Hola!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "7702")
@@ -1158,7 +1197,7 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"Hello\",\"englishLevel\":\"A2\"}"))
                 .andExpect(status().isOk());
 
-        verify(chatbotService).chat(eq("Hello"), any(), any(), eq(7702L),
+        verify(chatbotService).chatTurn(eq("Hello"), any(), any(), eq(7702L),
                 argThat((LearningLanguageProfile profile) ->
                         "Spanish".equals(profile.sourceLanguage())
                                 && "A2".equals(profile.englishLevel())
@@ -1168,8 +1207,8 @@ public class ChatbotControllerTest {
 
     @Test
     void chatForAUserWithNoProfileRow_GetsTheDefaultProfileCreated() throws Exception {
-        when(chatbotService.chat("Hello", null, null, 7703L, LearningLanguageProfile.defaultProfile(), null))
-                .thenReturn(ai("Hi there!"));
+        when(chatbotService.chatTurn("Hello", null, null, 7703L, LearningLanguageProfile.defaultProfile(), null))
+                .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "7703")
@@ -1679,14 +1718,19 @@ public class ChatbotControllerTest {
         return new ChatbotService.AiCallResult(content, 123, 100, 23);
     }
 
+    /** A reply with no correction attached, which is the ordinary case. */
+    private static ChatbotService.ChatTurn turn(String content) {
+        return new ChatbotService.ChatTurn(ai(content), null);
+    }
+
     @Test
     void chatForwardsTheSelectedSpeakerToTheService() {
         // Without this the model is the only party on the screen that does not know who it
         // is supposed to be, and introduces itself as whoever the daily rotation picked.
         try {
-            when(chatbotService.chat(anyString(), any(), any(), anyLong(),
+            when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(),
                     any(LearningLanguageProfile.class), nullable(String.class)))
-                    .thenReturn(ai("Hi there!"));
+                    .thenReturn(turn("Hi there!"));
 
             mockMvc.perform(post("/api/chatbot/chat")
                     .header("X-User-Id", "1")
@@ -1694,7 +1738,7 @@ public class ChatbotControllerTest {
                     .content("{\"message\":\"Hello\",\"speakerName\":\"Ryan\"}"))
                     .andExpect(status().isOk());
 
-            verify(chatbotService).chat(eq("Hello"), any(), any(), eq(1L),
+            verify(chatbotService).chatTurn(eq("Hello"), any(), any(), eq(1L),
                     any(LearningLanguageProfile.class), eq("Ryan"));
         } catch (Exception e) {
             throw new IllegalStateException(e);

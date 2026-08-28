@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/book.dart';
 import '../models/language_profile.dart';
+import '../models/tutor_correction.dart';
 import '../models/word.dart';
 import '../models/sentence_practice.dart';
 import '../config/app_config.dart';
@@ -1261,7 +1262,26 @@ class ApiService {
     throw Exception('AI çeviri kontrolü başarısız: ${response.statusCode}');
   }
 
+  /// The reply text only, for callers that never had anywhere to put more.
   Future<String> chatbotChat({
+    required String message,
+    String? scenario,
+    String? scenarioContext,
+    String? speakerName,
+  }) async =>
+      (await chatbotChatTurn(
+        message: message,
+        scenario: scenario,
+        scenarioContext: scenarioContext,
+        speakerName: speakerName,
+      ))
+          .text;
+
+  /// The reply and the correction that came with it.
+  ///
+  /// `correction` is a key the server added; a response without it is the
+  /// ordinary case and not an error, so nothing here treats its absence as one.
+  Future<TutorReply> chatbotChatTurn({
     required String message,
     String? scenario,
     String? scenarioContext,
@@ -1286,10 +1306,13 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final decoded = json.decode(response.body);
-      if (decoded is Map && decoded['response'] != null) {
-        return decoded['response'].toString();
+      if (decoded is Map) {
+        return TutorReply(
+          text: decoded['response']?.toString() ?? '',
+          correction: TutorCorrection.fromJson(decoded['correction']),
+        );
       }
-      return '';
+      return const TutorReply(text: '');
     }
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);

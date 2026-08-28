@@ -122,20 +122,136 @@ public class ChatbotService {
    */
   public AiCallResult chat(String message, String scenario, String scenarioContext, Long userId,
       LearningLanguageProfile profile, String speakerName) {
+    return chatTurn(message, scenario, scenarioContext, userId, profile, speakerName).ai();
+  }
+
+  /** One thing the learner said, put right, for showing beside the reply. */
+  public record Correction(String said, String better) {
+  }
+
+  /** A reply, and the correction that came back with it. [correction] may be null. */
+  public record ChatTurn(AiCallResult ai, Correction correction) {
+  }
+
+  /**
+   * The marker the model appends its correction behind.
+   *
+   * <p>Chosen over asking for the whole turn as JSON, which is the pattern the rest of
+   * this codebase uses. The difference is what happens when the model gets it wrong:
+   * malformed JSON costs the REPLY, and a conversation that answers with a canned
+   * fallback is broken in the one place the app cannot afford to be. A missing or
+   * malformed marker costs only the correction, and the learner gets exactly what they
+   * got before this existed.
+   */
+  private static final String FIX_MARKER = "[[FIX]]";
+
+  private static final String FIX_SEPARATOR = "->";
+
+  /**
+   * How the model is asked for it.
+   *
+   * <p>Appended to every chat prompt rather than written into each of the ten scenario
+   * branches, so a new scene cannot be added without it.
+   *
+   * <p>It obeys the same per-level correction policy as the reply. At A1 that policy says
+   * not to correct at all -- confidence before accuracy -- so beginners will see no
+   * corrections, which is the existing product decision and not an oversight of this
+   * feature.
+   */
+  private static final String FIX_INSTRUCTIONS = """
+
+HOW TO OFFER A CORRECTION:
+- Reply naturally first. Never mention corrections, formats or markers inside your reply.
+- Then, only if the learner's message had one clear mistake worth showing, add a FINAL
+  line of exactly this shape and nothing after it:
+%s their exact words %s the corrected words
+- Correct only what they actually said. Never invent a mistake to have something to show.
+- Follow the correction frequency above: if it tells you not to correct at this level,
+  omit the line entirely.
+- One line at most, ever. No explanation on it.
+""".formatted(FIX_MARKER, FIX_SEPARATOR);
+
+  public ChatTurn chatTurn(String message, String scenario, String scenarioContext, Long userId,
+      LearningLanguageProfile profile, String speakerName) {
     String systemPrompt =
-        buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile, speakerName);
+        buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile, speakerName)
+            + FIX_INSTRUCTIONS;
     List<Map<String, String>> history = conversationSessionService != null
         ? conversationSessionService.recentMessages(userId)
         : List.of();
     AiCallResult result = callGroqText(
         systemPrompt, history, message, 260 + REASONING_TOKEN_ALLOWANCE, "speaking-chat");
-    // Unconditional on the learner's side. The guard here used to cover the whole turn, so a
-    // blank completion silently dropped what the learner had just said and the next reply came
-    // back out of context. recordTurn now stores whichever half is present.
+
+    Correction correction = extractCorrection(result.content());
+    String reply = stripCorrection(result.content());
+
+    // The cleaned reply, not the raw one. Storing the marker would feed it back as an
+    // example of how this speaker talks, and the model would start saying it out loud.
+    // Unconditional on the learner's side: the guard here used to cover the whole turn,
+    // so a blank completion silently dropped what the learner had just said and the next
+    // reply came back out of context.
     if (conversationSessionService != null) {
-      conversationSessionService.recordTurn(userId, message, result.content());
+      conversationSessionService.recordTurn(userId, message, reply);
     }
-    return result;
+
+    AiCallResult cleaned = new AiCallResult(
+        reply, result.totalTokens(), result.promptTokens(), result.completionTokens());
+    return new ChatTurn(cleaned, correction);
+  }
+
+  /** The correction the model appended, or null if it did not append a usable one. */
+  static Correction extractCorrection(String content) {
+    if (content == null) {
+      return null;
+    }
+    // The LAST marker line. A model that repeats itself leaves the earlier ones in the
+    // reply, where stripCorrection removes them; taking the first would show a
+    // correction the model itself went on to replace.
+    String[] lines = content.split("\\R");
+    for (int i = lines.length - 1; i >= 0; i--) {
+      String line = lines[i].trim();
+      if (!line.startsWith(FIX_MARKER)) {
+        continue;
+      }
+      String body = line.substring(FIX_MARKER.length()).trim();
+      int at = body.indexOf(FIX_SEPARATOR);
+      if (at <= 0) {
+        return null;
+      }
+      String said = body.substring(0, at).trim();
+      String better = body.substring(at + FIX_SEPARATOR.length()).trim();
+      // Length caps, because this is model output going straight onto a screen. A
+      // runaway line is a sign the model misunderstood the format, and half a paragraph
+      // in a correction chip is worse than no chip.
+      if (said.isEmpty() || better.isEmpty() || said.length() > 300 || better.length() > 300) {
+        return null;
+      }
+      if (said.equals(better)) {
+        return null;
+      }
+      return new Correction(said, better);
+    }
+    return null;
+  }
+
+  /** The reply with every trace of the marker removed. */
+  static String stripCorrection(String content) {
+    if (content == null) {
+      return null;
+    }
+    StringBuilder out = new StringBuilder();
+    for (String line : content.split("\\R")) {
+      if (line.trim().startsWith(FIX_MARKER)) {
+        continue;
+      }
+      if (out.length() > 0) {
+        out.append('\n');
+      }
+      out.append(line);
+    }
+    // A marker that turns up mid-sentence rather than on its own line is not a
+    // correction, but it must still never reach the screen.
+    return out.toString().replace(FIX_MARKER, "").trim();
   }
 
   /**

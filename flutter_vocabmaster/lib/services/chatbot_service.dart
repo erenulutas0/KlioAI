@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../models/tutor_correction.dart';
 import 'api_service.dart';
 import 'groq_api_client.dart';
 
@@ -69,15 +70,25 @@ class ChatbotService {
   /// persona rotation, which is how "Hey! It's Amy, not Ryan" reached a chat headed Ryan.
   Future<String> chat(String message,
       {String? scenario, String? scenarioContext, String? speakerName}) async {
+    final TutorReply reply = await chatTurn(message,
+        scenario: scenario,
+        scenarioContext: scenarioContext,
+        speakerName: speakerName);
+    return reply.text;
+  }
+
+  /// The reply together with the correction the tutor offered, if any.
+  Future<TutorReply> chatTurn(String message,
+      {String? scenario, String? scenarioContext, String? speakerName}) async {
     try {
-      return await _api.chatbotChat(
+      return await _api.chatbotChatTurn(
         message: message,
         scenario: scenario,
         scenarioContext: scenarioContext,
         speakerName: speakerName,
       );
     } catch (e) {
-      debugPrint('ChatbotService.chat error: $e');
+      debugPrint('ChatbotService.chatTurn error: $e');
       rethrow;
     }
   }
