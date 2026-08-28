@@ -5,7 +5,7 @@ publish_to: 'none'
 # --build-number derived from the workflow run number, because this value does not
 # increment itself and a forgotten bump was only caught by Play after a full build.
 # The version name before the + is still the one that ships — keep maintaining it.
-version: 1.3.0+335
+version: 1.4.0+335
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
