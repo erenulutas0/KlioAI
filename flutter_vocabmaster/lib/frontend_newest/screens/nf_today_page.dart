@@ -16,6 +16,7 @@ import '../../services/local_database_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_tutor_voice.dart';
 import '../theme/nf_theme_scope.dart';
+import '../models/nf_plan_state.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
@@ -27,18 +28,10 @@ import '../widgets/nf_progress.dart';
 /// so this reaches back several days — far more than "today" needs.
 const int _kXpHistoryScan = 200;
 
-/// Used only when `userStats['dailyGoal']` is missing or unreadable. Matches
-/// the provider's own fallback (`AppStateProvider._loadDailyGoal`), so the plan
-/// and the goal celebration cannot disagree even in that case.
-const int _kDefaultDailyGoal = 5;
-
-/// How many sentences a quick translation set contains.
-const int _kTranslationSetSize = 5;
-
-/// Fallback review target when the deck carries no SRS schedule at all (a fresh
-/// install, or a backend that omits `nextReviewDate`). Mirrors what
-/// `RepeatPage` does: rather than claim "nothing due", offer a sane batch.
-const int _kUnscheduledReviewTarget = 10;
+// The plan's three numbers -- the daily-goal fallback, the translation set
+// size and the batch offered to a deck with no schedule -- moved to
+// NfPlanState with the arithmetic that uses them. Keeping a second copy here
+// is how the two would eventually disagree.
 
 /// Rough per-item pacing used for the "about N minutes" pill. Deliberately
 /// generous — a plan that overruns its own estimate is worse than one that
@@ -236,14 +229,7 @@ class _TodayModel {
     required this.targetLanguage,
     required this.weekCompleted,
     required this.todayIndex,
-    required this.reviewTarget,
-    required this.reviewDone,
-    required this.hasWords,
-    required this.newTarget,
-    required this.learnedToday,
-    required this.learnDone,
-    required this.translationTarget,
-    required this.translationDone,
+    required this.plan,
     required this.wordsKept,
     required this.weeklyXp,
     required this.level,
@@ -257,64 +243,34 @@ class _TodayModel {
     final List<Word> words = appState.allWords;
     final Map<String, dynamic> stats = appState.userStats;
 
-    // ── Review ─────────────────────────────────────────────────────────────
-    // A word counts as due once its scheduled date has arrived; anything with
-    // no schedule cannot be judged, so a deck without any schedule falls back
-    // to a fixed batch instead of pretending the learner is caught up.
-    final DateTime endOfToday = DateUtils.dateOnly(DateTime.now())
-        .add(const Duration(days: 1))
-        .subtract(const Duration(microseconds: 1));
-    int scheduled = 0;
-    int due = 0;
-    for (final Word word in words) {
-      final DateTime? next = word.nextReviewDate;
-      if (next == null) {
-        continue;
-      }
-      scheduled++;
-      if (!next.isAfter(endOfToday)) {
-        due++;
-      }
-    }
-    final bool hasSchedule = scheduled > 0;
-    final int reviewTarget = hasSchedule
-        ? due
-        : math.min(words.length, _kUnscheduledReviewTarget);
-    final bool reviewDone = hasSchedule && due == 0;
-
-    // ── New words ──────────────────────────────────────────────────────────
-    // The target is the learner's configured daily goal (5, 10 or 20 — see
-    // `AppStateProvider.dailyGoalOptions`), never the size of the generated
-    // daily-words set. The provider fires its goal celebration at this exact
-    // number, so anything else here would put a green check on the plan while
-    // the app still considered the day unfinished.
-    //
-    // `learnedToday` counts every word added today whatever the source, which
-    // is exactly what "learn N new words" asks for and what the provider
-    // compares against the goal.
-    final int storedGoal = _asInt(
-      stats['dailyGoal'],
-      fallback: _kDefaultDailyGoal,
-    );
-    final int newTarget = storedGoal > 0 ? storedGoal : _kDefaultDailyGoal;
-    final int learnedToday = _asInt(stats['learnedToday']);
-
-    // ── Translation ────────────────────────────────────────────────────────
-    // The set is built from sentences attached to the learner's own words, so
-    // practice sentences (word == null) do not count towards it.
+    // Review, new words and the translation set are all decided by
+    // NfPlanState, which is where they can be tested. The Today page needs a
+    // provider and a running app to exist at all, and while this arithmetic
+    // lived here it had never been asked a single question.
     int ownSentences = 0;
     for (final SentenceViewModel sentence in appState.allSentences) {
+      // The set is built from sentences attached to the learner's own words,
+      // so practice sentences (word == null) do not count towards it.
       if (sentence.word != null) {
         ownSentences++;
       }
     }
-    final int translationTarget =
-        math.min(ownSentences, _kTranslationSetSize);
-    // The only record that a translation exercise happened is the XP it paid
-    // out, so an unreadable ledger leaves this false and the row keeps its XP
-    // label.
-    final int translationsToday =
-        todayXpActions[XPActionTypes.translationComplete.id] ?? 0;
+
+    final NfPlanState plan = NfPlanState.from(
+      words: words,
+      dailyGoal:
+          _asInt(stats['dailyGoal'], fallback: NfPlanState.defaultDailyGoal),
+      // Every word added today, whatever the source, which is what "learn N
+      // new words" asks for and what the provider compares against the goal.
+      learnedToday: _asInt(stats['learnedToday']),
+      ownSentenceCount: ownSentences,
+      // The only record that a translation exercise happened is the XP it paid
+      // out, so an unreadable ledger leaves the step unfinished and the row
+      // keeps its XP label.
+      translationsToday:
+          todayXpActions[XPActionTypes.translationComplete.id] ?? 0,
+      now: DateTime.now(),
+    );
 
     // ── Week strip ─────────────────────────────────────────────────────────
     final int todayIndex = DateTime.now().weekday - 1;
@@ -345,8 +301,8 @@ class _TodayModel {
     final LanguageProfile? profile = appState.activeProfile;
 
     return _TodayModel(
-      isLoading: !appState.isInitialized ||
-          (appState.isLoadingWords && words.isEmpty),
+      isLoading:
+          !appState.isInitialized || (appState.isLoadingWords && words.isEmpty),
       userName: appState.userName.trim(),
       streak: _asInt(stats['streak']),
       cefrLevel: profile?.level ?? LearningLanguageService.englishLevel,
@@ -354,15 +310,7 @@ class _TodayModel {
           profile?.targetLanguage ?? LearningLanguageService.targetLanguage,
       weekCompleted: weekCompleted,
       todayIndex: todayIndex,
-      reviewTarget: reviewTarget,
-      reviewDone: reviewDone,
-      hasWords: words.isNotEmpty,
-      newTarget: newTarget,
-      learnedToday: learnedToday,
-      learnDone: newTarget > 0 && learnedToday >= newTarget,
-      translationTarget: translationTarget,
-      translationDone: translationTarget > 0 &&
-          translationsToday >= translationTarget,
+      plan: plan,
       wordsKept: words.length,
       weeklyXp: _asInt(stats['weeklyXP']),
       level: math.max(1, _asInt(stats['level'], fallback: 1)),
@@ -383,23 +331,26 @@ class _TodayModel {
   final List<bool> weekCompleted;
   final int todayIndex;
 
-  final int reviewTarget;
-  final bool reviewDone;
-  final bool hasWords;
+  /// Today's three steps, and how many of them are finished.
+  final NfPlanState plan;
 
-  final int newTarget;
-  final int learnedToday;
-  final bool learnDone;
+  int get reviewTarget => plan.reviewTarget;
+  bool get reviewDone => plan.reviewDone;
+  bool get hasWords => plan.hasWords;
 
-  final int translationTarget;
-  final bool translationDone;
+  int get newTarget => plan.newTarget;
+  int get learnedToday => plan.learnedToday;
+  bool get learnDone => plan.learnDone;
+
+  int get translationTarget => plan.translationTarget;
+  bool get translationDone => plan.translationDone;
 
   final int wordsKept;
   final int weeklyXp;
   final int level;
   final double levelProgress;
 
-  bool get allDone => reviewDone && learnDone && translationDone;
+  bool get allDone => plan.allDone;
 
   /// XP the learner stands to earn, taken from the same table that will
   /// actually pay it out. `max(target, 1)` keeps a blocked row showing the
@@ -420,8 +371,7 @@ class _TodayModel {
       minutes += reviewTarget * _kMinutesPerReviewCard;
     }
     if (!learnDone) {
-      minutes +=
-          math.max(0, newTarget - learnedToday) * _kMinutesPerNewWord;
+      minutes += math.max(0, newTarget - learnedToday) * _kMinutesPerNewWord;
     }
     if (!translationDone) {
       minutes += translationTarget * _kMinutesPerTranslation;
@@ -491,7 +441,8 @@ class _GreetingRow extends StatelessWidget {
     // entirely and the header read "Hoş geldin, …" — a greeting addressed to
     // nobody. A greeting wants the first name anyway.
     final String firstName = name.trim().split(RegExp(r'\s+')).first;
-    final String greeting = firstName.isEmpty ? welcome : '$welcome, $firstName';
+    final String greeting =
+        firstName.isEmpty ? welcome : '$welcome, $firstName';
 
     // Two rows, not one. A 23px greeting sharing a 393dp line with a streak
     // chip and a "Ingilizce · B1" chip had about a third of the width, so it
@@ -514,9 +465,8 @@ class _GreetingRow extends StatelessWidget {
               label: '$streak',
               icon: LucideIcons.flame,
               // A cold streak stays neutral: amber is a reward, not a label.
-              variant: streak > 0
-                  ? NfChipVariant.streak
-                  : NfChipVariant.unselected,
+              variant:
+                  streak > 0 ? NfChipVariant.streak : NfChipVariant.unselected,
               dense: true,
             ),
             const SizedBox(width: NfSpace.s6),
@@ -846,7 +796,8 @@ class _WeekStrip extends StatelessWidget {
       return _kFallbackWeekdayLetters;
     }
     // `narrowWeekdays` is Sunday-first.
-    return List<String>.generate(7, (int i) => l10n.narrowWeekdays[(i + 1) % 7]);
+    return List<String>.generate(
+        7, (int i) => l10n.narrowWeekdays[(i + 1) % 7]);
   }
 
   @override
@@ -1057,10 +1008,25 @@ class _PlanCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (!model.isLoading && minutes > 0) ...<Widget>[
-                const SizedBox(width: NfSpace.s10),
+              if (!model.isLoading) ...<Widget>[
+                const SizedBox(width: NfSpace.s8),
+                // How far into the day, which the card used to leave the
+                // learner to work out by counting check marks. Digits read the
+                // same in all three languages, so this needs no translation.
                 NfChip(
-                  label: context.tr('home.plan.minutes').replaceAll('{n}', '$minutes'),
+                  label: '${model.plan.stepsDone}/${NfPlanState.stepCount}',
+                  icon: model.allDone
+                      ? LucideIcons.checkCheck
+                      : LucideIcons.footprints,
+                  dense: true,
+                ),
+              ],
+              if (!model.isLoading && minutes > 0) ...<Widget>[
+                const SizedBox(width: NfSpace.s6),
+                NfChip(
+                  label: context
+                      .tr('home.plan.minutes')
+                      .replaceAll('{n}', '$minutes'),
                   icon: LucideIcons.clock,
                   dense: true,
                 ),
@@ -1075,24 +1041,26 @@ class _PlanCard extends StatelessWidget {
               icon: LucideIcons.repeat,
               accent: _Accent.primary,
               title: model.reviewTarget > 0
-                  ? context.tr('home.plan.reviewN')
+                  ? context
+                      .tr('home.plan.reviewN')
                       .replaceAll('{n}', '${model.reviewTarget}')
                   : context.tr('home.plan.review'),
               subtitle: _reviewSubtitle(context),
               xpReward: model.reviewXp,
               done: model.reviewDone,
+              connectAhead: model.reviewDone,
             ),
-            const SizedBox(height: NfSpace.s14),
             _PlanRow(
               icon: LucideIcons.sparkles,
               accent: _Accent.streak,
-              title: context.tr('home.plan.learnN')
+              title: context
+                  .tr('home.plan.learnN')
                   .replaceAll('{n}', '${model.newTarget}'),
               subtitle: _learnSubtitle(context),
               xpReward: model.newWordsXp,
               done: model.learnDone,
+              connectAhead: model.learnDone,
             ),
-            const SizedBox(height: NfSpace.s14),
             _PlanRow(
               icon: LucideIcons.languages,
               accent: _Accent.primary,
@@ -1100,6 +1068,7 @@ class _PlanCard extends StatelessWidget {
               subtitle: _translationSubtitle(context),
               xpReward: model.translationXp,
               done: model.translationDone,
+              isLast: true,
             ),
           ],
           const SizedBox(height: NfSpace.s18),
@@ -1159,7 +1128,8 @@ class _PlanCard extends StatelessWidget {
 
   String _learnSubtitle(BuildContext context) {
     if (!model.learnDone && model.learnedToday > 0) {
-      return context.tr('home.plan.learnedToday')
+      return context
+          .tr('home.plan.learnedToday')
           .replaceAll('{a}', '${model.learnedToday}')
           .replaceAll('{b}', '${model.newTarget}');
     }
@@ -1170,7 +1140,8 @@ class _PlanCard extends StatelessWidget {
     if (model.translationTarget == 0) {
       return context.tr('home.plan.translationLocked');
     }
-    return context.tr('home.plan.translationDesc')
+    return context
+        .tr('home.plan.translationDesc')
         .replaceAll('{n}', '${model.translationTarget}');
   }
 }
@@ -1183,9 +1154,15 @@ class _PlanRow extends StatelessWidget {
     required this.subtitle,
     required this.xpReward,
     required this.done,
+    this.connectAhead = false,
+    this.isLast = false,
   });
 
   static const double _tileSize = 40;
+
+  /// Height of the gap the spine runs through, replacing the spacer that used
+  /// to sit between rows.
+  static const double _gap = 14;
 
   final IconData icon;
   final _Accent accent;
@@ -1194,50 +1171,77 @@ class _PlanRow extends StatelessWidget {
   final int xpReward;
   final bool done;
 
+  /// Whether the line down to the next step is travelled ground. True once this
+  /// step is finished, so the route fills in behind the learner.
+  final bool connectAhead;
+
+  /// The last step has nothing to connect to.
+  final bool isLast;
+
   @override
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
     final _AccentColors colors =
         _AccentColors.of(t, done ? _Accent.done : accent);
 
+    // Three chores in a list, or one route with three stops. The steps are
+    // done in order often enough that the connection is true, and a line the
+    // learner can see themselves along says "you are part-way" in a way three
+    // separate check marks never did.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Container(
-          width: _tileSize,
-          height: _tileSize,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.fill,
-            borderRadius: NfRadius.iconTileAll,
-            border: Border.fromBorderSide(t.sideOf(colors.line)),
-          ),
-          child: Icon(icon, size: 20, color: colors.ink),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: _tileSize,
+              height: _tileSize,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.fill,
+                borderRadius: NfRadius.iconTileAll,
+                border: Border.fromBorderSide(t.sideOf(colors.line)),
+              ),
+              child: Icon(icon, size: 20, color: colors.ink),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: _gap,
+                color: connectAhead ? t.correct : t.border,
+              ),
+          ],
         ),
         const SizedBox(width: NfSpace.s12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                title,
-                style: NfTokens.body(
-                  size: NfFont.s15,
-                  weight: NfTokens.bodyEmphasisWeight,
-                  color: t.ink,
+          child: Padding(
+            // The spine now provides the space between rows, so the text keeps
+            // its own distance from the step below.
+            padding: EdgeInsets.only(bottom: isLast ? 0 : _gap),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: NfTokens.body(
+                    size: NfFont.s15,
+                    weight: NfTokens.bodyEmphasisWeight,
+                    color: t.ink,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: NfSpace.s4),
-              Text(
-                subtitle,
-                style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                const SizedBox(height: NfSpace.s4),
+                Text(
+                  subtitle,
+                  style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: NfSpace.s10),
