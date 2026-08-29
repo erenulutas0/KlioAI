@@ -35,6 +35,17 @@ Present Simple (Geniş Zaman), genel doğruları, alışkanlıkları, rutin akti
 • -s, -ss, -sh, -ch, -x, -o: +es → goes, watches
 • Sessiz harf + y: y→ies → studies (ama: plays)
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + V1 (+s/es for he/she/it)
+➖ Negative: Subject + do/does + not + V1
+❓ Question: Do/Does + Subject + V1?
+
+⚠️ Third person singular:
+• Usually: +s → works, plays
+• After -s, -ss, -sh, -ch, -x, -o: +es → goes, watches
+• Consonant + y: y→ies → studies (but: plays)
+''',
+
       examples: [
         GrammarExample(
           english: 'Water boils at 100 degrees Celsius.',
@@ -110,6 +121,17 @@ Present Continuous (Şimdiki Zaman), konuşma anında devam eden eylemleri, geç
 • Tek heceli + CVC: son harf iki yazılır → run → running
 • -ie ile biten: ie→y → lie → lying
 • -y ile biten: değişmez → play → playing
+''',
+      formulaEn: '''
+➕ Affirmative: Subject + am/is/are + V-ing
+➖ Negative: Subject + am/is/are + not + V-ing
+❓ Question: Am/Is/Are + Subject + V-ing?
+
+⚠️ Adding -ing:
+• Ending in -e: drop the e → make → making
+• One syllable + CVC: double the last letter → run → running
+• Ending in -ie: ie→y → lie → lying
+• Ending in -y: no change → play → playing
 ''',
       examples: [
         GrammarExample(
@@ -192,6 +214,14 @@ Present Perfect, geçmişte başlayıp etkisi hâlâ devam eden veya sonuçları
 📌 V3 düzenli fiillerde: V1 + ed (worked, played)
 📌 V3 düzensiz fiillerde: ezber (gone, eaten, written)
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + have/has + V3 (past participle)
+➖ Negative: Subject + have/has + not + V3
+❓ Question: Have/Has + Subject + V3?
+
+📌 Regular verbs: V1 + ed (worked, played)
+📌 Irregular verbs: learned by heart (gone, eaten, written)
+''',
       examples: [
         GrammarExample(
           english: 'I have visited Paris three times.',
@@ -269,6 +299,11 @@ Present Perfect Continuous → Süreç/süre odaklı ("Yapıyordum")
 ➖ Olumsuz: Subject + have/has + not + been + V-ing
 ❓ Soru: Have/Has + Subject + been + V-ing?
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + have/has + been + V-ing
+➖ Negative: Subject + have/has + not + been + V-ing
+❓ Question: Have/Has + Subject + been + V-ing?
+''',
       examples: [
         GrammarExample(
           english: 'I have been studying for 3 hours.',
@@ -343,6 +378,19 @@ Past Simple, geçmişte tamamlanmış, belli bir zamanda gerçekleşmiş eylemle
 • /d/: played, cleaned (yumuşak seslerden sonra)
 • /ɪd/: wanted, needed (t veya d ile bitenlerden sonra)
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + V2 (past form)
+➖ Negative: Subject + did + not + V1
+❓ Question: Did + Subject + V1?
+
+📌 Regular verbs: V1 + ed (worked, played, studied)
+📌 Irregular verbs: learned by heart (went, ate, saw, took)
+
+⚠️ Pronouncing -ed:
+• /t/: worked, walked (after voiceless consonants)
+• /d/: played, cleaned (after voiced sounds)
+• /ɪd/: wanted, needed (after t or d)
+''',
       examples: [
         GrammarExample(
           english: 'I visited my grandmother last weekend.',
@@ -407,6 +455,11 @@ Past Continuous, geçmişte belirli bir anda devam etmekte olan eylemleri veya a
 ➖ Olumsuz: Subject + was/were + not + V-ing
 ❓ Soru: Was/Were + Subject + V-ing?
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + was/were + V-ing
+➖ Negative: Subject + was/were + not + V-ing
+❓ Question: Was/Were + Subject + V-ing?
+''',
       examples: [
         GrammarExample(
           english: 'I was sleeping when you called.',
@@ -470,6 +523,11 @@ Past Perfect, geçmişteki bir olaydan ÖNCE tamamlanmış başka bir olayı ifa
 ➕ Olumlu: Subject + had + V3
 ➖ Olumsuz: Subject + had + not + V3
 ❓ Soru: Had + Subject + V3?
+''',
+      formulaEn: '''
+➕ Affirmative: Subject + had + V3
+➖ Negative: Subject + had + not + V3
+❓ Question: Had + Subject + V3?
 ''',
       examples: [
         GrammarExample(
@@ -537,6 +595,11 @@ Past Perfect Continuous, geçmişteki bir olaydan önce başlayıp o ana kadar d
 ➖ Olumsuz: Subject + had + not + been + V-ing
 ❓ Soru: Had + Subject + been + V-ing?
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + had + been + V-ing
+➖ Negative: Subject + had + not + been + V-ing
+❓ Question: Had + Subject + been + V-ing?
+''',
       examples: [
         GrammarExample(
           english: 'I had been waiting for 2 hours when she finally arrived.',
@@ -593,6 +656,11 @@ Will, anlık kararlar, tahminler, vaatler ve kesinlik bildiren gelecek olayları
 ➕ Olumlu: Subject + will + V1
 ➖ Olumsuz: Subject + will + not (won't) + V1
 ❓ Soru: Will + Subject + V1?
+''',
+      formulaEn: '''
+➕ Affirmative: Subject + will + V1
+➖ Negative: Subject + will + not (won't) + V1
+❓ Question: Will + Subject + V1?
 ''',
       examples: [
         GrammarExample(
@@ -658,6 +726,11 @@ Be going to, önceden planlanmış niyetleri ve mevcut kanıtlara dayalı tahmin
 ➖ Olumsuz: Subject + am/is/are + not + going to + V1
 ❓ Soru: Am/Is/Are + Subject + going to + V1?
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + am/is/are + going to + V1
+➖ Negative: Subject + am/is/are + not + going to + V1
+❓ Question: Am/Is/Are + Subject + going to + V1?
+''',
       examples: [
         GrammarExample(
           english: 'I\'m going to visit my parents this weekend.',
@@ -706,6 +779,11 @@ Future Perfect, gelecekte belirli bir zamana kadar tamamlanmış olacak eylemler
 ➖ Olumsuz: Subject + will + not + have + V3
 ❓ Soru: Will + Subject + have + V3?
 ''',
+      formulaEn: '''
+➕ Affirmative: Subject + will + have + V3
+➖ Negative: Subject + will + not + have + V3
+❓ Question: Will + Subject + have + V3?
+''',
       examples: [
         GrammarExample(
           english: 'By next year, I will have graduated.',
@@ -748,6 +826,11 @@ Future Continuous, gelecekte belirli bir anda devam ediyor olacak eylemleri ifad
 ➕ Olumlu: Subject + will + be + V-ing
 ➖ Olumsuz: Subject + will + not + be + V-ing
 ❓ Soru: Will + Subject + be + V-ing?
+''',
+      formulaEn: '''
+➕ Affirmative: Subject + will + be + V-ing
+➖ Negative: Subject + will + not + be + V-ing
+❓ Question: Will + Subject + be + V-ing?
 ''',
       examples: [
         GrammarExample(

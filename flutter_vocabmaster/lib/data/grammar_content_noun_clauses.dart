@@ -45,6 +45,14 @@ NESNE: Subject + Verb + (that) + Subject + Verb
   "That she won is amazing."
   → It is amazing that she won.
 ''',
+      formulaEn: '''
+OBJECT: Subject + Verb + (that) + Subject + Verb
+  "I think (that) he is right."
+
+SUBJECT: That + S + V + is/was + Adjective/Noun
+  "That she won is amazing."
+  → It is amazing that she won.
+''',
       examples: [
         GrammarExample(
           english: 'I believe (that) she is telling the truth.',
@@ -119,6 +127,16 @@ Indirect: Subject + Verb + Wh- + Subject + Verb
   "Can you tell me where he LIVES?"
 
 ⚠️ DEVRİKLİK KALKAR!
+''',
+      formulaEn: '''
+Direct: Wh- + Auxiliary + Subject + Verb?
+  "Where DOES he live?"
+
+Indirect: Subject + Verb + Wh- + Subject + Verb
+  "I wonder where he LIVES."
+  "Can you tell me where he LIVES?"
+
+⚠️ THE INVERSION DISAPPEARS!
 ''',
       examples: [
         GrammarExample(
@@ -279,6 +297,12 @@ Subject + Verb + that + Subject + (should) + V1
 
 "I suggest that he GO." (Gitmesini öneriyorum.)
 "It is essential that she BE here." (Burada olması şart.)
+''',
+      formulaEn: '''
+Subject + Verb + that + Subject + (should) + V1
+
+"I suggest that he GO."
+"It is essential that she BE here."
 ''',
       examples: [
         GrammarExample(

@@ -3,89 +3,104 @@ import 'package:vocabmaster/data/grammar_data.dart';
 import 'package:vocabmaster/data/grammar_formula_language.dart';
 import 'package:vocabmaster/data/grammar_repository.dart';
 
-/// Which grammar formulas may be shown to a reader who has no Turkish.
+/// A Turkish formula must have an English one beside it.
 ///
-/// The classifier is Turkish letters plus a list of Turkish words that turn up
-/// in otherwise-ASCII formulas, and a list is exactly what this codebase keeps
-/// getting wrong. Two attempts at making the list check itself failed before
-/// this file settled:
+/// The formula block was the last part of the grammar guide still shown to
+/// every language as written, and forty-five of the eighty-three were written
+/// in Turkish. A Spanish reader opening Present Simple got
+/// "➕ Olumlu: Subject + V1 (he/she/it için +s/es)". They each have a
+/// `formulaEn` now.
+///
+/// The classifier behind this is Turkish letters plus a word list, and a list
+/// is exactly what this codebase keeps getting wrong. Two attempts to make it
+/// check itself both failed:
 ///
 /// The first read the Turkish half of the localisation map as a dictionary of
-/// known Turkish. Removing "Olumlu" and "Soru" from the classifier — the exact
+/// known Turkish. Deleting "Olumlu" and "Soru" from the classifier — the exact
 /// mistake it existed to catch — left it passing, because neither word appears
 /// anywhere in nine hundred interface strings.
 ///
-/// The second added the Turkish `explanation` blocks to that
-/// dictionary. Those blocks explain English grammar in Turkish, so they are
-/// full of Gerund, Infinitive, Subject, Object, Passive and Modal, and it
-/// reported eighteen perfectly English formulas as Turkish.
+/// The second added the Turkish `explanation` blocks to that dictionary. Those
+/// explain English grammar in Turkish, so they are full of Gerund, Infinitive,
+/// Subject, Object, Passive and Modal, and it reported eighteen perfectly
+/// English formulas as Turkish.
 ///
-/// So the formulas were read instead, one at a time. That reading
-/// found five the classifier had wrongly passed — NESNE in
-/// have_something_done and get_something_done, "to yok" and "opsiyonel" in
-/// let_make_help, "de/da
-/// gelebilir" in the first and second conditionals — and the words behind them
-/// are now in the list. The thirty-eight that remain were read in full and
-/// are notation: "Subject + get/got + V3", "Only + Time/Condition + Auxiliary
-/// + Subject + Verb".
+/// So the formulas were read instead, one at a time. That reading found five
+/// the classifier had wrongly passed — NESNE in have_something_done and
+/// get_something_done, "to yok" and "opsiyonel" in let_make_help, "de/da
+/// gelebilir" in the first and second conditionals — English formulas with
+/// Turkish buried in them, which no letter rule can see.
 ///
-/// Counting them also turned up `advancedClausesTopic` — three subtopics that
-/// are declared in grammar_content_advanced_clauses.dart and never listed in
+/// Counting them also turned up `advancedClausesTopic`: three subtopics
+/// declared in grammar_content_advanced_clauses.dart and never listed in
 /// GrammarRepository, so the app has never shown them. They are a coarser
-/// early version of the relative-clause, noun-clause and conjunction topics
-/// that each shipped separately, which is why the first count of the formulas
-/// said eighty-six and the app has eighty-three.
-///
-/// What is pinned below is that reading. The count is not a threshold anyone
-/// tuned; it is the number of formulas a person confirmed, on 29 August 2026,
-/// contain no Turkish. If the data changes the count changes, this fails, and
-/// the new ones want the same treatment — which is the whole of what a test
-/// can honestly promise here.
+/// early version of three topics that each shipped separately, which is why
+/// the files hold eighty-six formulas and the app has eighty-three.
 void main() {
-  /// Read individually and confirmed free of Turkish.
-  const int neutralFormulas = 38;
-
-  /// Withheld from readers of the other six languages.
-  const int turkishFormulas = 45;
-
   late List<GrammarSubtopic> subtopics;
 
   setUp(() {
     subtopics = <GrammarSubtopic>[
       for (final topic in GrammarRepository.getAllTopics()) ...topic.subtopics,
     ];
+    expect(subtopics.length, greaterThan(50),
+        reason: 'only ${subtopics.length} subtopics were found, so the checks '
+            'below are looking at almost nothing');
   });
 
-  test('the split is the one a person checked', () {
-    final int neutral = subtopics
-        .where((s) => GrammarFormulaLanguage.isLanguageNeutral(s.formula))
-        .length;
+  test('no Turkish formula reaches a reader without one in English', () {
+    final offenders = <String>[];
+    for (final GrammarSubtopic subtopic in subtopics) {
+      if (GrammarFormulaLanguage.isLanguageNeutral(subtopic.formula)) continue;
+      if (subtopic.formulaEn == null || subtopic.formulaEn!.trim().isEmpty) {
+        offenders.add('  ${subtopic.id}: "${subtopic.formula.trim()}"');
+      }
+    }
 
-    expect(subtopics.length, neutralFormulas + turkishFormulas,
-        reason: 'there are ${subtopics.length} subtopics now, not '
-            '${neutralFormulas + turkishFormulas}. The formulas of whatever '
-            'was added or removed have not been read.');
-    expect(neutral, neutralFormulas,
-        reason: '$neutral formulas are being shown to every language, and '
-            '$neutralFormulas were read and confirmed free of Turkish. '
-            'Whatever changed, read it before trusting this.');
+    expect(offenders, isEmpty,
+        reason: 'These formulas are Turkish and have no English beside them, '
+            'so the six other interface languages are shown Turkish:\n'
+            '${offenders.join('\n')}');
+  });
+
+  test('an English formula is not itself Turkish', () {
+    // The point of the exercise, and cheap to get wrong by copying the
+    // original into the new field.
+    final offenders = <String>[];
+    for (final GrammarSubtopic subtopic in subtopics) {
+      final String? english = subtopic.formulaEn;
+      if (english == null) continue;
+      if (!GrammarFormulaLanguage.isLanguageNeutral(english)) {
+        offenders.add('  ${subtopic.id}: "${english.trim()}"');
+      }
+      if (english.trim() == subtopic.formula.trim()) {
+        offenders.add('  ${subtopic.id}: the English is a copy of the Turkish');
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These carry Turkish in the field meant to be free of '
+            'it:\n${offenders.join('\n')}');
   });
 
   test('the classifier fires, and does not fire on everything', () {
-    // Both directions matter and neither is implied by the count above once
-    // the data changes: all-neutral means a Spanish reader still gets Turkish,
-    // all-Turkish means every other language quietly lost its formulas.
-    final int neutral = subtopics
-        .where((s) => GrammarFormulaLanguage.isLanguageNeutral(s.formula))
+    // Both directions matter. All-neutral means the guard above is vacuous and
+    // a Spanish reader still gets Turkish; all-Turkish means it is rejecting
+    // notation and demanding translations of "Subject + get/got + V3".
+    final int turkish = subtopics
+        .where((s) => !GrammarFormulaLanguage.isLanguageNeutral(s.formula))
         .length;
-    expect(neutral, greaterThan(20));
-    expect(subtopics.length - neutral, greaterThan(20));
+    expect(turkish, greaterThan(20),
+        reason: 'only $turkish formulas were found to be Turkish, and there '
+            'were forty-five when they were read — the classifier has gone '
+            'blind');
+    expect(subtopics.length - turkish, greaterThan(20),
+        reason: 'almost every formula is being called Turkish, so the '
+            'classifier is firing on English notation');
   });
 
-  test('the five that were nearly missed stay classified as Turkish', () {
-    // Named, because these are the evidence that reading beat the rule. Each
-    // is an English formula with one or two Turkish words buried in it, which
-    // is the shape a letter-based check cannot see.
+  test('the five that were nearly missed are still caught', () {
+    // Named, because they are the evidence that reading beat the rule.
     const nearlyMissed = <String>[
       'have_something_done',
       'get_something_done',
@@ -100,16 +115,28 @@ void main() {
         fail('$id is gone; it was one of the five, so check what replaced it');
       });
       expect(GrammarFormulaLanguage.isLanguageNeutral(subtopic.formula), isFalse,
-          reason: '$id holds Turkish inside an English formula and is being '
-              'shown to readers who cannot read it: "${subtopic.formula}"');
+          reason: '$id holds Turkish inside an English formula and would be '
+              'shown as written: "${subtopic.formula}"');
+      expect(subtopic.formulaEn, isNotNull);
     }
   });
 
-  test('Turkish readers keep every formula', () {
+  test('Turkish readers keep the Turkish formula', () {
     for (final GrammarSubtopic subtopic in subtopics) {
-      expect(GrammarFormulaLanguage.showTo('tr', subtopic.formula), isTrue,
-          reason: '${subtopic.id} was withheld from a Turkish reader, who is '
-              'who this data was written for');
+      expect(subtopic.formulaFor('tr'), subtopic.formula,
+          reason: '${subtopic.id} showed a Turkish reader something other '
+              'than the formula written for them');
+    }
+  });
+
+  test('every other language gets English where there is Turkish', () {
+    const others = <String>['en', 'de', 'es', 'pt', 'it', 'fr'];
+    for (final GrammarSubtopic subtopic in subtopics) {
+      for (final String code in others) {
+        final String shown = subtopic.formulaFor(code);
+        expect(GrammarFormulaLanguage.isLanguageNeutral(shown), isTrue,
+            reason: '${subtopic.id} shows a $code reader Turkish: "$shown"');
+      }
     }
   });
 }

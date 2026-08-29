@@ -49,6 +49,14 @@ IN + ay, mevsim, yıl, yüzyıl, günün bölümü
 ⚠️ AT night (tek istisna!)
 ⚠️ ON Monday morning (gün + part)
 ''',
+      formulaEn: '''
+AT + clock time, moments, night
+ON + days, dates
+IN + months, seasons, years, centuries, parts of the day
+
+⚠️ AT night (the one exception)
+⚠️ ON Monday morning (day + part)
+''',
       examples: [
         GrammarExample(
           english: 'The meeting is at 3 PM.',
@@ -123,6 +131,11 @@ Konum ve yer ifadelerinde kullanılan edatlardır.
 AT + nokta, adres numarası, etkinlik
 ON + yüzey, büyük taşıt, cadde ismi
 IN + kapalı alan, şehir, ülke, küçük taşıt
+''',
+      formulaEn: '''
+AT + a point, a street number, an event
+ON + a surface, large vehicles, street names
+IN + enclosed spaces, cities, countries, small vehicles
 ''',
       examples: [
         GrammarExample(

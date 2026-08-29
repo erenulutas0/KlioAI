@@ -299,6 +299,14 @@ Not only + did/had/was + S + V...
 
 So + adj + Aux + S + that...
 ''',
+      formulaEn: '''
+So + Aux + S (agreeing)
+Neither/Nor + Aux + S (agreeing with a negative)
+
+Not only + did/had/was + S + V...
+
+So + adj + Aux + S + that...
+''',
       examples: [
         GrammarExample(
           english: '"I love coffee." - "So do I."',

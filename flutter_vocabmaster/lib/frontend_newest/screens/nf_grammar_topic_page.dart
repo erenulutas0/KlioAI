@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../data/grammar_data.dart';
-import '../../data/grammar_formula_language.dart';
 import '../../l10n/app_localizations.dart';
 import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
@@ -284,46 +283,42 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                         height: 1.6,
                       ),
                     ),
-                    // Forty-one of the eighty-six formulas are written in
-                    // Turkish -- "Olumlu: Subject + V1 (he/she/it icin
-                    // +s/es)". The screen already withholds the Turkish
-                    // explanation, the key points, the mistakes and the exam
-                    // tip from readers of other languages; the formula was
-                    // assumed to be notation and was not. See
-                    // GrammarFormulaLanguage.
-                    if (GrammarFormulaLanguage.showTo(
-                        Localizations.localeOf(context).languageCode,
-                        subtopic.formula)) ...<Widget>[
-                      const SizedBox(height: NfSpace.s18),
-                      _buildSectionHeader(
-                        t,
-                        context.tr('grammar.section.formula'),
-                        Icons.functions_rounded,
+                    const SizedBox(height: NfSpace.s18),
+                    _buildSectionHeader(
+                      t,
+                      context.tr('grammar.section.formula'),
+                      Icons.functions_rounded,
+                    ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(NfSpace.s12),
+                      decoration: BoxDecoration(
+                        color: t.raised,
+                        borderRadius: NfRadius.tileAll,
+                        border: Border.fromBorderSide(t.side),
                       ),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(NfSpace.s12),
-                        decoration: BoxDecoration(
-                          color: t.raised,
-                          borderRadius: NfRadius.tileAll,
-                          border: Border.fromBorderSide(t.side),
+                      child: Text(
+                        // Forty-five of the eighty-three formulas were
+                        // written in Turkish -- "Olumlu: Subject + V1
+                        // (he/she/it icin +s/es)" -- and were shown to
+                        // every language exactly as written. Each has
+                        // an English twin now, and formulaFor picks.
+                        subtopic.formulaFor(
+                          Localizations.localeOf(context).languageCode,
                         ),
-                        child: Text(
-                          subtopic.formula,
-                          // The legacy screen set this in monospace; this
-                          // frontend has exactly two faces (Fredoka / Nunito),
-                          // so the block reads as "structure" through its raised
-                          // tile and brand-coloured emphasis instead of a third
-                          // font.
-                          style: NfTokens.body(
-                            size: NfFont.s135,
-                            weight: NfTokens.bodyEmphasisWeight,
-                            color: t.primaryText,
-                            height: 1.6,
-                          ),
+                        // The legacy screen set this in monospace; this
+                        // frontend has exactly two faces (Fredoka / Nunito),
+                        // so the block reads as "structure" through its raised
+                        // tile and brand-coloured emphasis instead of a third
+                        // font.
+                        style: NfTokens.body(
+                          size: NfFont.s135,
+                          weight: NfTokens.bodyEmphasisWeight,
+                          color: t.primaryText,
+                          height: 1.6,
                         ),
                       ),
-                    ],
+                    ),
                     if (_isTurkish &&
                         subtopic.keyPoints != null &&
                         subtopic.keyPoints!.isNotEmpty) ...<Widget>[

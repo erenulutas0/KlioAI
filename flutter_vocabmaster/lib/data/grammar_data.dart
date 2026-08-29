@@ -28,11 +28,34 @@ class GrammarSubtopic {
   final String titleTr;
   final String explanation; // Türkçe açıklama
   final String formula; // Yapı/formül
+
+  /// The same formula written in English, for the six interface languages
+  /// that are not Turkish.
+  ///
+  /// [formula] is Turkish data — forty-five of the eighty-three carry Turkish
+  /// words, from "Olumlu / Olumsuz / Soru" as labels to whole rule lines like
+  /// "Sessiz harf + y: y→ies". Those were shown to Spanish, Portuguese,
+  /// Italian, French, German and English readers exactly as written.
+  ///
+  /// Null where the formula is already notation any learner can read
+  /// ("Subject + get/got + V3"). `grammar_formula_language_test` fails on a
+  /// Turkish formula that has no English beside it, so a new subtopic cannot
+  /// quietly reintroduce the problem.
+  final String? formulaEn;
   final List<GrammarExample> examples;
   final List<String> commonMistakes;
   final String? examTip;
   final String? comparison; // Karışabilecek konularla karşılaştırma
   final List<String>? keyPoints; // Can alıcı noktalar
+
+  /// The formula to put in front of a reader of [languageCode].
+  ///
+  /// Turkish readers get the Turkish one, which is what this data was written
+  /// as. Everyone else gets the English one when there is one, and the
+  /// original when there is not — which happens only where the original is
+  /// already language-neutral notation.
+  String formulaFor(String languageCode) =>
+      languageCode == 'tr' ? formula : (formulaEn ?? formula);
 
   const GrammarSubtopic({
     required this.id,
@@ -40,6 +63,7 @@ class GrammarSubtopic {
     required this.titleTr,
     required this.explanation,
     required this.formula,
+    this.formulaEn,
     required this.examples,
     this.commonMistakes = const [],
     this.examTip,

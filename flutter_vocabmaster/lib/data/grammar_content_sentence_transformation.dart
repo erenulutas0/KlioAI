@@ -177,6 +177,12 @@ If + condition → Provided that / As long as
 If it hadn't been for → But for / Without
 If clause → Devrik yapı (Had I, Were I, Should you)
 ''',
+      formulaEn: '''
+If + not → Unless
+If + condition → Provided that / As long as
+If it hadn't been for → But for / Without
+If clause → inversion (Had I, Were I, Should you)
+''',
       examples: [
         GrammarExample(
           english: 'If you don\'t call, I won\'t come.\n= Unless you call, I won\'t come.',

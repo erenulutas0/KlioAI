@@ -107,6 +107,12 @@ Let + Object + V1
 Make + Object + V1
 It's time + V1 (değil!) -> It's time to V1
 ''',
+      formulaEn: '''
+Subject + Modal + V1 (no "to")
+Let + Object + V1
+Make + Object + V1
+It's time + to V1 (not the bare form)
+''',
       examples: [
         GrammarExample(
           english: 'She can swim well.',

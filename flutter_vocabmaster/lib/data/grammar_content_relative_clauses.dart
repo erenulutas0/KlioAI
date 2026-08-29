@@ -40,6 +40,12 @@ Non-Defining: My father, WHO is 60, retired.
 
 ⚠️ VİRGÜL = NON-DEFINING = NO "THAT"
 ''',
+      formulaEn: '''
+Defining: The man WHO/THAT lives here is my uncle.
+Non-Defining: My father, WHO is 60, retired.
+
+⚠️ COMMA = NON-DEFINING = NO "THAT"
+''',
       examples: [
         GrammarExample(
           english: 'The students who studied passed the exam.',

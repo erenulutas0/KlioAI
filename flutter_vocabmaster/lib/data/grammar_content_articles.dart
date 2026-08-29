@@ -42,6 +42,12 @@ A/AN + Sayılabilir Tekil İsim
 a + ünsüz SES: a book, a university
 an + ünlü SES: an apple, an hour
 ''',
+      formulaEn: '''
+A/AN + Singular Countable Noun
+
+a + consonant SOUND: a book, a university
+an + vowel SOUND: an apple, an hour
+''',
       examples: [
         GrammarExample(
           english: 'She is a university student.',
@@ -123,6 +129,12 @@ the University of Oxford, the Bank of England
 ''',
       formula: '''
 THE + Belirli/Bilinen İsim
+
+"I bought a book. THE book was expensive."
+"THE sun rises in the east."
+''',
+      formulaEn: '''
+THE + a specific or already-known noun
 
 "I bought a book. THE book was expensive."
 "THE sun rises in the east."
@@ -210,6 +222,14 @@ Bazı durumlarda hiçbir tanımlık (a/an/the) kullanılmaz.
       formula: '''
 Ø (Zero Article) + Genel isim
 Ø + Dil, ülke, öğün, spor
+
+"Life is short."
+"I love music."
+"She speaks Japanese."
+''',
+      formulaEn: '''
+Ø (Zero Article) + a noun in general
+Ø + languages, countries, meals, sports
 
 "Life is short."
 "I love music."

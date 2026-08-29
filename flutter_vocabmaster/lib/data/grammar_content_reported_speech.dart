@@ -210,6 +210,13 @@ Olumsuz: told/asked + object + NOT to + V1
 "Study hard!" → She told me to study hard.
 "Don't go!" → He told me not to go.
 ''',
+      formulaEn: '''
+Affirmative: told/asked + object + to + V1
+Negative: told/asked + object + NOT to + V1
+
+"Study hard!" → She told me to study hard.
+"Don't go!" → He told me not to go.
+''',
       examples: [
         GrammarExample(
           english: '"Sit down!" the teacher said.',

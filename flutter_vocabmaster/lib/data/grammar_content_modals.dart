@@ -81,6 +81,12 @@ Have to / Has to + V1
 Don't have to / Doesn't have to + V1 (Zorunda değil)
 Mustn't + V1 (Yasak!)
 ''',
+      formulaEn: '''
+Must + V1
+Have to / Has to + V1
+Don't have to / Doesn't have to + V1 (not required)
+Mustn't + V1 (forbidden)
+''',
       examples: [
         GrammarExample(
           english: 'I must call my mother.',
@@ -185,6 +191,11 @@ Olasılık ve ihtimal bildirmek için kullanılır. "Belki olur", "olabilir" anl
 Subject + may/might/could + V1
 Subject + must + be (Öyle olmalı)
 Subject + can't + be (Öyle olamaz)
+''',
+      formulaEn: '''
+Subject + may/might/could + V1
+Subject + must + be (it must be so)
+Subject + can't + be (it cannot be so)
 ''',
       examples: [
         GrammarExample(

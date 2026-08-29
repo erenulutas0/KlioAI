@@ -34,6 +34,17 @@ Zamanlara göre "Be" çekimi:
 • Continuous: being + V3
 • Perfect: been + V3
 ''',
+      formulaEn: '''
+Active: Subject + Verb + Object
+Passive: Object + Be + V3 (+ by Subject)
+
+"Be" by tense:
+• Present Simple: am/is/are + V3
+• Past Simple: was/were + V3
+• Future (will): will be + V3
+• Continuous: being + V3
+• Perfect: been + V3
+''',
       examples: [
         GrammarExample(
           english: 'English is spoken all over the world.',

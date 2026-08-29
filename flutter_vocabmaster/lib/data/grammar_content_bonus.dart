@@ -53,6 +53,11 @@ Türkçe düşünmekten kaynaklanan en yaygın fiil hataları.
 ✓ Does/Did + V1 (yardımcı varken yalın fiil)
 ✓ Modal + V1 (to yok, -s yok)
 ''',
+      formulaEn: '''
+✓ S/he + V-s (Present Simple)
+✓ Does/Did + V1 (bare verb after an auxiliary)
+✓ Modal + V1 (no "to", no -s)
+''',
       examples: [
         GrammarExample(
           english: 'She don\'t like coffee.',
@@ -120,6 +125,11 @@ Bu fiiller doğrudan nesne alır, edat gerekmez!
 ❌ Yanlış edat: married WITH, afraid FROM
 ❌ Eksik edat: listen him, wait you
 ''',
+      formulaEn: '''
+❌ Preposition not needed: discuss ABOUT, reach TO
+❌ Wrong preposition: married WITH, afraid FROM
+❌ Preposition missing: listen him, wait you
+''',
       examples: [
         GrammarExample(
           english: 'She is married with a doctor.',
@@ -185,6 +195,11 @@ Nesne fiilden hemen sonra gelir, araya giremez.
 ''',
       formula: '''
 S + V + O (Özne-Yüklem-Nesne sabit!)
+Freq. Adverb: Subject + BE + always / Subject + always + V
+Adjective + enough (not: enough + adj)
+''',
+      formulaEn: '''
+S + V + O (subject-verb-object is fixed)
 Freq. Adverb: Subject + BE + always / Subject + always + V
 Adjective + enough (not: enough + adj)
 ''',
@@ -256,6 +271,13 @@ Türkçe'de tanımlık olmadığı için bu konuda hatalar sık yapılır.
 ❌ The + dil (English, Turkish)
 ❌ A/An + sayılamaz (information, advice)
 ✓ The + tek olan (the sun, the moon)
+✓ The + superlative (the best, the first)
+''',
+      formulaEn: '''
+❌ The + a general idea (life, love, money)
+❌ The + a language (English, Turkish)
+❌ A/An + uncountable (information, advice)
+✓ The + one of a kind (the sun, the moon)
 ✓ The + superlative (the best, the first)
 ''',
       examples: [
@@ -522,6 +544,14 @@ V-ing + and + V-ing
 To V + and + To V
 Adj + and + Adj
 ''',
+      formulaEn: '''
+X and/or Y → X and Y take the same structure
+
+Noun + and + Noun
+V-ing + and + V-ing
+To V + and + To V
+Adj + and + Adj
+''',
       examples: [
         GrammarExample(
           english: 'She enjoys reading, writing, and painting.',
@@ -581,6 +611,12 @@ Adj + and + Adj
 ''',
       formula: '''
 Both X and Y → X = Y (aynı yapı)
+Either X or Y → X = Y
+Neither X nor Y → X = Y
+Not only X but also Y → X = Y
+''',
+      formulaEn: '''
+Both X and Y → X = Y (same structure)
 Either X or Y → X = Y
 Neither X nor Y → X = Y
 Not only X but also Y → X = Y
@@ -648,6 +684,11 @@ Elmaları elmalarla, portakalları portakallarla karşılaştır!
 X...than X (aynı kategori)
 X...than that of Y (tekil)
 X...than those of Y (çoğul)
+''',
+      formulaEn: '''
+X...than X (the same category)
+X...than that of Y (singular)
+X...than those of Y (plural)
 ''',
       examples: [
         GrammarExample(

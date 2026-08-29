@@ -130,6 +130,14 @@ Olumsuz: not as/so + adj + as
 "He is not as smart as his sister."
 "This is twice as expensive as that."
 ''',
+      formulaEn: '''
+Affirmative: as + adj + as
+Negative: not as/so + adj + as
+
+"He is as smart as his sister."
+"He is not as smart as his sister."
+"This is twice as expensive as that."
+''',
       examples: [
         GrammarExample(
           english: 'This test is not as difficult as the last one.',

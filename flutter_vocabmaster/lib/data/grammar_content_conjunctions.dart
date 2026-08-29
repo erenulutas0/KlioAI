@@ -129,6 +129,13 @@ Main Clause + Subordinate Clause (virgül yok)
 "Because I was late, I missed the bus."
 "I missed the bus because I was late."
 ''',
+      formulaEn: '''
+Subordinate Clause + Main Clause (comma)
+Main Clause + Subordinate Clause (no comma)
+
+"Because I was late, I missed the bus."
+"I missed the bus because I was late."
+''',
       examples: [
         GrammarExample(
           english: 'I\'ll wait here until you come back.',
@@ -210,6 +217,14 @@ Neither + X + nor + X
 Not only + X + but also + X
 
 ⚠️ X = aynı yapı (noun-noun, verb-verb, adj-adj)
+''',
+      formulaEn: '''
+Both + X + and + X
+Either + X + or + X
+Neither + X + nor + X
+Not only + X + but also + X
+
+⚠️ X = the same structure (noun-noun, verb-verb, adj-adj)
 ''',
       examples: [
         GrammarExample(

@@ -42,6 +42,13 @@ Present: I have my hair cut.
 Past: I had my hair cut.
 Future: I will have my hair cut.
 ''',
+      formulaEn: '''
+HAVE + THING + V3 (Past Participle)
+
+Present: I have my hair cut.
+Past: I had my hair cut.
+Future: I will have my hair cut.
+''',
       examples: [
         GrammarExample(
           english: 'I had my car repaired yesterday.',
@@ -108,6 +115,13 @@ HAVE + KİŞİ + V1 (Yalın fiil)
   "I had the doctor examine me."
 
 GET + KİŞİ + TO + V1
+  "I got Mary to help me."
+''',
+      formulaEn: '''
+HAVE + PERSON + V1 (bare infinitive)
+  "I had the doctor examine me."
+
+GET + PERSON + TO + V1
   "I got Mary to help me."
 ''',
       examples: [
@@ -193,6 +207,14 @@ HELP + object + (to) V1 (opsiyonel)
 Passive MAKE:
   was/were made + TO + V1
 ''',
+      formulaEn: '''
+LET + object + V1 (no "to")
+MAKE + object + V1 (no "to")
+HELP + object + (to) V1 (optional)
+
+Passive MAKE:
+  was/were made + TO + V1
+''',
       examples: [
         GrammarExample(
           english: 'The boss let us leave early.',
@@ -262,6 +284,12 @@ Passive MAKE:
 ''',
       formula: '''
 GET + NESNE + V3
+
+"I got my hair cut."
+"We need to get this problem solved."
+''',
+      formulaEn: '''
+GET + THING + V3
 
 "I got my hair cut."
 "We need to get this problem solved."

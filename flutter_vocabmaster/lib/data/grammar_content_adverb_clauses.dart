@@ -44,6 +44,14 @@ Main Clause + Time Clause
 "When I finish, I will call you."
 "I will call you when I finish."
 ''',
+      formulaEn: '''
+Time Clause + Main Clause
+Main Clause + Time Clause
+
+⚠️ No "will" inside the time clause!
+"When I finish, I will call you."
+"I will call you when I finish."
+''',
       examples: [
         GrammarExample(
           english: 'When I get home, I will have dinner.',

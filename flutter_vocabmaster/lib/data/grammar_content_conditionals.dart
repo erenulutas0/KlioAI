@@ -67,6 +67,10 @@ Gelecekte olması muhtemel olaylar için kullanılır.
 If + Present Simple, Will + V1
 (Can/May/Should/Imperative de gelebilir)
 ''',
+      formulaEn: '''
+If + Present Simple, Will + V1
+(Can/May/Should/Imperative are also possible)
+''',
       examples: [
         GrammarExample(
           english: 'If it rains tomorrow, we will stay at home.',
@@ -110,6 +114,10 @@ If + Present Simple, Will + V1
       formula: '''
 If + Past Simple, Would + V1
 (Could/Might da gelebilir)
+''',
+      formulaEn: '''
+If + Past Simple, Would + V1
+(Could/Might are also possible)
 ''',
       examples: [
         GrammarExample(
