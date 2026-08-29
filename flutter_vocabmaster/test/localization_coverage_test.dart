@@ -620,4 +620,63 @@ void main() {
             'word, or add it to `legitimate` if the pair really belongs to '
             'it:\n${offenders.join('\n')}');
   });
+
+  test('every locale keeps the placeholders its English original has', () {
+    // A translation that loses its {n} produces a sentence with the number
+    // missing — "Review words" where "Review 7 words" was meant — and every
+    // other guard in this file passes it: the key is present, the value is a
+    // string, nothing is empty. With four locales translated in one evening
+    // and no native reader for any of them, this is the failure most likely
+    // to have happened and least likely to be noticed.
+    //
+    // Reads both quote styles. `login.noAccount` is written with double
+    // quotes because its English carries an apostrophe, and a single-quote
+    // scanner skips it in silence — which is how 103 wrapped entries went
+    // unread by the spelling checks, and how the first draft of this test
+    // reported 888 of 889 as clean.
+    final entry = RegExp(
+        r"""^\s+'([^']+)':\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")""",
+        multiLine: true);
+    final placeholder = RegExp(r'\{[a-zA-Z]+\}');
+
+    Map<String, String> valuesFor(String language) {
+      final block = RegExp("^    '$language': " + r"\{(.*?)^    \},",
+              multiLine: true, dotAll: true)
+          .firstMatch(source);
+      expect(block, isNotNull, reason: 'no translation block for $language');
+      final values = <String, String>{};
+      for (final m in entry.allMatches(block!.group(1)!)) {
+        values[m.group(1)!] = m.group(2) ?? m.group(3) ?? '';
+      }
+      // Every key, not most of them. A scanner that quietly skips the entries
+      // it cannot parse reports the ones it could read as the whole corpus.
+      final unread = keysFor(language).difference(values.keys.toSet());
+      expect(unread, isEmpty,
+          reason: 'these $language values are shaped in a way this scanner '
+              'cannot read, so nothing below checked them: $unread');
+      return values;
+    }
+
+    final english = valuesFor('en');
+    final offenders = <String>[];
+    for (final locale in AppLocalizations.supportedLocales) {
+      if (locale.languageCode == 'en') continue;
+      final values = valuesFor(locale.languageCode);
+      for (final MapEntry<String, String> e in english.entries) {
+        final want = placeholder.allMatches(e.value).map((m) => m[0]!).toSet();
+        final got =
+            placeholder.allMatches(values[e.key] ?? '').map((m) => m[0]!).toSet();
+        if (want.difference(got).isNotEmpty || got.difference(want).isNotEmpty) {
+          offenders.add('  ${locale.languageCode}  ${e.key}\n'
+              '      en: ${e.value}\n'
+              '      ${locale.languageCode}: ${values[e.key]}');
+        }
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These carry different placeholders from their English '
+            'original, so the value they stand for goes missing or a raw '
+            '{brace} reaches the screen:\n${offenders.join('\n')}');
+  });
 }
