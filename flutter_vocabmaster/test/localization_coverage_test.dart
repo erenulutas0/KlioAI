@@ -553,4 +553,71 @@ void main() {
             'if it is a borrowing:\n${offenders.join('\n')}');
   });
 
+  test('German spells its umlauts, not their ASCII stand-ins', () {
+    // German is the third interface language and its block was written half
+    // one way and half the other: "Woerter" beside "Wörter", "fuer" beside
+    // "für", "zurueck" beside "zurück", "Menue" beside a menu. Thirty-one
+    // words appeared in the same file spelled both ways at once. To a German
+    // reader "Woerter" reads exactly the way "Turkce" reads to a Turkish one.
+    //
+    // The Turkish guards can ask the file about itself because stripping a
+    // diacritic leaves the letters in place. German expands: ä becomes ae, ß
+    // becomes ss. That expansion collides with ordinary words -- neue,
+    // zuerst, dasselbe, Aussprache, Flussufer, Kontoeinstellungen -- so a
+    // rewrite rule cannot be trusted and neither can a bare "contains ue".
+    //
+    // So the small side is enumerated instead: the words that legitimately
+    // carry one of those pairs. That list is bounded by the vocabulary this
+    // app actually uses, a false positive costs one line, and the failure it
+    // is here to prevent -- a transliteration nobody notices -- cannot pass.
+    final block = RegExp("^    'de': " + r"\{(.*?)^    \},",
+            multiLine: true, dotAll: true)
+        .firstMatch(source);
+    expect(block, isNotNull, reason: 'the German block is gone');
+
+    // ae, oe, ue and ss all belong to these words. Everything else that holds
+    // one is an umlaut or an eszett someone typed out.
+    const legitimate = <String>{
+      'abgeschlossen', 'aktivitätsstatus', 'aktuelle', 'anpassen',
+      'assistenten', 'ausgangssprache', 'aussprache', 'aussprachetraining',
+      'aussprechen', 'dasselbe', 'erfasst', 'flüssiger', 'flüssigkeit',
+      'flussufer', 'fokussieren', 'fokussiert', 'gesprächsfluss', 'gewusst',
+      'kontoeinstellungen', 'lassen', 'lässt', 'loslassen', 'manuell',
+      'modellaussprache', 'neue', 'neuer', 'neues', 'passen', 'passend',
+      'passenden', 'passt', 'passwort', 'passwörter', 'professionelle',
+      'schreibassistent', 'sprechassistenten', 'tagesserie', 'tagesset',
+      'tagessitzung', 'übersetzungsset', 'übungssprache', 'verbessere',
+      'verbessern', 'verbessert', 'vergessen', 'vergisst', 'verpasst',
+      'visuellen', 'wissen', 'wochenzusammenfassung', 'zuerst',
+    };
+
+    final entry =
+        RegExp(r"^\s+'([^']+)':\s*'([^']*)'", multiLine: true, dotAll: true);
+    final splitter = RegExp(r'[^A-Za-zäöüÄÖÜß]+');
+    final digraph = RegExp('ae|oe|ue|ss');
+
+    var read = 0;
+    final offenders = <String>{};
+    for (final m in entry.allMatches(block!.group(1)!)) {
+      for (final token in m.group(2)!.split(splitter)) {
+        if (token.isEmpty) continue;
+        read++;
+        final word = token.toLowerCase();
+        if (!digraph.hasMatch(word)) continue;
+        if (legitimate.contains(word)) continue;
+        offenders.add('  $word   (${m.group(1)})');
+      }
+    }
+
+    // A count, because a regex that reads nothing passes every check made of
+    // what it read. The German block carries roughly six thousand words.
+    expect(read, greaterThan(3000),
+        reason: 'the scanner read $read words out of the German block, which '
+            'is far too few — it is measuring nothing');
+
+    expect(offenders, isEmpty,
+        reason: 'These write out an umlaut or an eszett in ASCII. Fix the '
+            'word, or add it to `legitimate` if the pair really belongs to '
+            'it:\n${offenders.join('\n')}');
+  });
 }
