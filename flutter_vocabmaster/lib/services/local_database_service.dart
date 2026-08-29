@@ -39,7 +39,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       singleInstance: !isTest,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -83,7 +83,8 @@ class LocalDatabaseService {
         lastReviewDate TEXT,
         syncStatus TEXT DEFAULT 'synced',
         createdAt TEXT NOT NULL,
-        languageProfileId INTEGER
+        languageProfileId INTEGER,
+        origin TEXT
       )
     ''');
 
@@ -181,6 +182,14 @@ class LocalDatabaseService {
           "ALTER TABLE sync_queue ADD COLUMN lastTriedAt TEXT");
       await _ensureColumnExists(db, 'sync_queue', 'nextRetryAt',
           "ALTER TABLE sync_queue ADD COLUMN nextRetryAt TEXT");
+    }
+    if (oldVersion < 6) {
+      // Where a word came from: the reader, the daily set, or typed in by
+      // hand. NULL for every row that predates this, which is every word the
+      // one live install has — they group as "unknown" rather than being
+      // silently filed under whichever source happens to be first.
+      await _ensureColumnExists(
+          db, 'words', 'origin', "ALTER TABLE words ADD COLUMN origin TEXT");
     }
     if (oldVersion < 5) {
       // Left NULL for rows that predate language profiles. `getAllWords` reads
@@ -342,6 +351,7 @@ class LocalDatabaseService {
         // profile it was filtered by and be written back as NULL on the next
         // save - undoing the stamp on every round trip.
         languageProfileId: _toNullableInt(wordMap['languageProfileId']),
+        origin: wordMap['origin'] as String?,
         sentences: sentences
             .map((s) => Sentence(
                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,
@@ -408,6 +418,7 @@ class LocalDatabaseService {
           'createdAt':
               preservedWordCreatedAt ?? DateTime.now().toIso8601String(),
           'languageProfileId': word.languageProfileId,
+          'origin': word.origin,
         },
         conflictAlgorithm: ConflictAlgorithm.replace);
 
@@ -532,6 +543,8 @@ class LocalDatabaseService {
             // DEFAULT, so every bulk sync reset every word's profile to NULL.
             // The filter in getAllWords could never have matched anything.
             'languageProfileId': word.languageProfileId,
+            'origin': word.origin,
+
             'createdAt': existingWordCreatedAts[word.id] ??
                 DateTime.now().toIso8601String(),
           },
@@ -1525,6 +1538,7 @@ class LocalDatabaseService {
         // Read here too. A word rebuilt without its stamp and written back by
         // any later save would launder the profile off it.
         languageProfileId: _toNullableInt(wordMap['languageProfileId']),
+        origin: wordMap['origin'] as String?,
         sentences: sentences
             .map((s) => Sentence(
                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,

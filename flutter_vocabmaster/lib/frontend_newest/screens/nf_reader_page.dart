@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/book.dart';
 import '../../models/word.dart';
+import '../../models/word_origins.dart';
 import '../../services/ai_error_message_formatter.dart';
 import '../../services/ai_paywall_handler.dart';
 import '../../services/api_service.dart';
@@ -825,6 +826,11 @@ class ReaderWordSheetState extends State<ReaderWordSheet> {
         english: widget.word,
         turkish: meaning,
         addedDate: DateTime.now(),
+        // Where this word came from, said rather than guessed. The server has
+        // only ever inferred provenance — daily words if the meaning carries a
+        // star, everything else "manual" — so a word tapped out of a novel has
+        // been filed identically to one typed into the dictionary box.
+        origin: WordOrigins.reader,
       );
       // The sentence is the point of learning a word here: a word kept with the
       // line it came from has somewhere to be reviewed. It is attached whether

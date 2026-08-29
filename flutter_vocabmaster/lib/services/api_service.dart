@@ -381,6 +381,7 @@ class ApiService {
     required DateTime addedDate,
     String difficulty = 'easy',
     List<Map<String, dynamic>>? meanings,
+    String? origin,
   }) async {
     try {
       final url = await baseUrl;
@@ -396,6 +397,11 @@ class ApiService {
             'learnedDate': addedDate.toIso8601String().split('T')[0],
             'notes': '',
             'difficulty': difficulty,
+            // Sent only when the caller knows. The server fills it in from the
+            // meaning text otherwise (WordService, WordOrigin.hasDailyWordsMarker)
+            // and keeps whatever it is given, so an omitted origin is the old
+            // behaviour exactly.
+            if (origin != null && origin.isNotEmpty) 'origin': origin,
             if (cleanedMeanings.isNotEmpty) 'meanings': cleanedMeanings,
           }),
         ),

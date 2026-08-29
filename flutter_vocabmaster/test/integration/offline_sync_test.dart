@@ -18,6 +18,7 @@ class ManualMockApiService extends Mock implements ApiService {
     required DateTime addedDate,
     String difficulty = 'easy',
     List<Map<String, dynamic>>? meanings,
+    String? origin,
   }) =>
       super.noSuchMethod(
         Invocation.method(#createWord, [], {

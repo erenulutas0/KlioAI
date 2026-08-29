@@ -507,6 +507,9 @@ class AppLocalizations {
           'Your library is empty — today\'s words are the place to start.',
       'practice.dailyBody':
           'Today\'s words and everything due for review, in one go.',
+      'words.origin.reader': 'From books',
+      'words.origin.dailyWords': 'Daily words',
+      'words.origin.manual': 'Added by you',
       'words.maturity.fresh': 'New',
       'words.maturity.learning': 'Learning',
       'words.maturity.known': 'Known',
@@ -1502,6 +1505,9 @@ class AppLocalizations {
           'Kitaplığın boş — başlamak için bugünün kelimeleri var.',
       'practice.dailyBody':
           'Bugünün kelimeleri ve tekrar zamanı gelenler, tek seferde.',
+      'words.origin.reader': 'Kitaplardan',
+      'words.origin.dailyWords': 'Günün kelimeleri',
+      'words.origin.manual': 'Senin eklediklerin',
       'words.maturity.fresh': 'Yeni',
       'words.maturity.learning': 'Öğrenilen',
       'words.maturity.known': 'Bilinen',
@@ -2491,6 +2497,9 @@ class AppLocalizations {
       'practice.emptyBody':
           'Deine Sammlung ist leer — beginne mit den heutigen Wörtern.',
       'practice.dailyBody': 'Die heutigen Wörter und alles Fällige auf einmal.',
+      'words.origin.reader': 'Aus Büchern',
+      'words.origin.dailyWords': 'Tageswörter',
+      'words.origin.manual': 'Selbst hinzugefügt',
       'words.maturity.fresh': 'Neu',
       'words.maturity.learning': 'Lernphase',
       'words.maturity.known': 'Beherrscht',

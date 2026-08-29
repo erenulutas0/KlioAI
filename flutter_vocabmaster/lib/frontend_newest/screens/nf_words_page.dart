@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/word.dart';
 import '../../models/word_maturity.dart';
+import '../../models/word_origins.dart';
 import '../../providers/app_state_provider.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
@@ -715,6 +716,7 @@ class _WordRow extends StatelessWidget {
     // `displayMeaning` drops the star that marks a Daily Words import; the raw
     // field carries provenance, not something to read.
     final String meaning = word.displayMeaning;
+    final String? originKey = WordOrigins.labelKeyFor(word.origin);
 
     return NfCard(
       onTap: onTap,
@@ -753,6 +755,29 @@ class _WordRow extends StatelessWidget {
                     ],
                   ],
                 ),
+                if (originKey != null) ...<Widget>[
+                  const SizedBox(height: NfSpace.s6),
+                  // Where this word came from, when the app knows. A word
+                  // tapped out of a novel and one typed into the dictionary box
+                  // used to look identical in this list, and the book is
+                  // usually the reason the learner remembers saving it.
+                  //
+                  // Absent, not "unknown", for the words saved before any of
+                  // this was recorded: a guess presented as a fact reads worse
+                  // than an honest gap.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.sell_outlined, size: 12, color: t.inkFaint),
+                      const SizedBox(width: NfSpace.s4),
+                      Text(
+                        context.tr(originKey),
+                        style:
+                            NfTokens.body(size: NfFont.s12, color: t.inkFaint),
+                      ),
+                    ],
+                  ),
+                ],
                 if (meaning.isNotEmpty) ...<Widget>[
                   const SizedBox(height: NfSpace.s4),
                   Text(
