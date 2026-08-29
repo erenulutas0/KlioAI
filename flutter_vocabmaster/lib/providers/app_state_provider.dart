@@ -330,7 +330,8 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> _loadWordsFromLocal() async {
     _isLoadingWords = true;
     try {
-      final words = await _offlineSyncService.getLocalWords();
+      final words = await _offlineSyncService.getLocalWords(
+          languageProfileId: activeProfile?.id);
       words.sort((a, b) => b.learnedDate.compareTo(a.learnedDate));
       _allWords = words;
       _isLoadingWords = false;
@@ -896,7 +897,11 @@ class AppStateProvider extends ChangeNotifier {
     // İlk açılışta liste boşsa spinner gösterme, direkt yükle
 
     try {
-      final words = await _offlineSyncService.getAllWords();
+      // The active profile if one has loaded, and every word if not. Null is
+      // the normal state on a cold start, because profiles arrive over the
+      // network after this runs.
+      final words = await _offlineSyncService.getAllWords(
+          languageProfileId: activeProfile?.id);
       // En son eklenen en üstte olacak şekilde sırala
       words.sort((a, b) => b.learnedDate.compareTo(a.learnedDate));
 

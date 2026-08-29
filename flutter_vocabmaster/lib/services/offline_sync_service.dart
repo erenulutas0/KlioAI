@@ -189,9 +189,18 @@ class OfflineSyncService {
 
   /// Tüm kelimeleri getir - LOCAL FIRST yaklaşımı
   /// Önce local DB'den anında veriler döner, arka planda API sync yapılır
-  Future<List<Word>> getAllWords() async {
+  ///
+  /// [languageProfileId] narrows the cache to one profile's deck. Null means
+  /// every word, and null is what the app passes for most of its life: the
+  /// active profile is loaded over the network, so on a cold start and every
+  /// time the device is offline there is no id to narrow by. That is the right
+  /// way round — a learner whose profile has not loaded sees their whole deck
+  /// rather than an empty screen — but it does mean the filter is inactive
+  /// exactly when the cache is the only source of truth.
+  Future<List<Word>> getAllWords({int? languageProfileId}) async {
     // 🚀 LOCAL FIRST: Önce local'den hemen döndür
-    final localWords = await _localDb.getAllWords();
+    final localWords =
+        await _localDb.getAllWords(languageProfileId: languageProfileId);
 
     if (localWords.isNotEmpty) {
       // Background self-heal: clean up duplicate sentence rows without blocking UI.
@@ -235,8 +244,8 @@ class OfflineSyncService {
   }
 
   /// 🚀 HIZLI: Sadece local veritabanından kelimeleri al (API çağrısı yok)
-  Future<List<Word>> getLocalWords() async {
-    return await _localDb.getAllWords();
+  Future<List<Word>> getLocalWords({int? languageProfileId}) async {
+    return await _localDb.getAllWords(languageProfileId: languageProfileId);
   }
 
   /// 🚀 HIZLI: Sadece local veritabanından practice sentences al (API çağrısı yok)

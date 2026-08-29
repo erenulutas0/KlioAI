@@ -526,6 +526,12 @@ class LocalDatabaseService {
             'lastReviewDate':
                 word.lastReviewDate?.toIso8601String().split('T')[0],
             'syncStatus': 'synced',
+            // Carried, because this insert REPLACES. saveWord writes the stamp
+            // and this path silently dropped it: INSERT OR REPLACE deletes the
+            // conflicting row and writes a fresh one, and the column has no
+            // DEFAULT, so every bulk sync reset every word's profile to NULL.
+            // The filter in getAllWords could never have matched anything.
+            'languageProfileId': word.languageProfileId,
             'createdAt': existingWordCreatedAts[word.id] ??
                 DateTime.now().toIso8601String(),
           },
@@ -1516,6 +1522,9 @@ class LocalDatabaseService {
         reviewCount: _toNullableInt(wordMap['reviewCount']) ?? 0,
         easeFactor: _toNullableDouble(wordMap['easeFactor']),
         lastReviewDate: _tryParseDateTime(wordMap['lastReviewDate']),
+        // Read here too. A word rebuilt without its stamp and written back by
+        // any later save would launder the profile off it.
+        languageProfileId: _toNullableInt(wordMap['languageProfileId']),
         sentences: sentences
             .map((s) => Sentence(
                   id: s['id'] as int? ?? s['localId'] as int? ?? 0,
