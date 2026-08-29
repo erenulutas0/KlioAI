@@ -43,12 +43,20 @@ class _LoadedAppState extends AppStateProvider {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Word word({int reviewCount = 0, DateTime? last, DateTime? next}) => Word(
+  Word word({
+    int reviewCount = 0,
+    DateTime? last,
+    DateTime? next,
+    String? english,
+    String? origin,
+  }) =>
+      Word(
         id: (next?.millisecondsSinceEpoch ?? 0) + reviewCount,
-        englishWord: 'flight${next?.day ?? 0}$reviewCount',
+        englishWord: english ?? 'flight${next?.day ?? 0}$reviewCount',
         turkishMeaning: 'uçuş',
         learnedDate: DateTime(2026, 1, 1),
         difficulty: 'easy',
+        origin: origin,
         reviewCount: reviewCount,
         lastReviewDate: last,
         nextReviewDate: next,
@@ -187,6 +195,66 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the source filter', () {
+    testWidgets('narrows the list to one group', (WidgetTester tester) async {
+      await showWords(tester, <Word>[
+        word(english: 'rabbit', origin: 'reader'),
+        word(english: 'invoice', origin: 'manual'),
+      ]);
+
+      expect(find.text('rabbit'), findsOneWidget);
+      expect(find.text('invoice'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey<String>('words-origin-reader')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('rabbit'), findsOneWidget);
+      expect(find.text('invoice'), findsNothing);
+    });
+
+    testWidgets('and gives the whole deck back', (WidgetTester tester) async {
+      await showWords(tester, <Word>[
+        word(english: 'rabbit', origin: 'reader'),
+        word(english: 'invoice', origin: 'manual'),
+      ]);
+
+      await tester.tap(find.byKey(const ValueKey<String>('words-origin-reader')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('words-origin-all')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('invoice'), findsOneWidget);
+    });
+
+    testWidgets('is not shown when there is nothing to choose between',
+        (WidgetTester tester) async {
+      // One source is not a choice, and a deck of words saved before
+      // provenance existed has none at all.
+      await showWords(tester, <Word>[
+        word(english: 'rabbit', origin: 'reader'),
+        word(english: 'invoice', origin: 'reader'),
+      ]);
+
+      expect(find.byKey(const ValueKey<String>('words-origin-all')), findsNothing);
+    });
+
+    testWidgets('the summary keeps reporting the whole deck',
+        (WidgetTester tester) async {
+      // Deliberate: the bar is a summary of what the learner has, not of what
+      // the screen is showing. One that moved with the filter would report the
+      // filter back at them as progress.
+      await showWords(tester, <Word>[
+        word(english: 'rabbit', origin: 'reader'),
+        word(english: 'invoice', origin: 'manual'),
+      ]);
+
+      await tester.tap(find.byKey(const ValueKey<String>('words-origin-reader')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 Yeni'), findsOneWidget);
     });
   });
 

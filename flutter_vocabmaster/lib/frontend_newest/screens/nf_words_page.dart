@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -80,6 +81,13 @@ class _NfWordsPageState extends State<NfWordsPage> {
 
   String _query = '';
 
+  /// The source the list is narrowed to, or null for the whole deck.
+  ///
+  /// The origin label on each row was information with nothing to do: it said
+  /// where a word came from and left the learner to scroll for the others. This
+  /// is the "words from books" group as something you can actually open.
+  String? _origin;
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +112,13 @@ class _NfWordsPageState extends State<NfWordsPage> {
     setState(() => _query = value);
   }
 
+  void _selectOrigin(String? origin) {
+    if (origin == _origin) {
+      return;
+    }
+    setState(() => _origin = origin);
+  }
+
   void _clearQuery() {
     _searchController.clear();
     _onQueryChanged('');
@@ -116,10 +131,21 @@ class _NfWordsPageState extends State<NfWordsPage> {
 
     final List<Word> all = appState.allWords;
     final DateTime today = _startOfDay(DateTime.now());
-    final List<Word> visible = _applyQuery(all, _query);
+    final List<Word> visible = _applyQuery(_applyOrigin(all, _origin), _query);
     final int dueCount = all.where((Word w) => _isDue(w, today)).length;
 
     final bool hasWords = all.isNotEmpty;
+    // Only the sources this learner actually has. A filter offering a group
+    // that would come back empty is a promise the deck cannot keep, and one
+    // lone source is not a choice worth showing at all.
+    final List<String> origins = <String>[
+      for (final String key in <String>[
+        WordOrigins.reader,
+        WordOrigins.dailyWords,
+        WordOrigins.manual,
+      ])
+        if (all.any((Word w) => w.origin == key)) key,
+    ];
     // Only the very first load blocks the screen; a background refresh keeps
     // the list a learner already has on screen.
     final bool loadingFirstList = appState.isLoadingWords && !hasWords;
@@ -154,6 +180,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
                     // search rather than their progress.
                     maturity: MaturityCounts.of(all),
                     all: all,
+                    origins: origins,
                   ),
                 ),
               ),
@@ -195,6 +222,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
     required bool showControls,
     required MaturityCounts maturity,
     required List<Word> all,
+    required List<String> origins,
   }) {
     final bool showReview = showControls && dueCount > 0 && widget.onStartReview != null;
 
@@ -212,6 +240,14 @@ class _NfWordsPageState extends State<NfWordsPage> {
                 : (WordMaturity stage) => widget.onReviewWords!(
                       all.where((Word w) => maturityFor(w) == stage).toList(),
                     ),
+          ),
+        ],
+        if (showControls && origins.length > 1) ...<Widget>[
+          const SizedBox(height: NfSpace.s12),
+          _OriginFilter(
+            origins: origins,
+            selected: _origin,
+            onSelect: _selectOrigin,
           ),
         ],
         if (showControls) ...<Widget>[
@@ -484,6 +520,54 @@ class _TitleRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Which source the list is showing.
+///
+/// Shown only when the deck holds more than one, because a filter with a single
+/// option is a control that cannot change anything.
+class _OriginFilter extends StatelessWidget {
+  const _OriginFilter({
+    required this.origins,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<String> origins;
+  final String? selected;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          NfChip(
+            key: const ValueKey<String>('words-origin-all'),
+            label: context.tr('grammar.filter.all'),
+            dense: true,
+            variant: selected == null
+                ? NfChipVariant.selected
+                : NfChipVariant.unselected,
+            onTap: () => onSelect(null),
+          ),
+          for (final String origin in origins) ...<Widget>[
+            const SizedBox(width: NfSpace.s6),
+            NfChip(
+              key: ValueKey<String>('words-origin-$origin'),
+              label: context.tr(WordOrigins.labelKeyFor(origin)!),
+              dense: true,
+              variant: origin == selected
+                  ? NfChipVariant.selected
+                  : NfChipVariant.unselected,
+              onTap: () => onSelect(origin),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1035,6 +1119,24 @@ DateTime _startOfDay(DateTime value) =>
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
+
+/// The deck narrowed to one source, or all of it.
+///
+/// A word saved before provenance was recorded has no origin, and no filter
+/// matches it: it appears under "all" and nowhere else. Filing it under a guess
+/// would be the one thing worse than leaving it unlabelled.
+@visibleForTesting
+List<Word> applyOriginForTest(List<Word> words, String? origin) =>
+    _applyOrigin(words, origin);
+
+List<Word> _applyOrigin(List<Word> words, String? origin) {
+  if (origin == null) {
+    return words;
+  }
+  return words
+      .where((Word w) => w.origin == origin)
+      .toList(growable: false);
+}
 
 List<Word> _applyQuery(List<Word> words, String query) {
   final String needle = query.trim().toLowerCase();

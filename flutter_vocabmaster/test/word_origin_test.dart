@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/models/word.dart';
+import 'package:vocabmaster/frontend_newest/screens/nf_words_page.dart';
 import 'package:vocabmaster/models/word_origins.dart';
 import 'package:vocabmaster/services/api_service.dart';
 import 'package:vocabmaster/services/auth_service.dart';
@@ -155,4 +156,55 @@ void main() {
       expect(WordOrigins.labelKeyFor(''), isNull);
     });
   });
+  group('the list can be narrowed to one source', () {
+    // The label on each row was information with nothing to do. These pin the
+    // filter that gives it somewhere to go — and the one case that has to be
+    // right: a word saved before provenance existed belongs to no group, and
+    // filing it under a guess would be worse than leaving it unlabelled.
+
+    Word word(int id, {String? origin}) => Word(
+          id: id,
+          englishWord: 'rabbit$id',
+          turkishMeaning: 'tavşan',
+          learnedDate: DateTime(2026, 1, 1),
+          difficulty: 'easy',
+          origin: origin,
+        );
+
+    final List<Word> deck = <Word>[
+      word(1, origin: WordOrigins.reader),
+      word(2, origin: WordOrigins.reader),
+      word(3, origin: WordOrigins.manual),
+      word(4),
+    ];
+
+    test('a source shows only its own words', () {
+      expect(applyOriginForTest(deck, WordOrigins.reader), hasLength(2));
+      expect(applyOriginForTest(deck, WordOrigins.manual), hasLength(1));
+    });
+
+    test('no filter shows the whole deck, unlabelled words included', () {
+      expect(applyOriginForTest(deck, null), hasLength(4));
+    });
+
+    test('an unlabelled word belongs to no group', () {
+      // It appears under "all" and nowhere else.
+      for (final String origin in <String>[
+        WordOrigins.reader,
+        WordOrigins.dailyWords,
+        WordOrigins.manual,
+      ]) {
+        expect(
+          applyOriginForTest(deck, origin).any((Word w) => w.origin == null),
+          isFalse,
+          reason: origin,
+        );
+      }
+    });
+
+    test('a source the deck does not have comes back empty, not everything', () {
+      expect(applyOriginForTest(deck, WordOrigins.dailyWords), isEmpty);
+    });
+  });
+
 }
