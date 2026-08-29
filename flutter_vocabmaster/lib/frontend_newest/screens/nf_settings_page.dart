@@ -150,7 +150,6 @@ class NfSettingsPage extends StatelessWidget {
 
   Future<void> _pickAppLanguage(BuildContext context) async {
     final LanguageProvider provider = context.read<LanguageProvider>();
-    final AppLocalizations l10n = context.l10n;
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final NfTokens t = NfTokens.of(context);
 
@@ -167,7 +166,12 @@ class NfSettingsPage extends StatelessWidget {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              l10n.t('language.changed'),
+              // Read from the locale just chosen, not from the `l10n` captured
+              // when the sheet opened. That one still holds the old language,
+              // so switching to Spanish confirmed it in Turkish and switching
+              // back confirmed it in Spanish -- the one line on screen that is
+              // guaranteed to be in the wrong language.
+              AppLocalizations(Locale(code)).t('language.changed'),
               style: NfTokens.body(size: NfFont.s135, color: t.primaryInk),
             ),
             backgroundColor: t.ink,

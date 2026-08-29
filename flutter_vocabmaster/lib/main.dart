@@ -491,7 +491,13 @@ class _LegacyMainScreenState extends State<LegacyMainScreen> {
                       }
                       Navigator.of(sheetContext).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.t('language.changed'))),
+                        // The locale just chosen, not the one `l10n` was
+                        // captured under. See nf_settings_page.
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations(locale).t('language.changed'),
+                          ),
+                        ),
                       );
                     },
                   );
