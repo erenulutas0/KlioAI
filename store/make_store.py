@@ -120,7 +120,7 @@ def promo(source, headline, subline, out_path):
     return canvas.size
 
 
-def feature_graphic(out_path):
+def feature_graphic(out_path, tagline_a, tagline_b):
     canvas = gradient((1024, 500), VIOLET, VIOLET_DEEP).convert('RGBA')
 
     # On a white card, not straight onto the gradient: the icon's own
@@ -135,10 +135,10 @@ def feature_graphic(out_path):
 
     draw = ImageDraw.Draw(canvas)
     draw.text((372, 150), 'KlioAI', font=font(BOLD, 92), fill=WHITE)
-    draw.text((378, 268), 'İngilizceyi konuşarak, okuyarak',
-              font=font(REGULAR, 36), fill=(226, 218, 255))
-    draw.text((378, 316), 've tekrar ederek öğren',
-              font=font(REGULAR, 36), fill=(226, 218, 255))
+    draw.text((378, 268), tagline_a, font=font(REGULAR, 36),
+              fill=(226, 218, 255))
+    draw.text((378, 316), tagline_b, font=font(REGULAR, 36),
+              fill=(226, 218, 255))
 
     canvas.convert('RGB').save(out_path, 'PNG')
 
@@ -151,8 +151,18 @@ def play_icon(out_path):
 os.makedirs(OUT, exist_ok=True)
 play_icon(os.path.join(OUT, 'icon_512.png'))
 print('icon_512.png                512x512')
-feature_graphic(os.path.join(OUT, 'feature_graphic_1024x500.png'))
-print('feature_graphic_1024x500.png  1024x500')
+feature_graphic(os.path.join(OUT, 'feature_graphic_1024x500.png'),
+                'İngilizceyi konuşarak, okuyarak',
+                've tekrar ederek öğren')
+print('feature_graphic_1024x500.png     1024x500  (tr)')
+
+# The default listing is English, so it needs its own banner. The screenshots
+# beside it have to be captured with the app in English; only this one can be
+# built without the phone.
+feature_graphic(os.path.join(OUT, 'feature_graphic_1024x500_en.png'),
+                'Speak it, read it, and keep',
+                'every word you learn')
+print('feature_graphic_1024x500_en.png  1024x500  (en)')
 
 for i, (src, head, sub) in enumerate(SHOTS, start=1):
     name = 'screenshot_%02d.png' % i
