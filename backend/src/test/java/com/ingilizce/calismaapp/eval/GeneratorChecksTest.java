@@ -118,6 +118,7 @@ class GeneratorChecksTest {
                 "question", "I have ---- the report before the meeting.",
                 "options", List.of("delayed", "delay", "delaying", "delays"),
                 "correctAnswer", "delayed",
+                "explanation", "Present perfect takes the past participle.",
                 "targetWord", "delay")));
 
         assertEquals(List.of(), GeneratorChecks.grammarQuizFailures(payload, List.of("delay"), "B1"));
@@ -140,10 +141,14 @@ class GeneratorChecksTest {
 
     @Test
     void aWellFormedQuizPasses() {
+        // Well formed means what the prompt asks for: a gap, four options, and an
+        // explanation. This fixture had none of the three, which is how the checks
+        // for them stayed missing.
         Map<String, Object> payload = Map.of("questions", List.of(Map.of(
-                "question", "The new policy will mitigate most of the risk.",
-                "options", List.of("mitigate", "mitigates", "mitigating"),
+                "question", "The new policy will ---- most of the risk.",
+                "options", List.of("mitigate", "mitigates", "mitigating", "mitigated"),
                 "correctAnswer", "mitigate",
+                "explanation", "After will the verb stays in its base form.",
                 "targetWord", "mitigate")));
 
         assertEquals(List.of(), GeneratorChecks.grammarQuizFailures(payload, List.of("mitigate"), "B1"));
@@ -309,4 +314,81 @@ class GeneratorChecksTest {
 
         assertTrue(GeneratorChecks.readingFailures(payload, "B1").toString().contains("question(s)"));
     }
+    // ------------------------------------------------- the shape of a question
+
+    @Test
+    void aStemWithNoGapIsCaught() {
+        // What "the quiz makes no sense" looks like from the outside: a
+        // multiple-choice card asking the learner to complete a sentence that has
+        // nothing to complete. Both this check and the client's own filter passed
+        // it through, so it reached the screen.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "She has finished the report already.",
+                "options", List.of("finished", "finish", "finishing", "finishes"),
+                "correctAnswer", "finished",
+                "explanation", "Present perfect takes the past participle.",
+                "targetWord", "")));
+
+        assertTrue(GeneratorChecks.grammarQuizFailures(payload, List.of(), "B1")
+                .stream().anyMatch(f -> f.contains("no ---- gap")));
+    }
+
+    @Test
+    void anErrorSpottingQuestionIsAllowedFromB2() {
+        // The prompt offers this shape at B2 and above, and it carries no gap by
+        // design. A check that demanded one everywhere would fail every correctly
+        // built one of them.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "Which part of this sentence is wrong? \"He have been waiting.\"",
+                "options", List.of("He", "have", "been", "waiting"),
+                "correctAnswer", "have",
+                "explanation", "Third person singular takes has, not have.",
+                "targetWord", "")));
+
+        assertEquals(List.of(), GeneratorChecks.grammarQuizFailures(payload, List.of(), "B2"));
+    }
+
+    @Test
+    void theSameQuestionIsStillCaughtBelowB2() {
+        // Where the prompt asks for single-gap questions only, a missing gap is the
+        // model dropping the format rather than choosing the other one.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "Which part of this sentence is wrong? \"He have been waiting.\"",
+                "options", List.of("He", "have", "been", "waiting"),
+                "correctAnswer", "have",
+                "explanation", "Third person singular takes has.",
+                "targetWord", "")));
+
+        assertTrue(GeneratorChecks.grammarQuizFailures(payload, List.of(), "A2")
+                .stream().anyMatch(f -> f.contains("no ---- gap")));
+    }
+
+    @Test
+    void twoOptionsAreNotAMultipleChoiceQuestion() {
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "She has ---- the report already.",
+                "options", List.of("finished", "finish"),
+                "correctAnswer", "finished",
+                "explanation", "Present perfect takes the past participle.",
+                "targetWord", "")));
+
+        assertTrue(GeneratorChecks.grammarQuizFailures(payload, List.of(), "B1")
+                .stream().anyMatch(f -> f.contains("exactly 4")));
+    }
+
+    @Test
+    void aQuestionWithNoExplanationIsCaught() {
+        // A wrong answer with no explanation tells the learner they were wrong and
+        // not why, which is the moment the quiz existed for.
+        Map<String, Object> payload = Map.of("questions", List.of(Map.of(
+                "question", "She has ---- the report already.",
+                "options", List.of("finished", "finish", "finishing", "finishes"),
+                "correctAnswer", "finished",
+                "explanation", "  ",
+                "targetWord", "")));
+
+        assertTrue(GeneratorChecks.grammarQuizFailures(payload, List.of(), "B1")
+                .stream().anyMatch(f -> f.contains("no explanation")));
+    }
+
 }

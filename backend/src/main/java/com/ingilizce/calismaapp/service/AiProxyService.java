@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.ingilizce.calismaapp.eval.GeneratorChecks;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -448,14 +449,16 @@ Format:
         );
 
         String system = "You are a professional English grammar teacher creating exam-quality practice questions. Return strictly valid JSON with no markdown formatting.";
-        AiJsonResult best = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary);
+        AiJsonResult best = dropUnanswerableQuestions(
+                callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary, normalizedLevel);
         // Dropping bad questions is only an improvement while some good ones survive. The
         // eval caught a past-simple quiz where every question had duplicate options and the
         // guard handed back an empty quiz - a learner tapping Practice and getting nothing,
         // which is worse than the broken questions it replaced.
         if (surviving(best) < MIN_USABLE_QUIZ_QUESTIONS) {
             logger.warn("GRAMMAR_QUIZ_RETRY topic={} level={} surviving={}", topic, normalizedLevel, surviving(best));
-            AiJsonResult retry = dropUnanswerableQuestions(callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary);
+            AiJsonResult retry = dropUnanswerableQuestions(
+                callJson(system, prompt, 1200, 0.7, "grammar-quiz"), vocabulary, normalizedLevel);
             if (surviving(retry) > surviving(best)) {
                 best = retry;
             }
@@ -500,7 +503,8 @@ Format:
      * sees one slip through per few runs. Four good questions beat five with an
      * unanswerable one, and the client already renders however many it is given.
      */
-    private AiJsonResult dropUnanswerableQuestions(AiJsonResult result, java.util.List<String> vocabulary) {
+    private AiJsonResult dropUnanswerableQuestions(
+            AiJsonResult result, java.util.List<String> vocabulary, String level) {
         if (result == null || result.json() == null) {
             return result;
         }
@@ -512,6 +516,28 @@ Format:
         boolean changed = false;
         for (Object question : questions) {
             if (question instanceof Map<?, ?> map) {
+                // A stem with no gap is a sentence with nothing to complete. Both this
+                // guard and the client's own filter passed it through, so the learner
+                // got a multiple-choice card with no blank in it -- which is what a
+                // quiz "making no sense" looks like from the outside.
+                //
+                // B2 and up may spot an error instead, and those carry no gap by
+                // design. Below that the prompt asks for single-gap questions only.
+                if (!GeneratorChecks.allowsErrorSpotting(level)
+                        && !String.valueOf(map.get("question")).contains(GeneratorChecks.GAP)) {
+                    logger.warn("GRAMMAR_QUIZ_DROPPED reason=no-gap level={} question={}",
+                            level, map.get("question"));
+                    changed = true;
+                    continue;
+                }
+                // Four is what the prompt asks for. Accepting two shipped a coin flip
+                // as a multiple-choice question.
+                if (optionCount(map.get("options")) != GeneratorChecks.EXPECTED_OPTIONS) {
+                    logger.warn("GRAMMAR_QUIZ_DROPPED reason=option-count count={} question={}",
+                            optionCount(map.get("options")), map.get("question"));
+                    changed = true;
+                    continue;
+                }
                 if (hasDuplicateOptions(map.get("options"))) {
                     logger.warn("GRAMMAR_QUIZ_DROPPED reason=duplicate-options question={}", map.get("question"));
                     changed = true;
@@ -578,6 +604,11 @@ Format:
         }
         return options.stream()
                 .anyMatch(option -> option != null && option.toString().trim().equalsIgnoreCase(answer));
+    }
+
+    /** How many options a question offers, however the model wrapped them. */
+    private static int optionCount(Object options) {
+        return options instanceof java.util.List<?> list ? list.size() : 0;
     }
 
     private static boolean hasDuplicateOptions(Object raw) {

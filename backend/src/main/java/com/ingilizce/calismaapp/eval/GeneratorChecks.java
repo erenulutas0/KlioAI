@@ -105,6 +105,24 @@ public final class GeneratorChecks {
         return failures;
     }
 
+    /** The gap marker the quiz prompt asks for. */
+    public static final String GAP = "----";
+
+    /** How many options the quiz prompt asks for. */
+    public static final int EXPECTED_OPTIONS = 4;
+
+    /**
+     * Whether this level may answer with an error-spotting question, which has no gap.
+     *
+     * <p>Only B2 and above. The prompt tells A1 and A2 to use single-gap questions only
+     * and B1 to make one clear grammar decision per question, so a missing gap there is
+     * the model dropping the format rather than using the other one.
+     */
+    public static boolean allowsErrorSpotting(String level) {
+        String normalized = level == null ? "" : level.trim().toUpperCase();
+        return normalized.equals("B2") || normalized.equals("C1") || normalized.equals("C2");
+    }
+
     public static List<String> grammarQuizFailures(
             Map<String, Object> json, List<String> requestedVocabulary, String level) {
         List<String> failures = new ArrayList<>();
@@ -122,9 +140,29 @@ public final class GeneratorChecks {
                 failures.add("question " + index + ": empty question text");
                 continue;
             }
+            // The gap is the question. A stem with no ---- is a sentence the learner
+            // is asked to complete with nothing to complete, and both this check and
+            // the client's own filter used to pass it straight through: a
+            // multiple-choice card with no blank in it, which is what "nonsense quiz"
+            // looks like from the outside.
+            //
+            // B2 and above may ask the learner to spot an error instead, and those
+            // legitimately carry no gap. Below that the prompt asks for single-gap
+            // questions only, so a missing gap there is the model losing the format.
+            if (!allowsErrorSpotting(level) && !prompt.contains(GAP)) {
+                failures.add("question " + index + ": no ---- gap in \"" + prompt + "\"");
+            }
             List<String> options = asStringList(question.get("options"));
-            if (options.size() < 2) {
-                failures.add("question " + index + ": " + options.size() + " option(s); needs at least 2");
+            // Four, which is what the prompt asks for. The old floor of two accepted a
+            // coin flip as a multiple-choice question.
+            if (options.size() != EXPECTED_OPTIONS) {
+                failures.add("question " + index + ": " + options.size()
+                        + " option(s); the prompt asks for exactly " + EXPECTED_OPTIONS);
+            }
+            // Without it a wrong answer teaches nothing: the learner is told they were
+            // wrong and not why, which is the moment the quiz was for.
+            if (text(question, "explanation").isBlank()) {
+                failures.add("question " + index + ": no explanation");
             }
             String correct = text(question, "correctAnswer");
             if (correct.isBlank()) {
