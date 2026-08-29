@@ -39,6 +39,30 @@ REGULAR = 'C:/Windows/Fonts/segoeui.ttf'
 STATUS_BAR = 92
 NAV_BAR = 132
 
+# The English set is six, not seven. The Words list is missing from it on
+# purpose: the interface translates, the saved definitions do not. They were
+# written when the account's native language was Turkish, so that screen shows
+# "puzzled / Kafa karışık, şaşkın" under an English heading -- true, and wrong
+# for a listing aimed at someone who does not read Turkish.
+#
+# The order differs too. Play shows the first two or three in search results,
+# and what makes this app worth a second look to a stranger is the speaking
+# roleplay and the book reader, not the daily plan.
+SHOTS_EN = [
+    ('02_tutor.png', 'Order a coffee, out loud',
+     'Spoken roleplay with an AI tutor'),
+    ('06_reader_word.png', 'Tap a word you don’t know',
+     'Explained inside its own sentence'),
+    ('05_books.png', 'Whole books, free to read',
+     'Sherlock Holmes, Wilde, Aesop — by level'),
+    ('07_session.png', 'Just before you forget',
+     'Each word returns on the day it should'),
+    ('01_today.png', 'A plan that ends',
+     'Review, learn, practise — then you are done'),
+    ('04_practice.png', 'Every way to practise',
+     'Translation, reading, writing, grammar'),
+]
+
 SHOTS = [
     ('01_today.png', 'Bugün ne yapacağın belli', 'Plan sırayla ilerler'),
     ('02_tutor.png', 'Kafede sipariş ver', 'Sesli rol yapma sahneleri'),
@@ -94,7 +118,7 @@ def centred(draw, text, f, y, width, fill):
     return box[3] - box[1]
 
 
-def promo(source, headline, subline, out_path):
+def promo(source, headline, subline, out_path, raw_dir=None):
     canvas = gradient((1080, 1920), VIOLET, VIOLET_DEEP).convert('RGBA')
     draw = ImageDraw.Draw(canvas)
 
@@ -102,7 +126,7 @@ def promo(source, headline, subline, out_path):
     centred(draw, subline, font(REGULAR, 40), 96 + h + 42, 1080,
             (226, 218, 255))
 
-    shot = Image.open(os.path.join(RAW, source)).convert('RGB')
+    shot = Image.open(os.path.join(raw_dir or RAW, source)).convert('RGB')
     shot = shot.crop((0, STATUS_BAR, shot.width, shot.height - NAV_BAR))
     target_w = 740
     shot = shot.resize(
@@ -167,4 +191,10 @@ print('feature_graphic_1024x500_en.png  1024x500  (en)')
 for i, (src, head, sub) in enumerate(SHOTS, start=1):
     name = 'screenshot_%02d.png' % i
     size = promo(src, head, sub, os.path.join(OUT, name))
-    print('%-28s %dx%d  %s' % (name, size[0], size[1], head))
+    print('%-28s %dx%d  tr  %s' % (name, size[0], size[1], head))
+
+RAW_EN = os.path.join(ROOT, 'store', 'raw_en')
+for i, (src, head, sub) in enumerate(SHOTS_EN, start=1):
+    name = 'screenshot_en_%02d.png' % i
+    size = promo(src, head, sub, os.path.join(OUT, name), raw_dir=RAW_EN)
+    print('%-28s %dx%d  en  %s' % (name, size[0], size[1], head))
