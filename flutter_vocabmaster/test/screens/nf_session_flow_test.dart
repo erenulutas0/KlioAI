@@ -219,6 +219,26 @@ void main() {
     expect(find.text('absent'), findsOneWidget);
   });
 
+  testWidgets('a chosen subset is the session, not a starting point for one',
+      (WidgetTester tester) async {
+    // The deck a maturity band hands over. It is used as given: no due-date
+    // filter, because nothing new is ever due and filtering would empty the
+    // band most worth practising, and no cap, because eighteen words asked for
+    // is eighteen words.
+    final _RecordingAppState appState = _RecordingAppState(<Word>[
+      _word(1, 'insight', reviewIn: const Duration(days: -30)),
+      _word(2, 'fathom'),
+      _word(3, 'linger'),
+    ]);
+
+    await _pumpSession(tester, appState,
+        words: <Word>[_word(2, 'fathom'), _word(3, 'linger')]);
+
+    // Not "insight", which is the only due word and would be the whole session
+    // if the subset were being filtered or ignored.
+    expect(find.text('fathom'), findsOneWidget);
+    expect(find.text('insight'), findsNothing);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +247,9 @@ void main() {
 
 Future<void> _pumpSession(
   WidgetTester tester,
-  AppStateProvider appState,
-) async {
+  AppStateProvider appState, {
+  List<Word>? words,
+}) async {
   tester.view.physicalSize = const Size(420, 1600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -249,7 +270,7 @@ Future<void> _pumpSession(
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const NfThemeScope(child: NfSessionPage()),
+        home: NfThemeScope(child: NfSessionPage(words: words)),
       ),
     ),
   );

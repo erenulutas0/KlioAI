@@ -8,6 +8,7 @@ import 'package:vocabmaster/frontend_newest/nf_frontend_preference.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_words_page.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/models/word.dart';
+import 'package:vocabmaster/models/word_maturity.dart';
 import 'package:vocabmaster/providers/app_state_provider.dart';
 
 /// The deck seen whole, rather than one row at a time.
@@ -60,7 +61,11 @@ void main() {
         next: DateTime(2026, 3, 1).add(Duration(days: days)),
       );
 
-  Future<void> showWords(WidgetTester tester, List<Word> words) async {
+  Future<void> showWords(
+    WidgetTester tester,
+    List<Word> words, {
+    ValueChanged<List<Word>>? onReviewWords,
+  }) async {
     tester.view.physicalSize = const Size(420, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -88,7 +93,7 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           // NfWordsPage is a tab body, not a route: the shell supplies the
           // Scaffold it draws its text fields and ripples into.
-          home: const Scaffold(body: NfWordsPage()),
+          home: Scaffold(body: NfWordsPage(onReviewWords: onReviewWords)),
         ),
       ),
     );
@@ -134,4 +139,55 @@ void main() {
     expect(find.text('1 Öğrenilen'), findsOneWidget);
     expect(find.text('1 Yeni'), findsOneWidget);
   });
+  group('a band starts a session over its own words', () {
+    testWidgets('tapping one hands back exactly that band',
+        (WidgetTester tester) async {
+      // The point of the feature: "practise the ones I am still learning" is a
+      // different request from "review what is due", and nothing new is ever
+      // due — so the band a learner most wants would come back empty from the
+      // other path.
+      List<Word>? asked;
+      await showWords(
+        tester,
+        <Word>[word(), waiting(3), waiting(20), waiting(90)],
+        onReviewWords: (List<Word> w) => asked = w,
+      );
+
+      await tester.tap(find.text('2 Bilinen'));
+      await tester.pump();
+
+      expect(asked, isNotNull);
+      expect(asked!.map(maturityFor).toSet(), <WordMaturity>{WordMaturity.known});
+      expect(asked, hasLength(2));
+    });
+
+    testWidgets('an empty band is shown and does not open a session',
+        (WidgetTester tester) async {
+      // "0 Yeni" is true and worth reading. A session over nothing dead-ends on
+      // a screen the shell is built never to reach.
+      List<Word>? asked;
+      await showWords(
+        tester,
+        <Word>[waiting(90)],
+        onReviewWords: (List<Word> w) => asked = w,
+      );
+
+      expect(find.text('0 Yeni'), findsOneWidget);
+      await tester.tap(find.text('0 Yeni'));
+      await tester.pump();
+
+      expect(asked, isNull);
+    });
+
+    testWidgets('with nowhere to send it, the bands stay a summary',
+        (WidgetTester tester) async {
+      await showWords(tester, <Word>[waiting(90)]);
+
+      await tester.tap(find.text('1 Bilinen'));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    });
+  });
+
 }

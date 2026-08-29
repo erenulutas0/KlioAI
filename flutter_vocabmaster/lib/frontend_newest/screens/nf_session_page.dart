@@ -89,7 +89,20 @@ class NfSessionDeck {
 /// When the last card is graded the session replaces itself with
 /// [NfSessionSummaryPage].
 class NfSessionPage extends StatefulWidget {
-  const NfSessionPage({super.key});
+  const NfSessionPage({super.key, this.words});
+
+  /// The exact words to review, or null to let [NfSessionDeck.select] choose.
+  ///
+  /// Passed when the learner asked for a particular part of their deck — the
+  /// new words, the ones still being learned — rather than for whatever the
+  /// scheduler raised. Those are different requests and only one of them is
+  /// about today.
+  ///
+  /// Used as given, with no due-date filter and no cap. Filtering would empty
+  /// the session for the band most worth practising, since nothing new is ever
+  /// due; capping would quietly hand back eight of the eighteen words they just
+  /// pointed at.
+  final List<Word>? words;
 
   @override
   State<NfSessionPage> createState() => _NfSessionPageState();
@@ -124,7 +137,9 @@ class _NfSessionPageState extends State<NfSessionPage> {
     // The provider's deck is the same one the Today plan counted; reading it
     // here (instead of refetching like the legacy page) keeps the "Review N
     // words" promise and the session contents in step.
-    _deck = NfSessionDeck.select(context.read<AppStateProvider>().allWords);
+    _deck = widget.words != null
+        ? List<Word>.unmodifiable(widget.words!)
+        : NfSessionDeck.select(context.read<AppStateProvider>().allWords);
     _cardShownAt = DateTime.now();
     _initTts();
   }

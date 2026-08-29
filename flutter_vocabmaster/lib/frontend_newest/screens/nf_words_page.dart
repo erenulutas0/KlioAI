@@ -48,6 +48,7 @@ class NfWordsPage extends StatefulWidget {
     this.onOpenWord,
     this.onOpenDictionary,
     this.onStartReview,
+    this.onReviewWords,
   });
 
   /// Tapping a row hands the word back to the shell.
@@ -58,6 +59,15 @@ class NfWordsPage extends StatefulWidget {
 
   /// Starts a review session over everything the scheduler has brought up.
   final VoidCallback? onStartReview;
+
+  /// Review one part of the deck: the words at a chosen maturity.
+  ///
+  /// Separate from [onStartReview] rather than a widening of it, because the
+  /// two are different requests. "Review what is due" is about today; "review
+  /// the ones I am still learning" is about the deck, and nothing new is ever
+  /// due, so the band a learner most wants to practise would come back empty
+  /// from the other one.
+  final ValueChanged<List<Word>>? onReviewWords;
 
   @override
   State<NfWordsPage> createState() => _NfWordsPageState();
@@ -142,6 +152,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
                     // while the learner typed a search would be reporting the
                     // search rather than their progress.
                     maturity: MaturityCounts.of(all),
+                    all: all,
                   ),
                 ),
               ),
@@ -182,6 +193,7 @@ class _NfWordsPageState extends State<NfWordsPage> {
     required int dueCount,
     required bool showControls,
     required MaturityCounts maturity,
+    required List<Word> all,
   }) {
     final bool showReview = showControls && dueCount > 0 && widget.onStartReview != null;
 
@@ -192,7 +204,14 @@ class _NfWordsPageState extends State<NfWordsPage> {
         _TitleRow(count: listedCount, onAddWord: widget.onOpenDictionary),
         if (maturity.total > 0) ...<Widget>[
           const SizedBox(height: NfSpace.s14),
-          _MaturityBar(counts: maturity),
+          _MaturityBar(
+            counts: maturity,
+            onReview: widget.onReviewWords == null
+                ? null
+                : (WordMaturity stage) => widget.onReviewWords!(
+                      all.where((Word w) => maturityFor(w) == stage).toList(),
+                    ),
+          ),
         ],
         if (showControls) ...<Widget>[
           const SizedBox(height: NfSpace.s14),
@@ -261,9 +280,13 @@ class _NfWordsPageState extends State<NfWordsPage> {
 /// screens; a fourth invented here would be the worst of them, because this one
 /// is a summary and summaries get believed.
 class _MaturityBar extends StatelessWidget {
-  const _MaturityBar({required this.counts});
+  const _MaturityBar({required this.counts, this.onReview});
 
   final MaturityCounts counts;
+
+  /// Called with the stage the learner asked to practise. Null leaves the bar
+  /// a read-only summary.
+  final ValueChanged<WordMaturity>? onReview;
 
   @override
   Widget build(BuildContext context) {
@@ -275,18 +298,21 @@ class _MaturityBar extends StatelessWidget {
         count: counts.known,
         color: t.correct,
         soft: t.correctSoft,
+        stage: WordMaturity.known,
       ),
       _MaturityBand(
         label: context.tr('words.maturity.learning'),
         count: counts.learning,
         color: t.streak,
         soft: t.streakSoft,
+        stage: WordMaturity.learning,
       ),
       _MaturityBand(
         label: context.tr('words.maturity.fresh'),
         count: counts.fresh,
         color: t.inkFaint,
         soft: t.border,
+        stage: WordMaturity.fresh,
       ),
     ];
 
@@ -323,25 +349,45 @@ class _MaturityBar extends StatelessWidget {
           runSpacing: NfSpace.s6,
           children: <Widget>[
             for (final _MaturityBand band in bands)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: band.color,
-                      shape: BoxShape.circle,
-                    ),
+              // The legend is the tap target, not the bar. The bar is eight
+              // pixels tall, which is a fine thing to look at and a poor thing
+              // to hit; this row is the size of the text it holds.
+              //
+              // An empty band is still shown — "0 Yeni" is true and worth
+              // knowing — but it is not tappable, because a session over no
+              // words dead-ends on a screen the shell is built never to reach.
+              InkWell(
+                onTap: onReview == null || band.count == 0
+                    ? null
+                    : () => onReview!(band.stage),
+                borderRadius: NfRadius.pillAll,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: NfSpace.s6,
+                    vertical: NfSpace.s4,
                   ),
-                  const SizedBox(width: NfSpace.s6),
-                  Text(
-                    // Digits read the same in all three languages, so only the
-                    // stage needs translating.
-                    '${band.count} ${band.label}',
-                    style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: band.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: NfSpace.s6),
+                      Text(
+                        // Digits read the same in all three languages, so only
+                        // the stage needs translating.
+                        '${band.count} ${band.label}',
+                        style:
+                            NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
           ],
         ),
@@ -356,12 +402,14 @@ class _MaturityBand {
     required this.count,
     required this.color,
     required this.soft,
+    required this.stage,
   });
 
   final String label;
   final int count;
   final Color color;
   final Color soft;
+  final WordMaturity stage;
 }
 
 class _TitleRow extends StatelessWidget {

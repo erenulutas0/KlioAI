@@ -256,8 +256,12 @@ class _NfShellState extends State<NfShell> {
   /// session over exactly the words the scheduler has raised. `NfSessionPage`
   /// keeps that promise, and falls back to unscheduled words when nothing is
   /// due, so it can never open an empty session.
-  void _startReviewSession() {
-    _pushNf(const NfSessionPage());
+  ///
+  /// [words] narrows it to a chosen part of the deck. Both entry points used to
+  /// mean the same thing, so the callback carried no argument at all; a
+  /// maturity band is the first caller with something to say.
+  void _startReviewSession([List<Word>? words]) {
+    _pushNf(NfSessionPage(words: words));
   }
 
   void _openMode(String modeId) {
@@ -369,6 +373,7 @@ class _NfShellState extends State<NfShell> {
         onOpenWord: _openWord,
         onOpenDictionary: _openDictionary,
         onStartReview: _startReviewSession,
+        onReviewWords: (List<Word> words) => _startReviewSession(words),
       ),
       NfProfilePage(
         onManageSubscription: _openSubscription,
