@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'locale_text_service.dart';
 
 class LearningLanguageService {
@@ -58,13 +60,26 @@ class LearningLanguageService {
   // whatever the locale was at class-load time, which on a cold start is
   // before the app has read the stored language.
   static String? _sourceLanguageOverride;
-  static String _englishLevel = defaultEnglishLevel;
-  static String _learningGoal = defaultLearningGoal;
+  static String? _englishLevelOverride;
+  static String? _learningGoalOverride;
 
   static String get sourceLanguage =>
       _sourceLanguageOverride ?? defaultSourceLanguage;
-  static String get englishLevel => _englishLevel;
-  static String get learningGoal => _learningGoal;
+  static String get englishLevel => _englishLevelOverride ?? defaultEnglishLevel;
+  static String get learningGoal => _learningGoalOverride ?? defaultLearningGoal;
+
+  /// Whether the learner has actually answered, as opposed to being shown a
+  /// guess made from the language their menus happen to be in.
+  ///
+  /// The difference is the whole of [currentProfile]. Guessing is right for
+  /// what to display before onboarding; sending the guess to the server as if
+  /// it were an answer is how a Turkish learner's stored profile became
+  /// Spanish and their level dropped from B2 to B1 after the app had merely
+  /// been *viewed* in Spanish for ten minutes.
+  static bool get hasAnswered =>
+      _sourceLanguageOverride != null ||
+      _englishLevelOverride != null ||
+      _learningGoalOverride != null;
   /// The language the AI explains and corrects in.
   ///
   /// The learner's own language, which is exactly what onboarding asks for and
@@ -86,20 +101,50 @@ class LearningLanguageService {
   }
 
   static void setEnglishLevel(String level) {
-    _englishLevel = normalizeEnglishLevel(level);
+    _englishLevelOverride = normalizeEnglishLevel(level);
   }
 
   static void setLearningGoal(String goal) {
-    _learningGoal = normalizeLearningGoal(goal);
+    _learningGoalOverride = normalizeLearningGoal(goal);
   }
 
+  /// Forgets every answer, so the getters fall back to the guesses again.
+  /// Only tests need this; the app has no way to un-answer.
+  @visibleForTesting
+  static void resetAnswers() {
+    _sourceLanguageOverride = null;
+    _englishLevelOverride = null;
+    _learningGoalOverride = null;
+  }
+
+  /// What to tell the server about this learner.
+  ///
+  /// Only what they have answered. The server stores whatever it is sent and
+  /// serves the AI from it, so a field included here is a claim about the
+  /// learner, not a hint -- and a guess made from the interface language is
+  /// not a claim anyone made.
+  ///
+  /// This used to send all five unconditionally, filling the unanswered ones
+  /// from the defaults. Those defaults follow the interface language, so ten
+  /// minutes of viewing the app in Spanish rewrote a Turkish learner's stored
+  /// profile to Spanish and their level from B2 down to B1 -- the default --
+  /// and every AI answer afterwards came back in Spanish, including the
+  /// meaning of a word tapped in an English book. Nothing on screen said so:
+  /// the settings page reads the provider, which had cached the old values.
+  ///
+  /// The server already treats an absent field as "keep what you have"
+  /// (ChatbotController.languageProfileFrom), so omitting is both safe and the
+  /// honest thing to send.
   static Map<String, String> currentProfile() {
-    return {
-      'sourceLanguage': sourceLanguage,
+    return <String, String>{
+      if (_sourceLanguageOverride != null) ...<String, String>{
+        'sourceLanguage': sourceLanguage,
+        'feedbackLanguage': feedbackLanguage,
+      },
+      // Never a guess: English is what this app teaches, in every profile.
       'targetLanguage': targetLanguage,
-      'feedbackLanguage': feedbackLanguage,
-      'englishLevel': _englishLevel,
-      'learningGoal': _learningGoal,
+      if (_englishLevelOverride != null) 'englishLevel': englishLevel,
+      if (_learningGoalOverride != null) 'learningGoal': learningGoal,
     };
   }
 

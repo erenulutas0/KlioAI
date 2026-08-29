@@ -22,6 +22,12 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    // The service holds its answers in statics, so one test's answer used to
+    // leak into the next. It never showed, because initialize() overwrote them
+    // unconditionally -- which is the very thing that turned a guess into a
+    // stored profile on a real phone. Now that it only passes on what was
+    // actually stored, the leak is visible and has to be cleared here.
+    LearningLanguageService.resetAnswers();
     LocaleTextService.setAppLocale(const Locale('tr'));
   });
 

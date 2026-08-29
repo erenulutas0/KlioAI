@@ -21,19 +21,40 @@ class LearningLanguageProvider extends ChangeNotifier {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
+    final String? storedSource = prefs.getString(_sourceLanguageKey);
+    final String? storedLevel = prefs.getString(_englishLevelKey);
+    final String? storedGoal = prefs.getString(_learningGoalKey);
+
     _sourceLanguage = LearningLanguageService.normalizeSupported(
-      prefs.getString(_sourceLanguageKey) ?? '',
+      storedSource ?? '',
       LearningLanguageService.defaultSourceLanguage,
     );
     _englishLevel = LearningLanguageService.normalizeEnglishLevel(
-      prefs.getString(_englishLevelKey) ?? '',
+      storedLevel ?? '',
     );
     _learningGoal = LearningLanguageService.normalizeLearningGoal(
-      prefs.getString(_learningGoalKey) ?? '',
+      storedGoal ?? '',
     );
-    LearningLanguageService.setSourceLanguage(_sourceLanguage);
-    LearningLanguageService.setEnglishLevel(_englishLevel);
-    LearningLanguageService.setLearningGoal(_learningGoal);
+
+    // Only what is actually stored is handed to the service. The three fields
+    // above still fall back to a guess so the screens have something to draw,
+    // but the service is what the API sends, and it must be able to tell an
+    // answer from a guess: an unanswered field is left absent so the server
+    // keeps whatever it holds.
+    //
+    // Passing all three unconditionally is what let a Turkish learner's stored
+    // profile become Spanish. Nothing was stored for them -- their onboarding
+    // answers predate the fix in selectSourceLanguage below -- so every launch
+    // re-derived the profile from the interface language and sent it as fact.
+    if (storedSource != null && storedSource.isNotEmpty) {
+      LearningLanguageService.setSourceLanguage(_sourceLanguage);
+    }
+    if (storedLevel != null && storedLevel.isNotEmpty) {
+      LearningLanguageService.setEnglishLevel(_englishLevel);
+    }
+    if (storedGoal != null && storedGoal.isNotEmpty) {
+      LearningLanguageService.setLearningGoal(_learningGoal);
+    }
     _initialized = true;
     notifyListeners();
   }
