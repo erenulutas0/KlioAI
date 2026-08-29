@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocabmaster/l10n/app_localizations.dart';
 import 'package:vocabmaster/services/learning_language_service.dart';
 import 'package:vocabmaster/services/locale_text_service.dart';
 
@@ -49,6 +50,47 @@ void main() {
         LearningLanguageService.normalizeSupported('français', 'Turkish'),
         'French',
       );
+    });
+
+    test('every interface language explains in that same language', () {
+      // The default native language is derived from the interface, because
+      // menus in one language and AI feedback in another is a strange thing to
+      // hand someone to correct. It used to be derived by a switch listing tr
+      // and de with everything else defaulting to English -- so the day four
+      // locales were added, a Spanish reader silently got English
+      // explanations, and nothing said so.
+      //
+      // Asked of the supported locales, not of a list typed in here: a locale
+      // added later cannot slip past this by not being mentioned.
+      final Map<String, String> derived = <String, String>{};
+      for (final Locale locale in AppLocalizations.supportedLocales) {
+        LocaleTextService.setAppLocale(locale);
+        derived[locale.languageCode] =
+            LearningLanguageService.defaultSourceLanguage;
+      }
+      LocaleTextService.setAppLocale(const Locale('en'));
+
+      expect(derived.length, greaterThan(1),
+          reason: 'one locale or none, so this measures nothing');
+
+      for (final MapEntry<String, String> entry in derived.entries) {
+        expect(
+          LearningLanguageService.supportedSourceLanguages,
+          contains(entry.value),
+          reason: '${entry.key} derives "${entry.value}", which the profile '
+              'picker does not offer',
+        );
+        if (entry.key != 'en') {
+          expect(entry.value, isNot('English'),
+              reason: '${entry.key} reads its menus in ${entry.key} and would '
+                  'be explained to in English: add the language to '
+                  'normalizeSupported');
+        }
+      }
+
+      // Distinct, so two locales cannot quietly collapse onto one language.
+      expect(derived.values.toSet().length, derived.length,
+          reason: 'two interface languages share a native language: $derived');
     });
 
     test('falls back for unsupported profile values', () {

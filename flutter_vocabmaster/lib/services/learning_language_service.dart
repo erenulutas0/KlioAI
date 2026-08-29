@@ -14,11 +14,16 @@ class LearningLanguageService {
   ///
   /// English rather than Turkish for anything else, because that is what the
   /// interface itself falls back to.
-  static String get defaultSourceLanguage => switch (LocaleTextService.appLanguageCode) {
-        'tr' => 'Turkish',
-        'de' => 'German',
-        _ => 'English',
-      };
+  ///
+  /// Asked of [normalizeSupported] rather than a switch of its own. The switch
+  /// that stood here listed tr and de and defaulted everything else to
+  /// English, so the day Spanish, Portuguese, Italian and French were added,
+  /// each of them read its menus in one language and had the AI explain in
+  /// another -- the exact thing the paragraph above says not to do. The
+  /// normalizer already knows every code the picker can produce, and a test
+  /// holds it to that.
+  static String get defaultSourceLanguage =>
+      normalizeSupported(LocaleTextService.appLanguageCode, 'English');
   static const String targetLanguage = 'English';
   static const List<String> supportedSourceLanguages = [
     'Turkish',
