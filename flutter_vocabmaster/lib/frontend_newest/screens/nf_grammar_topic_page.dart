@@ -55,13 +55,29 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
             : null);
   }
 
+  /// The subtopic whose card is open, or null when the learner has collapsed
+  /// them all. Practice is a single button at the bottom of the topic page,
+  /// and the card above it is what they have been reading.
+  GrammarSubtopic? get _openSubtopic {
+    for (final GrammarSubtopic subtopic in widget.topic.subtopics) {
+      if (subtopic.id == _expandedSubtopicId) {
+        return subtopic;
+      }
+    }
+    return null;
+  }
+
   void _openQuiz() {
     // Wrapped in the theme scope because this route lands above the shell's
     // NfTheme — the same reason NfShell._pushNf exists.
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            NfThemeScope(child: NfGrammarQuizPage(topic: widget.topic)),
+        builder: (_) => NfThemeScope(
+          child: NfGrammarQuizPage(
+            topic: widget.topic,
+            subtopic: _openSubtopic,
+          ),
+        ),
       ),
     );
   }

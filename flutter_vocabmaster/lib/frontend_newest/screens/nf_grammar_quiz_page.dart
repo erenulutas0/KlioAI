@@ -29,9 +29,24 @@ import '../widgets/nf_card.dart';
 /// with identical wording, and string-keyed selection lit both of them up when
 /// either was tapped.
 class NfGrammarQuizPage extends StatefulWidget {
-  const NfGrammarQuizPage({super.key, required this.topic});
+  const NfGrammarQuizPage({super.key, required this.topic, this.subtopic});
 
   final GrammarTopic topic;
+
+  /// The subtopic the learner had open when they tapped Practice, if any.
+  ///
+  /// Without it the request said "Tenses" — a topic with twelve subtopics —
+  /// and the prompt's "testing ONLY this grammar topic" spanned all of them.
+  /// Someone who had just read Past Perfect Continuous got five questions
+  /// drawn from anywhere in the tense system, which from the learner's side
+  /// reads as a quiz that has nothing to do with the lesson.
+  final GrammarSubtopic? subtopic;
+
+  /// The topic string the generator is asked for. Static and pure so a test
+  /// can ask it directly rather than through a network call.
+  @visibleForTesting
+  static String requestedTopicFor(GrammarTopic topic, GrammarSubtopic? sub) =>
+      sub == null ? topic.title : '${topic.title}: ${sub.title}';
 
   @override
   State<NfGrammarQuizPage> createState() => _NfGrammarQuizPageState();
@@ -53,10 +68,29 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
   bool get _isTurkish =>
       Localizations.localeOf(context).languageCode == 'tr';
 
+  /// What the generator is asked for.
+  ///
+  /// Both parts, because eighteen of the eighty-six subtopics do not name a
+  /// grammar point on their own: "Ability", "Possibility", "Zero Article",
+  /// "Other Inversions". Sent alone, "Ability" is a request for nothing in
+  /// particular, which is a worse quiz than the broad one it replaced.
+  String get _requestedTopic =>
+      NfGrammarQuizPage.requestedTopicFor(widget.topic, widget.subtopic);
+
   @override
   void initState() {
     super.initState();
-    unawaited(_loadQuiz());
+    // After the first frame, not inside initState. _loadQuiz resolves its two
+    // error strings from the localizations before its first await -- on
+    // purpose, so no failure path reaches for a BuildContext across one -- and
+    // reading an inherited widget while initState is still running is an
+    // error. Release builds strip the assertion and carry on, so this only
+    // ever surfaced when a widget test pumped the page.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_loadQuiz());
+      }
+    });
   }
 
   Future<void> _loadQuiz({bool fresh = false}) async {
@@ -77,7 +111,7 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
     try {
       final Map<String, dynamic> result =
           await ApiService().chatbotGenerateGrammarQuiz(
-        topic: widget.topic.title,
+        topic: _requestedTopic,
         level: LearningLanguageService.englishLevel,
         variant: _variant,
       );
@@ -367,6 +401,18 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
           _isTurkish ? widget.topic.titleTr : widget.topic.title,
           style: NfTokens.display(size: NfFont.s18, color: t.primaryText),
         ),
+        // Named, so the learner can see the quiz is about the lesson they
+        // just read rather than the whole topic.
+        if (widget.subtopic != null)
+          Padding(
+            padding: const EdgeInsets.only(top: NfSpace.s4),
+            child: Text(
+              _isTurkish
+                  ? widget.subtopic!.titleTr
+                  : widget.subtopic!.title,
+              style: NfTokens.body(size: NfFont.s135, color: t.primaryText),
+            ),
+          ),
         const SizedBox(height: NfSpace.s14),
         ...List<Widget>.generate(
           _questions.length,
