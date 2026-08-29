@@ -388,16 +388,9 @@ String _localizedLanguageName(BuildContext context, String raw) {
   final String trimmed = raw.trim();
   final String canonical =
       LearningLanguageService.normalizeSupported(trimmed, trimmed);
-  final String? key = switch (canonical) {
-    'English' => 'language.english',
-    'German' => 'language.german',
-    'Spanish' => 'language.spanish',
-    'Portuguese' => 'language.portuguese',
-    'Indonesian' => 'language.indonesian',
-    'French' => 'language.french',
-    'Turkish' => 'language.turkish',
-    _ => null,
-  };
+  // One lookup, not a switch of its own: see
+  // AppLocalizations.languageNameKey for why there used to be four of these.
+  final String? key = AppLocalizations.languageNameKey(canonical);
   return key == null ? canonical : context.tr(key);
 }
 

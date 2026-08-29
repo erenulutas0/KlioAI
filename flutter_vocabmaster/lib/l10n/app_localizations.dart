@@ -61,6 +61,26 @@ class AppLocalizations {
           ?['onboarding.lang.name.$code'] ??
       code.toUpperCase();
 
+  /// The key that names a learning-profile language, or null if this app
+  /// carries no name for it.
+  ///
+  /// This mapping was written out four times -- the onboarding native-language
+  /// step, the settings sheet, the translation screen's direction labels and
+  /// the Today card -- as four switches over the same seven names, each with
+  /// its own default. Four copies is four chances to forget one, and adding
+  /// Italian to the profile found three of them at once: an Italian learner
+  /// was offered "Italian" and shown "English".
+  ///
+  /// Derived from the key set rather than listed, so a language needs only its
+  /// `language.<name>` entry to be named everywhere. Null rather than English
+  /// when there is none: a name the app does not have is better shown as the
+  /// learner stored it than replaced with a different language.
+  static String? languageNameKey(String canonicalName) {
+    final key = 'language.${canonicalName.trim().toLowerCase()}';
+    final english = _translations[fallbackLocale.languageCode];
+    return english != null && english.containsKey(key) ? key : null;
+  }
+
   static const Map<String, Map<String, String>> _translations = {
     'en': {
       'menu.title': 'Menu',

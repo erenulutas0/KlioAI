@@ -504,16 +504,11 @@ class _LegacyMainScreenState extends State<LegacyMainScreen> {
     );
   }
 
-  String _localizedLanguageLabel(String code) {
-    switch (code) {
-      case 'tr':
-        return context.tr('language.turkish');
-      case 'de':
-        return context.tr('language.german');
-      default:
-        return context.tr('language.english');
-    }
-  }
+  /// This is a third app-language picker, drawn over supportedLocales like the
+  /// other two, and it named every locale it did not list "English". See
+  /// AppLocalizations.languageName.
+  String _localizedLanguageLabel(String code) =>
+      AppLocalizations.languageName(code);
 
 
   // IndexedStack sayfaları "canlı" tutar - rebuild olmaz

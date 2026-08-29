@@ -47,25 +47,13 @@ class NfSettingsPage extends StatelessWidget {
   // Labels
   // ---------------------------------------------------------------------------
 
+  /// The learner's own language, named in the language they are reading.
+  ///
+  /// One lookup, not a switch of its own: see AppLocalizations.languageNameKey
+  /// for why there used to be four of these.
   String _learningLanguageLabel(BuildContext context, String language) {
-    switch (language) {
-      case 'Turkish':
-        return context.tr('language.turkish');
-      case 'Spanish':
-        return context.tr('language.spanish');
-      case 'Portuguese':
-        return context.tr('language.portuguese');
-      case 'Indonesian':
-        return context.tr('language.indonesian');
-      case 'German':
-        return context.tr('language.german');
-      case 'French':
-        return context.tr('language.french');
-      case 'Italian':
-        return context.tr('language.italian');
-      default:
-        return context.tr('language.english');
-    }
+    final String? key = AppLocalizations.languageNameKey(language);
+    return key == null ? language : context.tr(key);
   }
 
   String _learningGoalLabel(BuildContext context, String goal) {

@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
+import 'package:vocabmaster/services/learning_language_service.dart';
 
 /// The language picker has to name every language it offers.
 ///
@@ -62,5 +64,68 @@ void main() {
           reason: '$path labels its language rows some other way; a local '
               'helper with a default branch is how they all became English');
     }
+  });
+
+  test('every language the profile offers has a name in every locale', () {
+    // The same mapping was written out four times -- the onboarding native
+    // language step, the settings sheet, the translation screen's direction
+    // labels and the Today card -- as four switches over the same seven names,
+    // each with its own default. Adding Italian found three of them at once:
+    // the picker offered "Italian" and the label said "English".
+    for (final String language
+        in LearningLanguageService.supportedSourceLanguages) {
+      final String? key = AppLocalizations.languageNameKey(language);
+      expect(key, isNotNull,
+          reason: 'the profile offers $language and the app cannot name it: '
+              'add language.${language.toLowerCase()} to every block');
+
+      final Set<String> named = <String>{};
+      for (final Locale locale in AppLocalizations.supportedLocales) {
+        final String name = AppLocalizations(locale).t(key!);
+        expect(name, isNot(key),
+            reason: '${locale.languageCode} has no value for $key, so the '
+                'screen shows the key itself');
+        expect(name.trim(), isNotEmpty);
+        named.add(name);
+      }
+      expect(named, isNotEmpty);
+    }
+  });
+
+  test('no screen names a language on its own', () {
+    // A switch mapping language names to l10n keys inside a screen is how
+    // there came to be four of them. The names live in one place now, and a
+    // screen reaching for language.turkish or language.french directly is
+    // that mistake coming back. language.changed and language.label are not
+    // names and are left alone.
+    final Set<String> nameKeys = <String>{
+      for (final String language
+          in LearningLanguageService.supportedSourceLanguages)
+        "'${AppLocalizations.languageNameKey(language)}'",
+    };
+
+    final offenders = <String>[];
+    for (final file
+        in Directory('lib').listSync(recursive: true).whereType<File>()) {
+      final String path = file.path.replaceAll('\\', '/');
+      if (!path.endsWith('.dart')) continue;
+      // The map itself, and the retired design, which is kept on disk but
+      // unreachable.
+      if (path.contains('/l10n/') || path.contains('lib/screens/')) continue;
+
+      final List<String> lines = file.readAsStringSync().split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        for (final String key in nameKeys) {
+          if (lines[i].contains(key)) {
+            offenders.add('$path:${i + 1}  ${lines[i].trim()}');
+          }
+        }
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These name a language themselves instead of asking '
+            'AppLocalizations.languageNameKey:\n'
+            '${offenders.join('\n')}');
   });
 }

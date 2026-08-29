@@ -440,23 +440,18 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
       'indonesian' => 'ID',
       'german' => 'DE',
       'french' => 'FR',
+      'italian' => 'IT',
       'arabic' => 'AR',
       'english' => 'EN',
       _ => 'EN',
     };
   }
 
+  /// One lookup, not a switch of its own: see
+  /// AppLocalizations.languageNameKey for why there used to be four of these.
   String _languageLabel(String language) {
-    return switch (language) {
-      'Turkish' => context.tr('language.turkish'),
-      'English' => context.tr('language.english'),
-      'Spanish' => context.tr('language.spanish'),
-      'Portuguese' => context.tr('language.portuguese'),
-      'Indonesian' => context.tr('language.indonesian'),
-      'German' => context.tr('language.german'),
-      'French' => context.tr('language.french'),
-      _ => language,
-    };
+    final String? key = AppLocalizations.languageNameKey(language);
+    return key == null ? language : context.tr(key);
   }
 
   String _directionLabel(String direction) {
