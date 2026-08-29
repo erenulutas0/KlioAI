@@ -186,6 +186,30 @@ void main() {
             '${offenders.join('\n')}');
   });
 
+  test('no locale string ships a backslash to the screen', () {
+    // A translation carrying a real line break has to reach Dart as \n. The
+    // script that writes these blocks escaped the backslash first and the line
+    // break second, so Spanish and Portuguese shipped \\n on session.empty:
+    // Dart reads that as an escaped backslash and paints the two characters
+    // \n in the middle of the sentence. It compiles, it runs, and only a
+    // reader of that language would ever notice.
+    //
+    // Nothing this app says to a user contains a backslash. No file paths, no
+    // regexes, no code -- so any escaped one in the map is this mistake.
+    final source = File('lib/l10n/app_localizations.dart').readAsStringSync();
+    final offenders = <String>[];
+    final lines = source.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].contains('\\\\')) {
+        offenders.add('app_localizations.dart:${i + 1}  ${lines[i].trim()}');
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These paint a backslash instead of a line break:\n'
+            '${offenders.join('\n')}');
+  });
+
   test('Turkish spells each word one way', () {
     // Turkish readers are the entire audience, and to them a missing ö or ş
     // does not read as a typo — it reads as a machine wrote it.
@@ -389,7 +413,7 @@ void main() {
       'ipucu', 'kompozisyonlar', 'motivasyonunuzu',
       'buildde', 'cihaz', 'dahil', 'dakika', 'telefon', 
       'endonezce', 'galaksisi', 'hangi', 'harika',
-      'haziran', 'iptal', 'ispanyolca', 
+      'haziran', 'iptal', 'ispanyolca', 'italyanca',
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
       'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
       // Stems only. Inflected borrowings are handled by withoutBorrowedStem

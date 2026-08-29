@@ -28,6 +28,7 @@ class LearningLanguageService {
     'Indonesian',
     'German',
     'French',
+    'Italian',
   ];
   static const String defaultEnglishLevel = 'B1';
   static const List<String> supportedEnglishLevels = [
@@ -119,6 +120,7 @@ class LearningLanguageService {
       'id' || 'id-id' || 'indonesian' || 'bahasa indonesia' => 'Indonesian',
       'de' || 'de-de' || 'german' || 'deutsch' => 'German',
       'fr' || 'fr-fr' || 'french' || 'francais' || 'français' => 'French',
+      'it' || 'it-it' || 'italian' || 'italiano' => 'Italian',
       _ => fallback,
     };
   }

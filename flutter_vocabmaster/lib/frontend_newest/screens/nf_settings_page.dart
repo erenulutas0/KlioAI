@@ -47,17 +47,6 @@ class NfSettingsPage extends StatelessWidget {
   // Labels
   // ---------------------------------------------------------------------------
 
-  String _languageLabel(BuildContext context, String code) {
-    switch (code) {
-      case 'tr':
-        return context.tr('language.turkish');
-      case 'de':
-        return context.tr('language.german');
-      default:
-        return context.tr('language.english');
-    }
-  }
-
   String _learningLanguageLabel(BuildContext context, String language) {
     switch (language) {
       case 'Turkish':
@@ -72,6 +61,8 @@ class NfSettingsPage extends StatelessWidget {
         return context.tr('language.german');
       case 'French':
         return context.tr('language.french');
+      case 'Italian':
+        return context.tr('language.italian');
       default:
         return context.tr('language.english');
     }
@@ -182,7 +173,7 @@ class NfSettingsPage extends StatelessWidget {
           .map((Locale locale) => locale.languageCode)
           .toList(growable: false),
       current: provider.locale.languageCode,
-      label: (String code) => _languageLabel(context, code),
+      label: (String code) => AppLocalizations.languageName(code),
       onSelect: (String code) async {
         await provider.selectLanguage(Locale(code));
         messenger.showSnackBar(
@@ -370,7 +361,7 @@ class NfSettingsPage extends StatelessWidget {
             label: context.tr('settings.language.title'),
             tokens: t,
             trailing: NfChip(
-              label: _languageLabel(context, languageCode),
+              label: AppLocalizations.languageName(languageCode),
               variant: NfChipVariant.selected,
               dense: true,
             ),

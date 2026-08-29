@@ -23,7 +23,8 @@ public record LearningLanguageProfile(
             "Portuguese",
             "Indonesian",
             "German",
-            "French");
+            "French",
+            "Italian");
     private static final Set<String> SUPPORTED_FEEDBACK_LANGUAGES = Set.of(
             "Turkish",
             "English",
@@ -31,7 +32,8 @@ public record LearningLanguageProfile(
             "Portuguese",
             "Indonesian",
             "German",
-            "French");
+            "French",
+            "Italian");
     private static final Set<String> SUPPORTED_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
     private static final Set<String> SUPPORTED_GOALS = Set.of("Speaking", "Vocabulary", "Exam", "Work", "Travel");
 
@@ -49,6 +51,15 @@ public record LearningLanguageProfile(
         feedbackLanguage = normalizeFeedbackLanguage(feedbackLanguage, sourceLanguage);
         englishLevel = normalizeEnglishLevel(englishLevel);
         learningGoal = normalizeLearningGoal(learningGoal);
+    }
+
+    /// The native languages the AI will explain in.
+    ///
+    /// Exposed so a test can ask the question directly instead of repeating
+    /// the list: an enumerated copy in a test only ever checks what someone
+    /// remembered to type into it.
+    public static Set<String> supportedSourceLanguages() {
+        return SUPPORTED_SOURCE_LANGUAGES;
     }
 
     public static LearningLanguageProfile defaultProfile() {
@@ -158,6 +169,7 @@ public record LearningLanguageProfile(
             case "id", "id-id", "indonesian", "bahasa indonesia" -> "Indonesian";
             case "de", "de-de", "german", "deutsch" -> "German";
             case "fr", "fr-fr", "french", "francais", "français" -> "French";
+            case "it", "it-it", "italian", "italiano" -> "Italian";
             default -> "";
         };
     }

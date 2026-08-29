@@ -115,11 +115,19 @@ class PromptCatalogTest {
     }
 
     @Test
-    void interferenceNotesFor_ShouldReturnDistinctNonEmptyNotes_ForAllSevenSourceLanguages() {
-        java.util.List<String> languages = java.util.List.of(
-                "Turkish", "Spanish", "Portuguese", "Indonesian", "German", "French");
-        java.util.Set<String> seen = new java.util.HashSet<>();
+    void interferenceNotesFor_ShouldReturnDistinctNonEmptyNotes_ForEverySupportedSourceLanguage() {
+        // Asked of the supported set, not of a list typed in here. The list
+        // that used to stand in this place named six languages under a method
+        // called ...ForAllSevenSourceLanguages, so it could only ever check
+        // what someone had remembered to add to it: a language could join the
+        // profile with no transfer notes at all and nothing would say so.
+        // English is the one exception, and it is asserted separately below.
+        java.util.Set<String> languages = new java.util.HashSet<>(
+                LearningLanguageProfile.supportedSourceLanguages());
+        languages.remove("English");
+        assertTrue(languages.size() > 1, "the supported set is empty or trivial, so this checks nothing");
 
+        java.util.Set<String> seen = new java.util.HashSet<>();
         for (String language : languages) {
             String notes = PromptCatalog.interferenceNotesFor(language);
             assertTrue(notes.contains("COMMON " + language.toUpperCase(java.util.Locale.ROOT) + "-SPEAKER TRANSFER ERRORS"),

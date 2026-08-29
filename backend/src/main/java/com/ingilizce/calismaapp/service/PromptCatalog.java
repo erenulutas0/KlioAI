@@ -259,6 +259,12 @@ public final class PromptCatalog {
                     + "\"faire\" for many senses English splits between \"do\" and \"make\", causing confusion "
                     + "between the two. French present tense often covers what English expresses with present "
                     + "continuous, so learners under-use \"-ing\" forms.";
+            case "Italian" -> "Italian is pro-drop, so learners often omit English subject pronouns "
+                    + "(\"Is a good idea\" instead of \"It is a good idea\"). Italian adjectives usually "
+                    + "follow the noun, causing reversed English word order. Italian uses the present "
+                    + "perfect where English uses the simple past (\"I have gone yesterday\"), and marks "
+                    + "duration with the present tense (\"I live here since 2020\") where English needs "
+                    + "the present perfect. Double negatives are grammatical in Italian but not in English.";
             default -> "";
         };
         if (notes.isEmpty()) {

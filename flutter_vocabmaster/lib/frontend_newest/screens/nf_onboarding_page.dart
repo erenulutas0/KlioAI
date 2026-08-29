@@ -453,7 +453,7 @@ class _LanguageStep extends StatelessWidget {
                     key: ValueKey<String>(
                       'onboarding-language-${locale.languageCode}',
                     ),
-                    label: _appLanguageName(context, locale.languageCode),
+                    label: AppLocalizations.languageName(locale.languageCode),
                     code: locale.languageCode.toUpperCase(),
                     selected: selected.languageCode == locale.languageCode,
                     suggested: detected.languageCode == locale.languageCode,
@@ -466,7 +466,7 @@ class _LanguageStep extends StatelessWidget {
                     .tr('onboarding.lang.deviceHint')
                     .replaceAll(
                       '{lang}',
-                      _appLanguageName(context, detected.languageCode),
+                      AppLocalizations.languageName(detected.languageCode),
                     ),
                 style: NfTokens.body(size: NfFont.s125, color: t.inkFaint),
               ),
@@ -592,17 +592,6 @@ class _LanguageRow extends StatelessWidget {
 }
 
 /// Each supported interface language, written in itself.
-String _appLanguageName(BuildContext context, String code) {
-  switch (code) {
-    case 'tr':
-      return context.tr('onboarding.lang.name.tr');
-    case 'de':
-      return context.tr('onboarding.lang.name.de');
-    default:
-      return context.tr('onboarding.lang.name.en');
-  }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // CHROME
 // ═══════════════════════════════════════════════════════════════════════════
