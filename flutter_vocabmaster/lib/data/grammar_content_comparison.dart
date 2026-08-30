@@ -44,6 +44,33 @@ Uzun sıfatlar: the most + adj
 • little → less → least
 • much/many → more → most
 ''',
+      explanationEn: '''
+These are the structures for comparing adjectives and adverbs.
+
+🎯 COMPARATIVE — comparing two things, with "-er" or "more":
+
+Short adjectives (one syllable): + er
+• tall → taller, big → bigger, nice → nicer
+
+Long adjectives (two or more syllables): more + adjective
+• beautiful → more beautiful
+• expensive → more expensive
+
+🎯 SUPERLATIVE — the top of a group, with "the -est" or "the most":
+
+Short: the + adjective + est
+• tall → the tallest, big → the biggest
+
+Long: the most + adjective
+• the most beautiful, the most expensive
+
+🎯 IRREGULAR:
+• good → better → the best
+• bad → worse → the worst
+• far → further/farther → the furthest/farthest
+
+⚠️ Never both at once: "more taller" and "most best" are wrong.
+''',
       formula: '''
 Comparative: adj + er + than / more + adj + than
 Superlative: the + adj + est / the most + adj
@@ -121,6 +148,31 @@ not so + adj/adv + as
 • as far as I know: bildiğim kadarıyla
 • as long as: ...dığı sürece
 • as well as: ...in yanı sıra
+''',
+      explanationEn: '''
+Used to say that two things are equal, or that they are not.
+
+🎯 EQUAL:
+as + adjective/adverb + as
+"She is as tall as her brother."
+
+🎯 NOT EQUAL:
+not as + adjective/adverb + as
+not so + adjective/adverb + as
+"She is not as tall as her brother."
+
+🎯 MULTIPLES:
+• twice as ... as
+• three times as ... as
+• half as ... as
+
+🎯 FIXED PHRASES:
+• as soon as possible
+• as far as I know
+• as long as
+• as well as
+
+⚠️ The adjective between the two "as" stays in its plain form. "As taller as" and "as more expensive as" are both wrong.
 ''',
       formula: '''
 Olumlu: as + adj + as
@@ -206,6 +258,21 @@ The + comparative..., the + comparative...
 • İlk "the" koşulu, ikinci "the" sonucu gösterir
 • Kısa sıfatlarda -er, uzunlarda more kullanılır
 ''',
+      explanationEn: '''
+Used to show two things rising or falling together.
+
+🎯 THE STRUCTURE:
+The + comparative..., the + comparative...
+"The more you study, the more you learn."
+"The harder you work, the more successful you will be."
+"The older he gets, the wiser he becomes."
+
+⚠️ Both halves need "the". Dropping either one breaks the pattern: "More you study, more you learn" is wrong.
+
+💡 A related pattern doubles a single comparative to show continuous change:
+"It is getting colder and colder."
+"Prices are rising more and more quickly."
+''',
       formula: '''
 The + comparative + S + V, the + comparative + S + V
 
@@ -288,6 +355,33 @@ Karşılaştırma için kullanılan diğer yapılar ve kalıplar.
 
 • Unlike: Aksine, ...den farklı olarak
   "Unlike his brother, he is quiet."
+''',
+      explanationEn: '''
+Other structures used for comparing.
+
+🎯 PREFER / WOULD RATHER:
+• Prefer + noun + to + noun
+  "I prefer tea to coffee."
+• Prefer + V-ing + to + V-ing
+  "I prefer walking to driving."
+• Would rather + V1 + than + V1
+  "I would rather stay than leave."
+
+🎯 SAME / DIFFERENT / SIMILAR:
+• The same as
+  "Your bag is the same as mine."
+• Different from
+  "This is different from that."
+• Similar to
+  "This is similar to that."
+
+🎯 LIKE / UNLIKE:
+• Like + noun — resembling
+  "He runs like his father."
+• Unlike + noun — in contrast to
+  "Unlike his brother, he is quiet."
+
+⚠️ The prepositions are fixed: "the same AS", "different FROM", "similar TO". Swapping them is one of the commonest slips.
 ''',
       formula: '''
 prefer + noun/V-ing + to + noun/V-ing

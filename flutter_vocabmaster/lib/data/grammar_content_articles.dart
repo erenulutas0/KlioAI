@@ -36,6 +36,25 @@ Harf değil, SES önemlidir!
 • Sayı anlamı: "a hundred, a thousand"
 • "Per" anlamı: "twice a week, 60 km an hour"
 ''',
+      explanationEn: '''
+"A" and "an" are the indefinite articles. They go before COUNTABLE, SINGULAR nouns that are not yet specific.
+
+🎯 A vs AN:
+• A: before a CONSONANT SOUND
+  a book, a car, a university (a "yoo" sound), a European, a one-way ticket
+• AN: before a VOWEL SOUND
+  an apple, an hour (the h is silent), an honest man, an MBA
+
+⚠️ IMPORTANT:
+It is the SOUND that decides, not the letter.
+• "University" starts with U but sounds like "yoo" → a university
+• "Hour" starts with H but sounds like a vowel → an hour
+
+🎯 WHERE IT IS USED:
+• Mentioning something for the first time: "I saw a cat."
+• Saying what kind of thing something is: "She is a doctor."
+• With numbers and measures: "twice a week", "a hundred"
+''',
       formula: '''
 A/AN + Sayılabilir Tekil İsim
 
@@ -126,6 +145,31 @@ the University of Oxford, the Bank of England
 • Diller: English, Turkish
 • Öğünler: breakfast, lunch, dinner
 • Sporlar: football, tennis
+''',
+      explanationEn: '''
+"The" is the definite article. It is used when the thing is specific, or has already been mentioned.
+
+🎯 WHERE "THE" IS USED:
+
+1. ALREADY MENTIONED:
+"I saw a cat. THE cat was black."
+
+2. ONE OF A KIND:
+the sun, the moon, the sky, the world, the Internet
+
+3. SUPERLATIVES AND ORDINALS:
+the best, the first, the only, the same
+
+4. GROUPS OF COUNTRIES AND REGIONS:
+the USA, the UK, the Netherlands, the Alps
+
+5. SEAS, OCEANS AND RIVERS:
+the Pacific, the Nile, the Mediterranean
+
+6. NOUN + of + NOUN:
+the University of Oxford, the Bank of England
+
+⚠️ A general idea takes no article at all: "Love is important", not "The love is important".
 ''',
       formula: '''
 THE + Belirli/Bilinen İsim
@@ -218,6 +262,33 @@ Bazı durumlarda hiçbir tanımlık (a/an/the) kullanılmaz.
 
 8. GÖLLER:
 "Lake Baikal" (değil: The Lake Baikal)
+''',
+      explanationEn: '''
+In some places no article at all is used — neither a/an nor the.
+
+🎯 WHERE NO ARTICLE IS USED:
+
+1. GENERAL IDEAS, plural or uncountable:
+"Dogs are loyal."
+"Water is essential."
+
+2. LANGUAGES:
+"He speaks French fluently."
+
+3. MOST COUNTRY NAMES:
+"Turkey is beautiful." — not "the Turkey"
+
+4. MEALS:
+"Let's have breakfast."
+
+5. SPORTS:
+"I play tennis."
+
+6. SCHOOL, PRISON, HOSPITAL — when the purpose is meant:
+"He is in prison." — as a prisoner
+"He is in the prison." — visiting the building
+
+⚠️ That last pair is the trap: the article changes the meaning, not just the grammar.
 ''',
       formula: '''
 Ø (Zero Article) + Genel isim
@@ -315,6 +386,28 @@ Miktarı belirten kelimelerdir. Sayılabilir ve sayılamaz isimlere göre farkl�
   
 • A FEW / A LITTLE: Olumlu anlam (biraz, yeterli)
   "A few people came." (Birkaç kişi geldi - yeterli)
+''',
+      explanationEn: '''
+Quantifiers say how much or how many, and which one you can use depends on whether the noun is countable.
+
+🎯 COUNTABLE NOUNS:
+many, few, a few, several, a number of
+"many books", "a few friends"
+
+🎯 UNCOUNTABLE NOUNS:
+much, little, a little, a great deal of, an amount of
+"much water", "a little time"
+
+🎯 EITHER KIND:
+some, any, a lot of, lots of, plenty of, no, all, most
+"some books", "some water"
+
+💡 FEW vs A FEW:
+• "few friends" — almost none, and that is a problem
+• "a few friends" — not many, but enough
+The same difference holds for "little" and "a little".
+
+⚠️ "Many informations" and "much students" are both wrong: information is uncountable, students are countable.
 ''',
       formula: '''
 Countable: many, few, a few, several

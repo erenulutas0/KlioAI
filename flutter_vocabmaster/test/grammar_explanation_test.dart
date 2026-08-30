@@ -11,14 +11,11 @@ import 'package:vocabmaster/data/grammar_repository.dart';
 /// examples" — the same one on all eighty-three subtopics. The app offers
 /// seven interface languages and taught in one.
 ///
-/// This is a job in progress, so the test is written for a job in progress:
-/// it pins how many are done rather than demanding they all are. The number
-/// goes up as the work lands and can never go down by accident, which is the
-/// only property that matters while the work is half finished. When it reaches
-/// the total, this becomes an ordinary "every subtopic has one" check.
+/// While the work was half done this pinned a count -- 12, then 23, 31, 37,
+/// 45, 53, 69 -- so the gap stayed a number that had to come down rather than
+/// a silence, and so that nothing could quietly disappear on the way. All
+/// eighty-three are written now, so it asks the plain question instead.
 void main() {
-  /// Raise this as explanations land. Never lower it.
-  const int written = 45;
 
   late List<GrammarSubtopic> subtopics;
 
@@ -30,21 +27,15 @@ void main() {
         reason: 'only ${subtopics.length} subtopics were found');
   });
 
-  test('the English explanations written so far are still there', () {
-    final int have = subtopics
-        .where((s) => (s.explanationEn ?? '').trim().isNotEmpty)
-        .length;
+  test('every subtopic explains itself in English', () {
+    final missing = subtopics
+        .where((s) => (s.explanationEn ?? '').trim().isEmpty)
+        .map((s) => s.id)
+        .toList();
 
-    expect(have, greaterThanOrEqualTo(written),
-        reason: '$have subtopics have an English explanation and $written had '
-            'one when this was last updated. Something removed '
-            '${written - have} of them.');
-
-    if (have > written) {
-      fail('$have subtopics now have an English explanation, up from '
-          '$written. Raise `written` to $have — the count is the record of '
-          'how far this has got, and it is only useful if it is current.');
-    }
+    expect(missing, isEmpty,
+        reason: 'These would show a reader of the other six languages one '
+            'generic sentence instead of the guide: ${missing.join(", ")}');
   });
 
   test('an English explanation is not the Turkish one', () {

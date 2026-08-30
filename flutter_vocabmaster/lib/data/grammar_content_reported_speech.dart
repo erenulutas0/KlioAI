@@ -51,6 +51,38 @@ Birinin söylediğini başkasına aktarırken, giriş fiili geçmiş zamandaysa 
 • Past Perfect zaten en geçmiş → değişmez
 • Would, could, should, might, ought to → değişmez
 ''',
+      explanationEn: '''
+When you report what someone said and the reporting verb is in the past (said, told), the tenses inside the reported sentence shift one step further back.
+
+🎯 THE SHIFTS:
+
+Present Simple → Past Simple
+"I work" → he worked
+
+Present Continuous → Past Continuous
+"I am working" → he was working
+
+Past Simple → Past Perfect
+"I worked" → he had worked
+
+Present Perfect → Past Perfect
+"I have worked" → he had worked
+
+Will → Would
+"I will work" → he would work
+
+Can → Could
+"I can work" → he could work
+
+Must → Had to
+"I must work" → he had to work
+
+⚠️ WHEN NOTHING SHIFTS:
+• The reporting verb is present (He says...)
+• The statement is a scientific fact
+• The tense is already Past Perfect, which cannot go back further
+• Would, could, should, might and ought to have no further-back form
+''',
       formula: '''
 Said + that + [backshifted tense]
 
@@ -121,6 +153,25 @@ Reported: She asked if/whether I was coming.
 2. Düz cümle sırası (S + V) olur
 3. Soru işareti KALKAR
 4. "Asked" veya "wanted to know" kullanılır
+''',
+      explanationEn: '''
+Turning a question into reported speech changes its shape. It stops being a question and becomes a statement.
+
+🎯 WH- QUESTIONS:
+Direct: "Where do you live?"
+Reported: She asked where I lived.
+→ The wh-word stays; the INVERSION GOES.
+
+🎯 YES/NO QUESTIONS:
+Direct: "Are you coming?"
+Reported: She asked if/whether I was coming.
+→ If or whether is added; the inversion goes.
+
+⚠️ THE CRITICAL RULES:
+1. The question inversion (do/does/did + subject) DISAPPEARS
+2. The ordinary subject + verb order is used
+3. The question mark DISAPPEARS
+4. "Asked" or "wanted to know" introduces it
 ''',
       formula: '''
 WH- Questions:
@@ -203,6 +254,30 @@ Reported: He asked me to help him.
 • remind → hatırlatma
 • forbid → yasaklama
 ''',
+      explanationEn: '''
+Orders and requests are reported with a to-infinitive.
+
+🎯 ORDERS:
+Direct: "Open the door!"
+Reported: He told me to open the door.
+
+🎯 NEGATIVE ORDERS:
+Direct: "Don't be late!"
+Reported: She told me not to be late.
+
+🎯 REQUESTS:
+Direct: "Could you help me, please?"
+Reported: He asked me to help him.
+
+🎯 THE VERBS USED:
+• tell, order, command → an order
+• ask, request → a request
+• advise, warn → advice or a warning
+• beg, urge → pleading
+• encourage → encouragement
+• remind → a reminder
+• forbid → a prohibition
+''',
       formula: '''
 Olumlu: told/asked + object + to + V1
 Olumsuz: told/asked + object + NOT to + V1
@@ -270,6 +345,29 @@ Negative: told/asked + object + NOT to + V1
       titleTr: 'Aktarım Fiilleri',
       explanation: '''
 Farklı aktarım fiilleri farklı yapılar alır. Öne sürme, itiraf etme, inkar etme gibi anlamlar için özel fiiller kullanılır.
+
+🎯 VERB + THAT-CLAUSE:
+• say, claim, state, mention, explain, point out, admit, deny, promise, suggest, insist...
+"He admitted that he had lied."
+
+🎯 VERB + TO-INFINITIVE:
+• agree, decide, offer, promise, refuse, threaten...
+"She agreed to help."
+
+🎯 VERB + OBJECT + TO-INFINITIVE:
+• advise, ask, beg, encourage, invite, order, permit, persuade, remind, tell, urge, warn...
+"He advised me to study."
+
+🎯 VERB + V-ing:
+• admit, deny, suggest, recommend...
+"He denied stealing the money."
+
+🎯 VERB + PREPOSITION + V-ing:
+• apologize for, insist on, object to, accuse of...
+"She apologized for being late."
+''',
+      explanationEn: '''
+Different reporting verbs take different structures. There are specific verbs for claiming, admitting, denying and so on.
 
 🎯 VERB + THAT-CLAUSE:
 • say, claim, state, mention, explain, point out, admit, deny, promise, suggest, insist...

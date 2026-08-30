@@ -48,6 +48,32 @@ Türkçe düşünmekten kaynaklanan en yaygın fiil hataları.
 ❌ I am believing you.
 ✅ I believe you.
 ''',
+      explanationEn: '''
+The verb mistakes learners make most often.
+
+🎯 SUBJECT-VERB AGREEMENT:
+• Third person singular (he/she/it) takes -s in the Present Simple
+❌ He work hard.
+✅ He works hard.
+
+• Everyone, everybody, someone and nobody are singular
+❌ Everyone are here.
+✅ Everyone is here.
+
+🎯 AUXILIARY VERBS:
+❌ Does she likes?
+✅ Does she like? — the auxiliary carries the -s, not the main verb
+
+❌ She didn't went.
+✅ She didn't go. — after "did", the plain form
+
+🎯 MODALS:
+❌ I can to swim.
+✅ I can swim. — no "to" after a modal
+
+❌ He can plays.
+✅ He can play. — and no -s either
+''',
       formula: '''
 ✓ S/he + V-s (Present Simple)
 ✓ Does/Did + V1 (yardımcı varken yalın fiil)
@@ -119,6 +145,26 @@ Türkçe'den birebir çeviri yaparken yapılan edat hataları.
 🎯 EDAT ALMAYAN FİİLLER:
 enter, discuss, reach, attend, answer, approach, marry
 Bu fiiller doğrudan nesne alır, edat gerekmez!
+''',
+      explanationEn: '''
+Preposition mistakes, usually made by translating word for word from another language.
+
+🎯 PREPOSITIONS THAT SHOULD NOT BE THERE:
+❌ discuss about the problem → ✅ discuss the problem
+❌ reach to the station → ✅ reach the station
+❌ enter to the room → ✅ enter the room
+❌ answer to the question → ✅ answer the question
+
+🎯 THE WRONG PREPOSITION:
+❌ married with → ✅ married TO
+❌ afraid from → ✅ afraid OF
+❌ good in maths → ✅ good AT maths
+❌ depend of → ✅ depend ON
+
+🎯 A MISSING PREPOSITION:
+❌ listen him → ✅ listen TO him
+❌ wait you → ✅ wait FOR you
+❌ look the picture → ✅ look AT the picture
 ''',
       formula: '''
 ❌ Gereksiz edat: discuss ABOUT, reach TO
@@ -193,6 +239,30 @@ Nesne fiilden hemen sonra gelir, araya giremez.
 🎯 INDIRECT QUESTION:
 ❌ I wonder where is he. → ✅ I wonder where he is.
 ''',
+      explanationEn: '''
+Word order mistakes.
+
+🎯 SUBJECT + VERB + OBJECT IS FIXED:
+English does not move the object around the way some languages do.
+❌ I yesterday saw him.
+✅ I saw him yesterday.
+
+🎯 ADVERBS OF FREQUENCY:
+Before the main verb, but AFTER "be".
+✅ She always arrives early.
+✅ She is always late.
+❌ She always is late.
+
+🎯 ADJECTIVE + ENOUGH:
+"Enough" follows an adjective and precedes a noun.
+✅ old enough
+❌ enough old
+✅ enough money
+
+🎯 QUESTIONS INSIDE SENTENCES:
+❌ I don't know where is he.
+✅ I don't know where he is.
+''',
       formula: '''
 S + V + O (Özne-Yüklem-Nesne sabit!)
 Freq. Adverb: Subject + BE + always / Subject + always + V
@@ -265,6 +335,27 @@ Türkçe'de tanımlık olmadığı için bu konuda hatalar sık yapılır.
 🎯 SAYILAMAZ İSİMLER:
 ❌ I need an information. → ✅ I need information/some information.
 ❌ She gave me an advice. → ✅ She gave me advice/a piece of advice.
+''',
+      explanationEn: '''
+Article mistakes.
+
+🎯 NO "THE" WITH A GENERAL IDEA:
+❌ The life is short. → ✅ Life is short.
+❌ The money is important. → ✅ Money is important.
+
+🎯 NO "THE" WITH A LANGUAGE:
+❌ I speak the English. → ✅ I speak English.
+
+🎯 NO "A/AN" WITH AN UNCOUNTABLE NOUN:
+❌ an information → ✅ some information, a piece of information
+❌ an advice → ✅ some advice, a piece of advice
+
+🎯 "THE" IS REQUIRED:
+✅ the sun, the moon — one of a kind
+✅ the best, the first — superlatives and ordinals
+✅ the USA, the Netherlands — country names that are plural or descriptive
+
+⚠️ "The school" and "school" mean different things: the building, or the institution as a purpose.
 ''',
       formula: '''
 ❌ The + genel kavram (life, love, money)
@@ -353,6 +444,24 @@ Türkçe: Özne + Zaman + Yer + Nesne + Yüklem
 ❌ "I play every day football."
 ✅ "I play football every day."
 ''',
+      explanationEn: '''
+English word order is fixed, and meaning depends on it.
+
+🎯 THE BASIC PATTERN:
+Subject + Verb + Object + Place + Time
+"She reads books at home every evening."
+   S      V     O     Place      Time
+
+🎯 WHY IT MATTERS:
+English has almost no case endings, so position is what marks who did what.
+"The dog bit the man" and "The man bit the dog" use the same words and mean opposite things.
+
+🎯 PLACE BEFORE TIME:
+✅ I went to London last week.
+❌ I went last week to London.
+
+⚠️ Time can move to the front for emphasis, but place and object cannot be shuffled freely.
+''',
       formula: '''
 S + V + O + Place + Time
 
@@ -415,6 +524,29 @@ Zarfların cümledeki pozisyonu türlerine göre değişir.
   "Yesterday, I met him."
   "I met him yesterday."
 ''',
+      explanationEn: '''
+Where an adverb goes depends on what kind it is.
+
+🎯 FREQUENCY (always, often, never, sometimes):
+Before the main verb, after "be", after the first auxiliary.
+"She always works late."
+"She is always late."
+"She has always worked here."
+
+🎯 DEGREE (very, quite, extremely):
+Immediately before the word it modifies.
+"very tall", "quite slowly"
+
+🎯 MANNER (quickly, carefully, well):
+After the verb, or after the object.
+"He drove carefully."
+"He read the letter carefully."
+
+🎯 TIME (yesterday, now, soon):
+At the beginning or the end of the sentence.
+
+⚠️ An adverb never goes between a verb and its object: "He speaks well English" is wrong.
+''',
       formula: '''
 Frequency: S + BE + adverb / S + adverb + V
 Degree: adverb + adjective/adverb
@@ -466,6 +598,21 @@ Birden fazla sıfat kullanıldığında belirli bir sıra izlenir: OSASCOMP
 
 "A beautiful small old round blue Turkish wooden dining table"
    Opinion  Size Age Shape Color Origin Material Purpose  NOUN
+''',
+      explanationEn: '''
+When several adjectives describe one noun, they come in a fixed order.
+
+🎯 THE ORDER:
+Opinion → Size → Age → Shape → Colour → Origin → Material → Purpose → NOUN
+
+"A lovely little old rectangular green French silver whittling knife."
+
+🎯 IN PRACTICE:
+More than three adjectives at once is rare. What matters is that opinion comes first and material comes last.
+✅ a beautiful old wooden table
+❌ a wooden old beautiful table
+
+💡 Native speakers do not learn this list; they hear when it is wrong. Getting the order wrong does not stop you being understood, but it sounds odd.
 ''',
       formula: '''
 Opinion + Size + Age + Shape + Color + Origin + Material + Purpose + NOUN
@@ -535,6 +682,24 @@ Infinitive + Infinitive
 • not only...but also
 
 Bu bağlaçlardan sonra gelen yapılar da paralel olmalı!
+''',
+      explanationEn: '''
+Items joined by "and" or "or" must have the same grammatical form.
+
+🎯 THE PATTERNS:
+Noun + and + noun
+V-ing + and + V-ing
+To V + and + to V
+Adjective + and + adjective
+
+🎯 RIGHT AND WRONG:
+✅ I like swimming, running and cycling.
+❌ I like swimming, running and to cycle.
+
+✅ She is intelligent, hard-working and honest.
+❌ She is intelligent, hard-working and works hard.
+
+⚠️ The test is simple: take each item on its own and attach it to the opening of the sentence. If any one of them does not fit, the list is not parallel.
 ''',
       formula: '''
 X and/or Y → X ve Y aynı yapıda
@@ -609,6 +774,25 @@ Adj + and + Adj
 ✅ "He not only plays guitar but also sings."
    (V + V - paralel!)
 ''',
+      explanationEn: '''
+Paired conjunctions demand the same structure on both sides.
+
+🎯 THE PAIRS:
+• Both X and Y
+• Either X or Y
+• Neither X nor Y
+• Not only X but also Y
+
+🎯 X AND Y MUST MATCH:
+✅ She is both intelligent and kind. — adjective, adjective
+❌ She both is intelligent and kind.
+
+✅ He not only sings but also dances. — verb, verb
+❌ He not only sings but also a dancer.
+
+💡 THE TEST:
+Whatever word class follows the first half of the pair must follow the second half too. Move the first word of the pair until both sides balance.
+''',
       formula: '''
 Both X and Y → X = Y (aynı yapı)
 Either X or Y → X = Y
@@ -679,6 +863,24 @@ Elmaları elmalarla, portakalları portakallarla karşılaştır!
 
 "The students in my class are smarter than THOSE IN hers."
 (students vs students)
+''',
+      explanationEn: '''
+When comparing, the two things compared must be of the same kind.
+
+🎯 THE PROBLEM:
+❌ "The population of Turkey is larger than Greece."
+This compares a population with a country.
+
+🎯 THE FIXES:
+✅ "...larger than that of Greece." — singular
+✅ "...larger than Greece's."
+✅ "The prices here are higher than those in London." — plural
+
+🎯 THE FORMS:
+• that of + singular noun
+• those of + plural noun
+
+⚠️ This is one of the commonest mistakes in academic writing, and it is easy to miss because the sentence still sounds fluent.
 ''',
       formula: '''
 X...than X (aynı kategori)

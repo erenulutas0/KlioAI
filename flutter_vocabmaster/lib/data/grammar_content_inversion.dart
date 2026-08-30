@@ -44,6 +44,31 @@ Olumsuz veya kısıtlayıcı zarflar cümle başına geldiğinde, vurgu yaratmak
 ⚠️ KRİTİK:
 Sadece YARDIMCI FİİL başa gelir, ANA FİİL gelmez!
 ''',
+      explanationEn: '''
+When a negative or limiting adverb opens the sentence, the AUXILIARY and the SUBJECT swap places for emphasis. The sentence then looks like a question, but it is not one.
+
+🎯 ADVERBS THAT TRIGGER IT:
+
+• NEVER
+  "Never have I seen such a thing."
+
+• RARELY / SELDOM
+  "Rarely do we see such behaviour."
+
+• HARDLY / SCARCELY
+  "Hardly had I arrived when it started raining."
+
+• BARELY
+  "Barely had he finished when the bell rang."
+
+• LITTLE, in its negative sense
+  "Little did he know that..."
+
+• NO SOONER...THAN
+  "No sooner had I left than it started to rain."
+
+⚠️ If there is no auxiliary in the ordinary sentence, do/does/did is brought in to carry the inversion.
+''',
       formula: '''
 Negative Adverb + Auxiliary + Subject + Main Verb
 
@@ -135,6 +160,32 @@ Inverted: NO SOONER HAD I left THAN it rained.
 • "Only + zaman/koşul" olunca devriklik OLUR
   "Only then did I understand." (Devrik)
 ''',
+      explanationEn: '''
+An expression of time, place or condition beginning with "only" forces inversion when it opens the sentence.
+
+🎯 THE "ONLY" PATTERNS:
+
+• ONLY THEN
+  "Only then did I realise my mistake."
+
+• ONLY WHEN
+  "Only when I got home did I notice..."
+
+• ONLY AFTER
+  "Only after the exam did he relax."
+
+• ONLY BY
+  "Only by working hard can you succeed."
+
+• ONLY IF
+  "Only if you study will you pass."
+
+• ONLY IN THIS WAY
+  "Only in this way can we solve the problem."
+
+⚠️ NOTE:
+"Only" alone at the start of a sentence does NOT cause inversion. It is only the time, place or condition phrases built on it that do.
+''',
       formula: '''
 Only + Time/Condition + Auxiliary + Subject + Verb
 
@@ -209,6 +260,28 @@ TYPE 3 (If + Past Perfect → Had):
 • "If" tamamen atılır
 • Yardımcı fiil (Should/Were/Had) başa gelir
 • "Was" yerine mutlaka "WERE" kullanılır
+''',
+      explanationEn: '''
+In conditional sentences the "if" can be dropped and the clause inverted instead. This is more formal and more literary.
+
+🎯 THE THREE CONVERSIONS:
+
+TYPE 1 (If + Present → Should):
+"If you need help, call me."
+→ "Should you need help, call me."
+
+TYPE 2 (If + Past → Were):
+"If I were you, I would accept."
+→ "Were I you, I would accept."
+
+TYPE 3 (If + Past Perfect → Had):
+"If I had known, I would have come."
+→ "Had I known, I would have come."
+
+💡 NOTE:
+• The "if" disappears completely
+• The auxiliary (should/were/had) moves to the front
+• "Were" is always used, never "was"
 ''',
       formula: '''
 If + S + should → Should + S + V1
@@ -290,6 +363,27 @@ Aynı durumu ifade ederken:
 🎯 "AS / THOUGH" İLE:
 "Try as she might, she couldn't succeed."
 (Ne kadar denese de başaramadı.)
+''',
+      explanationEn: '''
+Inversion appears in several other places too.
+
+🎯 SO / NEITHER / NOR — agreeing:
+"I am tired." — "So am I."
+"I don't like it." — "Neither/Nor do I."
+
+🎯 NOT ONLY...BUT ALSO:
+When "not only" opens the sentence:
+"Not only did he apologise, but he also paid for the damage."
+
+🎯 ADVERBS OF PLACE, in a literary register:
+"Here comes the bus."
+"There goes my chance."
+"Up went the balloon."
+
+🎯 "SO + ADJ/ADV" AT THE FRONT:
+"So beautiful was the view that I took photographs."
+
+⚠️ With "here" and "there", the inversion happens only with a noun subject. With a pronoun it does not: "Here it comes", never "Here comes it".
 ''',
       formula: '''
 So + Aux + S (katılma)

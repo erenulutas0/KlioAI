@@ -35,6 +35,26 @@ Bir işi başkasına yaptırmak için kullanılır. İşi yapan kişi önemli de
 "My car = araba" → have my car washed ✓
 "John = insan" → have John wash... (farklı yapı!)
 ''',
+      explanationEn: '''
+Used when you arrange for someone else to do something. Who actually does it is unknown or beside the point; what matters is that it gets done.
+
+🎯 WHERE IT IS USED:
+• Professional services (getting a haircut, getting a car repaired)
+• Work done on your behalf
+• Unwelcome events (being robbed, having something broken) — usually with "get"
+
+🎯 ACROSS THE TENSES:
+• Present: I have my car washed.
+• Past: I had my car washed.
+• Future: I will have my car washed.
+• Perfect: I have had my car washed.
+• Continuous: I am having my car washed.
+
+💡 NOTE:
+The "something" must be a thing, not a person.
+"my car" → have my car washed ✓
+"John" → have John wash... — a different structure
+''',
       formula: '''
 HAVE + NESNE (thing) + V3 (Past Participle)
 
@@ -109,6 +129,20 @@ Bir kişiye bir iş yaptırmak anlamında kullanılır. İşi yapan kişi (someo
 ⚠️ KRİTİK FARK:
 • HAVE someone DO → "to" YOK (Bare infinitive)
 • GET someone TO DO → "to" VAR (To-infinitive)
+''',
+      explanationEn: '''
+Used when you get a particular person to do something. The person is named, and the structure carries a sense of authority or arrangement.
+
+🎯 HAVE vs GET:
+• HAVE someone DO: by authority, or a professional arrangement
+  "I had the mechanic fix my car."
+
+• GET someone TO DO: by persuading or asking
+  "I got my friend to help me."
+
+⚠️ THE CRITICAL DIFFERENCE:
+• HAVE someone DO → NO "to" (bare infinitive)
+• GET someone TO DO → "to" is required
 ''',
       formula: '''
 HAVE + KİŞİ + V1 (Yalın fiil)
@@ -199,6 +233,23 @@ Bu fiiller de causative yapıda kullanılır ve farklı anlamlar taşır.
   Active: "They made him confess."
   Passive: "He was made TO confess."
 ''',
+      explanationEn: '''
+These verbs also form causatives, and each carries a different meaning.
+
+🎯 LET + someone + V1 — giving permission
+"My parents let me stay out late."
+
+🎯 MAKE + someone + V1 — forcing or compelling
+"The teacher made us rewrite the essay."
+
+🎯 HELP + someone + (to) V1 — assisting; both forms are correct
+"She helped me (to) carry the bags."
+
+⚠️ THE CRITICAL POINT:
+Let and make take the bare infinitive — no "to". But in the passive, make gains one:
+"We were made TO rewrite the essay."
+Let has no passive of its own; "be allowed to" is used instead.
+''',
       formula: '''
 LET + object + V1 (to yok)
 MAKE + object + V1 (to yok)
@@ -281,6 +332,21 @@ Passive MAKE:
 💡 GET + Nesne (thing) + V3 (olumsuz):
 "I got my wallet stolen." (Cüzdanım çalındı.)
 "She got her leg broken." (Bacağı kırıldı.)
+''',
+      explanationEn: '''
+The same idea as "have something done", but more informal and more common in speech.
+
+🎯 THE STRUCTURE:
+GET + thing + V3 (past participle)
+"I got my hair cut."
+"We need to get this problem solved."
+
+🎯 HAVE vs GET:
+The meaning is the same. "Get" sounds more casual and often suggests effort or difficulty in arranging it; "have" is neutral and slightly more formal.
+
+💡 NOTE:
+Get is also used for things that happen to you without any arrangement at all:
+"I got my phone stolen." — nobody arranged that.
 ''',
       formula: '''
 GET + NESNE + V3

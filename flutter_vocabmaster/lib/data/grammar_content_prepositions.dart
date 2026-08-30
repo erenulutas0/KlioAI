@@ -41,6 +41,26 @@ Zaman ifadelerinde kullanılan edatlardır. AT, ON, IN üçlüsü en önemlisidi
 AT < ON < IN (Dar → Geniş)
 Saat (nokta) < Gün (çizgi) < Ay/Yıl (alan)
 ''',
+      explanationEn: '''
+AT, ON and IN each take a different size of time.
+
+🎯 AT — a point in time:
+clock times, moments, night
+"at 5 o'clock", "at midnight", "at the moment"
+
+🎯 ON — a day or a date:
+"on Monday", "on 3 May", "on my birthday"
+
+🎯 IN — a longer stretch:
+months, seasons, years, centuries, parts of the day
+"in July", "in summer", "in 1990", "in the morning"
+
+⚠️ THE EXCEPTIONS TO REMEMBER:
+• AT night — but IN the morning/afternoon/evening
+• ON Monday morning — a day plus a part of it takes ON
+• No preposition at all before this, last, next, every:
+  "I saw him last week", not "in last week"
+''',
       formula: '''
 AT + saat, an, gece
 ON + gün, tarih
@@ -127,6 +147,21 @@ Konum ve yer ifadelerinde kullanılan edatlardır.
 • ON: Ayakta durabilenlere → on the bus, on the train, on the plane
 • IN: Bükülüp girilen → in the car, in a taxi
 ''',
+      explanationEn: '''
+AT, ON and IN work for place much as they do for time: a point, a surface, an enclosure.
+
+🎯 AT — a point or a specific address:
+"at the bus stop", "at 25 Green Street", "at the concert"
+
+🎯 ON — a surface, a line, or a large vehicle:
+"on the table", "on the wall", "on Oxford Street", "on the bus"
+
+🎯 IN — an enclosed space, or a large area:
+"in the room", "in London", "in Turkey", "in the car"
+
+💡 THE VEHICLE RULE:
+Large vehicles you can walk about in take ON — on the bus, on the train, on the plane. Small ones you sit inside take IN — in the car, in a taxi.
+''',
       formula: '''
 AT + nokta, adres numarası, etkinlik
 ON + yüzey, büyük taşıt, cadde ismi
@@ -210,6 +245,24 @@ Bazı fiiller belirli edatlarla birlikte kullanılır. Bu kalıplar ezber gerekt
 • WAIT for: beklemek
 • WORRY about: endişelenmek
 ''',
+      explanationEn: '''
+Many verbs are followed by a fixed preposition. There is no rule that predicts which; they have to be learned together with the verb.
+
+🎯 COMMON PAIRS:
+• agree WITH someone, agree ON something
+• apologise FOR something, apologise TO someone
+• arrive AT a place, arrive IN a city
+• depend ON, insist ON, rely ON
+• listen TO, belong TO, refer TO
+• look FOR (search), look AFTER (care for), look AT (direct your eyes)
+
+⚠️ VERBS THAT TAKE NO PREPOSITION:
+Some verbs that seem to need one do not:
+• discuss something — not "discuss about"
+• marry someone — not "marry with"
+• enter a room — not "enter to"
+• answer a question — not "answer to"
+''',
       formula: '''
 Verb + Preposition + Object
 
@@ -292,6 +345,25 @@ Bazı sıfatlar belirli edatlarla birlikte kullanılır.
 • SIMILAR to: benzer olmak
 • SORRY for/about: üzgün olmak
 • TIRED of: bıkmak
+''',
+      explanationEn: '''
+Adjectives take fixed prepositions too, and the pairing has to be learned.
+
+🎯 COMMON PAIRS:
+• afraid OF, scared OF, frightened OF
+• good AT, bad AT, skilled AT
+• interested IN, involved IN
+• proud OF, ashamed OF, aware OF
+• responsible FOR, famous FOR, known FOR
+• married TO, similar TO, kind TO
+• different FROM, absent FROM
+• angry WITH someone, angry ABOUT something
+
+⚠️ COMMON SLIPS:
+• "afraid from" → afraid OF
+• "married with" → married TO
+• "interested on" → interested IN
+• "good in maths" → good AT maths
 ''',
       formula: '''
 Be + Adjective + Preposition + Object

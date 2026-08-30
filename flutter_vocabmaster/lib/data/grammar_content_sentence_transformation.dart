@@ -40,6 +40,29 @@ PASSIVE: "The project has been finished."
 ACTIVE: "They are building a bridge."
 PASSIVE: "A bridge is being built."
 ''',
+      explanationEn: '''
+Turning a sentence around so that it focuses on the object rather than the doer.
+
+🎯 ACTIVE → PASSIVE:
+
+1. The OBJECT of the active sentence becomes the SUBJECT
+2. A form of "be" is added, in the same tense as the original
+3. The main verb becomes V3 (past participle)
+4. The original subject can follow with "by...", and is usually dropped
+
+ACTIVE: "The cat ate the mouse."
+PASSIVE: "The mouse was eaten (by the cat)."
+
+🎯 WITH A MODAL:
+ACTIVE: "Someone must clean the room."
+PASSIVE: "The room must be cleaned."
+
+🎯 WITH A PERFECT TENSE:
+ACTIVE: "They have finished the work."
+PASSIVE: "The work has been finished."
+
+⚠️ A verb with no object cannot be made passive. "He slept" has nothing to promote to subject.
+''',
       formula: '''
 Active: Subject + Verb + Object
 Passive: Object → Subject + BE + V3 + (by Subject)
@@ -103,6 +126,31 @@ REPORTED: She asked where I lived. (Devriklik kalkar!)
 🎯 EMİR/RİCA DÖNÜŞÜMÜ:
 DIRECT: "Open the door!" he said.
 REPORTED: He told me to open the door.
+''',
+      explanationEn: '''
+Converting between quoting someone's exact words and reporting them.
+
+🎯 DIRECT → REPORTED:
+
+1. The quotation marks go
+2. "That" may be added
+3. The tenses shift one step back (backshift)
+4. The pronouns change (I → he/she)
+5. The words for time and place change
+
+DIRECT: He said, "I am tired."
+REPORTED: He said (that) he was tired.
+
+🎯 QUESTIONS:
+DIRECT: "Where do you live?" she asked.
+REPORTED: She asked where I lived. — the inversion goes.
+
+🎯 ORDERS:
+DIRECT: "Open the door!" he said.
+REPORTED: He told me to open the door.
+
+🎯 THE WORDS THAT MOVE:
+now → then, today → that day, tomorrow → the next day, yesterday → the day before, here → there, this → that
 ''',
       formula: '''
 Direct: Subject + said, "..."
@@ -170,6 +218,29 @@ Koşul cümlelerini farklı yapılarla ifade etme.
 "If I had known..." → "Had I known..."
 "If I were you..." → "Were I you..."
 "If you should need..." → "Should you need..."
+''',
+      explanationEn: '''
+Saying the same conditional a different way.
+
+🎯 IF → UNLESS:
+Unless means "if not".
+"If you don't study, you will fail."
+→ "Unless you study, you will fail."
+
+🎯 IF → PROVIDED THAT / AS LONG AS:
+"If you help me, I will finish."
+→ "Provided (that) you help me, I will finish."
+→ "As long as you help me, I will finish."
+
+🎯 IF → BUT FOR / WITHOUT:
+"If it hadn't been for your help, I would have failed."
+→ "But for your help, I would have failed."
+→ "Without your help, I would have failed."
+
+🎯 IF → INVERSION:
+"If I had known..." → "Had I known..."
+
+⚠️ "Unless" already carries the negative, so it never takes "not" as well: "Unless you don't study" reverses the meaning.
 ''',
       formula: '''
 If + not → Unless
@@ -248,6 +319,29 @@ Aynı anlamı farklı yapılarla ifade etme. YDS/YÖKDİL'de çok sık çıkar.
 🎯 IT'S TIME / HAD BETTER:
 "It's time you went home."
 = "You had better go home."
+''',
+      explanationEn: '''
+Expressing the same idea through a different structure.
+
+🎯 TOO...TO / SO...THAT / ENOUGH:
+"He is too young to drive."
+= "He is so young that he cannot drive."
+= "He is not old enough to drive."
+
+🎯 SO...THAT / SUCH...THAT:
+"It was so cold that we stayed inside."
+= "It was such cold weather that we stayed inside."
+
+🎯 ALTHOUGH / DESPITE / IN SPITE OF:
+"Although he is rich, he is unhappy."
+= "Despite being rich, he is unhappy."
+= "In spite of his wealth, he is unhappy."
+
+🎯 BECAUSE / BECAUSE OF / DUE TO:
+"Because it rained, we stayed in."
+= "Because of the rain, we stayed in."
+
+⚠️ The rule behind all of these: a conjunction takes a clause, a preposition takes a noun or an -ing form.
 ''',
       formula: '''
 too + adj + to V = so + adj + that... can't
