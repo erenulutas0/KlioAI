@@ -95,24 +95,31 @@ No ads. No streak that shames you. No leaderboard.
 
 ## Play Console'da ne yapman gerekiyor
 
-Sırası önemli — varsayılan dil değişmeden Türkçe'yi çeviri olarak eklemek
-işe yaramaz.
+Varsayılan dil zaten **İngilizce (en-US)**. Değiştirmene gerek yok.
 
-1. **Varsayılan dili İngilizce yap.** Sol menü → *Kullanıcı sayısını artırın →
-   Play Store'daki varlığı → Çeviriler*. Orada dilleri yönetme ve varsayılan
-   dili değiştirme seçeneği var. Şu anki Türkçe metinlerini **önce bir yere
-   kopyala** — varsayılan dil değişirken mevcut metnin nereye gittiğini
-   Console'un sürümüne göre farklı ele alabiliyor, elinde yedeği olsun.
+**Dil eklemek bir yedek kurmak değildir.** Play'de bir dil eklemek "o dile
+içerik sağlayacağım" demek: eklediğin her dil için uygulama adı, kısa açıklama
+ve tam açıklama zorunlu hâle gelir ve boş bırakılanlar hata verir. Bir
+kullanıcının dili **eklenmemişse** Play onu zaten varsayılana düşürür — bir
+İspanyol'a İngilizce göstermek için İspanyolca eklemek gerekmez, tam tersine
+eklersen İspanyolca metin yazmak zorunda kalırsın.
 
-2. **Türkçe'yi çeviri olarak ekle** ve kopyaladığın Türkçe metinleri oraya
-   yapıştır. Ekran görüntüleri de dile göre ayrı: Türkçe girişe
-   `store/play/screenshot_01..07.png` (mevcut Türkçe olanlar), İngilizce
-   girişe İngilizce çekilmiş olanlar.
+Yani listede yalnızca iki dil olmalı:
 
-3. **İngilizce girişe** yukarıdaki metinleri ve İngilizce görselleri koy.
+1. **İngilizce (ABD) – en-US**, varsayılan: bu dosyadaki metinler,
+   `screenshot_en_01..06.png` ve `feature_graphic_1024x500_en.png`.
 
-4. **Uygulama simgesine dokunma** — o dile göre değişmiyor, tek ve global.
+2. **Türkçe – tr**: `LISTING_TR.md` içindeki metinler,
+   `screenshot_01..07.png` ve `feature_graphic_1024x500.png`.
+
+Başka dil eklenmişse *Çeviriler → Dilleri yönet*'ten kaldır.
+
+**Uygulama simgesine dokunma** — dile göre değişmiyor, tek ve global.
+
+Özel giriş ve grup da gerekmiyor: onlar belirli bir kitleye farklı bir
+pazarlama metni göstermek için, dil için değil.
 
 Sonuç: Türkçe cihazlar Türkçe görür, geri kalan herkes İngilizce'ye düşer.
-İspanya tutarsa İspanyolca'yı üçüncü dil olarak eklersin, varsayılanı bir daha
-değiştirmene gerek kalmaz.
+İspanya tutarsa İspanyolca'yı üçüncü dil olarak eklersin — o zaman İspanyolca
+metin ve görselleri de hazırlaman gerekir, ki bu ancak orada gerçekten kullanıcı
+varsa değer.
