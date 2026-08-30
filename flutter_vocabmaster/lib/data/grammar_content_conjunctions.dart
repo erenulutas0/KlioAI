@@ -45,6 +45,36 @@ const conjunctionsTopic = GrammarTopic(
 İki tam cümleyi bağlarken VİRGÜL kullanılır!
 "I was tired, so I went to bed."
 ''',
+      explanationEn: '''
+These join two grammatically equal parts — two clauses, two nouns, two adjectives.
+
+🎯 FANBOYS, the seven of them:
+
+• FOR: because — literary and formal
+  "I stayed home, for I was sick."
+
+• AND: addition
+  "I bought bread and milk."
+
+• NOR: negative addition
+  "I don't like tea, nor do I like coffee."
+
+• BUT: contrast
+  "He is poor but happy."
+
+• OR: alternatives
+  "Do you want tea or coffee?"
+
+• YET: contrast, and stronger than but
+  "He is rich, yet he is unhappy."
+
+• SO: result
+  "It was late, so I went home."
+
+⚠️ NOTE:
+When joining two complete clauses, a COMMA goes before the conjunction.
+"I was tired, so I went to bed."
+''',
       formula: '''
 S + V, FANBOYS + S + V
   "I was hungry, so I ate."
@@ -121,6 +151,22 @@ as, than, as...as
 
 🎭 MANNER (Tarz):
 as, as if, as though, like (informal)
+''',
+      explanationEn: '''
+A subordinating conjunction attaches a clause that cannot stand on its own to one that can. The two halves are not equal: one depends on the other.
+
+🎯 COMMON ONES, BY MEANING:
+• Time: when, while, before, after, until, as soon as, since
+• Reason: because, since, as, now that
+• Contrast: although, though, even though, whereas
+• Condition: if, unless, provided that, as long as
+• Purpose: so that, in order that
+
+⚠️ THE COMMA RULE:
+When the subordinate clause comes FIRST, a comma separates the two:
+"Because I was late, I missed the bus."
+When it comes SECOND, no comma is needed:
+"I missed the bus because I was late."
 ''',
       formula: '''
 Subordinate Clause + Main Clause (virgül var)
@@ -210,6 +256,25 @@ Main Clause + Subordinate Clause (no comma)
 💡 PARALELLIK KURALI:
 İkili bağlaçlardan sonra gelen yapılar DİLBİLGİSEL OLARAK AYNI olmalıdır!
 ''',
+      explanationEn: '''
+These work in pairs, and the two halves have to be built the same way.
+
+🎯 THE PAIRS:
+• Both X and Y
+• Either X or Y
+• Neither X nor Y
+• Not only X but also Y
+• Whether X or Y
+
+⚠️ THE STRUCTURE MUST MATCH:
+Whatever follows the first half must be the same kind of thing as what follows the second — noun with noun, verb with verb, phrase with phrase.
+"She is both intelligent and kind" — adjective with adjective. ✓
+"She both is intelligent and kind" — the halves do not match. ✗
+
+🎯 AGREEMENT:
+With either/or and neither/nor, the verb agrees with the NEARER subject:
+"Neither the students nor the teacher WAS there."
+''',
       formula: '''
 Both + X + and + X
 Either + X + or + X
@@ -297,6 +362,22 @@ Cümleler veya paragraflar arasında mantıksal geçiş sağlayan sözcüklerdir
 Bu sözcükler genellikle virgül ile ayrılır!
 "He is rich. However, he is not happy."
 "He studied hard. Therefore, he passed."
+''',
+      explanationEn: '''
+These link ideas across sentence boundaries. Unlike conjunctions they do not join two clauses into one; each sentence stays whole.
+
+🎯 BY MEANING:
+• Addition: moreover, furthermore, in addition, besides
+• Contrast: however, nevertheless, on the other hand, in contrast
+• Result: therefore, thus, consequently, as a result
+• Example: for example, for instance, namely
+• Sequence: first, then, finally, meanwhile
+
+⚠️ PUNCTUATION:
+A transition word cannot join two clauses with only a comma. Either use a full stop, or a semicolon:
+"It rained. However, we went out." ✓
+"It rained; however, we went out." ✓
+"It rained, however, we went out." ✗
 ''',
       formula: '''
 S + V. [Linker], S + V.

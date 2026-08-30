@@ -37,6 +37,28 @@ const nounClausesTopic = GrammarTopic(
 • Özne konumunda → HAYIR (That he lied is clear)
 • Resmi yazıda → Atılmaması tercih edilir
 ''',
+      explanationEn: '''
+A noun clause built with "that" attaches a statement to the main sentence. It can sit where a subject goes or where an object goes.
+
+🎯 WHERE IT APPEARS:
+
+1. AS THE SUBJECT:
+"That he is rich is obvious."
+→ More natural: "It is obvious THAT he is rich."
+
+2. AS THE OBJECT (the commonest):
+"I know THAT she is coming."
+"I believe THAT he is honest."
+
+3. COMPLETING AN ADJECTIVE:
+"I am sure THAT you will succeed."
+"It is important THAT you arrive on time."
+
+🎯 CAN "THAT" BE DROPPED?
+• As the object → YES (I know (that) she is coming)
+• As the subject → NO (That he lied is clear)
+• In formal writing → better kept
+''',
       formula: '''
 NESNE: Subject + Verb + (that) + Subject + Verb
   "I think (that) he is right."
@@ -117,6 +139,23 @@ Düz cümle sırası (Özne + Fiil) kullanılır.
 • Can you tell me... (söyler misin)
 • Do you know... (biliyor musun)
 • I have no idea... (hiç fikrim yok)
+''',
+      explanationEn: '''
+When a wh- question (what, where, when, who, why, how) is used inside another sentence it becomes a noun clause. This is also called an embedded or indirect question.
+
+🎯 THE CRITICAL RULE:
+Direct question → question word order → "Where DOES she live?"
+Indirect → STATEMENT word order → "I wonder where she LIVES."
+
+⚠️ VERY IMPORTANT:
+Inside a noun clause the question structure (do/does/did + subject) is NOT used. The ordinary subject + verb order is.
+
+🎯 VERBS THAT INTRODUCE ONE:
+• I wonder...
+• I don't know...
+• Can you tell me...
+• Do you know...
+• I have no idea...
 ''',
       formula: '''
 Direct: Wh- + Auxiliary + Subject + Verb?
@@ -218,6 +257,26 @@ IF kullanılabilir:
 • "Or not" ayrı yazılırsa: "...if he comes or not"
 • "Don't know if..." gibi yapılarda
 ''',
+      explanationEn: '''
+When a yes/no question is used inside another sentence it is joined with "if" or "whether".
+
+🎯 HOW IT WORKS:
+Direct: "Is she coming?"
+Indirect: "I wonder IF/WHETHER she is coming."
+
+🎯 IF vs WHETHER:
+
+WHETHER is preferred:
+• With "or not" attached: "...whether or not..."
+• After a preposition: "about whether..."
+• Before an infinitive: "...whether to go..."
+• In formal writing
+
+IF is fine:
+• In everyday speech
+• When "or not" comes at the end: "...if he comes or not"
+• In patterns like "I don't know if..."
+''',
       formula: '''
 Direct Yes/No Q: Auxiliary + Subject + Verb?
   "Is he coming?"
@@ -291,6 +350,25 @@ Bazı fiil ve sıfatlardan sonra gelen that-clause içinde "subjunctive" (dilek 
 • "He goes" değil "He GO" (3. tekil şahıs -s almaz!)
 • "She doesn't go" değil "She NOT GO"
 • veya "She SHOULD GO"
+''',
+      explanationEn: '''
+After certain verbs and adjectives, the that-clause takes the subjunctive. The verb stays in its BARE form (V1), or "should + V1" is used instead.
+
+🎯 VERBS THAT REQUIRE IT:
+• suggest, recommend, propose
+• demand, insist, request
+• require, order, command
+• urge, advise
+
+🎯 ADJECTIVES THAT REQUIRE IT:
+• It is essential/important/vital/necessary that...
+• It is recommended/suggested that...
+• It is crucial/imperative that...
+
+⚠️ CRITICAL:
+• "He GO", not "he goes" — no third-person -s
+• "She NOT GO", not "she doesn't go"
+• or "She SHOULD GO"
 ''',
       formula: '''
 Subject + Verb + that + Subject + (should) + V1

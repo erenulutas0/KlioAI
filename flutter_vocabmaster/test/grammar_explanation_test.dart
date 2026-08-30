@@ -18,7 +18,7 @@ import 'package:vocabmaster/data/grammar_repository.dart';
 /// the total, this becomes an ordinary "every subtopic has one" check.
 void main() {
   /// Raise this as explanations land. Never lower it.
-  const int written = 23;
+  const int written = 45;
 
   late List<GrammarSubtopic> subtopics;
 

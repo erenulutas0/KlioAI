@@ -23,6 +23,16 @@ Bilimsel gerçekler, genel doğrular ve her zaman olan sonuçlar için kullanıl
 • Genel alışkanlıklar (Yorulursam uyurum)
 • Talimatlar (Kırmızı ışık yanarsa dur)
 ''',
+      explanationEn: '''
+Used for scientific facts, general truths and results that always follow. "If A happens, B happens."
+
+🎯 When is it used?
+• Laws of nature (Water boils at 100 degrees)
+• General habits (If I get tired, I sleep)
+• Instructions (If the light turns red, stop)
+
+Both halves take the Present Simple. "Will" does not appear in either one.
+''',
       formula: '''
 If + Present Simple, Present Simple
 ''',
@@ -62,6 +72,17 @@ Gelecekte olması muhtemel olaylar için kullanılır.
 • Uyarılar ve tehditler
 • Vaatler
 • Olasılıklar
+''',
+      explanationEn: '''
+Used for events that are likely to happen in the future. The condition is real and the result is expected to follow.
+
+🎯 When is it used?
+• Plans for the future
+• Warnings and threats
+• Promises
+• Realistic possibilities
+
+The "if" half stays in the Present Simple even though it is about the future: "If it rains", never "If it will rain".
 ''',
       formula: '''
 If + Present Simple, Will + V1
@@ -110,6 +131,16 @@ If + Present Simple, Will + V1
 • "Yerinde olsam..." (If I were you)
 • Piyango çıksa... (İhtimal düşük)
 • Hayaller ve varsayımlar
+''',
+      explanationEn: '''
+Describes imaginary, unlikely or impossible situations in the present or the near future.
+
+🎯 When is it used?
+• "If I were you..." — advice given as a hypothesis
+• Winning the lottery and other long odds
+• Dreams and suppositions
+
+The past tense here is not about the past; it marks distance from reality. "Were" is used for every person: "If I were rich", not "If I was rich", in careful English.
 ''',
       formula: '''
 If + Past Simple, Would + V1
@@ -160,6 +191,16 @@ Geçmişte olmuş bitmiş olayları "keşke şöyle olsaydı" diye tersini hayal
 • Eleştiriler (Daha dikkatli olmalıydın)
 • Geçmişe dair varsayımlar
 ''',
+      explanationEn: '''
+Used to imagine the opposite of something that already happened. The past cannot be changed, so this is regret, criticism or supposition rather than a real condition.
+
+🎯 When is it used?
+• Regret (If I had studied...)
+• Criticism (You should have been more careful)
+• Supposition about the past
+
+Both halves look one step further back than usual: had + V3 in the condition, would have + V3 in the result.
+''',
       formula: '''
 If + Past Perfect (had V3), Would have + V3
 (Could have V3 / Might have V3)
@@ -201,6 +242,14 @@ Bazen koşul geçmişte, sonuç şu anda olabilir; veya koşul genel bir durum i
 
 🎯 En yaygın tip (Past Agent -> Present Result):
 "Geçmişte şunu yapmasaydım (Type 3), şu an bu durumda olmazdım (Type 2)."
+''',
+      explanationEn: '''
+Sometimes the condition sits in the past while its result sits in the present, or the condition is a general state while the result stayed in the past.
+
+🎯 The commonest kind — past cause, present result:
+"If I had not done that in the past (type 3), I would not be in this situation now (type 2)."
+
+So the condition takes had + V3 and the result takes would + V1, mixing the shapes of the third and second conditionals.
 ''',
       formula: '''
 If + Past Perfect (Type 3), Would + V1 (Type 2)

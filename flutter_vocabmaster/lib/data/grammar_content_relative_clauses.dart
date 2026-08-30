@@ -34,6 +34,25 @@ Sıfat cümlecikleri (Relative Clauses), bir ismi niteleyen, onun hakkında ek b
 "My brother who lives in London came." (Londra'da yaşayan kardeşim geldi - birden fazla kardeşim var, o özellikle geldi)
 "My brother, who lives in London, came." (Kardeşim geldi, o Londra'da yaşar - tek kardeşim var, ek bilgi)
 ''',
+      explanationEn: '''
+A relative clause describes a noun and tells you more about it. There are two kinds, and the difference changes the meaning of the sentence.
+
+🎯 1. DEFINING — it identifies which one:
+• The information is essential to the meaning
+• NO commas
+• "That" is allowed
+• "Which/who" can be dropped when it is the object
+
+🎯 2. NON-DEFINING — it adds an aside:
+• The information could be removed and the sentence would still stand
+• COMMAS are required, in the middle or at the end
+• "That" is NOT allowed
+• The relative pronoun cannot be dropped
+
+💡 The critical difference:
+"My brother who lives in London came." — I have more than one brother; this is the one who came.
+"My brother, who lives in London, came." — I have one brother; where he lives is an aside.
+''',
       formula: '''
 Defining: The man WHO/THAT lives here is my uncle.
 Non-Defining: My father, WHO is 60, retired.
@@ -123,6 +142,41 @@ Sıfat cümlelerini bağlamak için kullanılan zamirlerdir.
 • The reason WHY I came...
 • = ...for which I came
 ''',
+      explanationEn: '''
+These are the pronouns that join a relative clause to the noun it describes.
+
+🎯 THE MAIN ONES:
+
+👤 WHO: for people, as subject or object
+• The man WHO called you is my friend.
+
+👤 WHOM: for people, as object only, and formal
+• The man WHOM I saw is my friend.
+• ⚠️ After a preposition it must be whom: "The man TO WHOM I spoke..."
+
+🔵 WHICH: for things and animals
+• The book WHICH I read was good.
+
+🔵 THAT: for people and things, in defining clauses only
+• The man THAT lives here...
+• The book THAT I read...
+
+💼 WHOSE: possession
+• The girl WHOSE car was stolen...
+• ⚠️ It works for people, animals and things alike.
+
+📍 WHERE: for places
+• The city WHERE I was born...
+• = ...in which I was born
+
+⏰ WHEN: for times
+• The day WHEN I got married...
+• = ...on which I got married
+
+❓ WHY: for reasons, and only after "reason"
+• The reason WHY I came...
+• = ...for which I came
+''',
       formula: '''
 Subject: The man WHO lives here...
 Object: The man (WHO/WHOM/THAT) I saw...
@@ -204,6 +258,23 @@ Relative clause'ları daha kısa ve akıcı hale getirmek için "who/which/that 
 4. TO-INFINITIVE (İlk, Son, Tek...)
 "She was the first woman WHO won the prize" → "She was the first woman to win the prize"
 ''',
+      explanationEn: '''
+A relative clause can be shortened by dropping "who/which/that + be", which makes the sentence tighter and more natural.
+
+🎯 THE RULES:
+
+1. ACTIVE VERB → V-ing (present participle)
+"The man WHO IS sitting there" → "The man sitting there"
+
+2. PASSIVE VERB → V3 (past participle)
+"The book WHICH WAS written by Orwell" → "The book written by Orwell"
+
+3. ADJECTIVE (be + adjective)
+"The students WHO ARE unable to come" → "The students unable to come"
+
+4. TO-INFINITIVE (after first, last, only, or a superlative)
+"She was the first woman WHO won the prize" → "She was the first woman to win the prize"
+''',
       formula: '''
 Active: who/which + V → V-ing
   "The man WHO lives here" → "The man living here"
@@ -281,6 +352,29 @@ Who/Which/That... Preposition (sonda)
 💡 KRİTİK FARKLAR:
 • Preposition başta ise → whom/which ZORUNLU
 • Preposition sonda ise → who/which/that/nothing hepsi olur
+• WHY = for which
+• WHERE = in/at which
+• WHEN = on/at which
+''',
+      explanationEn: '''
+When a relative clause contains a preposition, the preposition can sit in either of two places.
+
+🎯 THE TWO PATTERNS:
+
+1. FORMAL, as in academic writing:
+Preposition + whom/which
+• "The person TO WHOM I spoke was helpful."
+• "The topic ABOUT WHICH we spoke was important."
+
+2. INFORMAL, as in speech:
+Who/which/that... with the preposition at the end
+• "The person (who) I spoke TO was helpful."
+• "The topic (which) we spoke ABOUT..."
+• ⚠️ Here "that" or nothing at all can be used
+
+💡 THE CRITICAL DIFFERENCES:
+• Preposition in front → whom/which is REQUIRED
+• Preposition at the end → who/which/that/nothing all work
 • WHY = for which
 • WHERE = in/at which
 • WHEN = on/at which

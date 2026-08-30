@@ -36,6 +36,27 @@ Zaman cümlelerinde GELECEK anlam olsa bile "WILL" KULLANILMAZ!
 "When I will go" → YANLIŞ!
 "When I go" → DOĞRU!
 ''',
+      explanationEn: '''
+These are subordinate clauses built with conjunctions of time. They answer the question "when?".
+
+🎯 CONJUNCTIONS OF TIME:
+
+• WHEN: at the point that
+• WHILE / AS: during the time that — two things at once
+• BEFORE: earlier than
+• AFTER: later than
+• UNTIL / TILL: up to the point that
+• SINCE: from a point in the past onwards
+• AS SOON AS: immediately after
+• BY THE TIME: not later than, with the action complete
+• ONCE: as soon as, after something has happened
+• WHENEVER / EVERY TIME: on each occasion that
+
+⚠️ THE CRITICAL RULE:
+A time clause does NOT take "will", even when it clearly refers to the future.
+"When I will go" → WRONG
+"When I go" → RIGHT
+''',
       formula: '''
 Time Clause + Main Clause
 Main Clause + Time Clause
@@ -140,6 +161,27 @@ Bir eylemin sebebini/nedenini açıklayan yan cümlelerdir. "Neden?" sorusuna ce
 • Conjunction → CÜMLE (Subject + Verb)
 • Preposition → İSİM (Noun Phrase) veya V-ing
 ''',
+      explanationEn: '''
+These clauses give the reason for something. They answer the question "why?".
+
+🎯 CONJUNCTIONS OF REASON (+ A CLAUSE):
+
+• BECAUSE: the strongest, and used when the reason is new information
+• SINCE: when the reason is already known to both speakers
+• AS: a weaker reason, usually at the start of the sentence
+• NOW THAT: given a situation that has just become true
+
+🎯 PREPOSITIONS OF REASON (+ A NOUN or V-ing):
+
+• BECAUSE OF + noun/V-ing
+• DUE TO + noun, more formal
+• OWING TO + noun, formal
+• ON ACCOUNT OF + noun
+• THANKS TO + noun, and positive in tone
+
+💡 THE CRITICAL DIFFERENCE:
+A conjunction is followed by a CLAUSE (subject + verb); a preposition is followed by a NOUN. "Because the rain" and "because of it rained" are both wrong.
+''',
       formula: '''
 Because/Since/As + Subject + Verb, Main Clause
 Because of/Due to + Noun, Main Clause
@@ -218,6 +260,30 @@ Beklentinin aksine bir sonuç olduğunu gösteren cümlelerdir. "...e rağmen" a
 ⚠️ KRİTİK FARK:
 • Although/Though → Tek cümle içinde bağlar
 • However → İki ayrı cümleyi bağlar, noktalama işareti gerekir!
+''',
+      explanationEn: '''
+These sentences show a result that runs against expectation — the "even though" idea.
+
+🎯 CONJUNCTIONS OF CONTRAST (+ A CLAUSE):
+
+• ALTHOUGH / THOUGH / EVEN THOUGH
+• WHILE / WHEREAS, for a straight comparison
+• EVEN IF, for a hypothetical
+
+🎯 PREPOSITIONS OF CONTRAST (+ A NOUN):
+
+• DESPITE / IN SPITE OF + noun/V-ing
+• REGARDLESS OF + noun
+• NOTWITHSTANDING + noun, very formal
+
+🎯 LINKING WORDS (STARTING A NEW SENTENCE):
+
+• HOWEVER / NEVERTHELESS / NONETHELESS
+• STILL / YET
+• ON THE OTHER HAND / IN CONTRAST
+
+⚠️ THE CRITICAL DIFFERENCE:
+Although and though join two halves of ONE sentence. However joins TWO sentences and needs a full stop or a semicolon before it.
 ''',
       formula: '''
 Although/Though + S + V, S + V
@@ -314,6 +380,32 @@ Bir eylemin amacını/niyetini açıklayan yan cümlelerdir. "Niçin? Ne için?"
 "For + V-ing" amaç değil, kullanım amacı belirtir.
 "This knife is for cutting bread." (Ekmek kesmek İÇİN bir bıçak - genel amaç)
 ''',
+      explanationEn: '''
+These clauses explain the purpose of an action. They answer "what for?".
+
+🎯 THE PATTERNS:
+
+• TO / IN ORDER TO / SO AS TO + V1
+  "I went to the store to buy milk."
+
+• SO THAT / IN ORDER THAT + S + can/will/may
+  "He studies hard so that he can pass."
+
+• FOR + noun / V-ing
+  "I bought a pen for writing."
+
+⚠️ NEGATIVE PURPOSE:
+
+• IN ORDER NOT TO / SO AS NOT TO + V1
+  "I left early so as not to be late."
+
+• SO THAT + S + won't/wouldn't
+  "He spoke quietly so that he wouldn't wake the baby."
+
+💡 CRITICAL:
+"For + V-ing" states what something is generally used for, not why someone did something once.
+"This knife is for cutting bread."
+''',
       formula: '''
 Main Clause + to/in order to/so as to + V1
 Main Clause + so that + S + can/will/may/could/would + V1
@@ -395,6 +487,35 @@ SO + Sıfat/Zarf (Adjective/Adverb)
 SUCH + (a/an) + İsim (Noun)
 • "SUCH a beautiful day" (öyle güzel bir gün)
 • "SUCH nice people" (öyle iyi insanlar)
+''',
+      explanationEn: '''
+These structures show the result of something.
+
+🎯 THE PATTERNS:
+
+• SO + ADJ/ADV + THAT
+  "He is SO tall THAT he can touch the ceiling."
+
+• SUCH + (a/an) + (ADJ) + NOUN + THAT
+  "It was SUCH a good film THAT I watched it twice."
+
+🎯 LINKING WORDS:
+
+• SO / THEREFORE / THUS / HENCE
+• AS A RESULT / CONSEQUENTLY
+• ACCORDINGLY
+
+💡 SO vs SUCH:
+
+SO + adjective or adverb
+• "SO expensive"
+• "SO quickly"
+
+SUCH + (a/an) + noun
+• "SUCH a beautiful day"
+• "SUCH nice people"
+
+The test is what follows: an adjective on its own takes SO, an adjective attached to a noun takes SUCH.
 ''',
       formula: '''
 SO + Adj/Adv + THAT + S + V
