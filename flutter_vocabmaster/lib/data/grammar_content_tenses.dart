@@ -25,6 +25,17 @@ Present Simple (Geniş Zaman), genel doğruları, alışkanlıkları, rutin akti
 • Sportif yorumlar ve kitap/film özetleri
 • Duygular ve zihinsel durumlar (believe, know, love, hate)
 ''',
+      explanationEn: '''
+The Present Simple is used for general truths, habits, routines and
+situations that do not change.
+
+🎯 When is it used?
+• Universal facts and scientific statements
+• Actions that repeat regularly (habits)
+• Timetables and schedules (buses, trains, flights)
+• Sports commentary and summaries of books and films
+• Feelings and states of mind (believe, know, love, hate)
+''',
       formula: '''
 ➕ Olumlu: Subject + V1 (he/she/it için +s/es)
 ➖ Olumsuz: Subject + do/does + not + V1
@@ -110,6 +121,16 @@ Present Continuous (Şimdiki Zaman), konuşma anında devam eden eylemleri, geç
 • Kesin planlanmış yakın gelecek
 • Değişen/gelişen durumlar (getting better, increasing)
 • "Always" ile rahatsız edici alışkanlıklar
+''',
+      explanationEn: '''
+The Present Continuous describes actions happening at the moment of speaking, temporary situations, and firm plans for the near future.
+
+🎯 When is it used?
+• Actions happening right now ("What are you doing?")
+• Temporary situations, not permanent ones
+• Firmly arranged plans in the near future
+• Situations that are changing or developing (getting better, increasing)
+• Annoying habits, with "always"
 ''',
       formula: '''
 ➕ Olumlu: Subject + am/is/are + V-ing
@@ -206,6 +227,16 @@ Present Perfect, geçmişte başlayıp etkisi hâlâ devam eden veya sonuçları
 • Sonucu şu an önemli olan geçmiş eylemler
 • Tekrarlanan geçmiş eylemler (several times, twice)
 ''',
+      explanationEn: '''
+The Present Perfect describes actions that began in the past and still matter now, or whose results affect the present. Exactly when they happened is not the point.
+
+🎯 When is it used?
+• Life experience (Have you ever...?)
+• Situations continuing from the past until now (for, since)
+• Actions completed a moment ago (just, already, yet)
+• Past actions whose result matters now
+• Repeated past actions (several times, twice)
+''',
       formula: '''
 ➕ Olumlu: Subject + have/has + V3 (past participle)
 ➖ Olumsuz: Subject + have/has + not + V3
@@ -294,6 +325,18 @@ Present Perfect Continuous, geçmişte başlayıp şu ana kadar devam eden veya 
 Present Perfect → Sonuç odaklı ("Bitirdim")
 Present Perfect Continuous → Süreç/süre odaklı ("Yapıyordum")
 ''',
+      explanationEn: '''
+The Present Perfect Continuous emphasises the DURATION of actions that began in the past and either continue now or have just finished with visible results.
+
+🎯 When is it used?
+• Actions continuing from the past until now, with the length stressed
+• Actions that have just stopped but whose effect is still visible
+• Repeated actions (recently, lately)
+
+🎯 How it differs from the Present Perfect:
+Present Perfect → focused on the result ("I have finished")
+Present Perfect Continuous → focused on the process ("I have been working")
+''',
       formula: '''
 ➕ Olumlu: Subject + have/has + been + V-ing
 ➖ Olumsuz: Subject + have/has + not + been + V-ing
@@ -364,6 +407,15 @@ Past Simple, geçmişte tamamlanmış, belli bir zamanda gerçekleşmiş eylemle
 • Ardışık geçmiş eylemler (hikaye anlatımı)
 • Geçmişteki alışkanlıklar (used to ile)
 • Geçmişte tamamlanmış durumlar
+''',
+      explanationEn: '''
+The Past Simple describes completed actions that happened at a definite time in the past. The question "when?" can be answered.
+
+🎯 When is it used?
+• Events at a definite past time (yesterday, last week, in 2010)
+• A sequence of past actions, as in telling a story
+• Past habits, often with "used to"
+• Situations that finished in the past
 ''',
       formula: '''
 ➕ Olumlu: Subject + V2 (past form)
@@ -450,6 +502,15 @@ Past Continuous, geçmişte belirli bir anda devam etmekte olan eylemleri veya a
 • Hikayede arka plan/atmosfer anlatımı
 • Aynı anda gerçekleşen paralel eylemler
 ''',
+      explanationEn: '''
+The Past Continuous describes actions that were in progress at a particular moment in the past, or background events.
+
+🎯 When is it used?
+• An action in progress at a particular past moment
+• One past action interrupting another (while, when)
+• Background and atmosphere in a story
+• Parallel actions happening at the same time
+''',
       formula: '''
 ➕ Olumlu: Subject + was/were + V-ing
 ➖ Olumsuz: Subject + was/were + not + V-ing
@@ -518,6 +579,15 @@ Past Perfect, geçmişteki bir olaydan ÖNCE tamamlanmış başka bir olayı ifa
 • Reported speech (dolaylı anlatım) içinde
 • Third conditional (If + had + V3)
 • "By the time, before, after, when" ile
+''',
+      explanationEn: '''
+The Past Perfect describes an action completed BEFORE another past event. It can be thought of as the past of the past.
+
+🎯 When is it used?
+• Making the order of two past events clear
+• Inside reported speech
+• The third conditional (If + had + V3)
+• With "by the time, before, after, when"
 ''',
       formula: '''
 ➕ Olumlu: Subject + had + V3
@@ -590,6 +660,14 @@ Past Perfect Continuous, geçmişteki bir olaydan önce başlayıp o ana kadar d
 • Geçmişteki bir eylemin sebebini açıklamak
 • "How long" sorularının cevabında
 ''',
+      explanationEn: '''
+The Past Perfect Continuous emphasises the DURATION of an action that began before a past event and continued up to it.
+
+🎯 When is it used?
+• Actions lasting up to a point in the past, with the length stressed
+• Explaining the cause of a past situation
+• Answering "how long" questions about the past
+''',
       formula: '''
 ➕ Olumlu: Subject + had + been + V-ing
 ➖ Olumsuz: Subject + had + not + been + V-ing
@@ -651,6 +729,16 @@ Will, anlık kararlar, tahminler, vaatler ve kesinlik bildiren gelecek olayları
 • Vaatler ve teklifler
 • Kesin gelecek olaylar (güneş yarın doğacak)
 • Şartlı cümlelerin ana cümlesi (If..., ...will)
+''',
+      explanationEn: '''
+Will expresses decisions made on the spot, predictions, promises, and future events stated with certainty.
+
+🎯 When is it used?
+• Decisions made at the moment of speaking
+• Predictions and expectations (I think, probably)
+• Promises and offers
+• Certain future events (the sun will rise tomorrow)
+• The main clause of a conditional sentence (If..., ...will)
 ''',
       formula: '''
 ➕ Olumlu: Subject + will + V1
@@ -721,6 +809,14 @@ Be going to, önceden planlanmış niyetleri ve mevcut kanıtlara dayalı tahmin
 • Mevcut kanıtlara dayalı tahminler
 • Yakın gelecekte olacağı belli olan şeyler
 ''',
+      explanationEn: '''
+Be going to expresses intentions decided in advance, and predictions based on evidence you can see now.
+
+🎯 When is it used?
+• Plans and intentions already made
+• Predictions based on present evidence
+• Things that are clearly about to happen
+''',
       formula: '''
 ➕ Olumlu: Subject + am/is/are + going to + V1
 ➖ Olumsuz: Subject + am/is/are + not + going to + V1
@@ -774,6 +870,14 @@ Future Perfect, gelecekte belirli bir zamana kadar tamamlanmış olacak eylemler
 • "By" (... kadar) ile sık kullanılır
 • Deadline veya hedef belirtirken
 ''',
+      explanationEn: '''
+The Future Perfect describes actions that will already be complete by a certain time in the future.
+
+🎯 When is it used?
+• Actions finishing before a point in the future
+• Frequently with "by" (by then, by next year)
+• Stating a deadline or a target
+''',
       formula: '''
 ➕ Olumlu: Subject + will + have + V3
 ➖ Olumsuz: Subject + will + not + have + V3
@@ -821,6 +925,14 @@ Future Continuous, gelecekte belirli bir anda devam ediyor olacak eylemleri ifad
 • Gelecekte belirli bir anda devam edecek eylemler
 • Nazik soru sormak ("Will you be using...?")
 • Rutin olarak gelecekte olacak eylemler
+''',
+      explanationEn: '''
+The Future Continuous describes actions that will be in progress at a particular moment in the future.
+
+🎯 When is it used?
+• Actions in progress at a given future moment
+• Asking a polite question ("Will you be using...?")
+• Actions that will happen as a matter of routine
 ''',
       formula: '''
 ➕ Olumlu: Subject + will + be + V-ing

@@ -273,9 +273,16 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                     Divider(color: t.border, height: 1, thickness: 1),
                     const SizedBox(height: NfSpace.s12),
                     Text(
-                      _isTurkish
-                          ? subtopic.explanation
-                          : _overviewFallback(subtopic),
+                      // The Turkish explanation is the body of the guide, and
+                      // for a long time nobody but a Turkish reader saw it:
+                      // every other language got one generic sentence,
+                      // identical on all eighty-three subtopics. Where an
+                      // English version has been written it goes here; where
+                      // it has not, the generic sentence still stands in.
+                      subtopic.explanationFor(
+                            Localizations.localeOf(context).languageCode,
+                          ) ??
+                          _overviewFallback(subtopic),
                       style: NfTokens.body(
                         size: NfFont.s145,
                         weight: FontWeight.w600,

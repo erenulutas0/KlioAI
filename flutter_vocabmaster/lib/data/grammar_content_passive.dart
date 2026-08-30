@@ -23,6 +23,14 @@ Passive Voice (Edilgen Çatı), eylemi kimin yaptığından çok, eylemin kendis
 • Eylemi yapanın önemi yoksa (Köprü 1990'da inşa edildi)
 • Eylem, yapandan daha önemliyse
 ''',
+      explanationEn: '''
+The passive voice is used when the action itself, or the thing affected by it, matters more than whoever performed it.
+
+🎯 When is it used?
+• When we do not know who did it (My wallet was stolen)
+• When it does not matter who did it (The bridge was built in 1990)
+• When the action is more important than the doer
+''',
       formula: '''
 Active: Subject + Verb + Object
 Passive: Object + Be + V3 (+ by Subject)
@@ -91,6 +99,21 @@ Modal fiillerin (can, should, must...) passive halleridir.
 • Modal + be + V3 (Şimdiki/Gelecek)
 • Modal + have been + V3 (Geçmiş)
 ''',
+      explanationEn: '''
+A modal verb (can, should, must, may...) keeps its own meaning in the
+passive; only the verb after it changes shape. The modal itself never
+takes an ending.
+
+🎯 The structure:
+• Modal + be + V3, for the present or the future
+  "The report should be finished by Friday."
+• Modal + have been + V3, for the past
+  "It must have been taken while we were out."
+
+🎯 What to watch:
+The modal is followed by the bare form "be", never by "is", "are" or
+"was". "It should is done" and "It must was taken" are both wrong.
+''',
       formula: '''
 Active: You should do it.
 Passive: It should be done.
@@ -138,6 +161,15 @@ Günlük konuşma dilinde (informal), "be" yerine "get" kullanılarak passive ya
 • get fired (kovulmak)
 • get stolen (çalınmak)
 • get married (evlenmek - istisna, nahoş değil ama passive yapısıdır)
+''',
+      explanationEn: '''
+In informal speech, "get" can replace "be" to build a passive. It usually describes something unpleasant or unexpected.
+
+🎯 Examples:
+• get hurt
+• get fired
+• get stolen
+• get married — the exception: not unpleasant, but the same structure
 ''',
       formula: '''
 Subject + get/got + V3

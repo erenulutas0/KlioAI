@@ -27,6 +27,21 @@ class GrammarSubtopic {
   final String title;
   final String titleTr;
   final String explanation; // Türkçe açıklama
+
+  /// The same explanation written in English, for the six interface languages
+  /// that are not Turkish.
+  ///
+  /// [explanation] is the body of the guide and it is Turkish, so the screen
+  /// has never shown it to anyone else. What they got instead was one generic
+  /// sentence -- "Present Simple is an English grammar pattern. Check the
+  /// formula below" -- identical on all eighty-three subtopics. The app offers
+  /// seven interface languages and taught in one.
+  ///
+  /// Null means no English has been written yet, and the screen falls back to
+  /// that generic sentence as before. `grammar_explanation_test` counts how
+  /// many are still null, so the gap is a number that has to go down rather
+  /// than a silence.
+  final String? explanationEn;
   final String formula; // Yapı/formül
 
   /// The same formula written in English, for the six interface languages
@@ -57,11 +72,20 @@ class GrammarSubtopic {
   String formulaFor(String languageCode) =>
       languageCode == 'tr' ? formula : (formulaEn ?? formula);
 
+  /// The explanation to put in front of a reader of [languageCode], or null
+  /// when there is nothing to show them but the generic framing sentence.
+  ///
+  /// Turkish readers get the Turkish one, which is what this data was written
+  /// as and what its whole audience reads today.
+  String? explanationFor(String languageCode) =>
+      languageCode == 'tr' ? explanation : explanationEn;
+
   const GrammarSubtopic({
     required this.id,
     required this.title,
     required this.titleTr,
     required this.explanation,
+    this.explanationEn,
     required this.formula,
     this.formulaEn,
     required this.examples,

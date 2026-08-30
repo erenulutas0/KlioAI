@@ -23,6 +23,14 @@ Yetenek ve becerileri ifade etmek için "Can", "Could" ve "Be able to" kullanıl
 • Could: Genel geçmiş zaman yetenekleri
 • Be able to: Herhangi bir zamanda (gelecek, perfect tense vb.) kullanılabilen yetenek kalıbı
 ''',
+      explanationEn: '''
+"Can", "could" and "be able to" express ability and skill.
+
+🎯 Where each is used:
+• Can: ability in the present
+• Could: ability in the past, in general
+• Be able to: ability in any tense, including the future and the perfect forms, where "can" has no form of its own
+''',
       formula: '''
 Subject + can/could + V1
 Subject + be able to + V1
@@ -74,6 +82,14 @@ Zorunluluk ve gereklilik bildirmek için "Must" ve "Have to" kullanılır. Geçm
 • Must: İçten gelen zorunluluk (konuşmacının kararı), kurallar, güçlü tavsiyeler
 • Have to: Dıştan gelen zorunluluk (yasa, okul kuralı, otorite), "zorundayım" anlamı
 • Need to: Gereklilik (yapmam lazım)
+''',
+      explanationEn: '''
+"Must" and "have to" express obligation and necessity. For the past, "had to" is used.
+
+🎯 The difference:
+• Must: obligation felt from within — the speaker's own decision, rules, strong advice
+• Have to: obligation imposed from outside — a law, a school rule, an authority
+• Need to: necessity, something that has to be done
 ''',
       formula: '''
 Must + V1
@@ -140,6 +156,14 @@ Tavsiye vermek, fikir beyan etmek veya "yapman iyi olur" demek için kullanılı
 • Ought to: Should ile aynı anlamdadır, daha resmidir
 • Had better: Güçlü tavsiye/uyarı (Yapmazsan kötü olur!)
 ''',
+      explanationEn: '''
+Used to give advice, offer an opinion, or say that something would be a good idea.
+
+🎯 The forms:
+• Should: the ordinary way to give advice
+• Ought to: the same meaning as should, a little more formal
+• Had better: strong advice or a warning — there will be a bad result otherwise
+''',
       formula: '''
 Should + V1
 Ought to + V1
@@ -186,6 +210,14 @@ Olasılık ve ihtimal bildirmek için kullanılır. "Belki olur", "olabilir" anl
 • May / Might / Could: %50 ihtimal (Belki)
 • Must (Deduction): %90 ihtimal (Kesin öyledir - Çıkarım)
 • Can't (Deduction): %90 ihtimal (Kesin öyle değildir - İmkansız)
+''',
+      explanationEn: '''
+Used to express possibility and likelihood: that something may be so, or could happen.
+
+🎯 Degrees of certainty:
+• May / Might / Could: about even odds — perhaps
+• Must (deduction): near certainty that something IS so
+• Can't (deduction): near certainty that something is NOT so
 ''',
       formula: '''
 Subject + may/might/could + V1
@@ -250,6 +282,16 @@ Geçmişle ilgili çıkarımlar, pişmanlıklar veya eleştiriler için kullanı
 • Can't/Couldn't have V3: Yapmış olamaz (İmkansız) - Güçlü Çıkarım
 • May/Might/Could have V3: Yapmış olabilir (Belki yaptı) - İhtimal
 • Needn't have V3: Yapmana gerek yoktu (ama yaptın) - Boşuna eylem
+''',
+      explanationEn: '''
+Used for conclusions about the past, for regret, and for criticism.
+
+🎯 The forms:
+• Should have V3: you ought to have done it, and did not — regret or criticism
+• Must have V3: it is almost certain that it happened — strong deduction
+• Can't/Couldn't have V3: it is almost certain that it did not — strong deduction
+• May/Might/Could have V3: it possibly happened
+• Needn't have V3: it was not necessary, and it was done anyway — wasted effort
 ''',
       formula: '''
 Modal + have + V3

@@ -32,6 +32,23 @@ Hangi fiilden sonra hangisinin geleceği ezber gerektirir ancak bazı mantıksal
 • Sıfatlardan sonra (This problem is hard *to solve*.)
 • Bazı belirli fiillerden sonra (want, decide, hope, promise)
 ''',
+      explanationEn: '''
+English has two ways of turning a verb into something a sentence can use as a noun:
+1. The gerund (verb + -ing): "Swimming is fun."
+2. The infinitive (to + verb): "To swim is fun."
+
+Which one follows which verb has to be learned, but a few patterns hold.
+
+🎯 Using the gerund (-ing):
+• As the subject of a sentence (Swimming is good.)
+• After a preposition (interested in learning)
+• After certain verbs (enjoy, finish, mind, avoid)
+
+🎯 Using the infinitive (to V1):
+• To express a purpose (I went to the store *to buy* milk.)
+• After adjectives (This problem is hard *to solve*.)
+• After certain verbs (want, decide, hope, promise)
+''',
       formula: '''
 Gerund: V-ing
 Infinitive: to + V1
@@ -101,6 +118,16 @@ Bazı durumlarda fiil mastar (infinitive) halinde kullanılır ama başına "to"
 • Duyu fiillerinden sonra (see, hear, feel, watch - olayın tamamı görüldüyse)
 • "Had better" ve "Would rather" kalıplarından sonra
 ''',
+      explanationEn: '''
+In some places the verb appears in its plain form with no "to" in front of it. This is called the bare infinitive.
+
+🎯 When is it used?
+• After modals (must, can, should, will...)
+• After "let" and "make", with an object
+• After "help", where both forms are correct
+• After verbs of perception (see, hear, feel, watch) when the whole event was witnessed
+• After "had better" and "would rather"
+''',
       formula: '''
 Subject + Modal + V1 (to yok!)
 Let + Object + V1
@@ -158,6 +185,12 @@ It's time + to V1 (not the bare form)
 Bazı fiillerden sonra bir nesne (kişi/zamir) gelir ve ardından yapılacak eylem "to V1" ile belirtilir. Bu yapı genellikle birinden bir şey yapmasını istemek, beklemek veya izin vermek anlamı taşır.
 
 🎯 Hangi fiiller?
+• want, expect, ask, tell, advise, allow, permit, persuade, order, remind, warn, encourage...
+''',
+      explanationEn: '''
+Some verbs take an object — a person or a pronoun — and then state the action with "to V1". The pattern usually means asking, expecting or allowing someone to do something.
+
+🎯 Which verbs?
 • want, expect, ask, tell, advise, allow, permit, persuade, order, remind, warn, encourage...
 ''',
       formula: '''
