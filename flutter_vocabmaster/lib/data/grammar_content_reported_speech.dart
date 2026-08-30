@@ -216,6 +216,12 @@ Reported: asked + if/whether + S + V
         '❌ He asked that I was coming. → ✅ He asked IF I was coming.',
         '❌ She asked me where I live? → ✅ She asked me where I lived. (soru işareti yok)',
       ],
+      commonMistakesEn: [
+        '❌ He asked where DID I go. → ✅ He asked where I went.',
+        '❌ She asked if WAS I coming. → ✅ She asked if I was coming.',
+        '❌ He asked that I was coming. → ✅ He asked IF I was coming.',
+        '❌ She asked me where I live? → ✅ She asked me where I lived. (no question mark)',
+      ],
       keyPoints: [
         '🔑 Dolaylı soruda soru yapısı YOKTUR - düz cümle sırasıdır',
         '🔑 Yes/No soruları için IF veya WHETHER eklenir',

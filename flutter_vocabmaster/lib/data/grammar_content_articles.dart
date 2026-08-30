@@ -101,6 +101,12 @@ an + vowel SOUND: an apple, an hour
         '❌ a honest man → ✅ an honest man',
         '❌ an European → ✅ a European (yuu sesi)',
       ],
+      commonMistakesEn: [
+        '❌ an university → ✅ a university (the "yoo" sound is a consonant sound)',
+        '❌ a hour → ✅ an hour (the h is silent, so it opens with a vowel sound)',
+        '❌ a honest man → ✅ an honest man',
+        '❌ an European → ✅ a European (the "yoo" sound again)',
+      ],
       keyPoints: [
         '🔑 HARF değil SES önemlidir!',
         '🔑 A/An sadece SAYILABİLİR TEKİL isimlerle kullanılır',
@@ -216,6 +222,12 @@ THE + a specific or already-known noun
         '❌ I like the coffee. → ✅ I like coffee. (genel)',
         '❌ He speaks the English. → ✅ He speaks English. (dil)',
         '❌ Let\'s have the lunch. → ✅ Let\'s have lunch. (öğün)',
+      ],
+      commonMistakesEn: [
+        '❌ The life is hard. → ✅ Life is hard. (a general idea)',
+        '❌ I like the coffee. → ✅ I like coffee. (a general idea)',
+        '❌ He speaks the English. → ✅ He speaks English. (a language)',
+        '❌ Let\'s have the lunch. → ✅ Let\'s have lunch. (a meal)',
       ],
       keyPoints: [
         '🔑 Genel konularda "THE" kullanılmaz',

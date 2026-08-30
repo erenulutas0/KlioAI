@@ -323,6 +323,11 @@ Not only + X + but also + X
         '❌ Neither I nor she are... → ✅ Neither I nor she IS... (or\'a yakın özne)',
         '❌ Not only he arrived late... → ✅ Not only DID he arrive late... (devrik)',
       ],
+      commonMistakesEn: [
+        '❌ Both smart and is kind. → ✅ Both smart and kind. (the halves must match)',
+        '❌ Neither I nor she are... → ✅ Neither I nor she IS... (the verb agrees with the nearer subject)',
+        '❌ Not only he arrived late... → ✅ Not only DID he arrive late... (inversion is required)',
+      ],
       keyPoints: [
         '🔑 "Not only" cümle başında ise DEVRİK yapı gerekir',
         '🔑 "No sooner...than" / "Hardly...when" → Past Perfect + devrik',
@@ -412,6 +417,11 @@ S + V; [linker], S + V.
         '❌ However he is rich, he is not happy. → ✅ Although he is rich... / He is rich. However, he is not happy.',
         '❌ Therefore the rain, we stayed home. → ✅ Because of the rain... / It rained. Therefore, we stayed home.',
         '❌ He is smart, moreover he is kind. → ✅ He is smart. Moreover, he is kind. (yeni cümle)',
+      ],
+      commonMistakesEn: [
+        '❌ However he is rich, he is not happy. → ✅ Although he is rich... / He is rich. However, he is not happy.',
+        '❌ Therefore the rain, we stayed home. → ✅ Because of the rain... / It rained. Therefore, we stayed home.',
+        '❌ He is smart, moreover he is kind. → ✅ He is smart. Moreover, he is kind. (a new sentence is needed)',
       ],
       keyPoints: [
         '🔑 Linker\'lar genellikle yeni cümle başlatır (nokta veya noktalı virgülden sonra)',

@@ -206,6 +206,12 @@ IN + enclosed spaces, cities, countries, small vehicles
         '❌ at Tokyo → ✅ IN Tokyo (şehir)',
         '❌ in the door → ✅ AT the door',
       ],
+      commonMistakesEn: [
+        '❌ on the car → ✅ IN the car',
+        '❌ in the bus → ✅ ON the bus',
+        '❌ at Tokyo → ✅ IN Tokyo (a city)',
+        '❌ in the door → ✅ AT the door',
+      ],
       keyPoints: [
         '🔑 Büyük taşıtlar (ayakta durabilir) → ON',
         '🔑 Küçük taşıtlar (bükülüp girilir) → IN',

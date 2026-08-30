@@ -113,6 +113,10 @@ If + Present Simple, Will + V1
         '❌ If it will rain... → ✅ If it rains...',
         '❌ If you will go... → ✅ If you go... (If cümlesinde will olmaz!)',
       ],
+      commonMistakesEn: [
+        '❌ If it will rain... → ✅ If it rains...',
+        '❌ If you will go... → ✅ If you go... (no "will" in the if-clause)',
+      ],
       keyPoints: [
         '🔑 If kısmında asla "will" kullanılmaz! (Gelecek anlamı taşısa bile Present Simple kullanılır)',
         '🔑 Unless = If not (Yapmazsan... = Unless you do...)',
@@ -170,6 +174,10 @@ If + Past Simple, Would + V1
       commonMistakes: [
         '❌ If I was you... → ✅ If I were you... (Resmi/Gramatikal olarak were tercih edilir)',
         '❌ If I would go... → ✅ If I went... (If kısmında would olmaz!)',
+      ],
+      commonMistakesEn: [
+        '❌ If I was you... → ✅ If I were you... ("were" is preferred in careful English)',
+        '❌ If I would go... → ✅ If I went... (no "would" in the if-clause)',
       ],
       keyPoints: [
         '🔑 Past Simple kullanılır ama anlam GEÇMİŞ DEĞİL, ŞU ANDIR!',

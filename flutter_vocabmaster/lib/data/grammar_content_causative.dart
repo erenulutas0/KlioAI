@@ -102,6 +102,11 @@ Future: I will have my hair cut.
         '❌ I have my car to repair. → ✅ I have my car repaired. (V3 kullanılır, to V1 değil)',
         '❌ I had cut my hair. → ✅ I had my hair cut. (Nesne + V3)',
       ],
+      commonMistakesEn: [
+        '❌ I had repaired my car. → ✅ I had my car repaired. (the order carries the meaning)',
+        '❌ I have my car to repair. → ✅ I have my car repaired. (V3, not to + V1)',
+        '❌ I had cut my hair. → ✅ I had my hair cut. (object + V3)',
+      ],
       keyPoints: [
         '🔑 Yapı: HAVE + Nesne + V3 (Past Participle)',
         '🔑 Nesne her zaman HAVE ile V3 arasında gelir',

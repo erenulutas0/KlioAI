@@ -108,6 +108,11 @@ SUBJECT: That + S + V + is/was + Adjective/Noun
         '❌ That is he late is a problem. → ✅ That HE IS late is a problem.',
         '❌ I believe he is honest. (resmi yazıda) → ✅ I believe THAT he is honest.',
       ],
+      commonMistakesEn: [
+        '❌ I think that is he wrong. → ✅ I think that HE IS wrong.',
+        '❌ That is he late is a problem. → ✅ That HE IS late is a problem.',
+        '❌ I believe he is honest. (in formal writing) → ✅ I believe THAT he is honest.',
+      ],
       keyPoints: [
         '🔑 "That" sonrası DÜZ CÜMLE (S+V) gelir, soru yapısı gelmez',
         '🔑 "I hope, I think, I believe, I know, I assume, I suppose" gibi fiiller that-clause alır',

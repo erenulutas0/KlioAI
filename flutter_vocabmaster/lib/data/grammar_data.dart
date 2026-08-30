@@ -59,6 +59,16 @@ class GrammarSubtopic {
   final String? formulaEn;
   final List<GrammarExample> examples;
   final List<String> commonMistakes;
+
+  /// The same mistakes in English, for the six interface languages that are
+  /// not Turkish.
+  ///
+  /// Needed for far fewer subtopics than it looks. Of 209 entries only 32
+  /// carry any Turkish: the rest are already wrong-then-right pairs in plain
+  /// English -- "❌ She studys hard. → ✅ She studies hard." -- and were hidden
+  /// from everyone but Turkish readers for no reason at all. Where this is
+  /// null those originals are shown as they are.
+  final List<String>? commonMistakesEn;
   final String? examTip;
   final String? comparison; // Karışabilecek konularla karşılaştırma
   final List<String>? keyPoints; // Can alıcı noktalar
@@ -80,6 +90,13 @@ class GrammarSubtopic {
   String? explanationFor(String languageCode) =>
       languageCode == 'tr' ? explanation : explanationEn;
 
+  /// The common mistakes to show a reader of [languageCode].
+  ///
+  /// Turkish readers get the originals. Everyone else gets the English list
+  /// where one was needed, and the originals where they were already English.
+  List<String> commonMistakesFor(String languageCode) =>
+      languageCode == 'tr' ? commonMistakes : (commonMistakesEn ?? commonMistakes);
+
   const GrammarSubtopic({
     required this.id,
     required this.title,
@@ -90,6 +107,7 @@ class GrammarSubtopic {
     this.formulaEn,
     required this.examples,
     this.commonMistakes = const [],
+    this.commonMistakesEn,
     this.examTip,
     this.comparison,
     this.keyPoints,

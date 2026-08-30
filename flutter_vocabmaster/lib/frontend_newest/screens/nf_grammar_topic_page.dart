@@ -368,8 +368,15 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                     ...subtopic.examples.map(
                       (GrammarExample example) => _buildExampleRow(t, example),
                     ),
-                    if (_isTurkish &&
-                        subtopic.commonMistakes.isNotEmpty) ...<Widget>[
+                    // No longer gated on Turkish. Of the 209 mistake lines
+                    // in this app only 32 held any Turkish; the rest were
+                    // wrong-then-right pairs in plain English, hidden from
+                    // every other language for no reason.
+                    if (subtopic
+                        .commonMistakesFor(
+                          Localizations.localeOf(context).languageCode,
+                        )
+                        .isNotEmpty) ...<Widget>[
                       const SizedBox(height: NfSpace.s10),
                       _buildSectionHeader(
                         t,
@@ -386,7 +393,10 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: subtopic.commonMistakes
+                          children: subtopic
+                              .commonMistakesFor(
+                                Localizations.localeOf(context).languageCode,
+                              )
                               .map(
                                 (String mistake) => Padding(
                                   padding:

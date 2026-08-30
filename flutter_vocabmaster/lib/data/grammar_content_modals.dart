@@ -62,6 +62,11 @@ Subject + be able to + V1
         '❌ He cans swim. → ✅ He can swim. (modallara -s gelmez)',
         '❌ She could saved him. → ✅ She was able to save him. (tek seferlik başarı)',
       ],
+      commonMistakesEn: [
+        '❌ I will can go. → ✅ I will be able to go.',
+        '❌ He cans swim. → ✅ He can swim. (modals never take -s)',
+        '❌ She could saved him. → ✅ She was able to save him. (a single success, not a general ability)',
+      ],
       keyPoints: [
         '🔑 Modallardan sonra fiil her zaman yalın (V1) gelir',
         '🔑 Modallar şahsa göre çekimlenmez (-s almaz)',
@@ -129,6 +134,11 @@ Mustn't + V1 (forbidden)
         '❌ You don\'t must go. → ✅ You don\'t have to go. / You mustn\'t go.',
         '❌ I must went. → ✅ I had to go. ("Must"ın geçmişi "Had to"dur)',
         '❌ Must you go? → ✅ Do you have to go? (Sorularda genelde have to tercih edilir)',
+      ],
+      commonMistakesEn: [
+        '❌ You don\'t must go. → ✅ You don\'t have to go. / You mustn\'t go.',
+        '❌ I must went. → ✅ I had to go. (the past of "must" is "had to")',
+        '❌ Must you go? → ✅ Do you have to go? (questions usually prefer have to)',
       ],
       keyPoints: [
         '🔑 "Mustn\'t" = Yasak! (Yapma)',
@@ -255,6 +265,10 @@ Subject + can't + be (it cannot be so)
         '❌ It can rain tomorrow. → ✅ It may/might rain tomorrow. ("Can" genelde teorik ihtimal veya yetenek için kullanılır, spesifik gelecek tahmini için may/might kullanılır)',
         '❌ He mustn\'t be rich. → ✅ He can\'t be rich. (Çıkarımın olumsuzu can\'t dir)',
       ],
+      commonMistakesEn: [
+        '❌ It can rain tomorrow. → ✅ It may/might rain tomorrow. ("can" is for theoretical possibility or ability; a specific prediction takes may/might)',
+        '❌ He mustn\'t be rich. → ✅ He can\'t be rich. (the negative of a deduction is can\'t)',
+      ],
       keyPoints: [
         '🔑 Olumlu çıkarım: MUST BE',
         '🔑 Olumsuz çıkarım: CAN\'T BE (Mustn\'t be kullanılmaz, o yasaktır!)',
@@ -321,6 +335,10 @@ Modal + have + V3
       commonMistakes: [
         '❌ You should studied. → ✅ You should have studied.',
         '❌ Must had rained. → ✅ Must have rained. (Modal sonrası always HAVE gelir, had gelmez)',
+      ],
+      commonMistakesEn: [
+        '❌ You should studied. → ✅ You should have studied.',
+        '❌ Must had rained. → ✅ Must have rained. (a modal is always followed by HAVE, never had)',
       ],
       keyPoints: [
         '🔑 "Should have V3" her zaman gerçekleşmemiş bir eylemi anlatır (Past Unreal).',

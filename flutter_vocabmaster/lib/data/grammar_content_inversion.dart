@@ -325,6 +325,11 @@ If + S + had V3 → Had + S + V3
         '❌ If would you help me... → ✅ Should you help me... (would olmaz!)',
         '❌ Had I knew... → ✅ Had I KNOWN... (V3 olmalı)',
       ],
+      commonMistakesEn: [
+        '❌ Was I rich, I would... → ✅ WERE I rich, I would...',
+        '❌ If would you help me... → ✅ Should you help me... (no "would" here)',
+        '❌ Had I knew... → ✅ Had I KNOWN... (V3 is required)',
+      ],
       keyPoints: [
         '🔑 Type 1: If should → Should + S',
         '🔑 Type 2: If were → Were + S (was yerine were!)',

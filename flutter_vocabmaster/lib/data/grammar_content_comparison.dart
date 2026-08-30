@@ -223,6 +223,11 @@ Negative: not as/so + adj + as
         '❌ as more expensive as → ✅ as expensive as',
         '❌ two times as big as → ✅ twice as big as',
       ],
+      commonMistakesEn: [
+        '❌ as taller as → ✅ as tall as (the plain adjective)',
+        '❌ as more expensive as → ✅ as expensive as',
+        '❌ two times as big as → ✅ twice as big as',
+      ],
       keyPoints: [
         '🔑 "As...as" arasına yalın sıfat gelir (comparative değil!)',
         '🔑 Olumsuzda "so" kullanılabilir: "not so tall as"',
@@ -310,6 +315,11 @@ The + comparative + S + V, the + comparative + S + V
       commonMistakes: [
         '❌ More you study... → ✅ THE more you study...',
         '❌ The more faster... → ✅ The faster... (double comparative olmaz)',
+        '❌ The more I study, I learn more. → ✅ The more I study, the more I learn.',
+      ],
+      commonMistakesEn: [
+        '❌ More you study... → ✅ THE more you study...',
+        '❌ The more faster... → ✅ The faster... (never two comparatives at once)',
         '❌ The more I study, I learn more. → ✅ The more I study, the more I learn.',
       ],
       keyPoints: [

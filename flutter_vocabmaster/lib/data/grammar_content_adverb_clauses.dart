@@ -447,6 +447,12 @@ Main Clause + so that + S + can/will/may/could/would + V1
         '❌ To not be late. → ✅ IN ORDER not to be late. / NOT TO be late.',
         '❌ I came for seeing you. → ✅ I came TO SEE you. (amaç için to V1)',
       ],
+      commonMistakesEn: [
+        '❌ I study for to pass. → ✅ I study TO pass.',
+        '❌ So that I pass. → ✅ So that I CAN pass. (a modal is required)',
+        '❌ To not be late. → ✅ IN ORDER not to be late. / NOT TO be late.',
+        '❌ I came for seeing you. → ✅ I came TO SEE you. (purpose takes to + V1)',
+      ],
       keyPoints: [
         '🔑 TO / IN ORDER TO → V1 alır',
         '🔑 SO THAT → Özne + can/could/will/would + V1 alır',

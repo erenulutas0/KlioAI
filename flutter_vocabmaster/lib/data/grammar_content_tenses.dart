@@ -472,6 +472,12 @@ The Past Simple describes completed actions that happened at a definite time in 
         '❌ He readed the book. → ✅ He read the book. (düzensiz fiil)',
         '❌ I was go to school. → ✅ I went to school.',
       ],
+      commonMistakesEn: [
+        '❌ I didn\'t went. → ✅ I didn\'t go.',
+        '❌ Did she came? → ✅ Did she come?',
+        '❌ He readed the book. → ✅ He read the book. (irregular verb)',
+        '❌ I was go to school. → ✅ I went to school.',
+      ],
       keyPoints: [
         '🔑 Belirli zaman zarfları (yesterday, ago, last) Past Simple gerektirir',
         '🔑 "did" kullanıldığında ana fiil her zaman V1 (yalın) olur',

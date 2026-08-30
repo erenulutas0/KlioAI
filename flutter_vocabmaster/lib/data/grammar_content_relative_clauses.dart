@@ -93,6 +93,11 @@ Non-Defining: My father, WHO is 60, retired.
         '❌ Paris, that is beautiful... → ✅ Paris, which is beautiful... (Özel isimler non-defining olmalı)',
         '❌ The Eiffel Tower which is in Paris → ✅ The Eiffel Tower, which is in Paris, (Tek olan şeyler virgüllü olmalı)',
       ],
+      commonMistakesEn: [
+        '❌ My mother, THAT is a doctor... → ✅ My mother, WHO is a doctor... (no "that" after a comma)',
+        '❌ Paris, that is beautiful... → ✅ Paris, which is beautiful... (a proper noun takes a non-defining clause)',
+        '❌ The Eiffel Tower which is in Paris → ✅ The Eiffel Tower, which is in Paris, (something one of a kind takes commas)',
+      ],
       keyPoints: [
         '🔑 Virgül görürsen → Non-Defining → "That" ASLA kullanılmaz',
         '🔑 Özel isimler (Paris, John) → HER ZAMAN Non-Defining (virgüllü)',
@@ -218,6 +223,12 @@ Time: The day WHEN/ON WHICH I arrived...
         '❌ The man WHOSE he is rich → ✅ The man WHO is rich (Whose arkasından isim gelir!)',
         '❌ The place WHICH I work → ✅ The place WHERE I work / The place WHICH I work AT',
       ],
+      commonMistakesEn: [
+        '❌ The man WHICH I saw → ✅ The man WHO/WHOM/THAT I saw ("which" is not used for people)',
+        '❌ The book WHO I read → ✅ The book WHICH/THAT I read ("who" is not used for things)',
+        '❌ The man WHOSE he is rich → ✅ The man WHO is rich ("whose" must be followed by a noun)',
+        '❌ The place WHICH I work → ✅ The place WHERE I work / The place WHICH I work AT',
+      ],
       keyPoints: [
         '🔑 WHOSE arkasından her zaman bir İSİM gelir (whose car, whose idea)',
         '🔑 WHERE = in/at which, WHEN = on/at which, WHY = for which',
@@ -319,6 +330,11 @@ First/Last/Only/Superlative + to-infinitive
         '❌ The letter writing by him → ✅ The letter WRITTEN by him (Passive = V3)',
         '❌ Anyone interest → ✅ Anyone INTERESTED (Sıfat)',
       ],
+      commonMistakesEn: [
+        '❌ The man lived next door → ✅ The man LIVING next door (active = V-ing)',
+        '❌ The letter writing by him → ✅ The letter WRITTEN by him (passive = V3)',
+        '❌ Anyone interest → ✅ Anyone INTERESTED (an adjective is needed)',
+      ],
       keyPoints: [
         '🔑 Active (yapan) → V-ing: "The dog barking loudly"',
         '🔑 Passive (yapılan) → V3: "The cake baked by mom"',
@@ -412,6 +428,11 @@ Informal: (who/which/that/Ø) + S + V + Prep
         '❌ The man to WHO I spoke → ✅ The man to WHOM I spoke (Prep + whom)',
         '❌ The topic about that we discussed → ✅ The topic ABOUT WHICH / that...about',
         '❌ For that I work → ✅ FOR WHICH I work (Prep başta ise that olmaz!)',
+      ],
+      commonMistakesEn: [
+        '❌ The man to WHO I spoke → ✅ The man to WHOM I spoke (preposition + whom)',
+        '❌ The topic about that we discussed → ✅ The topic ABOUT WHICH / that...about',
+        '❌ For that I work → ✅ FOR WHICH I work ("that" cannot follow a preposition)',
       ],
       keyPoints: [
         '🔑 Preposition başta ise: %100 whom/which kullanılır, that ASLA!',
