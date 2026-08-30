@@ -117,6 +117,12 @@ IN + months, seasons, years, centuries, parts of the day
         '🔑 AT the weekend (British) / ON the weekend (American)',
         '🔑 IN time (zamanında) vs ON time (tam zamanında)',
       ],
+      keyPointsEn: [
+        '🔑 AT night — the exception; not "in the night"',
+        '🔑 ON Monday morning — a day plus a part of it takes ON',
+        '🔑 AT the weekend in British English, ON the weekend in American',
+        '🔑 IN time means early enough; ON time means at the exact time',
+      ],
       examTip: '💡 YDS\'de "in Monday" veya "at the summer" görürseniz YANLIŞ!',
     ),
 
@@ -218,6 +224,12 @@ IN + enclosed spaces, cities, countries, small vehicles
         '🔑 Şehir, ülke → IN',
         '🔑 Adres numarası → AT (at 25 Oxford Street)',
       ],
+      keyPointsEn: [
+        '🔑 Large vehicles you can stand up in → ON',
+        '🔑 Small vehicles you climb into → IN',
+        '🔑 Cities and countries → IN',
+        '🔑 A street number → AT (at 25 Oxford Street)',
+      ],
       examTip: '💡 YDS\'de "in the plane" veya "on the car" görürseniz dikkat edin!',
     ),
 
@@ -315,6 +327,12 @@ Verb + Preposition + Object
         '🔑 LISTEN TO, LOOK AT, WAIT FOR → edat atılmaz!',
         '🔑 AGREE with (person), AGREE on (topic)',
         '🔑 Türkçe\'de edat gerektirmeyen fiiller İngilizce\'de gerektirebilir',
+      ],
+      keyPointsEn: [
+        '🔑 ARRIVE in a city or country, AT a place',
+        '🔑 LISTEN TO, LOOK AT, WAIT FOR — the preposition cannot be dropped',
+        '🔑 AGREE with a person, AGREE on a topic',
+        '🔑 A verb that needs no preposition in your own language may need one here',
       ],
       examTip: '💡 "Listen him" veya "wait you" her zaman YANLIŞTIR. Edatı unutmayın!',
     ),
@@ -414,6 +432,12 @@ Be + Adjective + Preposition + Object
       ],
       keyPoints: [
         '🔑 MARRIED TO (with değil!)',
+        '🔑 GOOD/BAD AT',
+        '🔑 INTERESTED IN',
+        '🔑 AFRAID/PROUD/FOND OF',
+      ],
+      keyPointsEn: [
+        '🔑 MARRIED TO — not "with"',
         '🔑 GOOD/BAD AT',
         '🔑 INTERESTED IN',
         '🔑 AFRAID/PROUD/FOND OF',

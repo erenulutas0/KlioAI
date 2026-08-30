@@ -123,6 +123,12 @@ Inverted: NO SOONER HAD I left THAN it rained.
         '🔑 Ana fiil (main verb) asla başa gelmez, sadece yardımcı fiil gelir',
         '🔑 Simple tense\'lerde "do/does/did" yardımcı fiil olarak eklenir',
       ],
+      keyPointsEn: [
+        '🔑 Negative adverb at the front → auxiliary + subject + main verb',
+        '🔑 "Hardly/scarcely...when" and "no sooner...than" take the Past Perfect',
+        '🔑 The main verb never moves to the front — only the auxiliary does',
+        '🔑 In simple tenses, do/does/did is brought in to carry the inversion',
+      ],
       examTip: '💡 YDS\'de "Never, Rarely, Seldom, Hardly, No sooner" ile başlayan cümlede devrik yapı (Aux + S) olmazsa YANLIŞ!',
     ),
 
@@ -231,6 +237,12 @@ Only + Time/Condition + Auxiliary + Subject + Verb
         '🔑 Devriklik ANA CÜMLEDE olur, "only" cümleciğinde değil',
         '🔑 "Only by" sonrası genellikle V-ing gelir',
       ],
+      keyPointsEn: [
+        '🔑 "Only" on its own → NO inversion ("Only 10 people came.")',
+        '🔑 "Only" + a time or condition phrase → inversion',
+        '🔑 The inversion happens in the MAIN clause, not in the "only" phrase',
+        '🔑 "Only by" is usually followed by an -ing form',
+      ],
       examTip: '💡 YDS\'de "Only when/after/then" görürseniz, takip eden cümlede devrik yapı (did/had/would + subject) arayın.',
     ),
 
@@ -335,6 +347,12 @@ If + S + had V3 → Had + S + V3
         '🔑 Type 2: If were → Were + S (was yerine were!)',
         '🔑 Type 3: If had V3 → Had + S + V3',
         '🔑 Bu yapı formal/yazılı dilde daha yaygındır',
+      ],
+      keyPointsEn: [
+        '🔑 Type 1: If... should → Should + S',
+        '🔑 Type 2: If... were → Were + S — "were", never "was"',
+        '🔑 Type 3: If... had V3 → Had + S + V3',
+        '🔑 This pattern belongs to formal and written English',
       ],
       examTip: '💡 YDS\'de "Should you, Were I, Had he" ile başlayan cümleler koşullu devrik cümlelerdir. "If" yoktur!',
     ),
@@ -445,6 +463,12 @@ So + adj + Aux + S + that...
         '🔑 "Not only" başta ise devrik, ortada ise devrik yok',
         '🔑 "Here/There" + verb + subject (edebi)',
         '🔑 Zamirle (I, he, she) "Here/There" devriliği yapılmaz: "Here it is." (Devrik değil)',
+      ],
+      keyPointsEn: [
+        '🔑 So/neither/nor + auxiliary + subject',
+        '🔑 "Not only" at the front inverts; in the middle of a sentence it does not',
+        '🔑 "Here/there" + verb + subject, in a literary register',
+        '🔑 With a pronoun there is no inversion: "Here it is", not "Here is it"',
       ],
       examTip: '💡 YDS\'de "So do I, Neither did she, Not only did he" kalıpları çok çıkar. Auxiliary + Subject sırasına dikkat!',
     ),

@@ -96,6 +96,11 @@ situations that do not change.
         '🔑 Olumsuz ve soruda yardımcı fiil kullanılınca ana fiil yalın kalır',
         '🔑 Stative verbs (know, believe, love) genellikle continuous yapılmaz',
       ],
+      keyPointsEn: [
+        '🔑 The third person singular (he/she/it) adds -s or -es to the verb',
+        '🔑 Once an auxiliary is used in a negative or a question, the main verb stays plain',
+        '🔑 Stative verbs (know, believe, love) are not normally used in the continuous',
+      ],
       comparison: '''
 🆚 Present Simple vs Present Continuous:
 • "I work at a bank." (Genel olarak bankada çalışırım - mesleğim)
@@ -192,6 +197,11 @@ The Present Continuous describes actions happening at the moment of speaking, te
         '🔑 Stative verbs (know, believe, love, hate, belong, own) continuous yapılmaz',
         '🔑 "Always" ile kullanıldığında olumsuz/rahatsız edici bir anlam katar',
         '🔑 Gelecek plan için kullanıldığında genellikle zaman zarfı gerekir',
+      ],
+      keyPointsEn: [
+        '🔑 Stative verbs (know, believe, love, hate, belong, own) are not used in the continuous',
+        '🔑 With "always" it takes on a critical, irritated tone',
+        '🔑 Used for a future plan, it usually needs a time expression to be clear',
       ],
       comparison: '''
 🆚 Stative vs Dynamic Verbs:
@@ -293,6 +303,12 @@ The Present Perfect describes actions that began in the past and still matter no
         '🔑 "gone" gidip dönmemiş, "been" gidip dönmüş demektir',
         '🔑 "Have you ever...?" kalıbı deneyim sormak için kullanılır',
       ],
+      keyPointsEn: [
+        '🔑 Definite past time expressions (yesterday, last week, in 2010) are not used with it',
+        '🔑 "For" gives a length of time, "since" gives a starting point',
+        '🔑 "Gone" means they went and are still away; "been" means they went and came back',
+        '🔑 "Have you ever...?" is the pattern for asking about experience',
+      ],
       comparison: '''
 🆚 Present Perfect vs Past Simple:
 • "I have lost my keys." (Anahtarlarım hâlâ kayıp - şu an önemli)
@@ -379,6 +395,11 @@ Present Perfect Continuous → focused on the process ("I have been working")
         '🔑 Stative verbs bu yapıda kullanılmaz (know, believe, love)',
         '🔑 Süre vurgulamak için "for" veya "since" sık kullanılır',
         '🔑 "All day, all week, lately, recently" zarflarıyla sık görülür',
+      ],
+      keyPointsEn: [
+        '🔑 Stative verbs are not used in this form (know, believe, love)',
+        '🔑 "For" and "since" are common, because the length of time is the point',
+        '🔑 Often seen with all day, all week, lately, recently',
       ],
       comparison: '''
 🆚 Present Perfect vs Present Perfect Continuous:
@@ -483,6 +504,11 @@ The Past Simple describes completed actions that happened at a definite time in 
         '🔑 "did" kullanıldığında ana fiil her zaman V1 (yalın) olur',
         '🔑 Düzensiz fiillerin V2 formlarını ezberlemek gerekir',
       ],
+      keyPointsEn: [
+        '🔑 Definite past time expressions (yesterday, ago, last) call for the Past Simple',
+        '🔑 Once "did" is used, the main verb is always V1, the plain form',
+        '🔑 The V2 forms of irregular verbs have to be learned by heart',
+      ],
       comparison: '''
 🆚 Past Simple vs Present Perfect:
 • "I saw that movie." (Belirli bir zamanda - ne zaman olduğu söylenebilir)
@@ -559,6 +585,11 @@ The Past Continuous describes actions that were in progress at a particular mome
         '🔑 "When" kısa eylemle, "while" uzun eylemle kullanılır',
         '🔑 Stative verbs Past Continuous yapılmaz',
         '🔑 İki uzun eylem için "while...while" veya "as...as" kullanılır',
+      ],
+      keyPointsEn: [
+        '🔑 "When" goes with the short action, "while" with the long one',
+        '🔑 Stative verbs are not used in the Past Continuous',
+        '🔑 For two long actions at once, use "while...while" or "as...as"',
       ],
       comparison: '''
 🆚 When vs While:
@@ -637,6 +668,11 @@ The Past Perfect describes an action completed BEFORE another past event. It can
         '🔑 "By the time" → Past Perfect sık kullanılır',
         '🔑 "After" ile Past Perfect, "before" ile Past Simple sık görülür',
       ],
+      keyPointsEn: [
+        '🔑 With two past events, the EARLIER one takes the Past Perfect and the later one the Past Simple',
+        '🔑 "By the time" very often introduces a Past Perfect',
+        '🔑 "After" tends to take the Past Perfect, "before" the Past Simple',
+      ],
       comparison: '''
 🆚 Past Perfect vs Past Simple:
 • "When I arrived, he left." (Aynı anda veya ben geldikten sonra ayrıldı)
@@ -709,6 +745,11 @@ The Past Perfect Continuous emphasises the DURATION of an action that began befo
         '🔑 Süre veya süreç vurgusu için kullanılır',
         '🔑 Stative verbs bu yapıda kullanılmaz',
         '🔑 "for" (süre) ve "since" (başlangıç) sık kullanılır',
+      ],
+      keyPointsEn: [
+        '🔑 Used when the length or the process is what matters',
+        '🔑 Stative verbs are not used in this form',
+        '🔑 "For" (a length) and "since" (a starting point) are common',
       ],
       comparison: '''
 🆚 Past Perfect vs Past Perfect Continuous:
@@ -788,6 +829,11 @@ Will expresses decisions made on the spot, predictions, promises, and future eve
         '🔑 Kısa form: will = \'ll, will not = won\'t',
         '🔑 Anlık karar → will, önceden planlanmış → going to',
       ],
+      keyPointsEn: [
+        '🔑 The verb after "will" is always the plain form (V1)',
+        '🔑 Short forms: will = \'ll, will not = won\'t',
+        '🔑 A decision made on the spot takes will; something already planned takes going to',
+      ],
       comparison: '''
 🆚 Will vs Going to:
 • "The phone is ringing. I'll answer it." (Anlık karar)
@@ -860,6 +906,11 @@ Be going to expresses intentions decided in advance, and predictions based on ev
         '🔑 Konuşma dilinde "gonna" şeklinde söylenir',
         '🔑 Kanıt/işaret varsa going to, yoksa will',
       ],
+      keyPointsEn: [
+        '🔑 The verb after "going to" is the plain form (V1)',
+        '🔑 In speech it is often said as "gonna"',
+        '🔑 Evidence you can point at calls for going to; without it, will',
+      ],
       examTip: '💡 YDS\'de "intend to, plan to" anlamı için "going to" kullanılır.',
     ),
 
@@ -916,6 +967,11 @@ The Future Perfect describes actions that will already be complete by a certain 
         '🔑 Tamamlanmış olma durumunu vurgular',
         '🔑 "By the time, by next..." kalıpları Future Perfect işaretidir',
       ],
+      keyPointsEn: [
+        '🔑 Very often used with "by" plus a time',
+        '🔑 It stresses that the action will already be complete',
+        '🔑 "By the time" and "by next..." are the usual signals',
+      ],
       examTip: '💡 YDS\'de "by the time, by next month/year, by then" → Future Perfect ipucudur.',
     ),
 
@@ -971,6 +1027,11 @@ The Future Continuous describes actions that will be in progress at a particular
         '🔑 "This time tomorrow/next week" sık kullanılır',
         '🔑 Nazik soru sormak için tercih edilir',
         '🔑 Süregelen eylem vurgusu',
+      ],
+      keyPointsEn: [
+        '🔑 Often used with "this time tomorrow/next week"',
+        '🔑 Preferred for asking a polite question',
+        '🔑 It stresses that the action will be going on, not just happen',
       ],
       examTip: '💡 "At this time tomorrow, at 5 PM tomorrow" → Future Continuous ipuçlarıdır.',
     ),

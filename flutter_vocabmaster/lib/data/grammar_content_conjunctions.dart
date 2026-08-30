@@ -115,6 +115,12 @@ Noun + FANBOYS + Noun
         '🔑 "For" (sebep) yalnızca cümle başında değil, cümle ortasında kullanılır',
         '🔑 "Yet" = but (daha güçlü, şaşırtıcı zıtlık)',
       ],
+      keyPointsEn: [
+        '🔑 "Nor" needs inversion after it: "Nor DO I..."',
+        '🔑 A comma goes in when two complete clauses are joined',
+        '🔑 "For" meaning because joins clauses; it does not open a sentence',
+        '🔑 "Yet" is like but, only stronger — the contrast is surprising',
+      ],
       examTip: '💡 YDS\'de "nor" ile başlayan cümlede devrik yapı aranır. "Nor does he..." doğrudur.',
     ),
 
@@ -209,6 +215,12 @@ Main Clause + Subordinate Clause (no comma)
         '🔑 "As if/As though" + Past → Gerçek olmayan durum',
         '🔑 "Provided that" = "If" (daha güçlü koşul)',
         '🔑 "In case" = "...olur diye" (ihtimale karşı)',
+      ],
+      keyPointsEn: [
+        '🔑 Subordinate clause first → comma; subordinate clause second → no comma',
+        '🔑 "As if / as though" + past → an unreal situation',
+        '🔑 "Provided that" is a stronger, more explicit "if"',
+        '🔑 "In case" means as a precaution, in the event that',
       ],
       comparison: '''
 🆚 In case vs If:
@@ -334,6 +346,12 @@ Not only + X + but also + X
         '🔑 Either...or / Neither...nor → fiil, yakın özneye göre çekilir',
         '🔑 Paralellik: Her iki taraf da aynı yapıda olmalı',
       ],
+      keyPointsEn: [
+        '🔑 "Not only" at the front of a sentence requires INVERSION',
+        '🔑 "No sooner...than" and "hardly...when" take the Past Perfect and inversion',
+        '🔑 With either...or and neither...nor, the verb agrees with the nearer subject',
+        '🔑 Parallelism: both halves must have the same structure',
+      ],
       examTip: '💡 YDS\'de "Not only" cümle başında görürseniz devrik yapı (Did he, Had he, Was he) arayın!',
     ),
 
@@ -428,6 +446,12 @@ S + V; [linker], S + V.
         '🔑 Linker\'dan sonra genellikle virgül konur',
         '🔑 "However" ≠ "Although" - farklı yapılar!',
         '🔑 Although = tek cümle içinde, However = iki cümle arasında',
+      ],
+      keyPointsEn: [
+        '🔑 A linker usually starts a new sentence, after a full stop or a semicolon',
+        '🔑 A comma normally follows the linker',
+        '🔑 "However" is not "although" — they take different structures',
+        '🔑 Although joins halves of one sentence; however joins two sentences',
       ],
       comparison: '''
 🆚 Aynı anlam, farklı yapı:

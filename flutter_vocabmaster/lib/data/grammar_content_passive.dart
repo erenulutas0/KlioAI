@@ -84,6 +84,10 @@ Passive: Object + Be + V3 (+ by Subject)
         '🔑 Passive yapabilmek için fiilin NESNE alabilmesi gerekir (Transitive Verb). "Go, sleep, arrive" gibi fiiller passive yapılmaz.',
         '🔑 Eylemi yapanı belirtmek istersek cümlenin sonuna "by ..." ekleriz.',
       ],
+      keyPointsEn: [
+        '🔑 Only a verb that can take an object (a transitive verb) can be made passive. Go, sleep and arrive cannot.',
+        '🔑 To name the doer, add "by ..." at the end of the sentence.',
+      ],
       examTip: '💡 Cümlede özne cansız ise ve ardından fiil geliyorsa %90 passive\'dir. "The message sent..." olamaz, "The message was sent..." olmalı.',
     ),
 
@@ -146,6 +150,10 @@ Passive: It must have been taken.
         '🔑 Modal passive yaparken araya "be" eklemeyi unutmayın.',
         '🔑 Perfect modal passive (geçmiş) için "have been" kullanılır.',
       ],
+      keyPointsEn: [
+        '🔑 Do not forget the "be" between the modal and the participle',
+        '🔑 For a perfect modal passive, referring to the past, use "have been"',
+      ],
     ),
     
     // 3. GET PASSIVE
@@ -197,6 +205,10 @@ Subject + get/got + V3
       keyPoints: [
         '🔑 "Get passive" daha çok kazalar, değişimler ve olaylar için kullanılır.',
         '🔑 Resmi yazışmalarda (akademik/sınav) "be + V3" tercih edilmelidir.',
+      ],
+      keyPointsEn: [
+        '🔑 The get-passive is mostly used for accidents, changes and events',
+        '🔑 In formal writing, and in exams, "be + V3" is the form to use',
       ],
     ),
   ],

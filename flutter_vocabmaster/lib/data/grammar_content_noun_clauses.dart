@@ -119,6 +119,12 @@ SUBJECT: That + S + V + is/was + Adjective/Noun
         '🔑 "The fact that..." kalıbı prepositionlardan sonra cümle getirmek için kullanılır',
         '🔑 "It is + adj + that..." kalıbı çok yaygındır',
       ],
+      keyPointsEn: [
+        '🔑 After "that" comes a STATEMENT (S+V), never a question structure',
+        '🔑 Verbs like I hope, I think, I believe, I know, I assume, I suppose take a that-clause',
+        '🔑 "The fact that..." is how a clause is attached after a preposition',
+        '🔑 "It is + adjective + that..." is a very common pattern',
+      ],
       examTip: '💡 YDS\'de "The fact that..." veya "It is... that..." kalıpları sık çıkar. Bunlar her zaman tam cümle ister.',
     ),
 
@@ -221,6 +227,12 @@ Indirect: Subject + Verb + Wh- + Subject + Verb
         '🔑 "Do/Does/Did" yardımcı fiilleri Noun Clause\'da KULLANILMAZ',
         '🔑 Zamanı değiştirirken ana fiil çekimlenir, yardımcı fiil başa gelmez',
         '🔑 "How old, how far, how long, what time" gibi ifadeler tek birim olarak kalır',
+      ],
+      keyPointsEn: [
+        '🔑 A noun clause takes STATEMENT order (subject + verb)',
+        '🔑 The auxiliaries do/does/did are NOT used in a noun clause',
+        '🔑 To change the tense, inflect the main verb; the auxiliary does not move to the front',
+        '🔑 Phrases like how old, how far, how long and what time stay together as one unit',
       ],
       comparison: '''
 🆚 Direct vs Indirect Question:
@@ -329,6 +341,12 @@ Indirect: Subject + Verb + if/whether + Subject + Verb
         '🔑 Preposition + whether (if olmaz!)',
         '🔑 "Whether to V1" yapısı var, "if to V1" yok!',
       ],
+      keyPointsEn: [
+        '🔑 After "if/whether" comes a STATEMENT',
+        '🔑 WHETHER is preferred with "or not", which can sit right beside it',
+        '🔑 Preposition + whether — never "if" after a preposition',
+        '🔑 "Whether to V1" exists; "if to V1" does not',
+      ],
       examTip: '💡 "About/of" gibi prepositionlardan sonra "if" değil "whether" gelir. Bu seçeneklerde if varsa eleyin.',
     ),
 
@@ -425,6 +443,12 @@ Subject + Verb + that + Subject + (should) + V1
         '🔑 Olumsuzda "don\'t/doesn\'t" değil "NOT + V1" kullanılır',
         '🔑 "Be" fiili için "am/is/are" değil sadece "BE" kullanılır',
         '🔑 British English\'te "should + V1" daha yaygındır',
+      ],
+      keyPointsEn: [
+        '🔑 The subjunctive verb always stays PLAIN (V1) and takes no person ending',
+        '🔑 The negative is "NOT + V1", not "don\'t/doesn\'t"',
+        '🔑 For "be" it is just "BE", never am/is/are',
+        '🔑 In British English "should + V1" is the commoner form',
       ],
       examTip: '💡 YDS\'de "suggest, recommend, demand, insist" fiillerinden sonra gelen boşlukta şahıs ekli fiil (-s) şıkkını eleyin! Yalın fiil (V1) veya should + V1 doğrudur.',
     ),

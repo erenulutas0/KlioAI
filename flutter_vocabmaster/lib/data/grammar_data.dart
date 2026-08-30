@@ -73,6 +73,14 @@ class GrammarSubtopic {
   final String? comparison; // Karışabilecek konularla karşılaştırma
   final List<String>? keyPoints; // Can alıcı noktalar
 
+  /// The same key points in English, for the six interface languages that are
+  /// not Turkish.
+  ///
+  /// Unlike the common mistakes, these really are Turkish: 244 of 297 lines.
+  /// They were worth measuring before assuming either way -- the mistake
+  /// lists turned out to need almost nothing.
+  final List<String>? keyPointsEn;
+
   /// The formula to put in front of a reader of [languageCode].
   ///
   /// Turkish readers get the Turkish one, which is what this data was written
@@ -97,6 +105,12 @@ class GrammarSubtopic {
   List<String> commonMistakesFor(String languageCode) =>
       languageCode == 'tr' ? commonMistakes : (commonMistakesEn ?? commonMistakes);
 
+  /// The key points to show a reader of [languageCode], or an empty list when
+  /// there is nothing written for them.
+  List<String> keyPointsFor(String languageCode) => languageCode == 'tr'
+      ? (keyPoints ?? const <String>[])
+      : (keyPointsEn ?? const <String>[]);
+
   const GrammarSubtopic({
     required this.id,
     required this.title,
@@ -111,6 +125,7 @@ class GrammarSubtopic {
     this.examTip,
     this.comparison,
     this.keyPoints,
+    this.keyPointsEn,
   });
 }
 

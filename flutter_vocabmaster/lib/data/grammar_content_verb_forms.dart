@@ -85,6 +85,11 @@ Infinitive: to + V1
         '🔑 "Stop, try, remember, forget" gibi fiiller her ikisini de alır ama anlam değişir',
         '🔑 Amaç bildirmek için her zaman "to V1" kullanılır (for V-ing değil)',
       ],
+      keyPointsEn: [
+        '🔑 After a preposition (in, on, at, for, of) it is always V-ing',
+        '🔑 Verbs like stop, try, remember and forget take both forms, but the meaning changes',
+        '🔑 Purpose is always "to V1", never "for V-ing"',
+      ],
       comparison: '''
 🆚 Anlam Değiştiren Fiiller (Stop / Try / Remember / Forget):
 
@@ -173,6 +178,11 @@ It's time + to V1 (not the bare form)
         '🔑 "Help" fiili opsiyoneldir: "Help me do" veya "Help me TO do"',
         '🔑 "Why not...?" kalıbı V1 alır: "Why not go to the cinema?"',
       ],
+      keyPointsEn: [
+        '🔑 "Make" takes "to" in the passive: "We were made TO do homework."',
+        '🔑 With "help", the "to" is optional: "Help me do" or "Help me TO do"',
+        '🔑 "Why not...?" takes the plain form: "Why not go to the cinema?"',
+      ],
       examTip: '💡 "Let" ve "Make" (aktif) fiillerinden sonra gelen fiil asla "to" almaz.',
     ),
 
@@ -225,6 +235,13 @@ Subject + Verb + Object + to V1
       ],
       keyPoints: [
         '🔑 "Say" ve "Suggest" bu gruba girmez! Onlar "that clause" alır.',
+        '  ❌ I said him to go.',
+        '  ✅ I said that he should go.',
+        '  ❌ I suggested him to go.',
+        '  ✅ I suggested that he go.',
+      ],
+      keyPointsEn: [
+        '🔑 "Say" and "suggest" do NOT belong to this group. They take a that-clause.',
         '  ❌ I said him to go.',
         '  ✅ I said that he should go.',
         '  ❌ I suggested him to go.',

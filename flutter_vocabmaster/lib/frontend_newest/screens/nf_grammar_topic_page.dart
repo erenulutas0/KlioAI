@@ -326,38 +326,49 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                         ),
                       ),
                     ),
-                    if (_isTurkish &&
-                        subtopic.keyPoints != null &&
-                        subtopic.keyPoints!.isNotEmpty) ...<Widget>[
+                    // Genuinely Turkish, unlike the mistake lists: 244 of
+                    // the 297 lines. So this is gated on there being
+                    // something written in the reader's language rather than
+                    // on the reader being Turkish.
+                    if (subtopic
+                        .keyPointsFor(
+                          Localizations.localeOf(context).languageCode,
+                        )
+                        .isNotEmpty) ...<Widget>[
                       const SizedBox(height: NfSpace.s18),
                       _buildSectionHeader(
                         t,
                         context.tr('grammar.section.keyPoints'),
                         Icons.vpn_key_outlined,
                       ),
-                      ...subtopic.keyPoints!.map(
-                        (String point) => Padding(
-                          padding: const EdgeInsets.only(bottom: NfSpace.s8),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Icon(Icons.star_rounded,
-                                  color: t.streak, size: 16),
-                              const SizedBox(width: NfSpace.s8),
-                              Expanded(
-                                child: Text(
-                                  point,
-                                  style: NfTokens.body(
-                                    size: NfFont.s135,
-                                    color: t.inkMuted,
-                                    height: 1.5,
+                      ...subtopic
+                          .keyPointsFor(
+                            Localizations.localeOf(context).languageCode,
+                          )
+                          .map(
+                            (String point) => Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: NfSpace.s8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Icon(Icons.star_rounded,
+                                      color: t.streak, size: 16),
+                                  const SizedBox(width: NfSpace.s8),
+                                  Expanded(
+                                    child: Text(
+                                      point,
+                                      style: NfTokens.body(
+                                        size: NfFont.s135,
+                                        color: t.inkMuted,
+                                        height: 1.5,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
                     ],
                     const SizedBox(height: NfSpace.s18),
                     _buildSectionHeader(

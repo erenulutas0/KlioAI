@@ -118,6 +118,12 @@ Superlative: the + adj + est / the most + adj
         '🔑 Superlative\'de "the" unutulmamalı',
         '🔑 "Than" comparative için, "of/in" superlative için',
       ],
+      keyPointsEn: [
+        '🔑 -er/-est and more/most are NEVER used together',
+        '🔑 Some two-syllable adjectives take -er/-est: those ending in -y, -er, -le or -ow (happy → happier)',
+        '🔑 The "the" in a superlative must not be dropped',
+        '🔑 "Than" belongs to the comparative; "of/in" to the superlative',
+      ],
       examTip: '💡 YDS\'de "more taller" veya "most best" görürseniz YANLIŞ!',
     ),
 
@@ -234,6 +240,12 @@ Negative: not as/so + adj + as
         '🔑 "Twice" = two times, "three times" = üç kat',
         '🔑 "As well as" = and, in addition to',
       ],
+      keyPointsEn: [
+        '🔑 The adjective between the two "as" is plain, never a comparative',
+        '🔑 In the negative, "so" is also possible: "not so tall as"',
+        '🔑 "Twice" replaces "two times"; from three upward, "three times" is normal',
+        '🔑 "As well as" means and, in addition to',
+      ],
       examTip: '💡 YDS\'de "as taller as" veya "as more expensive as" görürseniz YANLIŞ! Yalın sıfat gelir.',
     ),
 
@@ -327,6 +339,12 @@ The + comparative + S + V, the + comparative + S + V
         '🔑 Comparative (-er/more) HER İKİ tarafta da olmalı',
         '🔑 "The sooner, the better" gibi kısa formlar yaygındır',
         '🔑 İkinci cümlede inverted word order gelebilir (edebi)',
+      ],
+      keyPointsEn: [
+        '🔑 Both halves need "THE"',
+        '🔑 Both halves need a comparative (-er or more)',
+        '🔑 Short forms are common: "The sooner, the better"',
+        '🔑 The second half may take inverted word order, in a literary register',
       ],
       examTip: '💡 YDS\'de "The more...the more" yapısında "THE" eksikse YANLIŞ!',
     ),
@@ -439,6 +457,12 @@ similar + to
         '🔑 WOULD RATHER → THAN kullanır (to değil!)',
         '🔑 Different FROM (British) / Different THAN (American)',
         '🔑 Similar TO, Same AS',
+      ],
+      keyPointsEn: [
+        '🔑 PREFER takes TO, not "than"',
+        '🔑 WOULD RATHER takes THAN, not "to"',
+        '🔑 Different FROM in British English; different THAN is heard in American',
+        '🔑 Similar TO, the same AS',
       ],
       comparison: '''
 🆚 Prefer vs Would rather:

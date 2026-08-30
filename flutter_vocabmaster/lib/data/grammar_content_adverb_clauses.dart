@@ -118,6 +118,12 @@ Main Clause + Time Clause
         '🔑 "While" süregelen eylemler için, "When" anlık olaylar için tercih edilir',
         '🔑 "Until" = "...e kadar", "By" = "...e kadar (deadline)"',
       ],
+      keyPointsEn: [
+        '🔑 NEVER "will" after a time conjunction',
+        '🔑 "By the time" usually goes with a perfect tense',
+        '🔑 "While" suits ongoing actions, "when" suits single moments',
+        '🔑 "Until" means up to that point; "by" means not later than — a deadline',
+      ],
       comparison: '''
 🆚 When vs While:
 • When: Kısa eylem veya genel zaman
@@ -228,6 +234,12 @@ Because of/Due to + Noun, Main Clause
         '🔑 "Thanks to" → OLUMLU sonuç için',
         '🔑 V-ing kullanmak için: "Because of being late..."',
       ],
+      keyPointsEn: [
+        '🔑 Because/since/as → take a CLAUSE',
+        '🔑 Because of/due to/owing to → take a NOUN',
+        '🔑 "Thanks to" is for a positive outcome',
+        '🔑 To use an -ing form: "Because of being late..."',
+      ],
       examTip: '💡 YDS\'de boşluktan sonra CÜMLE mi İSİM mi var ona bakın. Cümle ise because/since, isim ise due to/because of.',
     ),
 
@@ -334,6 +346,12 @@ S + V. However, S + V.
         '🔑 Despite/In spite of → İSİM veya V-ing',
         '🔑 However → İki cümle arasında, noktalama işareti ile (. However, / ; however,)',
         '🔑 "Despite the fact that..." → cümle kabul eder (the fact that + S + V)',
+      ],
+      keyPointsEn: [
+        '🔑 Although/though/even though → a CLAUSE',
+        '🔑 Despite/in spite of → a NOUN or an -ing form',
+        '🔑 However goes between two sentences, with punctuation (. However, / ; however,)',
+        '🔑 "Despite the fact that..." lets a clause follow (the fact that + S + V)',
       ],
       comparison: '''
 🆚 Although vs However:
@@ -459,6 +477,12 @@ Main Clause + so that + S + can/will/may/could/would + V1
         '🔑 "For + V-ing" amaç değil, genel kullanım amacı bildirir',
         '🔑 Olumsuzda "in order not to" veya "so as not to" kullanılır',
       ],
+      keyPointsEn: [
+        '🔑 TO / IN ORDER TO → take V1',
+        '🔑 SO THAT → takes subject + can/could/will/would + V1',
+        '🔑 "For + V-ing" states what something is generally used for, not why it was done',
+        '🔑 The negative is "in order not to" or "so as not to"',
+      ],
       examTip: '💡 YDS\'de "so that" varsa arkasında ÖZNE + MODAL olmalı. "So that + V1" YANLIŞTIR!',
     ),
 
@@ -571,6 +595,12 @@ S + V. Therefore/So, S + V.
         '🔑 SUCH + (a/an) + İsim + that',
         '🔑 İstisna: so much/many/few/little + noun + that',
         '🔑 "Therefore, consequently, as a result" iki cümle arasında kullanılır',
+      ],
+      keyPointsEn: [
+        '🔑 SO + adjective/adverb + that',
+        '🔑 SUCH + (a/an) + noun + that',
+        '🔑 The exception: so much/many/few/little + noun + that',
+        '🔑 Therefore, consequently and as a result go between two sentences',
       ],
       comparison: '''
 🆚 SO vs SUCH:

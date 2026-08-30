@@ -97,6 +97,12 @@ Passive: Object → Subject + BE + V3 + (by Subject)
         '🔑 Ana fiil her zaman V3 olur',
         '🔑 "By + agent" genellikle belirsizse atılır',
       ],
+      keyPointsEn: [
+        '🔑 The object becomes the new subject',
+        '🔑 BE is what changes for tense',
+        '🔑 The main verb is always V3',
+        '🔑 "By + agent" is usually dropped when the doer is unknown or unimportant',
+      ],
       examTip: '💡 YDS\'de "The house built by..." YANLIŞ! "The house WAS built by..." olmalı.',
     ),
 
@@ -182,6 +188,12 @@ Reported: Subject + said (that) + [backshifted]
         '🔑 Dolaylı soru → düz cümle sırası',
         '🔑 Emirler → told/asked + to V1',
         '🔑 "This → that, here → there, now → then" değişimleri',
+      ],
+      keyPointsEn: [
+        '🔑 The tenses shift one step back',
+        '🔑 An indirect question takes statement order',
+        '🔑 Orders become told/asked + to V1',
+        '🔑 This → that, here → there, now → then',
       ],
       examTip: '💡 Dolaylı soruda "asked where DID he" YANLIŞ! Devriklik kalkar.',
     ),
@@ -282,6 +294,12 @@ If clause → inversion (Had I, Were I, Should you)
         '🔑 OTHERWISE = If not (iki cümle arasında)',
         '🔑 Devrik yapıda IF atılır, yardımcı fiil başa gelir',
       ],
+      keyPointsEn: [
+        '🔑 UNLESS already means IF NOT — never add another negative',
+        '🔑 BUT FOR / WITHOUT = if it weren\'t for / if it hadn\'t been for',
+        '🔑 OTHERWISE = if not, placed between two sentences',
+        '🔑 In the inverted form the "if" is dropped and the auxiliary moves to the front',
+      ],
       examTip: '💡 "Unless you don\'t study" YANLIŞ! Unless zaten olumsuzu içerir.',
     ),
 
@@ -377,6 +395,12 @@ Because + clause = Because of + noun
         '🔑 Although + CÜMLE = Despite + İSİM/V-ing',
         '🔑 Because + CÜMLE = Because of + İSİM',
         '🔑 It\'s time + Past = Had better + V1',
+      ],
+      keyPointsEn: [
+        '🔑 TOO...TO = SO...THAT...CAN\'T',
+        '🔑 Although + CLAUSE = Despite + NOUN/V-ing',
+        '🔑 Because + CLAUSE = Because of + NOUN',
+        '🔑 It\'s time + past = had better + V1',
       ],
       examTip: '💡 YDS\'de cümle tamamlama ve anlam bütünlüğü sorularında bu dönüşümler çok önemlidir!',
     ),

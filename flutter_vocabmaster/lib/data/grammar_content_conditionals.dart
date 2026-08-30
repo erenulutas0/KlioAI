@@ -57,6 +57,10 @@ If + Present Simple, Present Simple
         '🔑 Her iki tarafta da Present Simple kullanılır.',
         '🔑 "If" yerine "When" kullanılabilir, anlam değişmez. (When you heat water...)',
       ],
+      keyPointsEn: [
+        '🔑 Both halves take the Present Simple',
+        '🔑 "When" can replace "if" with no change of meaning (When you heat water...)',
+      ],
     ),
 
     // 2. FIRST CONDITIONAL
@@ -121,6 +125,10 @@ If + Present Simple, Will + V1
         '🔑 If kısmında asla "will" kullanılmaz! (Gelecek anlamı taşısa bile Present Simple kullanılır)',
         '🔑 Unless = If not (Yapmazsan... = Unless you do...)',
       ],
+      keyPointsEn: [
+        '🔑 Never "will" in the if-clause — the Present Simple carries the future meaning',
+        '🔑 Unless = if not ("Unless you study" = "If you don\'t study")',
+      ],
     ),
 
     // 3. SECOND CONDITIONAL
@@ -184,6 +192,11 @@ If + Past Simple, Would + V1
         '🔑 "Be" fiili tüm şahıslar için "were" olur (I were, she were).',
         '🔑 If kısmında "would" kullanılmaz.',
       ],
+      keyPointsEn: [
+        '🔑 The Past Simple is used, but the meaning is the PRESENT, not the past',
+        '🔑 "Be" becomes "were" for every person (I were, she were)',
+        '🔑 No "would" in the if-clause',
+      ],
     ),
 
     // 4. THIRD CONDITIONAL
@@ -233,6 +246,10 @@ If + Past Perfect (had V3), Would have + V3
         '🔑 Tamamen geçmişi anlatır, geri dönüşü yoktur.',
         '🔑 If kısmında "Past Perfect", ana cümlede "Modal Perfect" kullanılır.',
       ],
+      keyPointsEn: [
+        '🔑 It is entirely about the past, and nothing about it can be changed',
+        '🔑 Past Perfect in the if-clause, a perfect modal in the main clause',
+      ],
       comparison: '''
 🆚 2nd vs 3rd Conditional:
 • Type 2 (Şu an): "If I had a car, I would drive." (Arabam yok, olsa sürerim - hayal)
@@ -276,6 +293,9 @@ If + Past Perfect (Type 3), Would + V1 (Type 2)
       ],
       keyPoints: [
         '🔑 Cümlenin hangi kısmının hangi zamana ait olduğunu anlamak için zaman zarflarına (now, yesterday) bakın.',
+      ],
+      keyPointsEn: [
+        '🔑 To see which half belongs to which time, look at the time expressions (now, yesterday)',
       ],
       examTip: '💡 YDS\'de "now, today" gibi ipuçları varsa Mixed Conditional düşünün.',
     ),

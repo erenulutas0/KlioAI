@@ -72,6 +72,11 @@ Subject + be able to + V1
         '🔑 Modallar şahsa göre çekimlenmez (-s almaz)',
         '🔑 "Could" geçmiş genel yetenek içindir. Geçmişte tek seferlik zorlu bir başarı için "was/were able to" tercih edilir (managed to).',
       ],
+      keyPointsEn: [
+        '🔑 The verb after a modal is always the plain form (V1)',
+        '🔑 Modals do not change for person — they never take -s',
+        '🔑 "Could" is for general ability in the past. For one difficult success on one occasion, "was/were able to" (or "managed to") is preferred.',
+      ],
       examTip: '💡 "Managed to" = "Was/were able to" (Zorlukla başardı anlamı katar).',
     ),
 
@@ -145,6 +150,11 @@ Mustn't + V1 (forbidden)
         '🔑 "Don\'t have to" = Zorunda değilsin (İstersen yap)',
         '🔑 "Must" sadece şimdiki/gelecek zamanda kullanılır. Geçmiş için "Had to" kullanılır.',
       ],
+      keyPointsEn: [
+        '🔑 "Mustn\'t" means it is forbidden — do not do it',
+        '🔑 "Don\'t have to" means it is not necessary — do it if you like',
+        '🔑 "Must" is only for the present and the future. The past is "had to".',
+      ],
       comparison: '''
 🆚 Mustn't vs Don't Have to:
 • "You mustn't touch that." → Dokunman yasak! (Dokunma)
@@ -204,6 +214,10 @@ Had better + V1
       keyPoints: [
         '🔑 "Had better" geçmiş zaman DEĞİLDİR! Şimdiki veya gelecek zaman için uyarıdır.',
         '🔑 "Should" ve "Ought to" %99 birbirinin yerine kullanılabilir.',
+      ],
+      keyPointsEn: [
+        '🔑 "Had better" is NOT a past tense. It is a warning about the present or the future.',
+        '🔑 "Should" and "ought to" are interchangeable almost all of the time.',
       ],
       examTip: '💡 "It is advisable/recommended that..." kalıbı "Should" anlamı taşır.',
     ),
@@ -273,6 +287,11 @@ Subject + can't + be (it cannot be so)
         '🔑 Olumlu çıkarım: MUST BE',
         '🔑 Olumsuz çıkarım: CAN\'T BE (Mustn\'t be kullanılmaz, o yasaktır!)',
         '🔑 Gelecek tahmini: May/Might/Could',
+      ],
+      keyPointsEn: [
+        '🔑 A positive deduction: MUST BE',
+        '🔑 A negative deduction: CAN\'T BE — not "mustn\'t be", which means forbidden',
+        '🔑 A guess about the future: may/might/could',
       ],
       comparison: '''
 🆚 Must (Zorunluluk) vs Must (Çıkarım):
@@ -344,6 +363,11 @@ Modal + have + V3
         '🔑 "Should have V3" her zaman gerçekleşmemiş bir eylemi anlatır (Past Unreal).',
         '🔑 "Must have V3" fiziksel kanıt olduğunda kullanılır.',
         '🔑 Modal\'dan sonra asla "had" veya "has" gelmez, hep "have" gelir.',
+      ],
+      keyPointsEn: [
+        '🔑 "Should have V3" always describes something that did not happen',
+        '🔑 "Must have V3" is used when there is physical evidence',
+        '🔑 A modal is never followed by "had" or "has" — always "have"',
       ],
       comparison: '''
 🆚 Didn't need to vs Needn't have V3:

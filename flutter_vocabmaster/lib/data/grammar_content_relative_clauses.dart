@@ -104,6 +104,12 @@ Non-Defining: My father, WHO is 60, retired.
         '🔑 Tek olan şeyler (The sun, My father) → Non-Defining',
         '🔑 "That" sadece Defining Clause\'da kullanılır',
       ],
+      keyPointsEn: [
+        '🔑 If you see a comma → non-defining → "that" is NEVER used',
+        '🔑 Proper nouns (Paris, John) → ALWAYS non-defining, with commas',
+        '🔑 Things there is only one of (the sun, my father) → non-defining',
+        '🔑 "That" belongs to defining clauses only',
+      ],
       examTip: '💡 YDS\'de boşluktan önce virgül varsa, şıklarda "that"i hemen eleyin! Geriye "who" veya "which" kalır.',
     ),
 
@@ -235,6 +241,12 @@ Time: The day WHEN/ON WHICH I arrived...
         '🔑 Object pozisyonundaki who/which/that atılabilir',
         '🔑 Preposition + WHOM (resmi) / Who + preposition (günlük)',
       ],
+      keyPointsEn: [
+        '🔑 WHOSE is always followed by a NOUN (whose car, whose idea)',
+        '🔑 WHERE = in/at which, WHEN = on/at which, WHY = for which',
+        '🔑 Who/which/that can be dropped when it is the object',
+        '🔑 Preposition + WHOM is formal; who... + preposition at the end is everyday',
+      ],
       comparison: '''
 🆚 WHO vs WHOM:
 • WHO: Subject → "The man WHO called..." (Adam aradı)
@@ -341,6 +353,12 @@ First/Last/Only/Superlative + to-infinitive
         '🔑 Sadece DEFINING clause\'lar kısaltılabilir',
         '🔑 first/last/only/next/superlative → to-infinitive',
       ],
+      keyPointsEn: [
+        '🔑 Active → V-ing: "The dog barking loudly"',
+        '🔑 Passive → V3: "The cake baked by mum"',
+        '🔑 Only DEFINING clauses can be reduced',
+        '🔑 first/last/only/next and superlatives → to-infinitive',
+      ],
       examTip: '💡 YDS\'de boşluktan sonra isim geliyorsa V3 (passive), fiil geliyorsa V-ing (active) büyük ihtimalle doğrudur.',
     ),
 
@@ -438,6 +456,11 @@ Informal: (who/which/that/Ø) + S + V + Prep
         '🔑 Preposition başta ise: %100 whom/which kullanılır, that ASLA!',
         '🔑 Preposition sonda ise: that, who, which hatta hiçbiri olabilir',
         '🔑 YDS/YÖKDİL\'de genellikle formal yapı (Prep + whom/which) sorulur',
+      ],
+      keyPointsEn: [
+        '🔑 With the preposition in front: whom/which every time, and NEVER that',
+        '🔑 With the preposition at the end: that, who, which or nothing at all',
+        '🔑 Exams tend to ask for the formal pattern (preposition + whom/which)',
       ],
       examTip: '💡 Boşluktan önce preposition görürseniz → whom (insan) veya which (nesne). "That" şıkkını hemen eleyin!',
     ),

@@ -113,6 +113,12 @@ Future: I will have my hair cut.
         '🔑 "Have" fiili zamana göre çekimlenir (have/has/had/will have/having)',
         '🔑 İşi yapan kişi "by..." ile eklenebilir ama genellikle söylenmez',
       ],
+      keyPointsEn: [
+        '🔑 The structure: HAVE + object + V3 (past participle)',
+        '🔑 The object always sits between HAVE and the V3',
+        '🔑 "Have" is what changes for tense (have/has/had/will have/having)',
+        '🔑 The doer can be added with "by...", though it usually is not',
+      ],
       examTip: '💡 YDS\'de "I had repaired" (Ben tamir ettim) ile "I had it repaired" (Tamir ettirdim) farkına dikkat! Birincisi kendim yaptım, ikincisi yaptırdım.',
     ),
 
@@ -196,6 +202,12 @@ GET + PERSON + TO + V1
         '🔑 GET someone TO DO → "to" VAR',
         '🔑 HAVE = otorite/düzenleme, GET = ikna/rica',
         '🔑 Kişi (someone) her zaman have/get ile fiil arasında gelir',
+      ],
+      keyPointsEn: [
+        '🔑 HAVE someone DO → NO "to"',
+        '🔑 GET someone TO DO → "to" is required',
+        '🔑 HAVE suggests authority or arrangement; GET suggests persuading or asking',
+        '🔑 The person always sits between have/get and the verb',
       ],
       comparison: '''
 🆚 Have vs Get:
@@ -311,6 +323,12 @@ Passive MAKE:
         '🔑 LET → Pasif yapılamaz, "be allowed to" kullanılır',
         '🔑 HELP → "to" opsiyoneldir',
       ],
+      keyPointsEn: [
+        '🔑 LET and MAKE take no "to" in the active',
+        '🔑 MAKE gains a "to" in the passive (was made TO do)',
+        '🔑 LET has no passive; "be allowed to" is used instead',
+        '🔑 With HELP the "to" is optional',
+      ],
       examTip: '💡 YDS\'de "was made" görürseniz arkasında TO + V1 olmalı. "Was made do" YANLIŞTIR!',
     ),
 
@@ -403,6 +421,12 @@ GET + THING + V3
         '🔑 GET daha informal ve günlük',
         '🔑 Olumsuz olaylar için GET tercih edilir (got stolen, got broken)',
         '🔑 "Get something done" = bir işi tamamlamak anlamı da taşır',
+      ],
+      keyPointsEn: [
+        '🔑 GET + object + V3 means the same as HAVE + object + V3',
+        '🔑 GET is the more informal, everyday one',
+        '🔑 GET is preferred for unwelcome events (got stolen, got broken)',
+        '🔑 "Get something done" also carries the sense of finally finishing a task',
       ],
       comparison: '''
 🆚 Get something done vs Get someone to do:

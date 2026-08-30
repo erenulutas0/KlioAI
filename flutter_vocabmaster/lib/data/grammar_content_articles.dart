@@ -113,6 +113,12 @@ an + vowel SOUND: an apple, an hour
         '🔑 "Information, advice, money" gibi sayılamaz isimlerle A/An KULLANILMAZ',
         '🔑 Çoğul isimlerle A/An KULLANILMAZ (a books ❌)',
       ],
+      keyPointsEn: [
+        '🔑 It is the SOUND that decides, not the letter',
+        '🔑 A/an is only used with COUNTABLE SINGULAR nouns',
+        '🔑 A/an is NOT used with uncountables like information, advice, money',
+        '🔑 A/an is NOT used with plurals (a books ❌)',
+      ],
       examTip: '💡 YDS\'de "an university" veya "a hour" görürseniz YANLIŞ!',
     ),
 
@@ -234,6 +240,12 @@ THE + a specific or already-known noun
         '🔑 Diller, öğünler, sporlar → "THE" yok',
         '🔑 Superlative (the best) ve ordinal (the first) → "THE" var',
         '🔑 Okyanuslar, denizler, nehirler → "THE" var',
+      ],
+      keyPointsEn: [
+        '🔑 No "the" with a general idea',
+        '🔑 No "the" with languages, meals or sports',
+        '🔑 "The" is required with superlatives (the best) and ordinals (the first)',
+        '🔑 "The" is required with oceans, seas and rivers',
       ],
       examTip: '💡 YDS\'de "The money is important" veya "The love is great" görürseniz YANLIŞ! Genel kavramlarda the yok.',
     ),
@@ -358,6 +370,12 @@ In some places no article at all is used — neither a/an nor the.
         '🔑 Lake + isim → the yok',
         '🔑 School/hospital/prison → amaç ise the yok, bina ise the var',
       ],
+      keyPointsEn: [
+        '🔑 General ideas, languages and meals take no article',
+        '🔑 Mount + name → no "the"',
+        '🔑 Lake + name → no "the"',
+        '🔑 School/hospital/prison → no "the" for the purpose, "the" for the building',
+      ],
       comparison: '''
 🆚 Amaç vs Bina:
 • "He is in PRISON." (Mahkum - amaç)
@@ -468,6 +486,12 @@ Both: some, any, a lot of, no
         '🔑 MUCH/LITTLE → Sayılamaz',
         '🔑 A FEW/A LITTLE → Olumlu (biraz, yeterli)',
         '🔑 FEW/LITTLE → Olumsuz (çok az, yetersiz)',
+      ],
+      keyPointsEn: [
+        '🔑 MANY/FEW → countable plurals',
+        '🔑 MUCH/LITTLE → uncountables',
+        '🔑 A FEW/A LITTLE → positive: some, and enough',
+        '🔑 FEW/LITTLE → negative: hardly any, and not enough',
       ],
       examTip: '💡 YDS\'de "many information" veya "much students" görürseniz YANLIŞ!',
     ),

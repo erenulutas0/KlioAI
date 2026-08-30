@@ -116,6 +116,12 @@ The verb mistakes learners make most often.
         '🔑 Modal sonrası TO ve -S olmaz',
         '🔑 Stative verbs (know, believe, love) continuous yapılmaz',
       ],
+      keyPointsEn: [
+        '🔑 Third person singular → -s (works, studies, goes)',
+        '🔑 After does/did, the main verb stays PLAIN',
+        '🔑 After a modal, no "to" and no -s',
+        '🔑 Stative verbs (know, believe, love) are not used in the continuous',
+      ],
       examTip: '💡 YDS\'de "Everyone are" veya "Does she likes" çok sık çıkar. Bunlar her zaman YANLIŞ!',
     ),
 
@@ -207,6 +213,12 @@ Preposition mistakes, usually made by translating word for word from another lan
         '🔑 DISCUSS/ENTER/REACH/ATTEND → edat almaz',
         '🔑 LISTEN TO, WAIT FOR, LOOK AT → edat şart',
         '🔑 ARRIVE IN (city), ARRIVE AT (place)',
+      ],
+      keyPointsEn: [
+        '🔑 MARRIED TO, not with',
+        '🔑 DISCUSS/ENTER/REACH/ATTEND take no preposition',
+        '🔑 LISTEN TO, WAIT FOR, LOOK AT — the preposition is required',
+        '🔑 ARRIVE IN a city, ARRIVE AT a place',
       ],
       examTip: '💡 "Discuss about" ve "married with" YDS\'nin en sevdiği tuzaklardır!',
     ),
@@ -304,6 +316,12 @@ Adjective + enough (not: enough + adj)
         '🔑 Enough → sıfattan SONRA: "tall enough"',
         '🔑 Sıklık zarfı: BE\'den sonra, diğer fiillerden önce',
         '🔑 Indirect question: düz cümle sırası',
+      ],
+      keyPointsEn: [
+        '🔑 The object is not separated from its verb: "I play football every day"',
+        '🔑 "Enough" comes AFTER the adjective: "tall enough"',
+        '🔑 Frequency adverbs: after "be", before other verbs',
+        '🔑 An indirect question takes statement order',
       ],
       examTip: '💡 "Enough" pozisyonu çok sık sorulur. Sıfattan SONRA gelir!',
     ),
@@ -403,6 +421,12 @@ Article mistakes.
         '🔑 A/An = SES\'e göre (harf değil!)',
         '🔑 Information, advice, news → sayılamaz (a/an yok)',
       ],
+      keyPointsEn: [
+        '🔑 General ideas, languages and meals → no "the"',
+        '🔑 Superlatives (the best) → "the" is required',
+        '🔑 A/an follows the SOUND, not the letter',
+        '🔑 Information, advice and news are uncountable — no a/an',
+      ],
       examTip: '💡 "An European" veya "a hour" her zaman YANLIŞ! Sesi dinle, harfe bakma.',
     ),
   ],
@@ -491,6 +515,12 @@ S + V + O + Place + Time
         '🔑 Place genellikle Time\'dan önce gelir',
         '🔑 Zaman başa da sonra da alınabilir (vurgu)',
       ],
+      keyPointsEn: [
+        '🔑 S + V + O is fixed',
+        '🔑 The object is not separated from its verb',
+        '🔑 Place usually comes before time',
+        '🔑 Time can move to the front or stay at the end, for emphasis',
+      ],
     ),
 
     // 2. ADVERB POSITION
@@ -576,6 +606,12 @@ Time: Beginning or End
         '🔑 Degree adverb + adjective',
         '🔑 Time adverbs: flexible (beginning/end)',
       ],
+      keyPointsEn: [
+        '🔑 BE + frequency adverb',
+        '🔑 Frequency adverb + main verb',
+        '🔑 Degree adverb + adjective',
+        '🔑 Time adverbs are flexible — beginning or end',
+      ],
     ),
 
     // 3. ADJECTIVE ORDER
@@ -641,6 +677,12 @@ Opinion + Size + Age + Shape + Color + Origin + Material + Purpose + NOUN
         '🔑 Size, Age, Shape → Color\'dan önce',
         '🔑 Origin, Material → Purpose\'dan önce',
         '🔑 Genellikle 3\'ten fazla sıfat kullanılmaz',
+      ],
+      keyPointsEn: [
+        '🔑 Opinion always comes first',
+        '🔑 Size, age and shape come before colour',
+        '🔑 Origin and material come before purpose',
+        '🔑 More than three adjectives at once is rare',
       ],
     ),
   ],
@@ -746,6 +788,12 @@ Adj + and + Adj
         '🔑 Noun + Noun veya Adj + Adj',
         '🔑 İkili bağlaçlarda da paralellik şart',
       ],
+      keyPointsEn: [
+        '🔑 Items joined by and/or must share the same structure',
+        '🔑 Gerund + gerund, or to V + to V',
+        '🔑 Noun + noun, or adjective + adjective',
+        '🔑 Paired conjunctions demand it too',
+      ],
       examTip: '💡 YDS\'de liste içeren cümlelerde paralellik bozulmuşsa YANLIŞ!',
     ),
 
@@ -834,6 +882,12 @@ Not only X but also Y → X = Y
         '🔑 Neither...nor: her iki taraf aynı yapı',
         '🔑 Not only...but also: her iki taraf aynı yapı',
       ],
+      keyPointsEn: [
+        '🔑 Both...and: the same structure on both sides',
+        '🔑 Either...or: the same structure on both sides',
+        '🔑 Neither...nor: the same structure on both sides',
+        '🔑 Not only...but also: the same structure on both sides',
+      ],
       examTip: '💡 "Both smart and has talent" YANLIŞ! "Both smart and talented" doğru.',
     ),
 
@@ -915,6 +969,12 @@ X...than those of Y (plural)
         '🔑 "That of" tekil isimler için',
         '🔑 "Those of" çoğul isimler için',
         '🔑 "...than mine/yours/his/hers" possessive parallelism',
+      ],
+      keyPointsEn: [
+        '🔑 Compare like with like',
+        '🔑 "That of" for singular nouns',
+        '🔑 "Those of" for plural nouns',
+        '🔑 "...than mine/yours/his/hers" — possessive parallelism',
       ],
       examTip: '💡 "The price of apples is higher than oranges" YANLIŞ! "...than that of oranges" doğru.',
     ),

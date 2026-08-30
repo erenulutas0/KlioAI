@@ -127,6 +127,12 @@ Said + that + [backshifted tense]
         '🔑 Past Perfect ve modal perfectler değişmez (zaten en geçmiş)',
         '🔑 "Here → there", "this → that", "today → that day" gibi değişimler de olur',
       ],
+      keyPointsEn: [
+        '🔑 SAY + (that) + clause — it takes no object',
+        '🔑 TELL + person + (that) + clause — it does take one',
+        '🔑 The Past Perfect and the perfect modals do not shift; they are already as far back as English goes',
+        '🔑 Words of place and time shift too: here → there, this → that, today → that day',
+      ],
       examTip: '💡 YDS\'de "He said me..." veya "He told that..." görürseniz YANLIŞ! Say nesne almaz, tell alır.',
     ),
 
@@ -227,6 +233,12 @@ Reported: asked + if/whether + S + V
         '🔑 Yes/No soruları için IF veya WHETHER eklenir',
         '🔑 "Asked" veya "wanted to know" gibi fiiller kullanılır',
         '🔑 Cümle sonunda SORU İŞARETİ OLMAZ',
+      ],
+      keyPointsEn: [
+        '🔑 An indirect question has NO question structure — it takes statement order',
+        '🔑 For yes/no questions, IF or WHETHER is added',
+        '🔑 Verbs like "asked" or "wanted to know" introduce it',
+        '🔑 There is NO QUESTION MARK at the end',
       ],
       examTip: '💡 YDS\'de "asked what did..." veya "asked if was..." görürseniz YANLIŞ! Devriklik kalkar.',
     ),
@@ -341,6 +353,12 @@ Negative: told/asked + object + NOT to + V1
         '🔑 "Say" emir/rica aktarmada kullanılmaz - TELL, ASK, ORDER vs. kullanılır',
         '🔑 Nesne (me, him, her) mutlaka belirtilir',
       ],
+      keyPointsEn: [
+        '🔑 Orders and requests are reported with TO + V1',
+        '🔑 The negative is NOT TO + V1, never "to not"',
+        '🔑 "Say" is not used for orders or requests — tell, ask, order and so on are',
+        '🔑 The object (me, him, her) must be stated',
+      ],
       examTip: '💡 "to don\'t" ASLA doğru değildir. Her zaman "not to" kullanılır.',
     ),
 
@@ -447,6 +465,12 @@ promise + to V1 / that-clause
         '🔑 DENY / ADMIT → V-ing veya that-clause',
         '🔑 ACCUSE / BLAME → of + V-ing',
         '🔑 INSIST / APOLOGIZE → on/for + V-ing',
+      ],
+      keyPointsEn: [
+        '🔑 SUGGEST → V-ing, or that + subjunctive (suggest that he go)',
+        '🔑 DENY / ADMIT → V-ing or a that-clause',
+        '🔑 ACCUSE / BLAME → of + V-ing',
+        '🔑 INSIST / APOLOGISE → on/for + V-ing',
       ],
       examTip: '💡 YDS\'de "suggest to V1" veya "deny to V1" çok sık hata olarak çıkar. YANLIŞ!',
     ),
