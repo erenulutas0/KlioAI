@@ -26,8 +26,7 @@ Present Simple (Geniş Zaman), genel doğruları, alışkanlıkları, rutin akti
 • Duygular ve zihinsel durumlar (believe, know, love, hate)
 ''',
       explanationEn: '''
-The Present Simple is used for general truths, habits, routines and
-situations that do not change.
+The Present Simple is used for general truths, habits, routines and situations that do not change.
 
 🎯 When is it used?
 • Universal facts and scientific statements

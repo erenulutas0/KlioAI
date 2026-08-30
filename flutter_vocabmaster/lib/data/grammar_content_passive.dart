@@ -104,9 +104,7 @@ Modal fiillerin (can, should, must...) passive halleridir.
 • Modal + have been + V3 (Geçmiş)
 ''',
       explanationEn: '''
-A modal verb (can, should, must, may...) keeps its own meaning in the
-passive; only the verb after it changes shape. The modal itself never
-takes an ending.
+A modal verb (can, should, must, may...) keeps its own meaning in the passive; only the verb after it changes shape. The modal itself never takes an ending.
 
 🎯 The structure:
 • Modal + be + V3, for the present or the future
@@ -115,8 +113,7 @@ takes an ending.
   "It must have been taken while we were out."
 
 🎯 What to watch:
-The modal is followed by the bare form "be", never by "is", "are" or
-"was". "It should is done" and "It must was taken" are both wrong.
+The modal is followed by the bare form "be", never by "is", "are" or "was". "It should is done" and "It must was taken" are both wrong.
 ''',
       formula: '''
 Active: You should do it.

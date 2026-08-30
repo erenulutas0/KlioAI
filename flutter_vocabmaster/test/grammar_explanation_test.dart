@@ -63,6 +63,55 @@ void main() {
     expect(offenders, isEmpty, reason: offenders.join('\n'));
   });
 
+  test('no sentence is broken in half by a hard line break', () {
+    // Found by looking at a phone, not by any test. The Present Simple guide
+    // read "...general truths, habits, routines and / situations that do not
+    // change", breaking after "and" no matter how wide the screen was --
+    // because the text carried a newline there. I put it in while matching
+    // the line width of the Turkish source, which is a shape that means
+    // nothing once the words are different.
+    //
+    // A heuristic, and stated as one: a line ending in a word that cannot end
+    // a thought. It is not a parser. `as_as_structures` legitimately has two
+    // pattern lines in a row ("not as + adj + as" / "not so + adj + as") and
+    // is not caught, which is the point of choosing the words rather than
+    // flagging every lowercase line.
+    const danglers = <String>[
+      'and', 'or', 'the', 'a', 'an', 'of', 'in', 'to', 'for', 'with',
+      'its', 'never', 'that', 'which', 'is', 'are', 'be', 'by', 'from',
+    ];
+
+    final offenders = <String>[];
+    for (final GrammarSubtopic subtopic in subtopics) {
+      final List<String> lines = (subtopic.explanationEn ?? '').split('\n');
+      for (var i = 0; i + 1 < lines.length; i++) {
+        final String here = lines[i].trimRight();
+        if (here.isEmpty || lines[i + 1].trim().isEmpty) continue;
+        // The next line must read as a continuation, not as a new item. A
+        // bullet, an emoji or a capital starts something; a bare lowercase
+        // word carries on.
+        //
+        // A line beginning with a quotation mark is left alone, and that is a
+        // deliberate blind spot. It would catch one more real break in
+        // passive_modals -- already fixed by hand -- at the cost of flagging
+        // the quantifier lists, where a line of patterns is followed by a
+        // line of quoted examples on purpose. A guard that cries wolf gets
+        // switched off, and then it catches nothing at all.
+        final String next = lines[i + 1].trim();
+        if (!RegExp(r'^[a-z]').hasMatch(next)) continue;
+
+        final String last = here.split(' ').last.toLowerCase();
+        if (danglers.contains(last)) {
+          offenders.add('  ${subtopic.id}: "...$last" / "$next..."');
+        }
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These break a sentence where the screen would not:'
+            '\n${offenders.join('\n')}');
+  });
+
   test('Turkish readers keep the Turkish explanation', () {
     for (final GrammarSubtopic subtopic in subtopics) {
       expect(subtopic.explanationFor('tr'), subtopic.explanation,
