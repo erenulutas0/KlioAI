@@ -256,6 +256,15 @@ Time: The day WHEN/ON WHICH I arrived...
 • I called HIM → whom
 • HE called → who
 ''',
+      comparisonEn: '''
+🆚 WHO vs WHOM:
+• WHO: the subject → "The man WHO called..." — he called
+• WHOM: the object → "The man WHOM I called..." — I called him
+
+💡 The test: if "him" fits, use whom; if "he" fits, use who.
+• I called HIM → whom
+• HE called → who
+''',
       examTip: '💡 YDS\'de boşluktan sonra bir FİİL geliyorsa → WHO/WHICH (özne gerekiyor). Boşluktan sonra ÖZNE+FİİL geliyorsa → atılabilir veya whom.',
     ),
 

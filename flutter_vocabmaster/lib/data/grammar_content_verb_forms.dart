@@ -105,6 +105,21 @@ Try:
 • Try opening the window (Pencereyi açmayı dene - bir yöntem olarak dene)
 • Try to open the window (Pencereyi açmaya çalış - çaba sarf et, zorlan)
 ''',
+      comparisonEn: '''
+🆚 Verbs whose meaning changes (stop / try / remember / forget):
+
+Stop:
+• Stop smoking — give up the habit
+• Stop to smoke — break off what you are doing in order to smoke
+
+Remember:
+• Remember locking the door — you recall having done it
+• Remember to lock the door — do not forget to do it
+
+Try:
+• Try opening the window — try it as a method and see if it helps
+• Try to open the window — make the effort, though it may be difficult
+''',
       examTip: '💡 YDS\'de boşluktan önce preposition varsa (of, in, at, with, about) %99 V-ing gelir. Boşluktan önce sıfat varsa (happy, sad, easy) genellikle to V1 gelir.',
     ),
 
@@ -249,6 +264,13 @@ Subject + Verb + Object + to V1
       ],
       comparison: '''
 🆚 Verb Pattern Farkları:
+• Want someone TO do something: "I want you to come."
+• Make someone DO something: "I made you come."
+• Let someone DO something: "I let you come."
+• Suggest DOING something: "I suggest coming."
+''',
+      comparisonEn: '''
+🆚 Verb patterns side by side:
 • Want someone TO do something: "I want you to come."
 • Make someone DO something: "I made you come."
 • Let someone DO something: "I let you come."

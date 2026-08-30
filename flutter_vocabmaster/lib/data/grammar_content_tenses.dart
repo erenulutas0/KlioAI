@@ -109,6 +109,15 @@ situations that do not change.
 • "She always complains." (Her zaman şikayet eder - alışkanlık)
 • "She is always complaining." (Sürekli şikayet ediyor - rahatsız edici)
 ''',
+      comparisonEn: '''
+🆚 Present Simple vs Present Continuous:
+• "I work at a bank." — that is my job, in general
+• "I am working at a bank." — right now, or temporarily
+
+• "She always complains." — a habit
+• "She is always complaining." — and it is getting on my nerves
+''',
+      
       examTip: '💡 YDS/YÖKDİL\'de program/tarife belirten cümlelerde Present Simple kullanılır: "The conference starts at 9 AM."',
     ),
 
@@ -219,6 +228,22 @@ The Present Continuous describes actions happening at the moment of speaking, te
 • "She has a car." (sahiplik - stative)
 • "She is having dinner." (yemek yeme eylemi - dynamic)
 ''',
+      comparisonEn: '''
+🆚 Stative vs dynamic verbs:
+• Stative (a state): know, believe, love, hate, belong, own, understand
+  → ❌ "I am loving this." — wrong, because love is stative
+  → ✅ "I love this."
+
+• Dynamic (an action): work, run, eat, study, play
+  → ✅ "I am working now."
+
+⚠️ Some verbs carry both meanings:
+• "I think he is wrong." — an opinion, stative
+• "I am thinking about the problem." — the act of thinking, dynamic
+
+• "She has a car." — possession, stative
+• "She is having dinner." — the act of eating, dynamic
+''',
       examTip: '💡 YDS\'de "currently, at the moment, nowadays, these days" zarfları Present Continuous işaretidir.',
     ),
 
@@ -321,6 +346,18 @@ The Present Perfect describes actions that began in the past and still matter no
 • "He has gone to Paris." (Paris'e gitti, hâlâ orada)
 • "He has been to Paris." (Paris'e gitti ve döndü - deneyim)
 ''',
+      comparisonEn: '''
+🆚 Present Perfect vs Past Simple:
+• "I have lost my keys." — they are still lost; it matters now
+• "I lost my keys yesterday." — a definite time
+
+• "She has worked here for 10 years." — she still works here
+• "She worked here for 10 years." — she does not any more
+
+🆚 Gone vs Been:
+• "He has gone to Paris." — he went and is still there
+• "He has been to Paris." — he went and came back; an experience
+''',
       examTip: '💡 YDS\'de "since, for, already, yet, just, ever, never, so far, up to now, recently" Present Perfect işaretleridir.',
     ),
 
@@ -411,6 +448,17 @@ Present Perfect Continuous → focused on the process ("I have been working")
 
 💡 Sayı veya miktar belirtiliyorsa → Present Perfect
 💡 Süre veya süreç vurgulanıyorsa → Present Perfect Continuous
+''',
+      comparisonEn: '''
+🆚 Present Perfect vs Present Perfect Continuous:
+• "I have read the book." — finished it
+• "I have been reading the book." — still reading, or the process is the point
+
+• "She has written 3 reports." — a number, a result
+• "She has been writing reports all day." — a length of time, a process
+
+💡 A number or a quantity → Present Perfect
+💡 A duration or a process → Present Perfect Continuous
 ''',
       examTip: '💡 YDS\'de "for hours, all day, since morning" gibi süre vurgulayan ifadeler Present Perfect Continuous işaretidir.',
     ),
@@ -517,6 +565,14 @@ The Past Simple describes completed actions that happened at a definite time in 
 • "She lived in Paris for 5 years." (Artık orada yaşamıyor)
 • "She has lived in Paris for 5 years." (Hâlâ orada yaşıyor)
 ''',
+      comparisonEn: '''
+🆚 Past Simple vs Present Perfect:
+• "I saw that movie." — at a definite time, one that could be named
+• "I have seen that movie." — at some unstated time; when does not matter
+
+• "She lived in Paris for 5 years." — she does not live there now
+• "She has lived in Paris for 5 years." — she still does
+''',
       examTip: '💡 YDS\'de "yesterday, ago, last, in 2010, when I was a child" Past Simple işaretleridir.',
     ),
 
@@ -599,6 +655,15 @@ The Past Continuous describes actions that were in progress at a particular mome
 
 📌 When + Past Simple (kısa eylem)
 📌 While + Past Continuous (uzun eylem)
+''',
+      comparisonEn: '''
+🆚 When vs While:
+• "When she arrived, I was cooking." — arrived is short, cooking is long
+• "While I was cooking, she arrived." — the same meaning, different emphasis
+• "While I was cooking, she was reading." — two long actions side by side
+
+📌 When + Past Simple, for the short action
+📌 While + Past Continuous, for the long one
 ''',
       examTip: '💡 YDS\'de "while, when, as, at that moment" Past Continuous ipuçlarıdır.',
     ),
@@ -686,6 +751,19 @@ The Past Perfect describes an action completed BEFORE another past event. It can
 • Present Perfect: "I have just eaten."
 • Past Perfect: "I had just eaten when you called."
 ''',
+      comparisonEn: '''
+🆚 Past Perfect vs Past Simple:
+• "When I arrived, he left." — he left as I arrived, or just after
+• "When I arrived, he had left." — he had already gone BEFORE I got there
+
+💡 Which happened first?
+1. He left (first) → had left
+2. I arrived (second) → arrived
+
+🆚 Already/yet/just:
+• Present Perfect: "I have just eaten."
+• Past Perfect: "I had just eaten when you called."
+''',
       examTip: '💡 YDS\'de "by the time, before, after, until, when" bağlaçları Past Perfect ipucudur.',
     ),
 
@@ -758,6 +836,14 @@ The Past Perfect Continuous emphasises the DURATION of an action that began befo
 
 💡 Tamamlanan eylem → Past Perfect
 💡 Süren/devam eden eylem → Past Perfect Continuous
+''',
+      comparisonEn: '''
+🆚 Past Perfect vs Past Perfect Continuous:
+• "I had read the report before the meeting." — I had finished it
+• "I had been reading the report for an hour when she called." — the hour is the point
+
+💡 A completed action → Past Perfect
+💡 An action still running → Past Perfect Continuous
 ''',
       examTip: '💡 "How long had you been...?" sorularına Past Perfect Continuous ile cevap verilir.',
     ),
@@ -844,6 +930,11 @@ Will expresses decisions made on the spot, predictions, promises, and future eve
 
 📌 Anlık karar, vaat, teklif → will
 📌 Plan, niyet, kanıta dayalı tahmin → going to
+''',
+      comparisonEn: '''
+🆚 Will vs Going to:
+• "The phone is ringing. I'll answer it." — decided on the spot
+• "I'm going to answer the phone." — implies you had planned to, which sounds odd here
 ''',
       examTip: '💡 YDS\'de "I think, probably, perhaps, maybe" → will kullanılır.',
     ),

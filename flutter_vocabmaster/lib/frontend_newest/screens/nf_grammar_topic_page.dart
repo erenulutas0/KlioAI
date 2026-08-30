@@ -13,8 +13,7 @@ import 'nf_grammar_quiz_page.dart';
 /// Behaviour is unchanged: expandable subtopic cards (the first — or
 /// [initialSubtopicId] — starts open), a formula block per subtopic, worked
 /// examples with correct/incorrect marking, and the Turkish-only extras
-/// (key points, common mistakes, comparison, exam tip) that only exist in the
-/// data in Turkish. The floating "Practice" action becomes a pinned bottom
+/// (the exam tip) that exists in the data in Turkish alone. The floating "Practice" action becomes a pinned bottom
 /// button in this frontend's language.
 class NfGrammarTopicPage extends StatefulWidget {
   const NfGrammarTopicPage({
@@ -426,7 +425,10 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                         ),
                       ),
                     ],
-                    if (_isTurkish && subtopic.comparison != null) ...<Widget>[
+                    if (subtopic.comparisonFor(
+                          Localizations.localeOf(context).languageCode,
+                        ) !=
+                        null) ...<Widget>[
                       const SizedBox(height: NfSpace.s18),
                       _buildSectionHeader(
                         t,
@@ -442,7 +444,9 @@ class _NfGrammarTopicPageState extends State<NfGrammarTopicPage> {
                           border: Border.fromBorderSide(t.side),
                         ),
                         child: Text(
-                          subtopic.comparison!,
+                          subtopic.comparisonFor(
+                            Localizations.localeOf(context).languageCode,
+                          )!,
                           style: NfTokens.body(
                             size: NfFont.s135,
                             color: t.inkMuted,

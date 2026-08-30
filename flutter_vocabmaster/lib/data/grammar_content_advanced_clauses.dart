@@ -58,6 +58,11 @@ Place + where + Subject + Verb
 • Defining (Virgülsüz): "The students who studied passed." (Sadece çalışanlar geçti - diğerleri kaldı)
 • Non-defining (Virgüllü): "My father, who is 60, retired." (Babam emekli oldu - ek bilgi: yaşı 60. Birden fazla babam yok!)
 ''',
+      comparisonEn: '''
+🆚 Defining vs Non-defining:
+• Defining (no commas): "The students who studied passed." — only the ones who studied passed; the others did not.
+• Non-defining (with commas): "My father, who is 60, retired." — my father retired, and by the way he is 60. I do not have more than one father.
+''',
       examTip: '💡 Boşluktan önce virgül varsa, şıklarda "that"i hemen eleyin. Virgül varsa "which" veya "who" gelir.',
     ),
 
@@ -111,6 +116,13 @@ I ask + if/whether + Subject + Verb
 
 💡 İpucu: Boşluktan önce FİİL varsa genelde Noun Clause, İSİM varsa Relative Clause'dur.
 ''',
+      comparisonEn: '''
+🆚 Noun clause vs relative clause:
+• "I know the man WHO lives here." — a relative clause, describing "man"
+• "I know WHO lives here." — a noun clause, and the object of "know"
+
+💡 A quick test: if a VERB comes before the gap it is usually a noun clause; if a NOUN does, it is a relative clause.
+''',
       examTip: '💡 Preposition (in, on, at, of) arkasından asla "that" gelmez. Ancak "in that" (bakımından) hariç!',
     ),
 
@@ -160,6 +172,11 @@ Noun Phrase (Due to, Despite)
 🆚 However vs Although:
 • "Although he is rich, he is sad." (Tek cümle içinde bağlar)
 • "He is rich. However, he is sad." (İki ayrı cümleyi bağlar, genellikle noktalama işaretleriyle ayrılır)
+''',
+      comparisonEn: '''
+🆚 However vs Although:
+• "Although he is rich, he is sad." — joins two halves of one sentence
+• "He is rich. However, he is sad." — joins two separate sentences, and needs a full stop or a semicolon between them
 ''',
       examTip: '💡 YDS\'de boşluktan sonrasına bakın: Tam cümle mi var, isim grubu mu? Cümle ise Although/Because, isim ise Despite/Due to seçin.',
     ),

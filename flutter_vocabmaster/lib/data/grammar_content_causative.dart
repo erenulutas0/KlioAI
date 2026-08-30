@@ -218,6 +218,15 @@ GET + PERSON + TO + V1
 • "I had the mechanic repair my car." (Tamirciye tamir ettirdim - kişi belli)
 • "I had my car repaired." (Arabamı tamir ettirdim - kişi belli değil)
 ''',
+      comparisonEn: '''
+🆚 Have vs Get:
+• "I had my secretary type the letter." — a working relationship, arranged
+• "I got my friend to type the letter." — I persuaded them
+
+🆚 Have someone DO vs Have something DONE:
+• "I had the mechanic repair my car." — the person is named
+• "I had my car repaired." — who did it is not stated
+''',
       examTip: '💡 YDS\'de "have someone TO do" veya "get someone do" görürseniz YANLIŞ!',
     ),
 
@@ -436,6 +445,15 @@ GET + THING + V3
 🆚 Have vs Get (topluca):
 • Have sth done = Get sth done (Yaptırmak)
 • Have sb do = Get sb to do (Birine yaptırmak)
+''',
+      comparisonEn: '''
+🆚 Get something done vs Get someone to do:
+• "I got my car repaired." — who did it does not matter
+• "I got Tom to repair my car." — the person is named
+
+🆚 Have vs Get, side by side:
+• Have sth done = Get sth done
+• Have sb do = Get sb to do
 ''',
       examTip: '💡 YDS\'de "get something + to V1" görürseniz YANLIŞ! Doğrusu "get something + V3".',
     ),

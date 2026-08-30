@@ -255,6 +255,11 @@ If + Past Perfect (had V3), Would have + V3
 • Type 2 (Şu an): "If I had a car, I would drive." (Arabam yok, olsa sürerim - hayal)
 • Type 3 (Geçmiş): "If I had had a car, I would have driven." (Arabam yoktu, olsa sürerdim - geçmiş)
 ''',
+      comparisonEn: '''
+🆚 Second vs third conditional:
+• Type 2 (now): "If I had a car, I would drive." — I have no car; if I did, I would drive
+• Type 3 (the past): "If I had had a car, I would have driven." — I had no car then, and it is too late now
+''',
     ),
 
     // 5. MIXED CONDITIONALS

@@ -160,6 +160,11 @@ Mustn't + V1 (forbidden)
 • "You mustn't touch that." → Dokunman yasak! (Dokunma)
 • "You don't have to touch that." → Dokunmak zorunda değilsin. (Ama istersen dokun)
 ''',
+      comparisonEn: '''
+🆚 Mustn't vs Don't have to:
+• "You mustn't touch that." → it is forbidden — do not touch it
+• "You don't have to touch that." → it is not necessary — touch it if you like
+''',
       examTip: '💡 YDS\'de anlam farkı sorulur: "Mustn\'t" (Prohibition) vs "Don\'t have to" (Lack of necessity).',
     ),
 
@@ -298,6 +303,11 @@ Subject + can't + be (it cannot be so)
 • "You must study." (Çalışmalısın - Zorunluluk)
 • "You are sweating. You must be hot." (Terliyorsun. Sıcaklamış olmalısın - Çıkarım)
 ''',
+      comparisonEn: '''
+🆚 Must (obligation) vs Must (deduction):
+• "You must study." — you are obliged to
+• "You are sweating. You must be hot." — I conclude that you are
+''',
       examTip: '💡 YDS\'de "I\'m sure that..." → must, "It is impossible that..." → can\'t/couldn\'t işaret eder.',
     ),
 
@@ -373,6 +383,11 @@ Modal + have + V3
 🆚 Didn't need to vs Needn't have V3:
 • "I didn't need to go to work." → İşe gitmeme gerek yoktu (ve gitmedim).
 • "I needn't have gone to work." → İşe gitmeme gerek yoktu (ama gittim, boşuna oldu).
+''',
+      comparisonEn: '''
+🆚 Didn't need to vs Needn't have V3:
+• "I didn't need to go to work." → it was not necessary, and I did not go.
+• "I needn't have gone to work." → it was not necessary, and I went anyway — wasted effort.
 ''',
       examTip: '💡 YDS\'nin EN ÇOK SEVDİĞİ konulardan biridir. "But he didn\'t" gibi bir ifade görürseniz "should/could have V3" arayın.',
     ),

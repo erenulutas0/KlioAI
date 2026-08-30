@@ -71,6 +71,10 @@ class GrammarSubtopic {
   final List<String>? commonMistakesEn;
   final String? examTip;
   final String? comparison; // Karışabilecek konularla karşılaştırma
+
+  /// The same comparison in English. Twenty-seven subtopics carry one, and
+  /// all twenty-seven were Turkish.
+  final String? comparisonEn;
   final List<String>? keyPoints; // Can alıcı noktalar
 
   /// The same key points in English, for the six interface languages that are
@@ -111,6 +115,11 @@ class GrammarSubtopic {
       ? (keyPoints ?? const <String>[])
       : (keyPointsEn ?? const <String>[]);
 
+  /// The comparison with confusable topics, or null when there is nothing
+  /// written in this reader's language.
+  String? comparisonFor(String languageCode) =>
+      languageCode == 'tr' ? comparison : comparisonEn;
+
   const GrammarSubtopic({
     required this.id,
     required this.title,
@@ -124,6 +133,7 @@ class GrammarSubtopic {
     this.commonMistakesEn,
     this.examTip,
     this.comparison,
+    this.comparisonEn,
     this.keyPoints,
     this.keyPointsEn,
   });

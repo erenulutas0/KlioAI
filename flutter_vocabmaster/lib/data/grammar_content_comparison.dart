@@ -476,6 +476,18 @@ similar + to
 • LIKE + Noun: "She looks like a model." (Model gibi görünüyor)
 • AS + Noun (görev): "She works as a model." (Model olarak çalışıyor)
 ''',
+      comparisonEn: '''
+🆚 Prefer vs Would rather:
+• PREFER: a general preference, true at any time
+  "I prefer coffee."
+
+• WOULD RATHER: a preference in this particular situation
+  "I would rather have coffee now."
+
+🆚 Like vs As:
+• LIKE + noun: "She looks like a model." — she resembles one
+• AS + noun (a role): "She works as a model." — that is her job
+''',
       examTip: '💡 YDS\'de "prefer...than" veya "would rather...to" görürseniz YANLIŞ!',
     ),
   ],

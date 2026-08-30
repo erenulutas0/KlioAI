@@ -137,6 +137,19 @@ Main Clause + Time Clause
 • By the time: Bir şeyin tamamlandığı an
   "BY THE TIME I came, she had left." (Geldiğimde gitmişti - tamamlanmış)
 ''',
+      comparisonEn: '''
+🆚 When vs While:
+• When: a short action, or a general time
+  "When I arrived, she was cooking."
+• While: a long or ongoing action
+  "While I was sleeping, the phone rang."
+
+🆚 Until vs By the time:
+• Until: for as long as something continues
+  "Wait UNTIL I come." — the waiting goes on until then
+• By the time: the moment something is complete
+  "BY THE TIME I came, she had left." — it was already done
+''',
       examTip: '💡 YDS\'de zaman bağlacı + boşluk varsa, şıklarda "will" içeren cevabı hemen eleyin!',
     ),
 
@@ -363,6 +376,17 @@ S + V. However, S + V.
 🆚 While (zaman) vs While (zıtlık):
 • Zaman: "While I was cooking, ..." (yaparken)
 • Zıtlık: "While he is rich, his brother is poor." (oysa)
+''',
+      comparisonEn: '''
+🆚 Although vs However:
+• Although: "Although he is 80, he is fit."
+  (joins two halves of one sentence)
+• However: "He is 80. However, he is fit."
+  (joins two sentences, and needs a full stop or semicolon)
+
+🆚 While (time) vs While (contrast):
+• Time: "While I was cooking, ..." — during
+• Contrast: "While he is rich, his brother is poor." — whereas
 ''',
       examTip: '💡 YDS\'de boşluktan sonra CÜMLE mi İSİM mi bakın. Cümle → although, İsim → despite.',
     ),
@@ -613,6 +637,18 @@ S + V. Therefore/So, S + V.
 • "So MUCH money" (o kadar çok para)
 • "So FEW students" (o kadar az öğrenci)
 • "So LITTLE time" (o kadar az zaman)
+''',
+      comparisonEn: '''
+🆚 SO vs SUCH:
+• SO + adjective: "so beautiful"
+• SUCH + noun: "such a beautiful day"
+• SUCH + adjective + noun: "such beautiful weather" (uncountable)
+
+⚠️ THE EXCEPTION (so + much/many/few/little + noun):
+• "So MANY people"
+• "So MUCH money"
+• "So FEW students"
+• "So LITTLE time"
 ''',
       examTip: '💡 YDS\'de boşluktan sonra sıfat/zarf varsa SO, isim varsa SUCH gelir. "So + a/an" ASLA olmaz!',
     ),

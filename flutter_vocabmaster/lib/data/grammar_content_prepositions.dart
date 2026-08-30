@@ -452,6 +452,16 @@ Be + Adjective + Preposition + Object
 • Made OF (malzeme belli): "Made of wood"
 • Made FROM (malzeme değişmiş): "Made from grapes"
 ''',
+      comparisonEn: '''
+🆚 Prepositions that get confused:
+• ANGRY with a person / about a thing
+• SORRY for a person / about a thing
+• WORRY about ≠ be worried about
+
+🆚 Made:
+• Made OF — the material is still recognisable: "made of wood"
+• Made FROM — the material has been transformed: "made from grapes"
+''',
       examTip: '💡 YDS\'de "married WITH" en sık çıkan hatadır! Doğrusu "married TO".',
     ),
   ],

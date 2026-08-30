@@ -246,6 +246,18 @@ Indirect: Subject + Verb + Wh- + Subject + Verb
 "I wonder where he is." → Nokta
 "Can you tell me where he is?" → Soru işareti (çünkü "can you" soru)
 ''',
+      comparisonEn: '''
+🆚 Direct vs indirect question:
+• Direct: "Where does he work?"
+• Indirect: "I wonder where he works."
+
+• Direct: "What time is it?"
+• Indirect: "Can you tell me what time it is?"
+
+💡 An indirect question takes no question mark unless the whole sentence is a question.
+"I wonder where he is." → full stop
+"Can you tell me where he is?" → question mark, because "can you" is the question
+''',
       examTip: '💡 YDS\'nin EN SEVDİĞİ konulardan biridir. Boşluktan sonra wh-word ve ardından "does/did" görürseniz YANLIŞ! Düz sıra olmalı.',
     ),
 

@@ -384,6 +384,14 @@ In some places no article at all is used — neither a/an nor the.
 • "She is at SCHOOL." (Öğrenci - amaç)
 • "She is at THE SCHOOL." (Başka bir iş için - bina)
 ''',
+      comparisonEn: '''
+🆚 The purpose vs the building:
+• "He is in PRISON." — as a prisoner
+• "He is in THE PRISON." — as a visitor, in the building
+
+• "She is at SCHOOL." — as a pupil
+• "She is at THE SCHOOL." — there for some other reason
+''',
       examTip: '💡 YDS\'de "go to the school" (öğrenci olarak) veya "in the hospital" (hasta olarak) YANLIŞTIR!',
     ),
 

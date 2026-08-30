@@ -231,6 +231,15 @@ Main Clause + Subordinate Clause (no comma)
 • As if + Clause: "He looks as if he is tired." (Yorgun görünüyor)
 • Like + Noun: "He looks like a ghost." (Hayalet gibi görünüyor)
 ''',
+      comparisonEn: '''
+🆚 In case vs If:
+• IF: "I'll take an umbrella IF it rains." — I will take it at the moment it rains
+• IN CASE: "I'll take an umbrella IN CASE it rains." — I take it now, as a precaution
+
+🆚 As if vs Like:
+• As if + clause: "He looks as if he is tired."
+• Like + noun: "He looks like a ghost."
+''',
       examTip: '💡 "As long as" = If, "Provided that" = If (güçlü koşul), "Unless" = If not',
     ),
 
@@ -465,6 +474,19 @@ SEBEP/SONUÇ:
 • Because it rained, we stayed home. (tek cümle)
 • It rained. Therefore, we stayed home. (iki cümle)
 • Due to the rain, we stayed home. (isim yapısı)
+''',
+      comparisonEn: '''
+🆚 The same meaning, three structures:
+
+CONTRAST:
+• Although he is rich, he is not happy. (one sentence)
+• He is rich. However, he is not happy. (two sentences)
+• Despite being rich, he is not happy. (a noun structure)
+
+CAUSE AND RESULT:
+• Because it rained, we stayed home. (one sentence)
+• It rained. Therefore, we stayed home. (two sentences)
+• Due to the rain, we stayed home. (a noun structure)
 ''',
       examTip: '💡 YDS\'de "However" ile "Although" karıştırılır. Virgül konumuna ve cümle yapısına dikkat edin!',
     ),
