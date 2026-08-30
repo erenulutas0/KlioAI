@@ -158,7 +158,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
       id: _nextTurnId++,
       fromTutor: true,
       hasAudio: true,
+      // The text is still filled in, because reading the bubble aloud happens
+      // outside a build and needs a sentence. What the screen draws comes from
+      // textFor(), which resolves again every time.
       text: context.tr('tutor.greeting').replaceAll('{name}', voice.name),
+      greetingFor: voice.name,
     );
   }
 
@@ -512,12 +516,17 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
 
+    // Read from the turn the way the screen draws it, so the voice cannot say
+    // one language while the bubble shows another. Only the opening line can
+    // differ, and only after the interface language has changed under it.
+    final String spoken = turn.textFor(context);
+
     final int seq = ++_playbackSeq;
     setState(() => _speakingTurnId = turn.id);
     _updateWakelock();
 
     try {
-      await _readAloud(turn).timeout(_speechTimeout(turn.text));
+      await _readAloud(turn, spoken).timeout(_speechTimeout(spoken));
     } catch (e) {
       debugPrint('NfTutor TTS error: $e');
     } finally {
@@ -533,11 +542,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
   }
 
   /// Piper first, the device voice if the backend has nothing to offer.
-  Future<void> _readAloud(_NfTurn turn) async {
+  Future<void> _readAloud(_NfTurn turn, String spoken) async {
     Uint8List? audio;
     if (_ttsAvailable) {
       try {
-        audio = await _piper.synthesize(turn.text, voice: _voice.piperVoice);
+        audio = await _piper.synthesize(spoken, voice: _voice.piperVoice);
       } catch (e) {
         debugPrint('NfTutor Piper synthesize error: $e');
       }
@@ -562,7 +571,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     await _deviceTts.setSpeechRate(0.5);
     await _deviceTts.setPitch(_voice.gender == 'female' ? 1.1 : 0.9);
     await _deviceTts.awaitSpeakCompletion(true);
-    await _deviceTts.speak(turn.text);
+    await _deviceTts.speak(spoken);
   }
 
   /// A ceiling on the whole read-aloud, not on the speech itself.
@@ -962,11 +971,28 @@ class _NfTurn {
     this.hasAudio = false,
     this.note,
     this.correction,
+    this.greetingFor,
   });
 
   final int id;
   final String text;
   final bool fromTutor;
+
+  /// The speaker's name, on the opening line only.
+  ///
+  /// That line is the one turn in the thread the app wrote rather than someone
+  /// saying it, so it is the one turn that has to follow the interface
+  /// language. Held as a name and finished at paint time: this page is a tab
+  /// inside an IndexedStack, which keeps it alive and unbuilt behind the
+  /// others, so a sentence resolved once at bootstrap stayed in whatever
+  /// language the app was in then. On a real phone the menus read Turkish
+  /// while Amy still said "Hola, soy Amy. Mantén pulsado el botón de abajo".
+  final String? greetingFor;
+
+  /// What to draw, in the language being read right now.
+  String textFor(BuildContext context) => greetingFor == null
+      ? text
+      : context.tr('tutor.greeting').replaceAll('{name}', greetingFor!);
 
   /// Tutor turns that can be read aloud get a play control and a waveform.
   /// False for app notices, which nobody said.
@@ -1031,7 +1057,7 @@ class _TurnView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              turn.text,
+              turn.textFor(context),
               style: NfTokens.body(
                 size: NfFont.s145,
                 color: fromTutor ? t.ink : t.primaryInk,
