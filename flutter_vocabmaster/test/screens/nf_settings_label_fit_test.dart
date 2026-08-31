@@ -54,6 +54,38 @@ void main() {
     'settings.tour.cta': ordinaryRowBudget,
   };
 
+  test('the tutor status line keeps the level it exists to show', () {
+    // The header reads "Speaking practice · B2" beside two speaker chips, and
+    // the whole line is one Text with maxLines: 1 and an ellipsis. So when it
+    // is too long the ellipsis eats the END of it -- which is the level, the
+    // only part carrying information. Spanish read "Práctica de convers…" on
+    // a phone, with the B2 gone.
+    //
+    // Measured the same way as the labels above and for the same reason: the
+    // real font is not available to a widget test. Turkish at 18 characters
+    // before the level fits; Spanish at 27 did not. The budget sits between.
+    const int budget = 20;
+
+    final offenders = <String>[];
+    for (final locale in AppLocalizations.supportedLocales) {
+      final String line =
+          AppLocalizations(locale).t('tutor.header.status');
+      expect(line, contains('{level}'),
+          reason: '${locale.languageCode} lost the {level} placeholder, so the '
+              'header would print the braces');
+
+      final String prefix = line.split('{level}').first;
+      if (prefix.length > budget) {
+        offenders.add('  ${locale.languageCode}: "$prefix" is '
+            '${prefix.length} characters, budget $budget');
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'These push the level out of the header:\n'
+            '${offenders.join('\n')}');
+  });
+
   test('every settings label fits the row it is drawn in', () {
     final String source =
         File('lib/l10n/app_localizations.dart').readAsStringSync();
