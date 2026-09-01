@@ -66,8 +66,21 @@ BEZEL = (40, 40, 780, 1470)
 SCREEN = (60, 50, 740, 1450)
 PLATE_X, SCREEN_Y = 110, 400          # where the plate sits on the canvas
 
-END_SECONDS = 3.4
+# The music is 126 BPM and starts on the downbeat, so a bar is 1.904s. Every
+# scene runs two bars plus the transition it hands over with, which puts each
+# slide exactly on a downbeat; the end card runs three, and the film stops at
+# 20.944s -- a bar line, inside the breath the track takes from 19.5 to 22.5.
+# Those numbers are measured, not chosen: see MUSIC.md.
+BAR = 1.904
+SCENE_SECONDS = 2 * BAR + 0.45
+END_SECONDS = 3 * BAR
 TRANSITION = 0.45
+
+# Trimmed to the film, with a hair of fade at each end -- in to kill the click
+# of starting mid-sample, out to land the ending rather than cut it.
+MUSIC = 'Sunset 52 - Jeremy Black.mp3'
+MUSIC_GAIN = 0.9
+MUSIC_FADE_OUT = 0.5
 
 # source, seek, duration, kicker, headline, focus. A .png source is a still
 # and gets a slow push-in instead of a seek, held on `focus` -- the fraction of
@@ -80,13 +93,13 @@ TRANSITION = 0.45
 LANGS = {
     'tr': {
         'scenes': [
-            ('c1.png', None, 4.3, 'KONUŞ',
+            ('c1.png', None, SCENE_SECONDS, 'KONUŞ',
              'Konuş, anında düzeltilsin', 0.28),
-            ('klio_a.mp4', 15.2, 4.6, 'OKU',
+            ('klio_a.mp4', 15.2, SCENE_SECONDS, 'OKU',
              'Bilmediğin kelimeye dokun', None),
-            ('klio_c.mp4', 18.6, 4.5, 'TEKRARLA',
+            ('klio_c.mp4', 18.6, SCENE_SECONDS, 'TEKRARLA',
              'Unutmadan hemen önce', None),
-            ('klio_d.mp4', 10.8, 3.9, 'SAKLA',
+            ('klio_d.mp4', 10.8, SCENE_SECONDS, 'SAKLA',
              'Her kelime seninle kalır', None),
         ],
         'tagline': 'İngilizceyi konuşarak, okuyarak öğren',
@@ -94,13 +107,13 @@ LANGS = {
     },
     'en': {
         'scenes': [
-            ('c1_en.png', None, 4.3, 'SPEAK',
+            ('c1_en.png', None, SCENE_SECONDS, 'SPEAK',
              'Speak, and get corrected', 0.36),
-            ('klio_en_read.mp4', 5.8, 4.6, 'READ',
+            ('klio_en_read.mp4', 5.8, SCENE_SECONDS, 'READ',
              "Tap any word you don't know", None),
-            ('klio_en_plan.mp4', 6.5, 4.5, 'REVIEW',
+            ('klio_en_plan.mp4', 6.5, SCENE_SECONDS, 'REVIEW',
              'Review before you forget', None),
-            ('klio_en_practice.mp4', 6.2, 3.9, 'PRACTISE',
+            ('klio_en_practice.mp4', 6.2, SCENE_SECONDS, 'PRACTISE',
              'Every path in one place', None),
         ],
         'tagline': 'Learn English by speaking and reading',
@@ -296,9 +309,9 @@ def build_scenes(art, cfg):
     end = os.path.join(HERE, 's_end.mp4')
     run(['-loop', '1', '-i', os.path.join(art, 'endcard.png'),
          '-filter_complex',
-         "[0:v]fps=30,scale=%d:%d,setsar=1,zoompan=z='1.03-0.03*min(on/45,1)':"
+         "[0:v]fps=30,scale=%d:%d,setsar=1,zoompan=z='1.04-0.04*on/%d':"
          "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=%d:s=%dx%d:fps=30[out]"
-         % (W, H, int(END_SECONDS * 30), W, H),
+         % (W, H, int(END_SECONDS * 30), int(END_SECONDS * 30), W, H),
          '-map', '[out]', '-t', str(END_SECONDS)] + ENC + [end])
     paths.append((end, END_SECONDS))
     return paths
@@ -308,25 +321,40 @@ def assemble(paths, out_path):
     args, chain, prev = [], [], '0:v'
     for path, _ in paths:
         args += ['-i', path]
-    # A silent stereo track: Play and every feed expect one, and some
-    # uploaders reject a file with no audio stream outright.
-    args += ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo']
 
     total = paths[0][1]
     for i in range(1, len(paths)):
         label = 'v%d' % i if i < len(paths) - 1 else 'v'
         chain.append('[%s][%d:v]xfade=transition=slideleft:duration=%s:'
-                     'offset=%.2f[%s]'
+                     'offset=%.3f[%s]'
                      % (prev, i, TRANSITION, total - TRANSITION, label))
         total = total + paths[i][1] - TRANSITION
         prev = label
 
+    music = os.path.join(HERE, MUSIC)
+    if os.path.exists(music):
+        args += ['-i', music]
+        chain.append(
+            '[%d:a]atrim=0:%.3f,asetpts=PTS-STARTPTS,'
+            'afade=t=in:st=0:d=0.06,afade=t=out:st=%.3f:d=%s,'
+            'volume=%s,aformat=sample_fmts=fltp:sample_rates=44100:'
+            'channel_layouts=stereo[a]'
+            % (len(paths), total, total - MUSIC_FADE_OUT, MUSIC_FADE_OUT,
+               MUSIC_GAIN))
+        audio = '[a]'
+    else:
+        # Still ship a stereo track: Play and every feed expect one, and some
+        # uploaders reject a file with no audio stream outright.
+        args += ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo']
+        audio = '%d:a' % len(paths)
+        print('no music found at %s -- silent' % MUSIC)
+
     run(args + ['-filter_complex', ';'.join(chain), '-map', '[v]',
-                '-map', '%d:a' % len(paths), '-shortest',
+                '-map', audio, '-shortest',
                 '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
                 '-pix_fmt', 'yuv420p', '-r', '30', '-c:a', 'aac',
-                '-b:a', '96k', '-movflags', '+faststart', out_path])
-    print('%s  %.1fs' % (os.path.basename(out_path), total))
+                '-b:a', '160k', '-movflags', '+faststart', out_path])
+    print('%s  %.3fs' % (os.path.basename(out_path), total))
 
 
 if __name__ == '__main__':
