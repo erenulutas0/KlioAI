@@ -130,7 +130,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     setState(() {
       _voice = voice;
       _bootstrapping = false;
-      _turns.add(_greeting(context, voice));
+      _turns.add(_greeting(voice));
     });
 
     unawaited(_probeTts());
@@ -153,16 +153,12 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// automatically — a tab that starts talking the moment you reach it is
   /// hostile in a way a screen you deliberately opened is not, and the play
   /// control on the bubble is right there.
-  _NfTurn _greeting(BuildContext context, VoiceModel voice) {
+  _NfTurn _greeting(VoiceModel voice) {
     return _NfTurn(
       id: _nextTurnId++,
       fromTutor: true,
       hasAudio: true,
-      // The text is still filled in, because reading the bubble aloud happens
-      // outside a build and needs a sentence. What the screen draws comes from
-      // textFor(), which resolves again every time.
-      text: context.tr('tutor.greeting').replaceAll('{name}', voice.name),
-      greetingFor: voice.name,
+      text: NfScene.freeChatOpening.replaceAll('{name}', voice.name),
     );
   }
 
@@ -467,7 +463,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       _turns
         ..clear()
         ..add(scene == null
-            ? _greeting(context, _voice)
+            ? _greeting(_voice)
             : _NfTurn(
                 id: _nextTurnId++,
                 fromTutor: true,
@@ -492,7 +488,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // as one person changing voice mid-conversation.
       _turns
         ..clear()
-        ..add(_greeting(context, voice));
+        ..add(_greeting(voice));
       _resetSessionXp();
     });
 
@@ -519,7 +515,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     // Read from the turn the way the screen draws it, so the voice cannot say
     // one language while the bubble shows another. Only the opening line can
     // differ, and only after the interface language has changed under it.
-    final String spoken = turn.textFor(context);
+    final String spoken = turn.text;
 
     final int seq = ++_playbackSeq;
     setState(() => _speakingTurnId = turn.id);
@@ -971,28 +967,20 @@ class _NfTurn {
     this.hasAudio = false,
     this.note,
     this.correction,
-    this.greetingFor,
   });
 
   final int id;
-  final String text;
-  final bool fromTutor;
 
-  /// The speaker's name, on the opening line only.
+  /// What the speaker said, in English — see [NfScene.freeChatOpening].
   ///
-  /// That line is the one turn in the thread the app wrote rather than someone
-  /// saying it, so it is the one turn that has to follow the interface
-  /// language. Held as a name and finished at paint time: this page is a tab
-  /// inside an IndexedStack, which keeps it alive and unbuilt behind the
-  /// others, so a sentence resolved once at bootstrap stayed in whatever
-  /// language the app was in then. On a real phone the menus read Turkish
-  /// while Amy still said "Hola, soy Amy. Mantén pulsado el botón de abajo".
-  final String? greetingFor;
+  /// This used to be resolved at paint time for the opening line, because that
+  /// line was translated and the tab lives in an IndexedStack that keeps it
+  /// alive and unbuilt, so a sentence resolved once at bootstrap kept whatever
+  /// language the app was in then. The greeting does not change with the
+  /// interface language any more, so the whole mechanism is gone with it.
+  final String text;
 
-  /// What to draw, in the language being read right now.
-  String textFor(BuildContext context) => greetingFor == null
-      ? text
-      : context.tr('tutor.greeting').replaceAll('{name}', greetingFor!);
+  final bool fromTutor;
 
   /// Tutor turns that can be read aloud get a play control and a waveform.
   /// False for app notices, which nobody said.
@@ -1057,7 +1045,7 @@ class _TurnView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              turn.textFor(context),
+              turn.text,
               style: NfTokens.body(
                 size: NfFont.s145,
                 color: fromTutor ? t.ink : t.primaryInk,
@@ -1761,6 +1749,22 @@ class NfScene {
   final String character;
   final String opening;
   final IconData icon;
+
+  /// What the tutor opens with when no scene is chosen.
+  ///
+  /// English, like every [opening] below it, and for a reason that took a
+  /// phone to see. This line used to be translated, so a Turkish learner was
+  /// greeted with "Selam, ben Ryan" — and then Piper read that Turkish
+  /// sentence with an English voice, which sounds exactly like a foreigner
+  /// struggling through Turkish. The tutor is the one thing in this app that
+  /// must never do that: it is here to be a native speaker.
+  ///
+  /// The interface around it stays translated. The caption under the button
+  /// still reads "Konuşmak için basılı tut", so the instruction is available
+  /// in the learner's own language without the tutor breaking character.
+  static const String freeChatOpening =
+      "Hi, I'm {name}. Hold the button below and tell me about your day — "
+      "I'll answer out loud.";
 
   /// The scene's name in the learner's own language.
   String nameOf(BuildContext context) => context.tr('tutor.scene.$id');

@@ -62,6 +62,7 @@ class NfTodayPage extends StatefulWidget {
     this.onStartSession,
     this.onOpenTutor,
     this.onAddFirstWord,
+    this.onToggleBrightness,
   });
 
   /// Fired by the "Start session" button. Null leaves the button disabled,
@@ -74,6 +75,14 @@ class NfTodayPage extends StatefulWidget {
   /// Fired when the learner has no words yet and the plan button becomes "Add
   /// your first word".
   final VoidCallback? onAddFirstWord;
+
+  /// Flips light and dark from the header.
+  ///
+  /// The same control exists on the Profile screen and again in Settings, and
+  /// this is deliberately a third copy: those two are where you go once you
+  /// have decided to change a setting, and this is where you already are when
+  /// the light in the room changes and you want the screen dark now.
+  final VoidCallback? onToggleBrightness;
 
   @override
   State<NfTodayPage> createState() => _NfTodayPageState();
@@ -187,6 +196,7 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 cefrLevel: model.cefrLevel,
                 targetLanguage: model.targetLanguage,
                 onOpenLanguages: _openLanguageSheet,
+                onToggleBrightness: widget.onToggleBrightness,
               ),
               const SizedBox(height: NfSpace.s20),
               _WeekStrip(
@@ -415,6 +425,7 @@ class _GreetingRow extends StatelessWidget {
     required this.cefrLevel,
     required this.targetLanguage,
     required this.onOpenLanguages,
+    required this.onToggleBrightness,
   });
 
   final String name;
@@ -424,6 +435,10 @@ class _GreetingRow extends StatelessWidget {
 
   /// Fired by the language chip; opens the profile switcher sheet.
   final VoidCallback onOpenLanguages;
+
+  /// Fired by the sun/moon button. Null hides it rather than drawing a dead
+  /// control.
+  final VoidCallback? onToggleBrightness;
 
   @override
   Widget build(BuildContext context) {
@@ -442,14 +457,41 @@ class _GreetingRow extends StatelessWidget {
     // ellipsised at the comma and the header read "Hoş geldin, …" — addressed
     // to nobody. Giving the greeting the full line costs one chip's height and
     // makes both halves legible.
+    // The sun/moon shares the greeting's line rather than the chips' line
+    // below it. That line already had a third of its width and lost the name
+    // out of it; this one is mostly empty, and one 40dp button still leaves a
+    // short first name room it does not currently need.
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          greeting,
-          style: NfTokens.display(size: NfFont.s23, color: t.ink),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                greeting,
+                style: NfTokens.display(size: NfFont.s23, color: t.ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (onToggleBrightness != null)
+              IconButton(
+                onPressed: onToggleBrightness,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints.tightFor(width: 40, height: 40),
+                // The icon is what a tap turns the screen into, not what the
+                // screen is now: a moon while it is light. A sun on a light
+                // screen reads as a state badge and gets pressed by people who
+                // wanted it brighter.
+                icon: Icon(dark ? LucideIcons.sun : LucideIcons.moon,
+                    size: 20, color: t.inkMuted),
+                tooltip: context.tr('settings.appearance'),
+              ),
+          ],
         ),
         const SizedBox(height: NfSpace.s10),
         Row(

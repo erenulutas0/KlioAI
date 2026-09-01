@@ -170,12 +170,13 @@ class _NfBooksPageState extends State<NfBooksPage> {
             NfSpace.s16, NfSpace.s8, NfSpace.s16, NfSpace.s26),
         itemCount: _books.length,
         separatorBuilder: (_, __) => const SizedBox(height: NfSpace.s12),
-        itemBuilder: (BuildContext context, int i) => _buildBookCard(t, _books[i]),
+        itemBuilder: (BuildContext context, int i) =>
+            _buildBookCard(t, _books[i], i),
       ),
     );
   }
 
-  Widget _buildBookCard(NfTokens t, BookShelfEntry book) {
+  Widget _buildBookCard(NfTokens t, BookShelfEntry book, int index) {
     return NfCard(
       onTap: () => _open(book),
       child: Column(
@@ -184,6 +185,8 @@ class _NfBooksPageState extends State<NfBooksPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              BookSpine(book: book, shelfIndex: index),
+              const SizedBox(width: NfSpace.s12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,6 +317,115 @@ class _NfBooksPageState extends State<NfBooksPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A book's spine, drawn rather than downloaded.
+///
+/// The shelf was six rows of title, author and a level badge, and it read as a
+/// database table rather than as books. What it wanted was a picture, and the
+/// obvious picture -- the real cover -- is the wrong one to reach for. These
+/// texts are public domain but their modern jacket art is not, the scans that
+/// are free are inconsistent in size, tone and quality, and every one of them
+/// would be a network image on a screen that currently needs no network at all.
+///
+/// So the spine is generated, and its colour comes from the book's position on
+/// the shelf rather than from anything about the book.
+///
+/// Hashing the slug was the first attempt, and it is the more appealing idea:
+/// the colour would belong to the book itself and never move. It was wrong.
+/// Six books drawn from eight colours collide about ninety per cent of the
+/// time -- the test found four colours across the six, which is most of the
+/// point of having them gone. Widening the palette until these particular six
+/// happened to separate would be fitting the design to today's shelf and
+/// would break on the seventh book, silently.
+///
+/// By position it cannot collide while the shelf is shorter than the palette,
+/// and the failure when it is longer is a wrap-around between rows far apart
+/// on screen. The cost is real and accepted: inserting a book renumbers the
+/// ones after it, so their colours move once. The shelf is a server-side
+/// constant that changes about never, and six spines that look the same is a
+/// worse thing every day than six that shift on the day a book is added.
+class BookSpine extends StatelessWidget {
+  const BookSpine({super.key, required this.book, required this.shelfIndex});
+
+  final BookShelfEntry book;
+
+  /// Where this book sits on the shelf, which is what picks its colour.
+  final int shelfIndex;
+
+  static const double _width = 52;
+  static const double _height = 74;
+
+  /// Deep enough that white sits on all of them, and distinct enough at
+  /// thumbnail size that two spines are never mistaken for each other.
+  static const List<Color> _palette = <Color>[
+    Color(0xFF6C4EF5), // the app's violet
+    Color(0xFF1F7A5A), // pine
+    Color(0xFF9C3B4E), // claret
+    Color(0xFF2A5C8A), // slate blue
+    Color(0xFF8A5A1F), // tan
+    Color(0xFF4A3A7A), // aubergine
+    Color(0xFF1F6A6A), // teal
+    Color(0xFF6A2F5C), // plum
+  ];
+
+  /// Distinct for every shelf shorter than the palette, by construction.
+  static Color colourOf(int shelfIndex) =>
+      _palette[shelfIndex.abs() % _palette.length];
+
+  /// The first letter that carries meaning. "The Tale of Peter Rabbit" is a T
+  /// for Tale, not for The -- four of these six titles open with "The", and
+  /// four identical letters is no picture at all.
+  static String initialOf(String title) {
+    const Set<String> skip = <String>{'the', 'a', 'an'};
+    for (final String word in title.trim().split(RegExp(r'\s+'))) {
+      final String bare = word.replaceAll(RegExp(r"[^A-Za-z']"), '');
+      if (bare.isEmpty || skip.contains(bare.toLowerCase())) {
+        continue;
+      }
+      return bare[0].toUpperCase();
+    }
+    return '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color colour = colourOf(shelfIndex);
+    return Container(
+      width: _width,
+      height: _height,
+      decoration: BoxDecoration(
+        // Rounded on the fore-edge, square at the spine, which is the shape of
+        // a closed book seen face-on and the cheapest way to say "book".
+        borderRadius: const BorderRadius.horizontal(
+          left: Radius.circular(NfSpace.s4),
+          right: Radius.circular(NfSpace.s6),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[colour, Color.lerp(colour, Colors.black, 0.34)!],
+        ),
+      ),
+      child: Stack(
+        children: <Widget>[
+          // The binding: one lighter hairline a few pixels in from the left.
+          Positioned(
+            left: NfSpace.s6,
+            top: NfSpace.s6,
+            bottom: NfSpace.s6,
+            child: Container(width: 1, color: Colors.white.withValues(alpha: .22)),
+          ),
+          Center(
+            child: Text(
+              initialOf(book.title),
+              style: NfTokens.display(size: NfFont.s25, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

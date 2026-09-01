@@ -363,6 +363,7 @@ class _NfShellState extends State<NfShell> {
         onStartSession: _startReviewSession,
         onOpenTutor: () => _select(NfShell.tutorTab),
         onAddFirstWord: _openDictionary,
+        onToggleBrightness: _toggleBrightness,
       ),
       NfPracticePage(
         onOpenMode: _openMode,
