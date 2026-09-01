@@ -79,6 +79,10 @@ flutter:
     # Also an input to flutter_launcher_icons below, but that only reads it at
     # build time. The Dart splash draws it at runtime, so it has to be bundled.
     - assets/images/flat_k_white.png
+    # The reading shelf's covers, prepared by tool/make_covers.py. Listed as a
+    # directory because which books have one is decided in Dart, in
+    # BookCover.withArtwork, and two lists would eventually disagree.
+    - assets/covers/
 
   # To add custom fonts to your application, add a fonts section here
   # fonts:
