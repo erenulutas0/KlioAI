@@ -62,9 +62,20 @@ void main() {
     // a phone, with the B2 gone.
     //
     // Measured the same way as the labels above and for the same reason: the
-    // real font is not available to a widget test. Turkish at 18 characters
-    // before the level fits; Spanish at 27 did not. The budget sits between.
-    const int budget = 20;
+    // real font is not available to a widget test.
+    //
+    // The budget was 20, set from Turkish at 18 fitting and Spanish at 27 not.
+    // It was too loose. English is "Speaking practice · " at exactly 20, so it
+    // passed this test and then truncated on a real phone anyway -- the header
+    // read "Speaking practice · …" with the B1 gone, which is the whole defect
+    // this test exists to catch, sitting inside its own budget. Seen while
+    // filming the English promo, not by anything here.
+    //
+    // So 18: the longest prefix confirmed to fit on a device. English is
+    // "Speaking · " now. A label that trips this should still be checked on a
+    // screen before it is shortened -- a character count is a proxy for a
+    // pixel width, and this is the second time the proxy has been generous.
+    const int budget = 18;
 
     final offenders = <String>[];
     for (final locale in AppLocalizations.supportedLocales) {

@@ -747,7 +747,7 @@ class AppLocalizations {
       'tutor.scene.shopping_return': 'Returning an item',
       'tutor.scene.job_interview_followup': 'Interview follow-up',
       'tutor.scene.academic_presentation_qa': 'Presentation Q&A',
-      'tutor.header.status': 'Speaking practice · {level}',
+      'tutor.header.status': 'Speaking · {level}',
       'tutor.caption.hold': 'Hold to speak',
       'tutor.caption.release': 'Release to send',
       'tutor.caption.transcribing': 'Transcribing…',
