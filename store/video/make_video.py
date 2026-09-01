@@ -69,31 +69,39 @@ PLATE_X, SCREEN_Y = 110, 400          # where the plate sits on the canvas
 END_SECONDS = 3.4
 TRANSITION = 0.45
 
-# source, seek, duration, kicker, headline. A .png source is a still and gets
-# a slow push-in instead of a seek. The seek points came from contact sheets
-# of the raw files: each scene opens a beat before the thing it is there to
-# show, and holds a beat after it.
+# source, seek, duration, kicker, headline, focus. A .png source is a still
+# and gets a slow push-in instead of a seek, held on `focus` -- the fraction of
+# the frame's height that must stay in view as the zoom tightens, which is a
+# different place in each still and was the difference between framing the
+# correction and framing the wallpaper.
+#
+# The seek points came from contact sheets of the raw files: each scene opens a
+# beat before the thing it is there to show, and holds a beat after it.
 LANGS = {
     'tr': {
         'scenes': [
-            ('c1.png', None, 4.3, 'KONUŞ', 'Konuş, anında düzeltilsin'),
-            ('klio_a.mp4', 15.2, 4.6, 'OKU', 'Bilmediğin kelimeye dokun'),
-            ('klio_c.mp4', 18.6, 4.5, 'TEKRARLA', 'Unutmadan hemen önce'),
-            ('klio_d.mp4', 10.8, 3.9, 'SAKLA', 'Her kelime seninle kalır'),
+            ('c1.png', None, 4.3, 'KONUŞ',
+             'Konuş, anında düzeltilsin', 0.28),
+            ('klio_a.mp4', 15.2, 4.6, 'OKU',
+             'Bilmediğin kelimeye dokun', None),
+            ('klio_c.mp4', 18.6, 4.5, 'TEKRARLA',
+             'Unutmadan hemen önce', None),
+            ('klio_d.mp4', 10.8, 3.9, 'SAKLA',
+             'Her kelime seninle kalır', None),
         ],
         'tagline': 'İngilizceyi konuşarak, okuyarak öğren',
         'cta': "Google Play'de ücretsiz",
     },
     'en': {
         'scenes': [
-            ('klio_en_speak.mp4', None, 4.3, 'SPEAK',
-             'Speak, and get corrected'),
-            ('klio_en_read.mp4', None, 4.6, 'READ',
-             "Tap any word you don't know"),
-            ('klio_en_plan.mp4', None, 4.5, 'REVIEW',
-             'Review before you forget'),
-            ('klio_en_practice.mp4', None, 3.9, 'PRACTISE',
-             'Every path in one place'),
+            ('c1_en.png', None, 4.3, 'SPEAK',
+             'Speak, and get corrected', 0.36),
+            ('klio_en_read.mp4', 5.8, 4.6, 'READ',
+             "Tap any word you don't know", None),
+            ('klio_en_plan.mp4', 6.5, 4.5, 'REVIEW',
+             'Review before you forget', None),
+            ('klio_en_practice.mp4', 6.2, 3.9, 'PRACTISE',
+             'Every path in one place', None),
         ],
         'tagline': 'Learn English by speaking and reading',
         'cta': 'Free on Google Play',
@@ -191,7 +199,7 @@ def build_art(art, cfg):
                         outline=(150, 130, 240, 90), width=3)
     plate.save(os.path.join(art, 'plate.png'))
 
-    for i, (_, _, _, kicker, headline) in enumerate(cfg['scenes']):
+    for i, (_, _, _, kicker, headline, _f) in enumerate(cfg['scenes']):
         im = Image.new('RGBA', (W, H), (0, 0, 0, 0))
         dd = ImageDraw.Draw(im)
         # drawtext cannot letter-space, and this is set in PIL anyway.
@@ -251,18 +259,18 @@ COMPOSITE = (
 
 def build_scenes(art, cfg):
     paths = []
-    for i, (src, seek, dur, kicker, headline) in enumerate(cfg['scenes']):
+    for i, (src, seek, dur, kicker, headline, focus) in enumerate(cfg['scenes']):
         source = os.path.join(RAW if src.endswith('.mp4') else HERE, src)
         if not os.path.exists(source):
             raise SystemExit('missing source: %s' % source)
 
         if src.endswith('.png'):
-            # A still, pushed in slowly. 0.28 of the height keeps the point of
-            # the frame in view as the zoom tightens.
+            # A still, pushed in slowly, anchored on `focus` so the zoom
+            # tightens onto the thing the scene is about.
             first = ("[1:v]crop=1080:2116:0:92,zoompan=z='1+0.10*on/{n}':"
-                     "x='iw/2-(iw/zoom/2)':y='ih*0.28-(ih/zoom*0.28)':"
+                     "x='iw/2-(iw/zoom/2)':y='ih*{f}-(ih/zoom*{f})':"
                      "d={n}:s={w}x{h}:fps=30,setsar=1[scr];").format(
-                         n=int(dur * 30), w=SCREEN[2], h=SCREEN[3])
+                         n=int(dur * 30), f=focus, w=SCREEN[2], h=SCREEN[3])
             src_args = ['-i', source]
         else:
             seg = os.path.join(HERE, 'seg_%d.mp4' % i)
