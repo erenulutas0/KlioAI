@@ -23,7 +23,9 @@ import '../../services/chatbot_service.dart';
 import '../../services/piper_tts_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_speech_capture.dart';
+import '../services/nf_tutor_sessions.dart';
 import '../services/nf_tutor_voice.dart';
+import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
@@ -91,6 +93,15 @@ class _NfTutorPageState extends State<NfTutorPage> {
   String _sessionXpId = 'nf_tutor_${DateTime.now().millisecondsSinceEpoch}';
   bool _sessionXpAwarded = false;
 
+  /// Identity of the conversation on screen, so that writing it out on every
+  /// turn replaces the same row rather than appending a longer copy of it.
+  String _threadId = DateTime.now().microsecondsSinceEpoch.toString();
+  DateTime _threadStartedAt = DateTime.now();
+
+  /// The other saved conversations, newest first, for the history sheet. Read
+  /// once at bootstrap and kept in step from here.
+  List<NfTutorSession> _history = const <NfTutorSession>[];
+
   @override
   void initState() {
     super.initState();
@@ -124,13 +135,22 @@ class _NfTutorPageState extends State<NfTutorPage> {
     await NfTutorVoice.ensureLoaded();
     final VoiceModel voice = NfTutorVoice.current.value;
 
+    // Read before the first frame: the alternative is greeting someone and
+    // then replacing the greeting with their own conversation a moment later.
+    final List<NfTutorSession> history = await NfTutorSessions.load();
+
     if (!mounted) {
       return;
     }
     setState(() {
       _voice = voice;
       _bootstrapping = false;
-      _turns.add(_greeting(voice));
+      _history = history;
+      if (history.isEmpty) {
+        _turns.add(_greeting(voice));
+      } else {
+        _adopt(history.first);
+      }
     });
 
     unawaited(_probeTts());
@@ -160,6 +180,72 @@ class _NfTutorPageState extends State<NfTutorPage> {
       hasAudio: true,
       text: NfScene.freeChatOpening.replaceAll('{name}', voice.name),
     );
+  }
+
+  /// Put a saved conversation on screen. Caller is inside setState.
+  ///
+  /// The speaker and the scene come back with it: a thread restored under a
+  /// different face reads as one person having changed voice halfway through,
+  /// and under the wrong scene it reads as a barista answering the doctor.
+  void _adopt(NfTutorSession saved) {
+    _threadId = saved.id;
+    _threadStartedAt = saved.startedAt;
+    _scene = NfScene.all
+        .where((NfScene scene) => scene.id == saved.sceneId)
+        .firstOrNull;
+    _voice = _speakers.firstWhere(
+      (VoiceModel v) => v.id == saved.voiceId,
+      orElse: () => _voice,
+    );
+    _turns
+      ..clear()
+      ..addAll(saved.turns.map((NfSavedTurn t) => _NfTurn(
+            id: _nextTurnId++,
+            text: t.text,
+            fromTutor: t.fromTutor,
+            hasAudio: t.hasAudio,
+            note: t.note,
+            correction: t.correction,
+          )));
+  }
+
+  /// Start a fresh thread, keeping whatever is on screen as its own row.
+  ///
+  /// Switching speaker or scene used to throw the conversation away, which was
+  /// the right behaviour when there was nowhere to put it: the server keeps no
+  /// history for this endpoint, so turns left on screen would sit under a
+  /// character who never read them. They are saved rather than dropped now,
+  /// and reachable from the history sheet.
+  void _beginThread() {
+    _threadId = DateTime.now().microsecondsSinceEpoch.toString();
+    _threadStartedAt = DateTime.now();
+  }
+
+  /// Write the conversation on screen, and refresh the list beside it.
+  ///
+  /// Called after every turn. The store upserts on [NfTutorSession.id] and
+  /// refuses a thread nobody has spoken in, so this is cheap and repeatable.
+  Future<void> _persist() async {
+    final NfTutorSession current = NfTutorSession(
+      id: _threadId,
+      startedAt: _threadStartedAt,
+      voiceId: _voice.id,
+      sceneId: _scene?.id,
+      turns: _turns
+          .map((_NfTurn t) => NfSavedTurn(
+                text: t.text,
+                fromTutor: t.fromTutor,
+                hasAudio: t.hasAudio,
+                note: t.note,
+                correction: t.correction,
+              ))
+          .toList(),
+    );
+    await NfTutorSessions.save(current);
+    final List<NfTutorSession> history = await NfTutorSessions.load();
+    if (mounted) {
+      setState(() => _history = history);
+    }
   }
 
   String get _speechLocale {
@@ -307,6 +393,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       _isReplying = true;
     });
     _scrollToBottom();
+    unawaited(_persist());
 
     try {
       // The header, the avatar and the voice all say who this is, so the model
@@ -352,6 +439,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
         }
       });
       _scrollToBottom();
+      unawaited(_persist());
       await _maybeAwardSessionXp();
     } catch (e) {
       if (!mounted) {
@@ -460,6 +548,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
     setState(() {
       _scene = scene;
+      _beginThread();
       _turns
         ..clear()
         ..add(scene == null
@@ -483,6 +572,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
     setState(() {
       _voice = voice;
+      _beginThread();
       // The thread starts over with the speaker. The backend keeps no history
       // for this endpoint, so leaving Amy's turns above Ryan's face would read
       // as one person changing voice mid-conversation.
@@ -771,9 +861,63 @@ class _NfTutorPageState extends State<NfTutorPage> {
                   onTap: () => unawaited(_selectSpeaker(speaker)),
                 ),
               ],
+              const SizedBox(width: NfSpace.s4),
+              // Switching speaker or scene starts a new thread, so those were
+              // the only ways to begin one -- and there was no way at all back
+              // to yesterday's. Both live behind this.
+              IconButton(
+                onPressed: _openHistory,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints.tightFor(width: 36, height: 36),
+                icon: Icon(Icons.history_rounded, size: 20, color: t.inkMuted),
+                tooltip: context.tr('tutor.history.title'),
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _openHistory() {
+    _stopAudio();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NfTokens.transparent,
+      builder: (_) => NfThemeScope(
+        child: _HistorySheet(
+          sessions: _history,
+          currentId: _threadId,
+          onNew: () {
+            Navigator.of(context).pop();
+            setState(() {
+              _beginThread();
+              _scene = null;
+              _turns
+                ..clear()
+                ..add(_greeting(_voice));
+              _resetSessionXp();
+            });
+          },
+          onOpen: (NfTutorSession saved) {
+            Navigator.of(context).pop();
+            setState(() {
+              _adopt(saved);
+              _resetSessionXp();
+            });
+            _scrollToBottom();
+          },
+          onDelete: (NfTutorSession saved) async {
+            await NfTutorSessions.delete(saved.id);
+            final List<NfTutorSession> rest = await NfTutorSessions.load();
+            if (mounted) {
+              setState(() => _history = rest);
+            }
+          },
+        ),
       ),
     );
   }
@@ -1822,4 +1966,147 @@ class NfScene {
       icon: Icons.school_outlined,
     ),
   ];
+}
+
+/// The last few conversations, and the way to start another.
+///
+/// Both live here rather than in the header because they are the same
+/// decision — which conversation am I in — and because the header had room for
+/// one control, not two.
+class _HistorySheet extends StatelessWidget {
+  const _HistorySheet({
+    required this.sessions,
+    required this.currentId,
+    required this.onNew,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final List<NfTutorSession> sessions;
+  final String currentId;
+  final VoidCallback onNew;
+  final void Function(NfTutorSession) onOpen;
+  final Future<void> Function(NfTutorSession) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final MaterialLocalizations dates = MaterialLocalizations.of(context);
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(NfSpace.s20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+            NfSpace.s16, NfSpace.s12, NfSpace.s16, NfSpace.s16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: t.border,
+                  borderRadius: BorderRadius.circular(NfSpace.s4),
+                ),
+              ),
+            ),
+            const SizedBox(height: NfSpace.s12),
+            Text(
+              context.tr('tutor.history.title'),
+              style: NfTokens.display(size: NfFont.s18, color: t.ink),
+            ),
+            const SizedBox(height: NfSpace.s10),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.add_comment_outlined, color: t.primary),
+              title: Text(
+                context.tr('tutor.history.new'),
+                style: NfTokens.body(
+                    size: NfFont.s145,
+                    weight: NfTokens.bodyEmphasisWeight,
+                    color: t.primary),
+              ),
+              onTap: onNew,
+            ),
+            if (sessions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: NfSpace.s16),
+                child: Text(
+                  context.tr('tutor.history.empty'),
+                  style: NfTokens.body(size: NfFont.s135, color: t.inkMuted),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: sessions.length,
+                  itemBuilder: (BuildContext context, int i) {
+                    final NfTutorSession s = sessions[i];
+                    final NfScene? scene = NfScene.all
+                        .where((NfScene sc) => sc.id == s.sceneId)
+                        .firstOrNull;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      selected: s.id == currentId,
+                      leading: Icon(
+                        scene?.icon ?? Icons.forum_outlined,
+                        color: s.id == currentId ? t.primary : t.inkMuted,
+                      ),
+                      title: Text(
+                        scene?.nameOf(context) ??
+                            context.tr('tutor.scene.free'),
+                        style: NfTokens.body(
+                            size: NfFont.s14,
+                            weight: NfTokens.bodyEmphasisWeight,
+                            color: t.ink),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        // What they said, not the greeting: every thread opens
+                        // with the same sentence and it names none of them.
+                        s.preview,
+                        style:
+                            NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            // Formatted by MaterialLocalizations rather than
+                            // by strings of our own, so it reads correctly in
+                            // all seven languages for nothing.
+                            dates.formatShortDate(s.startedAt),
+                            style: NfTokens.body(
+                                size: NfFont.s12, color: t.inkFaint),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded,
+                                size: NfFont.s18, color: t.inkFaint),
+                            tooltip:
+                                MaterialLocalizations.of(context).deleteButtonTooltip,
+                            onPressed: () => unawaited(onDelete(s)),
+                          ),
+                        ],
+                      ),
+                      onTap: () => onOpen(s),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
