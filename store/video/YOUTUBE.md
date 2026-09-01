@@ -9,8 +9,28 @@ alanına link olarak girmek için de yükleniyor. O yüzden:
   özelliklerini kısıtlıyor
 - Yüklemeden önce sağ üstteki kanalın **KlioAI** olduğunu doğrula
 
-Mağaza linki (paket adı `com.VocabMaster`):
-`https://play.google.com/store/apps/details?id=com.VocabMaster`
+## Açıklamalar iki aşamalı
+
+YouTube, açıklamaya **harici bağlantı koymak için kimlik doğrulaması**
+istiyor ve bu bir gün sürüyor. Bu videoların yüklenmesini bekletmeye değmez:
+Play Console'un tanıtım videosu alanı yalnızca YouTube linkini istiyor,
+açıklamanın içeriğine bakmıyor.
+
+Yani **bugün** aşağıdaki bağlantısız metinlerle yükle ve Play'e bağla;
+doğrulama gelince açıklamadaki
+
+```
+Google Play'de "KlioAI" diye ara.
+```
+
+satırını şununla değiştir:
+
+```
+https://play.google.com/store/apps/details?id=com.VocabMaster
+```
+
+(Paket adı `com.VocabMaster`.) Videoyu yeniden yüklemek gerekmiyor, sadece
+açıklamayı düzenle — Play'deki link bozulmaz.
 
 ---
 
@@ -46,8 +66,7 @@ before.
 
 No ads. No streak that shames you. No leaderboard.
 
-Free on Google Play:
-https://play.google.com/store/apps/details?id=com.VocabMaster
+Free on Google Play — search for "KlioAI".
 
 #LearnEnglish #EnglishSpeaking #LanguageLearning
 ```
@@ -85,8 +104,7 @@ değil.
 
 Reklam yok. Seni utandıran seri yok. Sıralama yok.
 
-Google Play'de ücretsiz:
-https://play.google.com/store/apps/details?id=com.VocabMaster
+Google Play'de ücretsiz — "KlioAI" diye ara.
 
 #İngilizceÖğren #İngilizceKonuşma #DilÖğrenimi
 ```
