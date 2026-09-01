@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Build the promo from the screen recordings in raw/.
 
-    python make_video.py tr
-    python make_video.py en
+    python make_video.py tr           # 9:16, for feeds
+    python make_video.py en wide      # 16:9, for the Play listing
 
 Every frame of app content here is a real capture from the phone, taken over
 adb while driving the app. This script does the part a screen recording is
@@ -31,7 +31,7 @@ breadth -- without ever printing a stored meaning. The reader survives the
 crossing only because tapping an unsaved word fetches its meaning fresh, in
 whatever language the profile is set to.
 
-Two notes for whoever changes this:
+Three notes for whoever changes this:
 
 Input seeking (-ss before -i) is wrong for these files. screenrecord writes
 variable frame rate with sparse keyframes, and seeking that way landed a whole
@@ -42,6 +42,11 @@ side and writes a constant 30fps intermediate first.
 There are no fade-ins. They cost the first frame, which is the thumbnail and
 the one frame a muted feed guarantees you, and the slide between scenes
 already carries the reveal.
+
+Both shapes exist because YouTube files anything vertical and under three
+minutes as a Short no matter which button uploaded it. That is free reach in a
+feed, and the wrong thing entirely for a Play listing, whose player is
+landscape and does not embed a Short.
 """
 import os
 import subprocess
@@ -54,17 +59,42 @@ RAW = os.path.join(HERE, 'raw')
 ICON = os.path.join(HERE, '..', '..', 'flutter_vocabmaster', 'assets',
                     'images', 'app_icon_composed.png')
 
-W, H = 1080, 1920
 VIOLET, DEEP = (108, 78, 245), (58, 36, 160)
 BLACK_F = 'C:/Windows/Fonts/seguibl.ttf'
 SEMI_F = 'C:/Windows/Fonts/seguisb.ttf'
 
-# The device, in plate coordinates. The ffmpeg overlays below use these, so
-# moving the bezel means moving SCREEN with it.
-PLATE = (860, 1590)
-BEZEL = (40, 40, 780, 1470)
-SCREEN = (60, 50, 740, 1450)
-PLATE_X, SCREEN_Y = 110, 400          # where the plate sits on the canvas
+# The device is drawn once and placed twice. Everything below derives from the
+# screen size, so a new frame shape needs only its own row here.
+#
+# In 'wide' the app screen is 460px against 1080 native, so the interface is
+# small and the headline carries more of the message; it sits beside the
+# device instead of above it, which is the only arrangement that leaves a tall
+# phone room to be tall in a short frame.
+BEZEL_PAD = (20, 10)     # the screen's inset inside the bezel
+PLATE_PAD = 40           # the bezel's inset inside the plate, for the shadow
+
+LAYOUTS = {
+    'tall': {
+        'canvas': (1080, 1920),
+        'screen': (740, 1450),
+        'screen_at': (170, 400),          # where the screen lands on canvas
+        'text': {'align': 'center', 'x': 0, 'kicker_y': 168, 'head_y': 224,
+                 'width': 940},
+        'end': {'icon': 340, 'icon_y': 590, 'mark_y': 1010, 'tag_y': 1180,
+                'pill_y': 1300, 'pill_h': 100, 'mark_size': 118,
+                'tag_size': 44, 'cta_size': 40},
+    },
+    'wide': {
+        'canvas': (1920, 1080),
+        'screen': (460, 902),
+        'screen_at': (1250, 69),
+        'text': {'align': 'left', 'x': 140, 'kicker_y': 440, 'head_y': 496,
+                 'width': 1000},
+        'end': {'icon': 260, 'icon_y': 200, 'mark_y': 520, 'tag_y': 680,
+                'pill_y': 790, 'pill_h': 92, 'mark_size': 104,
+                'tag_size': 40, 'cta_size': 36},
+    },
+}
 
 # The music is 126 BPM and starts on the downbeat, so a bar is 1.904s. Every
 # scene runs two bars plus the transition it hands over with, which puts each
@@ -150,7 +180,7 @@ def radial(size, centre, radius, colour, strength):
     for i in range(r, 0, -max(r // 60, 1)):
         d.ellipse((cx - i, cy - i, cx + i, cy + i),
                   fill=int(strength * (1 - i / r) ** 1.6))
-    small = small.filter(ImageFilter.GaussianBlur(r // 6))
+    small = small.filter(ImageFilter.GaussianBlur(max(r // 6, 1)))
     layer = Image.new('RGBA', size, colour + (0,))
     layer.putalpha(small.resize(size, Image.LANCZOS))
     return layer
@@ -164,10 +194,31 @@ def rounded(im, r):
     return out
 
 
-def background():
-    bg = gradient((W, H), VIOLET, DEEP).convert('RGBA')
-    bg.alpha_composite(radial((W, H), (300, 420), 900, (168, 148, 255), 120))
-    bg.alpha_composite(radial((W, H), (880, 1500), 800, (92, 60, 220), 110))
+def geometry(lay):
+    """Everything the device needs, derived from the screen size alone."""
+    sw, sh = lay['screen']
+    # yuv420p subsamples chroma by two, so libx264 refuses an odd side. The
+    # wide layout was first written 460x901 and every scene in it died with a
+    # bare exit code -- the failure is loud but says nothing about parity.
+    if sw % 2 or sh % 2:
+        raise SystemExit('screen %dx%d has an odd side; h264 needs both even'
+                         % (sw, sh))
+    bw, bh = sw + 2 * BEZEL_PAD[0], sh + 2 * BEZEL_PAD[1]
+    plate = (bw + 2 * PLATE_PAD, bh + 2 * PLATE_PAD + 40)
+    in_plate = (PLATE_PAD + BEZEL_PAD[0], PLATE_PAD + BEZEL_PAD[1])
+    at = (lay['screen_at'][0] - in_plate[0], lay['screen_at'][1] - in_plate[1])
+    return {'screen': (sw, sh), 'bezel': (PLATE_PAD, PLATE_PAD, bw, bh),
+            'plate': plate, 'in_plate': in_plate, 'plate_at': at}
+
+
+def background(size):
+    w, h = size
+    bg = gradient(size, VIOLET, DEEP).convert('RGBA')
+    # Placed by fraction so the two lights sit the same way in either frame.
+    bg.alpha_composite(radial(size, (int(w * .28), int(h * .22)),
+                              int(max(size) * .47), (168, 148, 255), 120))
+    bg.alpha_composite(radial(size, (int(w * .81), int(h * .78)),
+                              int(max(size) * .42), (92, 60, 220), 110))
     return bg
 
 
@@ -182,27 +233,32 @@ def fitted(draw, text, path, start, limit):
     return ImageFont.truetype(path, 26)
 
 
-def centre(draw, text, font, y, fill):
+def place(draw, text, font, y, fill, width, align='center', x=0):
     b = draw.textbbox((0, 0), text, font=font)
-    draw.text(((W - (b[2] - b[0])) / 2 - b[0], y), text, font=font, fill=fill)
+    left = x - b[0] if align == 'left' else (width - (b[2] - b[0])) / 2 - b[0]
+    draw.text((left, y), text, font=font, fill=fill)
 
 
-def build_art(art, cfg):
+def build_art(art, cfg, lay):
     os.makedirs(art, exist_ok=True)
-    background().convert('RGB').save(os.path.join(art, 'bg.png'))
+    W, H = lay['canvas']
+    g = geometry(lay)
+    sw, sh = g['screen']
 
-    m = Image.new('L', (SCREEN[2], SCREEN[3]), 0)
-    ImageDraw.Draw(m).rounded_rectangle((0, 0, SCREEN[2] - 1, SCREEN[3] - 1),
-                                        radius=40, fill=255)
+    background((W, H)).convert('RGB').save(os.path.join(art, 'bg.png'))
+
+    m = Image.new('L', (sw, sh), 0)
+    ImageDraw.Draw(m).rounded_rectangle((0, 0, sw - 1, sh - 1), radius=40,
+                                        fill=255)
     m.convert('RGB').save(os.path.join(art, 'mask.png'))
 
-    plate = Image.new('RGBA', PLATE, (0, 0, 0, 0))
-    bx, by, bw, bh = BEZEL
-    sh = Image.new('RGBA', PLATE, (0, 0, 0, 0))
-    ImageDraw.Draw(sh).rounded_rectangle(
+    plate = Image.new('RGBA', g['plate'], (0, 0, 0, 0))
+    bx, by, bw, bh = g['bezel']
+    shade = Image.new('RGBA', g['plate'], (0, 0, 0, 0))
+    ImageDraw.Draw(shade).rounded_rectangle(
         (bx + 10, by + 34, bx + bw + 10, by + bh + 34), radius=58,
         fill=(14, 8, 44, 150))
-    plate.alpha_composite(sh.filter(ImageFilter.GaussianBlur(30)))
+    plate.alpha_composite(shade.filter(ImageFilter.GaussianBlur(30)))
     d = ImageDraw.Draw(plate)
     d.rounded_rectangle((bx, by, bx + bw, by + bh), radius=56,
                         fill=(17, 14, 38, 255))
@@ -212,67 +268,86 @@ def build_art(art, cfg):
                         outline=(150, 130, 240, 90), width=3)
     plate.save(os.path.join(art, 'plate.png'))
 
+    t = lay['text']
     for i, (_, _, _, kicker, headline, _f) in enumerate(cfg['scenes']):
         im = Image.new('RGBA', (W, H), (0, 0, 0, 0))
         dd = ImageDraw.Draw(im)
         # drawtext cannot letter-space, and this is set in PIL anyway.
-        centre(dd, '  '.join(kicker), ImageFont.truetype(SEMI_F, 30), 168,
-               (205, 192, 255, 255))
-        centre(dd, headline, fitted(dd, headline, BLACK_F, 68, 940), 224,
-               (255, 255, 255, 255))
+        place(dd, '  '.join(kicker), ImageFont.truetype(SEMI_F, 30),
+              t['kicker_y'], (205, 192, 255, 255), W, t['align'], t['x'])
+        place(dd, headline, fitted(dd, headline, BLACK_F, 68, t['width']),
+              t['head_y'], (255, 255, 255, 255), W, t['align'], t['x'])
         im.save(os.path.join(art, 't%d.png' % i))
 
-    card = Image.new('RGBA', (340, 340), (255, 255, 255, 255))
-    mark = Image.open(ICON).convert('RGBA').resize((300, 300), Image.LANCZOS)
-    card.alpha_composite(rounded(mark, 66), (20, 20))
-    end = background()
-    sh = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(sh).rounded_rectangle((370, 620, 710, 960), radius=80,
-                                         fill=(12, 6, 40, 150))
-    end.alpha_composite(sh.filter(ImageFilter.GaussianBlur(30)))
-    end.alpha_composite(rounded(card, 76), (370, 590))
+    e = lay['end']
+    side = e['icon']
+    card = Image.new('RGBA', (side, side), (255, 255, 255, 255))
+    inset = side // 17
+    mark = Image.open(ICON).convert('RGBA').resize(
+        (side - 2 * inset, side - 2 * inset), Image.LANCZOS)
+    card.alpha_composite(rounded(mark, side // 5), (inset, inset))
+
+    end = background((W, H))
+    ix = (W - side) // 2
+    shadow = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle(
+        (ix, e['icon_y'] + 30, ix + side, e['icon_y'] + side + 30),
+        radius=side // 4, fill=(12, 6, 40, 150))
+    end.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(30)))
+    end.alpha_composite(rounded(card, int(side / 4.5)), (ix, e['icon_y']))
 
     ed = ImageDraw.Draw(end)
-    centre(ed, 'KlioAI', ImageFont.truetype(BLACK_F, 118), 1010,
-           (255, 255, 255))
-    centre(ed, cfg['tagline'], fitted(ed, cfg['tagline'], SEMI_F, 44, 940),
-           1180, (223, 214, 255))
+    place(ed, 'KlioAI', ImageFont.truetype(BLACK_F, e['mark_size']),
+          e['mark_y'], (255, 255, 255), W)
+    place(ed, cfg['tagline'],
+          fitted(ed, cfg['tagline'], SEMI_F, e['tag_size'], W * 0.87),
+          e['tag_y'], (223, 214, 255), W)
 
     # The pill is drawn to the width of the words in it, so a longer call to
     # action does not spill out of its own background.
-    cf = ImageFont.truetype(SEMI_F, 40)
-    half = ed.textbbox((0, 0), cfg['cta'], font=cf)[2] / 2 + 46
+    cf = ImageFont.truetype(SEMI_F, e['cta_size'])
+    half = ed.textbbox((0, 0), cfg['cta'], font=cf)[2] / 2 + e['pill_h'] * .46
     pill = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(pill).rounded_rectangle(
-        (540 - half, 1300, 540 + half, 1400), radius=50,
-        fill=(255, 255, 255, 245))
+        (W / 2 - half, e['pill_y'], W / 2 + half, e['pill_y'] + e['pill_h']),
+        radius=e['pill_h'] // 2, fill=(255, 255, 255, 245))
     end.alpha_composite(pill)
-    centre(ImageDraw.Draw(end), cfg['cta'], cf, 1327, (58, 36, 160))
+    place(ImageDraw.Draw(end), cfg['cta'], cf,
+          e['pill_y'] + (e['pill_h'] - e['cta_size'] * 1.35) / 2,
+          (58, 36, 160), W)
 
     end.convert('RGB').save(os.path.join(art, 'endcard.png'))
     print('art: bg, mask, plate, %d text plates, endcard' % len(cfg['scenes']))
 
 
-# The device settles into place and then drifts a few pixels; the headline
-# does the same, a little faster. Both are exponential, because linear motion
-# is the thing that reads as a slideshow.
-PHONE_Y = "'%d+22*exp(-6*t)-4*t'" % (SCREEN_Y - SCREEN[1])
-TEXT_Y = "'-12*exp(-6*t)'"
+def composite(lay):
+    """The graph that puts one screen on the ground, with its motion.
 
-COMPOSITE = (
-    "[scr][2:v]alphamerge[scrm];"
-    "[3:v]format=rgba[pl];"
-    "[pl][scrm]overlay={sx}:{sy}:format=auto[ph];"
-    "[0:v]scale={W}:{H},setsar=1[bgv];"
-    "[bgv][ph]overlay=x={px}:y={py}[s];"
-    "[s][4:v]overlay=x=0:y={ty}[out]"
-).format(sx=SCREEN[0], sy=SCREEN[1], W=W, H=H, px=PLATE_X, py=PHONE_Y,
-         ty=TEXT_Y)
+    The device settles into place and then drifts a few pixels; the headline
+    does the same, a little faster. Both are exponential, because linear
+    motion is the thing that reads as a slideshow.
+    """
+    W, H = lay['canvas']
+    g = geometry(lay)
+    px, py = g['plate_at']
+    return (
+        "[scr][2:v]alphamerge[scrm];"
+        "[3:v]format=rgba[pl];"
+        "[pl][scrm]overlay={sx}:{sy}:format=auto[ph];"
+        "[0:v]scale={W}:{H},setsar=1[bgv];"
+        "[bgv][ph]overlay=x={px}:y='{py}+22*exp(-6*t)-4*t'[s];"
+        "[s][4:v]overlay=x=0:y='-12*exp(-6*t)'[out]"
+    ).format(sx=g['in_plate'][0], sy=g['in_plate'][1], W=W, H=H, px=px, py=py)
 
 
-def build_scenes(art, cfg):
+def build_scenes(art, cfg, lay):
+    W, H = lay['canvas']
+    sw, sh = lay['screen']
+    graph = composite(lay)
     paths = []
-    for i, (src, seek, dur, kicker, headline, focus) in enumerate(cfg['scenes']):
+
+    for i, scene in enumerate(cfg['scenes']):
+        src, seek, dur, kicker, headline, focus = scene
         source = os.path.join(RAW if src.endswith('.mp4') else HERE, src)
         if not os.path.exists(source):
             raise SystemExit('missing source: %s' % source)
@@ -283,7 +358,7 @@ def build_scenes(art, cfg):
             first = ("[1:v]crop=1080:2116:0:92,zoompan=z='1+0.10*on/{n}':"
                      "x='iw/2-(iw/zoom/2)':y='ih*{f}-(ih/zoom*{f})':"
                      "d={n}:s={w}x{h}:fps=30,setsar=1[scr];").format(
-                         n=int(dur * 30), f=focus, w=SCREEN[2], h=SCREEN[3])
+                         n=int(dur * 30), f=focus, w=sw, h=sh)
             src_args = ['-i', source]
         else:
             seg = os.path.join(HERE, 'seg_%d.mp4' % i)
@@ -292,7 +367,7 @@ def build_scenes(art, cfg):
                 cut += ['-ss', str(seek)]
             run(cut + ['-t', str(dur), '-vf',
                        'fps=30,crop=1080:2116:0:92,scale=%d:%d,setsar=1'
-                       % (SCREEN[2], SCREEN[3]), '-an'] + ENC + [seg])
+                       % (sw, sh), '-an'] + ENC + [seg])
             first = '[1:v]setsar=1[scr];'
             src_args = ['-i', seg]
 
@@ -301,17 +376,18 @@ def build_scenes(art, cfg):
             ['-loop', '1', '-i', os.path.join(art, 'mask.png'),
              '-loop', '1', '-i', os.path.join(art, 'plate.png'),
              '-loop', '1', '-i', os.path.join(art, 't%d.png' % i),
-             '-filter_complex', first + COMPOSITE, '-map', '[out]',
+             '-filter_complex', first + graph, '-map', '[out]',
              '-t', str(dur)] + ENC + [out])
         paths.append((out, dur))
         print('scene %d  %-9s %.1fs  %s' % (i + 1, kicker, dur, headline))
 
     end = os.path.join(HERE, 's_end.mp4')
+    frames = int(END_SECONDS * 30)
     run(['-loop', '1', '-i', os.path.join(art, 'endcard.png'),
          '-filter_complex',
          "[0:v]fps=30,scale=%d:%d,setsar=1,zoompan=z='1.04-0.04*on/%d':"
          "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=%d:s=%dx%d:fps=30[out]"
-         % (W, H, int(END_SECONDS * 30), int(END_SECONDS * 30), W, H),
+         % (W, H, frames, frames, W, H),
          '-map', '[out]', '-t', str(END_SECONDS)] + ENC + [end])
     paths.append((end, END_SECONDS))
     return paths
@@ -359,10 +435,15 @@ def assemble(paths, out_path):
 
 if __name__ == '__main__':
     lang = sys.argv[1] if len(sys.argv) > 1 else 'tr'
+    shape = sys.argv[2] if len(sys.argv) > 2 else 'tall'
     if lang not in LANGS:
         raise SystemExit('language must be one of: %s' % ', '.join(LANGS))
-    config = LANGS[lang]
-    artdir = os.path.join(HERE, 'art_%s' % lang)
-    build_art(artdir, config)
-    assemble(build_scenes(artdir, config),
-             os.path.join(HERE, 'klioai_promo_%s.mp4' % lang))
+    if shape not in LAYOUTS:
+        raise SystemExit('shape must be one of: %s' % ', '.join(LAYOUTS))
+
+    config, layout = LANGS[lang], LAYOUTS[shape]
+    artdir = os.path.join(HERE, 'art_%s_%s' % (lang, shape))
+    build_art(artdir, config, layout)
+    name = ('klioai_promo_%s.mp4' % lang if shape == 'tall'
+            else 'klioai_promo_%s_%s.mp4' % (lang, shape))
+    assemble(build_scenes(artdir, config, layout), os.path.join(HERE, name))

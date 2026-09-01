@@ -1,4 +1,4 @@
-# make_video.py regenerates all of these from raw/ and c1.png.
+# make_video.py regenerates all of these from raw/, c1.png and c1_en.png.
 art_*/
 s[0-9].mp4
 s_end.mp4
