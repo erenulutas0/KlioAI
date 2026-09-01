@@ -3,11 +3,14 @@
 Parça: **Sunset 52 — Jeremy Black**, `Sunset 52 - Jeremy Black.mp3`
 (159 sn, 320 kbps). YouTube Ses Arşivi'nden seçildi.
 
-> **Kontrol edilmesi gereken tek şey:** indirdiğin satırda "atıf gerekli"
-> yazıyorsa, videoyu YouTube'a yüklerken açıklamaya sanatçı adını ve parça
-> başlığını eklemen gerekir. Ses Arşivi'nde bu bilgi parçanın yanında duruyor.
-> Play Console'a giren video için de aynı şey geçerli, çünkü o video YouTube
-> üzerinden gösteriliyor.
+Lisans, Ses Arşivi'nin en geniş kademesi ve indirme sayfasında şöyle
+yazıyor:
+
+> "Bu ses parçasını, para kazandığınız videolar dahil tüm videolarınızda
+> kullanabilirsiniz. Atıf gerekmez."
+
+Yani ticari kullanım serbest ve açıklamaya hiçbir şey yazmak gerekmiyor —
+Play mağaza videosu, ücretli reklam, sosyal medya, hepsi kapsam içinde.
 
 ## Sürelerin tamamı bu parçadan türetildi
 
