@@ -24,7 +24,9 @@ dependencies:
   flutter_tts: ^3.8.3
   audioplayers: ^5.2.1
   just_audio: ^0.9.36
-  in_app_purchase: ^3.2.0
+  # 3.3.0 is the first release carrying Google Play Billing 8.0.0, which Play
+  # made mandatory for new uploads on 31 August 2026.
+  in_app_purchase: ^3.3.0
   webview_flutter: ^4.4.2
   flutter_webrtc: ^1.4.1
   permission_handler: ^11.3.1
