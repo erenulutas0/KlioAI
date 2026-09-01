@@ -11,6 +11,8 @@ import '../../services/analytics_service.dart';
 import '../../services/learning_language_service.dart';
 import '../nf_frontend_preference.dart';
 import 'nf_onboarding_page.dart';
+import 'nf_support_page.dart';
+import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
@@ -374,6 +376,23 @@ class NfSettingsPage extends StatelessWidget {
             label: context.tr('profile.manageSubscription'),
             tokens: t,
             onTap: onManageSubscription,
+          ),
+          _RowDivider(tokens: t),
+          // Until this row existed the ticket service had no door: the only
+          // ways in were a report control that appears beside a sentence
+          // mid-exercise and a sheet the app opens by itself, both about
+          // content. A billing problem, a locked account or a deletion
+          // request -- which Play requires a route for -- had nowhere to go.
+          _SettingsRow(
+            key: const ValueKey<String>('settings-support'),
+            icon: Icons.support_agent_rounded,
+            label: context.tr('settings.support'),
+            tokens: t,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NfThemeScope(child: NfSupportPage()),
+              ),
+            ),
           ),
           _RowDivider(tokens: t),
           // The only way back to the tour. NfOnboardingPage is built in exactly

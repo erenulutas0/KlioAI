@@ -1774,7 +1774,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 12),
           _buildSettingsTile(
             Icons.delete_forever_outlined,
-            _text('Hesabimi sil', 'Delete my account'),
+            _text('Hesabımı sil', 'Delete my account'),
             _showAccountDeletionDialog,
             key: const ValueKey('profile-delete-account-tile'),
             color: Colors.redAccent,
@@ -1931,7 +1931,7 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: selectedTheme.colors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          _text('Hesabimi sil', 'Delete my account'),
+          _text('Hesabımı sil', 'Delete my account'),
           style: const TextStyle(color: Colors.white),
         ),
         content: Text(

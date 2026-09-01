@@ -46,6 +46,7 @@ String foldDiacritics(String s) {
 const homographs = <String, String>{
   'turu': 'tur (a tour) / tür (a kind)',
   'soyle': 'şöyle (like this) / söyle (say it)',
+  'sik': 'şikâyet (a complaint) / sık (frequent)',
 };
 
 void main() {
@@ -584,7 +585,7 @@ void main() {
       'flussufer', 'fokussieren', 'fokussiert', 'gesprächsfluss', 'gewusst',
       'kontoeinstellungen', 'lassen', 'lässt', 'loslassen', 'manuell',
       'modellaussprache', 'neue', 'neuer', 'neues', 'passen', 'passend',
-      'passenden', 'passt', 'passwort', 'passwörter', 'professionelle',
+      'passenden', 'passiert', 'passt', 'passwort', 'passwörter', 'professionelle',
       'schreibassistent', 'sprechassistenten', 'tagesserie', 'tagesset',
       'tagessitzung', 'übersetzungsset', 'übungssprache', 'verbessere',
       'verbessern', 'verbessert', 'vergessen', 'vergisst', 'verpasst',
