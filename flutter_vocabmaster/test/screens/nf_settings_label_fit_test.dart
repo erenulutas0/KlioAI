@@ -72,9 +72,19 @@ void main() {
     // filming the English promo, not by anything here.
     //
     // So 18: the longest prefix confirmed to fit on a device. English is
-    // "Speaking · " now. A label that trips this should still be checked on a
-    // screen before it is shortened -- a character count is a proxy for a
-    // pixel width, and this is the second time the proxy has been generous.
+    // "Speaking · " now.
+    //
+    // Then it broke a third time, and not because of a translation. A history
+    // button was added beside the speaker chips, took about 40dp out of the
+    // line, and Turkish at 18 came back as "Konusma pr..." -- not just the
+    // level gone but half a word with it. Nothing here could have known: this
+    // test counts characters and the thing that changed was the width they
+    // had. The button moved to the scene bar rather than the number moving
+    // again, because the number cannot see the layout and a fourth round of
+    // lowering it would only buy the next widget its turn.
+    //
+    // So: this guards translations, and only translations. Anything added to
+    // that header row has to be checked on a screen, because this will pass.
     const int budget = 18;
 
     final offenders = <String>[];

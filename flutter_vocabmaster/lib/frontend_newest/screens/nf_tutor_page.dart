@@ -517,8 +517,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
 
-    final int index =
-        _turns.lastIndexWhere((_NfTurn turn) => !turn.fromTutor);
+    final int index = _turns.lastIndexWhere((_NfTurn turn) => !turn.fromTutor);
     if (index < 0) {
       return;
     }
@@ -861,19 +860,6 @@ class _NfTutorPageState extends State<NfTutorPage> {
                   onTap: () => unawaited(_selectSpeaker(speaker)),
                 ),
               ],
-              const SizedBox(width: NfSpace.s4),
-              // Switching speaker or scene starts a new thread, so those were
-              // the only ways to begin one -- and there was no way at all back
-              // to yesterday's. Both live behind this.
-              IconButton(
-                onPressed: _openHistory,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints.tightFor(width: 36, height: 36),
-                icon: Icon(Icons.history_rounded, size: 20, color: t.inkMuted),
-                tooltip: context.tr('tutor.history.title'),
-              ),
             ],
           ),
         ],
@@ -936,32 +922,58 @@ class _NfTutorPageState extends State<NfTutorPage> {
         border: Border(bottom: t.side),
       ),
       padding: const EdgeInsets.symmetric(vertical: NfSpace.s8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: NfSpace.s16),
-        child: Row(
-          children: <Widget>[
-            NfChip(
-              label: context.tr('tutor.scene.free'),
-              dense: true,
-              variant: _scene == null
-                  ? NfChipVariant.selected
-                  : NfChipVariant.unselected,
-              onTap: () => _selectScene(null),
-            ),
-            for (final NfScene scene in NfScene.all) ...<Widget>[
-              const SizedBox(width: NfSpace.s6),
-              NfChip(
-                label: scene.nameOf(context),
-                dense: true,
-                variant: scene.id == _scene?.id
-                    ? NfChipVariant.selected
-                    : NfChipVariant.unselected,
-                onTap: () => _selectScene(scene),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: NfSpace.s16),
+              child: Row(
+                children: <Widget>[
+                  NfChip(
+                    label: context.tr('tutor.scene.free'),
+                    dense: true,
+                    variant: _scene == null
+                        ? NfChipVariant.selected
+                        : NfChipVariant.unselected,
+                    onTap: () => _selectScene(null),
+                  ),
+                  for (final NfScene scene in NfScene.all) ...<Widget>[
+                    const SizedBox(width: NfSpace.s6),
+                    NfChip(
+                      label: scene.nameOf(context),
+                      dense: true,
+                      variant: scene.id == _scene?.id
+                          ? NfChipVariant.selected
+                          : NfChipVariant.unselected,
+                      onTap: () => _selectScene(scene),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+          // Beside the scenes rather than in the header, and outside the
+          // scroll so it cannot slide away. It belongs here anyway: choosing a
+          // scene and choosing a conversation are the same question.
+          //
+          // It started in the header and took 40dp out of a line that was
+          // already losing an argument about width -- the status under the
+          // speaker's name read "Konusma pr..." on a phone, which is the third
+          // time that line has been truncated and the second time by something
+          // added beside it. Moving it is the fix that does not need a number.
+          Padding(
+            padding: const EdgeInsets.only(right: NfSpace.s10),
+            child: IconButton(
+              onPressed: _openHistory,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              icon: Icon(Icons.history_rounded, size: 20, color: t.inkMuted),
+              tooltip: context.tr('tutor.history.title'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1389,9 +1401,7 @@ class _AudioRow extends StatelessWidget {
                       border: Border.fromBorderSide(t.sideOf(t.primary)),
                     ),
                     child: Icon(
-                      speaking
-                          ? Icons.stop_rounded
-                          : Icons.play_arrow_rounded,
+                      speaking ? Icons.stop_rounded : Icons.play_arrow_rounded,
                       size: 18,
                       color: t.primaryText,
                     ),
@@ -1436,7 +1446,8 @@ class _WaveformPainter extends CustomPainter {
       return;
     }
 
-    final List<double> values = bars ?? _generate((size.width / _pitch).floor());
+    final List<double> values =
+        bars ?? _generate((size.width / _pitch).floor());
     if (values.isEmpty) {
       return;
     }
@@ -1453,8 +1464,7 @@ class _WaveformPainter extends CustomPainter {
 
     for (int i = 0; i < values.length; i++) {
       final double x = step * i + step / 2;
-      final double half =
-          maxHalf * values[i].clamp(_minBar, 1.0).toDouble();
+      final double half = maxHalf * values[i].clamp(_minBar, 1.0).toDouble();
       canvas.drawLine(Offset(x, mid - half), Offset(x, mid + half), paint);
     }
   }
@@ -1926,7 +1936,8 @@ class NfScene {
     NfScene(
       id: 'airport_checkin',
       character: 'Mark',
-      opening: 'Good morning. Passport, please — and where are you flying to today?',
+      opening:
+          'Good morning. Passport, please — and where are you flying to today?',
       icon: Icons.flight_takeoff_outlined,
     ),
     NfScene(
@@ -1938,7 +1949,8 @@ class NfScene {
     NfScene(
       id: 'small_talk',
       character: 'Alex',
-      opening: 'I do not think we have met — I am Alex. How do you know the host?',
+      opening:
+          'I do not think we have met — I am Alex. How do you know the host?',
       icon: Icons.waving_hand_outlined,
     ),
     NfScene(
@@ -1962,7 +1974,8 @@ class NfScene {
     NfScene(
       id: 'academic_presentation_qa',
       character: 'Dr. Johnson',
-      opening: 'Thank you for the presentation. I have a few questions about your method.',
+      opening:
+          'Thank you for the presentation. I have a few questions about your method.',
       icon: Icons.school_outlined,
     ),
   ];
@@ -1998,8 +2011,8 @@ class _HistorySheet extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: t.surface,
-          borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(NfSpace.s20)),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(NfSpace.s20)),
         ),
         padding: const EdgeInsets.fromLTRB(
             NfSpace.s16, NfSpace.s12, NfSpace.s16, NfSpace.s16),
@@ -2093,8 +2106,8 @@ class _HistorySheet extends StatelessWidget {
                           IconButton(
                             icon: Icon(Icons.close_rounded,
                                 size: NfFont.s18, color: t.inkFaint),
-                            tooltip:
-                                MaterialLocalizations.of(context).deleteButtonTooltip,
+                            tooltip: MaterialLocalizations.of(context)
+                                .deleteButtonTooltip,
                             onPressed: () => unawaited(onDelete(s)),
                           ),
                         ],
