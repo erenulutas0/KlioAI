@@ -453,7 +453,10 @@ class BookCover extends StatelessWidget {
               Text(
                 book.author,
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                // Two, because one gave "Joseph Conr..." on a phone. A 52dp
+                // column is not wide enough for most names on one line, and an
+                // old binding sets the author over two anyway.
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .72),
