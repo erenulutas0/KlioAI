@@ -118,6 +118,27 @@ public class ConversationSessionService {
         }
     }
 
+    /**
+     * Forgets everything the model has been told so far.
+     *
+     * <p>The client starts a fresh thread when the learner switches scene or
+     * speaker, or asks for a new conversation, and clears its own screen. The
+     * model's memory lived here and was never cleared with it, so after moving
+     * from the cafe scene to free chat the next reply was still shaped by six
+     * lines of barista -- and a comment on the client swore the server kept no
+     * history at all, which had been true before this class existed.
+     */
+    public void clearSession(Long userId) {
+        if (userId == null || redisTemplate == null) {
+            return;
+        }
+        try {
+            redisTemplate.delete(key(userId));
+        } catch (Exception e) {
+            log.debug("Could not clear conversation for userId={}: {}", userId, e.toString());
+        }
+    }
+
     private String key(Long userId) {
         return KEY_PREFIX + userId + ":messages";
     }

@@ -40,6 +40,13 @@ public class ChatbotService {
   @Autowired(required = false)
   private ConversationSessionService conversationSessionService;
 
+  /** Drops the server-side thread so the next turn starts from nothing. */
+  public void resetConversation(Long userId) {
+    if (conversationSessionService != null) {
+      conversationSessionService.clearSession(userId);
+    }
+  }
+
   public ChatbotService(AiCompletionProvider aiCompletionProvider) {
     this.aiCompletionProvider = aiCompletionProvider;
     this.objectMapper = new ObjectMapper();

@@ -1311,6 +1311,24 @@ class ApiService {
   ///
   /// `correction` is a key the server added; a response without it is the
   /// ordinary case and not an error, so nothing here treats its absence as one.
+  /// Starts the conversation over on the server.
+  ///
+  /// The tutor keeps the last six lines of a thread in Redis so the model can
+  /// follow a conversation. The client already starts a fresh thread on a
+  /// scene or speaker switch and clears its own screen; the model's memory
+  /// was not cleared with it, so free chat opened with the barista still in
+  /// the room. Fire-and-forget by every caller: a failure here costs one
+  /// stale reply, not the turn.
+  Future<void> chatbotResetConversation() async {
+    final url = await baseUrl;
+    await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/chatbot/chat/reset'),
+        headers: headers,
+      ),
+    );
+  }
+
   Future<TutorReply> chatbotChatTurn({
     required String message,
     String? scenario,

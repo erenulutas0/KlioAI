@@ -9,6 +9,9 @@ import 'groq_api_client.dart';
 class ChatbotService {
   final ApiService _api = ApiService();
 
+  /// Drops the server-side thread. See [ApiService.chatbotResetConversation].
+  Future<void> resetConversation() => _api.chatbotResetConversation();
+
   /// Kelime için pratik cümleleri üretir (BACKEND - kota uygulanır)
   Future<Map<String, dynamic>> generateSentences({
     required String word,

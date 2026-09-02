@@ -1681,6 +1681,20 @@ public class ChatbotController {
         return null;
     }
 
+    /**
+     * Starts the conversation over on the server.
+     *
+     * <p>Called when the client begins a new thread -- a scene or speaker
+     * switch, or "new conversation" from the history sheet. The screen was
+     * already being cleared on the client; the model's memory of the previous
+     * thread was not, so the barista was still in the room when free chat began.
+     */
+    @PostMapping("/chat/reset")
+    public ResponseEntity<Map<String, Object>> resetChat(@RequestHeader("X-User-Id") Long userId) {
+        chatbotService.resetConversation(userId);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
     @PostMapping("/chat")
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request,
             @RequestHeader("X-User-Id") Long userId,

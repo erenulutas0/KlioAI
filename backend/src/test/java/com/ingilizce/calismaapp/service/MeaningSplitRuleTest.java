@@ -84,4 +84,22 @@ class MeaningSplitRuleTest {
             }
         }
     }
+
+    @Test
+    void aCommaInsideAClauseIsPunctuation_NotASecondMeaning() {
+        // Seen on the word screen: "underneath" was saved as "Bir şeyin alt kısmında, üstünde
+        // değil" -- one meaning with a clarifying clause, which Turkish writes with a comma as
+        // a matter of course -- and the comma rule turned it into two rows, the second reading
+        // "üstünde değil." on its own. That is not a meaning of anything. A comma stays a list
+        // only while every piece is short; one long piece makes the whole run a single sense.
+        assertEquals(List.of("Bir şeyin alt kısmında, üstünde değil"),
+                WordService.splitMeaningString("Bir şeyin alt kısmında, üstünde değil"));
+        assertEquals(List.of("(n) banka", "(n) kıyı"), WordService.splitMeaningString("(n) banka, (n) kıyı"),
+                "two tagged senses are still two");
+        assertEquals(List.of("hasta olmak", "rahatsız"), WordService.splitMeaningString("hasta olmak, rahatsız"),
+                "two-word senses are still listed");
+        // Semicolons split regardless of length: nobody writes a clause with one.
+        assertEquals(List.of("Bir şeyin alt kısmında", "üstünde değil"),
+                WordService.splitMeaningString("Bir şeyin alt kısmında; üstünde değil"));
+    }
 }

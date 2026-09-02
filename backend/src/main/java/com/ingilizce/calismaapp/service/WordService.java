@@ -38,7 +38,16 @@ public class WordService {
      * or a slash with whitespace on both sides. The same rule V028 used for the backfill, so
      * a word created through the old client and one backfilled from the same string agree.
      */
-    private static final Pattern MEANING_SEPARATOR = Pattern.compile("\\s*[,;]\\s*|\\s+/\\s+");
+    /** The separators that always split: a semicolon, or a slash with air on both sides. */
+    private static final Pattern HARD_SEPARATOR = Pattern.compile("\\s*;\\s*|\\s+/\\s+");
+    private static final Pattern COMMA = Pattern.compile("\\s*,\\s*");
+
+    /**
+     * A comma-separated piece this long is a clause, not a listed sense. Three, because two
+     * covers every tagged sense ("(n) banka") and every short compound ("hasta olmak"), and
+     * the clause that shipped -- "Bir şeyin alt kısmında" -- is four. See splitOnSeparators.
+     */
+    private static final int MAX_WORDS_PER_LISTED_SENSE = 3;
     private static final int MAX_TRANSLATION_LENGTH = 255;
 
     /** Deleting the last meaning is refused: a word with no meaning teaches nothing (HTTP 400). */
@@ -510,7 +519,7 @@ public class WordService {
             return List.of();
         }
         Map<String, String> byKey = new LinkedHashMap<>();
-        for (String part : MEANING_SEPARATOR.split(turkishMeaning)) {
+        for (String part : splitOnSeparators(turkishMeaning)) {
             String clean = cleanTranslation(part);
             if (clean.isEmpty()) {
                 continue;
@@ -518,6 +527,52 @@ public class WordService {
             byKey.putIfAbsent(clean.toLowerCase(Locale.ROOT), clean);
         }
         return new ArrayList<>(byKey.values());
+    }
+
+    /**
+     * The separator split, with one exception for the comma.
+     *
+     * <p>A comma between short pieces is a list of senses: {@code gecikme, ertelemek} is two
+     * meanings, and so is {@code (n) banka, (n) kıyı}. A comma before a long piece is Turkish
+     * punctuation inside one meaning: {@code Bir şeyin alt kısmında, üstünde değil} is a single
+     * sense of "underneath" with a clarifying clause, and splitting it put "üstünde değil." on
+     * the word screen as a meaning of its own, which is not a meaning of anything.
+     *
+     * <p>So if any comma-separated piece runs to {@value #MAX_WORDS_PER_LISTED_SENSE} words or
+     * more, the comma is treated as punctuation and the whole run stays together. Semicolons
+     * and spaced slashes split unconditionally -- nobody writes a clause with those. The
+     * short-piece cases are the contract with the V028 backfill and are unchanged.
+     */
+    private static List<String> splitOnSeparators(String text) {
+        List<String> out = new ArrayList<>();
+        for (String run : HARD_SEPARATOR.split(text)) {
+            // Blank pieces are dropped before anything is decided. Java's split discards
+            // trailing empties, so ", , " came back as a single piece, was judged "one
+            // sense" and kept verbatim -- and the test that says separators alone are not
+            // meanings caught it.
+            List<String> pieces = new ArrayList<>();
+            for (String piece : COMMA.split(run)) {
+                if (!piece.isBlank()) {
+                    pieces.add(piece);
+                }
+            }
+            if (pieces.isEmpty()) {
+                continue;
+            }
+            boolean listOfSenses = pieces.size() > 1;
+            for (String piece : pieces) {
+                if (piece.trim().split("\\s+").length >= MAX_WORDS_PER_LISTED_SENSE) {
+                    listOfSenses = false;
+                    break;
+                }
+            }
+            if (listOfSenses) {
+                out.addAll(pieces);
+            } else {
+                out.add(run);
+            }
+        }
+        return out;
     }
 
     private Long resolveProfileId(Long userId, Long languageProfileId) {

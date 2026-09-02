@@ -220,6 +220,13 @@ class _NfTutorPageState extends State<NfTutorPage> {
   void _beginThread() {
     _threadId = DateTime.now().microsecondsSinceEpoch.toString();
     _threadStartedAt = DateTime.now();
+    // The server keeps the model's memory of the previous thread; clearing
+    // the screen without clearing that left the barista answering in free
+    // chat. Not awaited -- this runs inside setState, and a failure costs one
+    // stale reply rather than the thread.
+    unawaited(_chatbot.resetConversation().catchError(
+      (Object e) => debugPrint('NfTutor reset conversation: $e'),
+    ));
   }
 
   /// Write the conversation on screen, and refresh the list beside it.
