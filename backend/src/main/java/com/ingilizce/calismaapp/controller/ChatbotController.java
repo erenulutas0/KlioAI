@@ -1781,7 +1781,15 @@ public class ChatbotController {
                     "reason", "audio-too-large",
                     "maxAudioBytes", speechMaxAudioBytes));
         }
-        if (durationMs != null && durationMs > Math.max(1L, speechMaxDurationSeconds) * 1000L) {
+        // The tolerance is the whole point of this line. The client stops its own
+        // recorder at exactly this cap and then measures wall-clock AFTER
+        // awaiting recorder.stop(), so a full-length clip always reports a few
+        // tens of milliseconds over and a strict comparison rejected every
+        // single one of them -- a learner who talked for a full minute got
+        // "could not transcribe speech" and lost the recording.
+        long maxDurationMs = Math.max(1L, speechMaxDurationSeconds) * 1000L
+                + SPEECH_DURATION_TOLERANCE_MS;
+        if (durationMs != null && durationMs > maxDurationMs) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", "Audio duration is too long",
@@ -2397,6 +2405,9 @@ public class ChatbotController {
                 .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
                 .body(payload);
     }
+
+    /** Slack for the client measuring its own clip after stopping the recorder. */
+    private static final long SPEECH_DURATION_TOLERANCE_MS = 2000L;
 
     private long estimateSpeechTokens(Long durationMs) {
         long durationSeconds = durationMs == null

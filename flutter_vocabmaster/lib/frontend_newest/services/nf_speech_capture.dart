@@ -9,7 +9,16 @@ import 'package:record/record.dart';
 import '../../services/chatbot_service.dart';
 
 /// How a `start()` attempt ended.
-enum NfCaptureStart { started, busy, micDenied, failed }
+/// How an attempt to start recording ended.
+///
+/// [micDenied] and [micBlocked] are separate because the way out of them is
+/// different. A plain denial is answered by pressing the button again and
+/// saying yes to the system prompt. A blocked permission shows no prompt at
+/// all -- Android stops asking after two refusals, iOS after one -- so
+/// pressing the button again does nothing, forever, and the only route back is
+/// the system settings page. Collapsing the two left a learner tapping a
+/// button that flashed grey text and never explained itself.
+enum NfCaptureStart { started, busy, micDenied, micBlocked, failed }
 
 /// How one hold-to-speak gesture ended.
 enum NfCaptureOutcome {
@@ -139,7 +148,12 @@ class NfSpeechCapture extends ChangeNotifier {
       return NfCaptureStart.failed;
     }
     if (status != PermissionStatus.granted) {
-      return NfCaptureStart.micDenied;
+      // `restricted` belongs with permanently denied rather than with denied:
+      // it is iOS parental controls, where no prompt will ever appear either.
+      return status == PermissionStatus.permanentlyDenied ||
+              status == PermissionStatus.restricted
+          ? NfCaptureStart.micBlocked
+          : NfCaptureStart.micDenied;
     }
     if (_disposed) {
       return NfCaptureStart.failed;

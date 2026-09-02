@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -322,6 +323,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
         _updateWakelock();
       case NfCaptureStart.micDenied:
         _showHint(context.tr('tutor.err.micDenied'));
+      case NfCaptureStart.micBlocked:
+        unawaited(_showMicBlockedDialog());
       case NfCaptureStart.failed:
         _showHint(context.tr('tutor.err.recordStart'));
       case NfCaptureStart.busy:
@@ -355,6 +358,36 @@ class _NfTutorPageState extends State<NfTutorPage> {
     }
   }
 
+  /// A dialog, not the three-second hint the other capture failures get.
+  ///
+  /// Nothing the learner does on this screen can fix a blocked permission --
+  /// the system will not prompt again, so pressing the button produces
+  /// silence and a flash of grey text, every time, forever. This is the one
+  /// capture failure whose remedy lives outside the app, so it is the one that
+  /// has to interrupt and carry the way there.
+  Future<void> _showMicBlockedDialog() async {
+    final bool? open = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        content: Text(dialogContext.tr('tutor.err.micBlocked')),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+                MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.tr('tutor.mic.openSettings')),
+          ),
+        ],
+      ),
+    );
+    if (open ?? false) {
+      await openAppSettings();
+    }
+  }
+
   Future<void> _reportCaptureFailure(Object? error) async {
     if (error == null) {
       _showHint(context.tr('tutor.err.captureFailed'));
@@ -369,13 +402,27 @@ class _NfTutorPageState extends State<NfTutorPage> {
     if (!mounted) {
       return;
     }
-    // forError already knows quota and upgrade errors and phrases them in the
-    // learner's language; the last-resort fallback is the only line this page
-    // owns, so it comes from the same key table as the rest of the screen.
-    _showSnack(AiErrorMessageFormatter.forError(
-      error,
-      fallback: context.tr('tutor.err.transcribe'),
-    ));
+    // Offline and timed-out are diagnosed here for the same reason the reply
+    // path diagnoses them: neither is a transcription failure, and telling
+    // someone with no signal that their speech could not be transcribed sends
+    // them to repeat themselves louder. Matched on the text because these
+    // arrive as a SocketException and a TimeoutException from two layers down,
+    // neither of which this file can name without importing dart:io.
+    final String detail = error.toString();
+    final String fallback;
+    if (detail.contains('SocketException') ||
+        detail.contains('Failed host lookup')) {
+      fallback = context.tr('tutor.err.offline');
+    } else if (detail.contains('TimeoutException')) {
+      fallback = context.tr('tutor.err.timeout');
+    } else {
+      fallback = context.tr('tutor.err.transcribe');
+    }
+
+    // forError still comes first: it knows quota and upgrade errors and
+    // phrases them in the learner's language. The fallback above is only
+    // reached for the ones it has no opinion about.
+    _showSnack(AiErrorMessageFormatter.forError(error, fallback: fallback));
   }
 
   // ---------------------------------------------------------------------------
@@ -417,7 +464,13 @@ class _NfTutorPageState extends State<NfTutorPage> {
         // It is about their sentence, and putting it under the tutor's answer
         // would leave them looking for which of their own lines it meant.
         final TutorCorrection? fix = reply.correction;
-        if (fix != null) {
+        // Checked against the sentence that was actually sent, not against
+        // whatever turn happens to be last. The correction is drawn struck
+        // through under "Say it like this", so an invented one shows the
+        // learner words they never spoke and crosses them out -- worse than
+        // showing no correction at all, which is the ordinary case anyway.
+        final bool corrected = fix != null && fix.isAbout(trimmed);
+        if (corrected) {
           final int said =
               _turns.lastIndexWhere((_NfTurn turn) => !turn.fromTutor);
           if (said >= 0) {
@@ -435,6 +488,19 @@ class _NfTutorPageState extends State<NfTutorPage> {
             text: reply.text,
             fromTutor: true,
             hasAudio: true,
+          ));
+        } else if (!corrected) {
+          // Empty reply AND nothing to show under their turn. Without this the
+          // typing dots simply vanish and nothing arrives -- no bubble, no
+          // error, no retry -- which is indistinguishable from the app having
+          // ignored them. Saying so is worse than a reply and far better than
+          // silence.
+          // Added directly rather than through _addNotice, which opens a
+          // setState of its own and this is already inside one.
+          _turns.add(_NfTurn(
+            id: _nextTurnId++,
+            text: context.tr('tutor.err.emptyReply'),
+            fromTutor: true,
           ));
         }
       });
@@ -634,6 +700,15 @@ class _NfTutorPageState extends State<NfTutorPage> {
         audio = await _piper.synthesize(spoken, voice: _voice.piperVoice);
       } catch (e) {
         debugPrint('NfTutor Piper synthesize error: $e');
+      }
+      // One failure used to cost the rest of the session. The probe ran once
+      // at bootstrap and never again, so a cold VPS or a dropped packet at the
+      // wrong second left _ttsAvailable false until a restart and every reply
+      // afterwards came out in the device voice instead of the persona the
+      // header is showing. Re-asking is one cheap call and only happens on the
+      // turn that already failed.
+      if (audio == null) {
+        unawaited(_probeTts());
       }
     }
 

@@ -81,12 +81,32 @@ class ApiService {
     return headers;
   }
 
+  /// A deadline for one request. `package:http` has none of its own, and a
+  /// Client with no timeout does not fail when a connection stalls -- it waits
+  /// forever. On the tutor tab that meant the typing bubble spinning with the
+  /// microphone disabled and no way out but killing the app, which is the
+  /// worst shape a failure can take: indistinguishable from the app ignoring
+  /// you.
+  ///
+  /// Generous, because the alternative failure is worse than the wait. An
+  /// ordinary REST call that has said nothing in half a minute is not coming.
+  static const Duration _requestTimeout = Duration(seconds: 30);
+
+  /// Longer for AI, and deliberately just outside the server's own ceiling:
+  /// GroqService allows a 35s retry budget over a 60s read, so a call that is
+  /// going to fail server-side fails at about 60s. Sitting at 75 lets that
+  /// specific error -- quota, model, upstream -- reach the learner instead of
+  /// this one, which can only say "it took too long".
+  static const Duration _aiRequestTimeout = Duration(seconds: 75);
+
   Future<http.Response> _withProtectedRetry(
     Future<http.Response> Function(Map<String, String> headers) send, {
     bool json = false,
+    Duration? timeout,
   }) async {
+    final Duration deadline = timeout ?? _requestTimeout;
     var headers = await _protectedHeaders(json: json);
-    var response = await send(headers);
+    var response = await send(headers).timeout(deadline);
     if (response.statusCode != 401) {
       return response;
     }
@@ -100,7 +120,7 @@ class ApiService {
     }
 
     headers = await _protectedHeaders(json: json);
-    response = await send(headers);
+    response = await send(headers).timeout(deadline);
     if (response.statusCode == 401) {
       // Still 401 even with a freshly refreshed token: dead session.
       _signalSessionExpired();
@@ -114,7 +134,11 @@ class ApiService {
     required String feature,
     bool json = false,
   }) async {
-    final response = await _withProtectedRetry(send, json: json);
+    final response = await _withProtectedRetry(
+      send,
+      json: json,
+      timeout: _aiRequestTimeout,
+    );
     if (response.statusCode == 429) {
       throw _quotaFromResponse(response);
     }
