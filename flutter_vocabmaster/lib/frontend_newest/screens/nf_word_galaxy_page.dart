@@ -39,9 +39,13 @@ import '../widgets/nf_chip.dart';
 /// `source: 'word_galaxy'` and the same quality values the legacy galaxy sheet
 /// used (1 = show again, 3 = struggled, 5 = got it).
 class NfWordGalaxyPage extends StatefulWidget {
-  const NfWordGalaxyPage({super.key, this.initialWordId});
+  const NfWordGalaxyPage({super.key, this.initialWordId, this.onOpenDictionary});
 
   final int? initialWordId;
+
+  /// Where "add your first word" goes. Null draws the empty state without a
+  /// button rather than one that does nothing.
+  final VoidCallback? onOpenDictionary;
 
   @override
   State<NfWordGalaxyPage> createState() => _NfWordGalaxyPageState();
@@ -723,13 +727,34 @@ class _NfWordGalaxyPageState extends State<NfWordGalaxyPage> {
                               Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(NfSpace.s26),
-                                  child: Text(
-                                    context.tr('galaxy.empty'),
-                                    textAlign: TextAlign.center,
-                                    style: NfTokens.body(
-                                      size: NfFont.s16,
-                                      color: t.inkMuted,
-                                    ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Text(
+                                        context.tr('galaxy.empty'),
+                                        textAlign: TextAlign.center,
+                                        style: NfTokens.body(
+                                          size: NfFont.s16,
+                                          color: t.inkMuted,
+                                        ),
+                                      ),
+                                      // Every control on this screen is hidden
+                                      // while there is nothing to draw, so
+                                      // without this the page was one grey
+                                      // sentence and a back arrow -- and it
+                                      // sits in the practice grid as a game,
+                                      // which is the tile a new learner with
+                                      // no words taps first.
+                                      if (widget.onOpenDictionary != null) ...<Widget>[
+                                        const SizedBox(height: NfSpace.s16),
+                                        NfPrimaryButton(
+                                          label: context.tr('words.openDictionary'),
+                                          icon: Icons.search_rounded,
+                                          expand: false,
+                                          onPressed: widget.onOpenDictionary,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               )

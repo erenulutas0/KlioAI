@@ -298,7 +298,13 @@ public class AuthController {
                 trialDecision = trialAbuseProtectionService.evaluate(deviceId, clientIp);
                 user = new User(email, passwordEncoder.encode(dummyPassword), displayName);
                 user.setEmailVerifiedAt(LocalDateTime.now());
-                if (!trialDecision.trialEligible()) {
+                // Only a real count is remembered. A block we could not verify -- Redis
+                // down while fail-closed -- denies the trial for this request and stops
+                // there; persisting it would take the trial away for good on the strength
+                // of one bad minute, with nothing that ever re-evaluates the flag and no
+                // way for the person to recover it themselves.
+                if (!trialDecision.trialEligible()
+                        && !TrialAbuseProtectionService.REASON_UNAVAILABLE.equals(trialDecision.reason())) {
                     user.setTrialEligible(false);
                 }
                 user = userRepository.save(user);

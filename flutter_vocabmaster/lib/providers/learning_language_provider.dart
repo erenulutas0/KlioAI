@@ -77,9 +77,19 @@ class LearningLanguageProvider extends ChangeNotifier {
     // practice asks them to translate English into English.
     if (_sourceLanguage != normalized) {
       _sourceLanguage = normalized;
-      LearningLanguageService.setSourceLanguage(_sourceLanguage);
       notifyListeners();
     }
+
+    // Outside the comparison, like the write below it. The comment above says
+    // confirming the default is an answer and has to be stored as one, and
+    // the prefs write was moved out to honour that -- this call was left
+    // behind inside the branch. So confirming the default reached disk and
+    // not memory, hasAnswered stayed false for the rest of the session, and
+    // currentProfile() kept omitting sourceLanguage until the next cold start
+    // read it back. That session is the first one, which is the whole of a new
+    // learner's first impression: a Spanish user who finished onboarding was
+    // still answered in Turkish until they restarted the app.
+    LearningLanguageService.setSourceLanguage(_sourceLanguage);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sourceLanguageKey, _sourceLanguage);
@@ -93,9 +103,11 @@ class LearningLanguageProvider extends ChangeNotifier {
     // one above stopped being true the moment that value changed.
     if (_englishLevel != normalized) {
       _englishLevel = normalized;
-      LearningLanguageService.setEnglishLevel(_englishLevel);
       notifyListeners();
     }
+
+    // Outside the comparison, for the reason given in selectSourceLanguage.
+    LearningLanguageService.setEnglishLevel(_englishLevel);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_englishLevelKey, _englishLevel);
@@ -109,9 +121,11 @@ class LearningLanguageProvider extends ChangeNotifier {
     // one above stopped being true the moment that value changed.
     if (_learningGoal != normalized) {
       _learningGoal = normalized;
-      LearningLanguageService.setLearningGoal(_learningGoal);
       notifyListeners();
     }
+
+    // Outside the comparison, for the reason given in selectSourceLanguage.
+    LearningLanguageService.setLearningGoal(_learningGoal);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_learningGoalKey, _learningGoal);

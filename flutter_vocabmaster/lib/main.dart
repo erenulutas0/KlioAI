@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -177,13 +178,20 @@ class _AppOpenLifecycleObserver extends WidgetsBindingObserver {
 Future<bool> _initializeFirebaseTelemetry() async {
   try {
     await Firebase.initializeApp();
-    CrashlyticsService.setEnabled(true);
+    // Off in debug. Both of these write into the one production Firebase
+    // project, so without the gate a developer's own crashes and every
+    // login_completed fired while testing land in the same numbers as real
+    // users' -- on the launch day those numbers exist to answer. The handlers
+    // are still installed, so a debug crash still prints; it just is not
+    // reported as somebody's.
+    final bool report = !kDebugMode;
+    CrashlyticsService.setEnabled(report);
     FlutterError.onError = CrashlyticsService.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       unawaited(CrashlyticsService.recordError(error, stack, fatal: true));
       return true;
     };
-    AnalyticsService.setEnabled(true);
+    AnalyticsService.setEnabled(report);
     return true;
   } catch (e) {
     AnalyticsService.setEnabled(false);

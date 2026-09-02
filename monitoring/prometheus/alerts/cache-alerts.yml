@@ -278,3 +278,58 @@ groups:
         annotations:
           summary: "Redis rejected client connections"
           description: "Redis rejected {{ $value | printf \"%.0f\" }} connections in the last 5m."
+
+  # The outage nobody was watching for.
+  #
+  # Every rule above this point measures something the app does to itself --
+  # cache hits, rate-limit blocks, quota decisions, JVM and Redis health. None
+  # of them fires when the thing the app is FOR stops working. AiProviderMetricsService
+  # has emitted ai_provider_request_total{outcome="error"} all along and no rule
+  # read it, so a Groq outage looked like this: errors in docker logs, a health
+  # endpoint still saying UP, and a learner telling us the tutor is broken.
+  - name: ai-provider-availability
+    rules:
+      - alert: AiProviderErrorRateHigh
+        # A ratio, not a count: a burst of errors during a busy hour and a
+        # handful during a quiet one are the same problem, and a raw count
+        # would page on the first and miss the second.
+        expr: |
+          sum(rate(ai_provider_request_total{outcome="error"}[10m]))
+            /
+          clamp_min(sum(rate(ai_provider_request_total[10m])), 0.001)
+            > 0.25
+        for: 5m
+        labels:
+          severity: critical
+          component: ai
+        annotations:
+          summary: "AI provider is failing more than a quarter of requests"
+          description: "{{ $value | printf \"%.0%\" }} of AI requests have failed over the last 10m. Every AI feature in the app is degraded or down."
+
+      - alert: AiProviderReturningEmptyReplies
+        # Distinct from an error, and worse to diagnose: the call succeeds, the
+        # user sees nothing arrive. This is the reasoning-model failure that
+        # spends the whole budget on thinking and returns no content.
+        expr: |
+          sum(rate(ai_provider_request_total{outcome="empty"}[15m]))
+            /
+          clamp_min(sum(rate(ai_provider_request_total[15m])), 0.001)
+            > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "AI provider is returning empty replies"
+          description: "{{ $value | printf \"%.0%\" }} of AI requests came back empty over the last 15m. Check reasoning_effort and the max_tokens budgets."
+
+      - alert: BackendScrapeDown
+        # The rule that tells you the other rules have stopped meaning anything.
+        expr: up{job=~".*backend.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Prometheus cannot scrape the backend"
+          description: "The backend has been unscrapeable for 3m. Every other alert in this file is blind until it returns."

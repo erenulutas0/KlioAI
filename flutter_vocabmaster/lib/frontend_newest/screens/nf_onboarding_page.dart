@@ -240,6 +240,22 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
     final bool fromSettings = widget.fromSettings;
     final WidgetBuilder? nextPage = widget.nextPageBuilder;
 
+    // Finishing onboarding is an answer, including when every chip was left on
+    // its default. Without this the learner who taps Skip and then Start
+    // learning stores nothing, LearningLanguageService.hasAnswered stays
+    // false, currentProfile() omits sourceLanguage -- and the server falls
+    // back to the row it created at signup, which is Turkish. A Spanish or
+    // German learner then got every meaning, correction and explanation in
+    // Turkish while Settings showed them "Spanish", because Settings reads the
+    // local guess and the server never heard it.
+    //
+    // What is committed is not a guess: the defaults on screen come from the
+    // device language, and confirming them is exactly what the provider's own
+    // select* methods are written to record.
+    await profile.selectSourceLanguage(profile.sourceLanguage);
+    await profile.selectEnglishLevel(profile.englishLevel);
+    await profile.selectLearningGoal(profile.learningGoal);
+
     await AnalyticsService.logLearningProfileUpdated(
       sourceLanguage: profile.sourceLanguage,
       englishLevel: profile.englishLevel,

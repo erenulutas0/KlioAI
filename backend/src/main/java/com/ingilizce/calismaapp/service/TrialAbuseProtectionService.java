@@ -59,6 +59,20 @@ public class TrialAbuseProtectionService {
         this(properties, null, null);
     }
 
+    /**
+     * Returned by {@link #getCount} when fail-closed and the count could not be read.
+     *
+     * <p>Distinct from a large count on purpose. Both block the trial, and only one of them
+     * should be remembered: too many accounts on a device is a fact about the world, while a
+     * Redis timeout is a fact about the minute it happened in. They used to be the same value
+     * with the same reason string, so a blip during signup wrote trialEligible=false to the
+     * database and nothing ever re-evaluated it -- that person was on the free tier for good.
+     */
+    static final long COUNT_UNAVAILABLE = Long.MAX_VALUE;
+
+    /** The reason string for a block that must not be persisted. */
+    public static final String REASON_UNAVAILABLE = "counter-unavailable";
+
     public TrialDecision evaluate(String deviceId, String clientIp) {
         if (!properties.isEnabled()) {
             return TrialDecision.allowed();
@@ -67,6 +81,10 @@ public class TrialAbuseProtectionService {
         String normalizedDeviceId = normalizeDeviceId(deviceId);
         if (normalizedDeviceId != null) {
             long deviceCount = getCount(DEVICE_PREFIX + normalizedDeviceId, deviceAttempts);
+            if (deviceCount == COUNT_UNAVAILABLE) {
+                onBlock(REASON_UNAVAILABLE);
+                return TrialDecision.blocked(REASON_UNAVAILABLE);
+            }
             if (deviceCount >= properties.getMaxTrialAccountsPerDevice()) {
                 onBlock("device-limit");
                 return TrialDecision.blocked("device-limit");
@@ -76,6 +94,10 @@ public class TrialAbuseProtectionService {
         String normalizedIp = normalizeIp(clientIp);
         if (normalizedIp != null) {
             long ipCount = getCount(IP_PREFIX + normalizedIp, ipAttempts);
+            if (ipCount == COUNT_UNAVAILABLE) {
+                onBlock(REASON_UNAVAILABLE);
+                return TrialDecision.blocked(REASON_UNAVAILABLE);
+            }
             if (ipCount >= properties.getMaxTrialAccountsPerIp()) {
                 onBlock("ip-limit");
                 return TrialDecision.blocked("ip-limit");
@@ -110,7 +132,7 @@ public class TrialAbuseProtectionService {
             } catch (Exception ex) {
                 onRedisFailure("getCount", ex);
                 if (isFailClosedMode()) {
-                    return Long.MAX_VALUE;
+                    return COUNT_UNAVAILABLE;
                 }
             }
         }

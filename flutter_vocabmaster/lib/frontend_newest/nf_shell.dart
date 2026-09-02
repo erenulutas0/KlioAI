@@ -293,7 +293,7 @@ class _NfShellState extends State<NfShell> {
       case NfPracticeModes.pronunciation:
         _pushNf(const NfPronunciationPage());
       case NfPracticeModes.wordGalaxy:
-        _pushNf(const NfWordGalaxyPage());
+        _pushNf(NfWordGalaxyPage(onOpenDictionary: _openDictionary));
       default:
         // An unknown id can only come from a stored "continue where you left
         // off" note written by an older build. Dropping the learner on the
