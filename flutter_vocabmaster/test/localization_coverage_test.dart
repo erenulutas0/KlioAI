@@ -584,7 +584,7 @@ void main() {
       'aussprechen', 'dasselbe', 'erfasst', 'flüssiger', 'flüssigkeit',
       'flussufer', 'fokussieren', 'fokussiert', 'gesprächsfluss', 'gewusst',
       'kontoeinstellungen', 'lassen', 'lässt', 'loslassen', 'manuell',
-      'modellaussprache', 'neue', 'neuer', 'neues', 'passen', 'passend',
+      'modellaussprache', 'neue', 'neuer', 'neues', 'neueste', 'passen', 'passend',
       'passenden', 'passiert', 'passt', 'passwort', 'passwörter', 'professionelle',
       'schreibassistent', 'sprechassistenten', 'tagesserie', 'tagesset',
       'tagessitzung', 'übersetzungsset', 'übungssprache', 'verbessere',

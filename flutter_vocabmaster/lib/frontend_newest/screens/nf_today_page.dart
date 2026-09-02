@@ -4,12 +4,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/language_profile.dart';
 import '../../models/sentence_view_model.dart';
 import '../../models/voice_model.dart';
 import '../../models/word.dart';
+import '../../models/word_origins.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/learning_language_service.dart';
 import '../../services/local_database_service.dart';
@@ -63,6 +65,7 @@ class NfTodayPage extends StatefulWidget {
     this.onOpenTutor,
     this.onAddFirstWord,
     this.onToggleBrightness,
+    this.onOpenSubscription,
   });
 
   /// Fired by the "Start session" button. Null leaves the button disabled,
@@ -83,6 +86,9 @@ class NfTodayPage extends StatefulWidget {
   /// have decided to change a setting, and this is where you already are when
   /// the light in the room changes and you want the screen dark now.
   final VoidCallback? onToggleBrightness;
+
+  /// Where the trial notice sends someone who taps it.
+  final VoidCallback? onOpenSubscription;
 
   @override
   State<NfTodayPage> createState() => _NfTodayPageState();
@@ -198,6 +204,13 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 onOpenLanguages: _openLanguageSheet,
                 onToggleBrightness: widget.onToggleBrightness,
               ),
+              if (model.showTrialNotice) ...<Widget>[
+                const SizedBox(height: NfSpace.s14),
+                _TrialNotice(
+                  days: model.trialDaysRemaining!,
+                  onOpen: widget.onOpenSubscription,
+                ),
+              ],
               const SizedBox(height: NfSpace.s20),
               _WeekStrip(
                 completed: model.weekCompleted,
@@ -209,6 +222,13 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 onStartSession: widget.onStartSession,
                 onAddFirstWord: widget.onAddFirstWord,
               ),
+              // Gone once today's five are in: the plan row above it is
+              // ticked by then, and a card that keeps offering words after
+              // the goal is met reads as nagging.
+              if (!model.learnDone) ...<Widget>[
+                const SizedBox(height: NfSpace.s16),
+                _DailyWordsCard(model: model),
+              ],
               const SizedBox(height: NfSpace.s16),
               _TutorCard(onOpenTutor: widget.onOpenTutor),
               const SizedBox(height: NfSpace.s16),
@@ -244,6 +264,7 @@ class _TodayModel {
     required this.weeklyXp,
     required this.level,
     required this.levelProgress,
+    required this.trialDaysRemaining,
   });
 
   factory _TodayModel.from(
@@ -281,6 +302,12 @@ class _TodayModel {
           todayXpActions[XPActionTypes.translationComplete.id] ?? 0,
       now: DateTime.now(),
     );
+
+    // The server sends trialDaysRemaining with the quota and the provider
+    // merges it into userInfo; nothing read it. Null when not on a trial.
+    final Object? rawTrial = appState.userInfo?['trialDaysRemaining'];
+    final int? trialDays =
+        rawTrial is int ? rawTrial : int.tryParse(rawTrial?.toString() ?? '');
 
     // ── Week strip ─────────────────────────────────────────────────────────
     final int todayIndex = DateTime.now().weekday - 1;
@@ -325,6 +352,7 @@ class _TodayModel {
       weeklyXp: _asInt(stats['weeklyXP']),
       level: math.max(1, _asInt(stats['level'], fallback: 1)),
       levelProgress: appState.xpManager.levelProgress(xp),
+      trialDaysRemaining: trialDays,
     );
   }
 
@@ -346,6 +374,14 @@ class _TodayModel {
 
   int get reviewTarget => plan.reviewTarget;
   bool get reviewDone => plan.reviewDone;
+  /// Days of free trial left, or null when the learner is not on one.
+  final int? trialDaysRemaining;
+
+  /// Only in the last two days. A notice that shows for the whole week is
+  /// wallpaper by day three; two days is a warning before the wall.
+  bool get showTrialNotice =>
+      trialDaysRemaining != null && trialDaysRemaining! <= 2;
+
   bool get hasWords => plan.hasWords;
 
   int get newTarget => plan.newTarget;
@@ -1543,6 +1579,253 @@ class _StatTile extends StatelessWidget {
               height: NfSize.progressQuiet,
               semanticsLabel: label,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TODAY'S WORDS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Five words for the learner's level, each one tap from the deck.
+///
+/// This card is why the plan's second row is honest. That row has always read
+/// "Learn 5 new words -- fresh picks from today's word set", and the set was
+/// fetched on every sign-in (AppStateProvider.dailyWords, with an offline
+/// fallback so it is never empty) and drawn nowhere in this frontend. The row
+/// promised a feature that did not exist on any screen.
+///
+/// It also answers the other half of the same gap. "Add your first word" sent
+/// a brand-new learner to an empty dictionary and asked them to think of a
+/// word; most people, asked that on a blank screen, think of nothing. These
+/// are the starter list.
+class _DailyWordsCard extends StatelessWidget {
+  const _DailyWordsCard({required this.model});
+
+  final _TodayModel model;
+
+  static const int _count = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final AppStateProvider appState = context.watch<AppStateProvider>();
+    final List<Map<String, dynamic>> picks =
+        appState.dailyWords.take(_count).toList();
+    if (picks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final Set<String> saved = <String>{
+      for (final Word w in appState.allWords) w.englishWord.trim().toLowerCase(),
+    };
+
+    return NfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            context.tr('home.dailyWords.title'),
+            style: NfTokens.display(size: NfFont.s16, color: t.ink),
+          ),
+          const SizedBox(height: NfSpace.s4),
+          Text(
+            context.tr('home.dailyWords.subtitle'),
+            style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+          ),
+          const SizedBox(height: NfSpace.s12),
+          for (int i = 0; i < picks.length; i++) ...<Widget>[
+            if (i > 0) Divider(height: NfSpace.s16, color: t.border),
+            _DailyWordRow(
+              pick: picks[i],
+              alreadySaved: saved.contains(_englishOf(picks[i]).toLowerCase()),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _englishOf(Map<String, dynamic> pick) =>
+      (pick['word'] ?? pick['englishWord'] ?? '').toString().trim();
+}
+
+class _DailyWordRow extends StatefulWidget {
+  const _DailyWordRow({required this.pick, required this.alreadySaved});
+
+  final Map<String, dynamic> pick;
+  final bool alreadySaved;
+
+  @override
+  State<_DailyWordRow> createState() => _DailyWordRowState();
+}
+
+class _DailyWordRowState extends State<_DailyWordRow> {
+  bool _busy = false;
+
+  String get _english => _DailyWordsCard._englishOf(widget.pick);
+  String get _translation =>
+      (widget.pick['translation'] ?? widget.pick['turkish'] ?? '')
+          .toString()
+          .trim();
+
+  Future<void> _add() async {
+    if (_busy || widget.alreadySaved) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<AppStateProvider>().addWord(
+            english: _english,
+            turkish: _translation,
+            addedDate: DateTime.now(),
+            difficulty: (widget.pick['difficulty'] ?? 'medium').toString(),
+            source: WordOrigins.dailyWords,
+          );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                _english,
+                style: NfTokens.body(
+                  size: NfFont.s145,
+                  weight: NfTokens.bodyEmphasisWeight,
+                  color: t.ink,
+                ),
+              ),
+              if (_translation.isNotEmpty)
+                Text(
+                  _translation,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: NfSpace.s10),
+        NfChip(
+          label: context.tr(widget.alreadySaved
+              ? 'home.dailyWords.added'
+              : 'home.dailyWords.add'),
+          icon: widget.alreadySaved ? LucideIcons.check : LucideIcons.plus,
+          dense: true,
+          variant: widget.alreadySaved
+              ? NfChipVariant.selected
+              : NfChipVariant.unselected,
+          onTap: widget.alreadySaved || _busy ? null : () => unawaited(_add()),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TRIAL NOTICE
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// One line, in the last two days of a free trial, dismissable for the day.
+///
+/// The server has always sent trialDaysRemaining and the app has always
+/// thrown it away, so the trial ended as a 429 with no warning -- which a
+/// learner reads as the app breaking, not as a plan ending. Dismissal is per
+/// day rather than forever: two days means at most two showings, and the
+/// second is the one that matters.
+class _TrialNotice extends StatefulWidget {
+  const _TrialNotice({required this.days, required this.onOpen});
+
+  final int days;
+  final VoidCallback? onOpen;
+
+  @override
+  State<_TrialNotice> createState() => _TrialNoticeState();
+}
+
+class _TrialNoticeState extends State<_TrialNotice> {
+  static const String _prefsKey = 'nf_trial_notice_dismissed_on';
+
+  bool _dismissed = true; // hidden until the preference has been read
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  static String get _today =>
+      DateTime.now().toIso8601String().split('T').first;
+
+  Future<void> _load() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final bool dismissedToday = prefs.getString(_prefsKey) == _today;
+      if (mounted) setState(() => _dismissed = dismissedToday);
+    } catch (_) {
+      if (mounted) setState(() => _dismissed = false);
+    }
+  }
+
+  Future<void> _dismiss() async {
+    setState(() => _dismissed = true);
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsKey, _today);
+    } catch (_) {
+      // Lost on failure means it shows again next launch, which is fine.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+    final NfTokens t = NfTokens.of(context);
+    final String text = widget.days <= 0
+        ? context.tr('trial.notice.today')
+        : context.tr('trial.notice').replaceAll('{n}', '${widget.days}');
+
+    return NfCard(
+      onTap: widget.onOpen,
+      child: Row(
+        children: <Widget>[
+          Icon(LucideIcons.clock, size: NfFont.s18, color: t.streakText),
+          const SizedBox(width: NfSpace.s10),
+          Expanded(
+            child: Text(
+              text,
+              style: NfTokens.body(size: NfFont.s135, color: t.ink),
+            ),
+          ),
+          if (widget.onOpen != null) ...<Widget>[
+            const SizedBox(width: NfSpace.s8),
+            Text(
+              context.tr('trial.notice.cta'),
+              style: NfTokens.body(
+                size: NfFont.s125,
+                weight: NfTokens.bodyEmphasisWeight,
+                color: t.primaryText,
+              ),
+            ),
+          ],
+          IconButton(
+            onPressed: () => unawaited(_dismiss()),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            icon: Icon(LucideIcons.x, size: NfFont.s16, color: t.inkFaint),
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+          ),
         ],
       ),
     );

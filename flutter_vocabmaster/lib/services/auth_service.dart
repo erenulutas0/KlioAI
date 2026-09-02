@@ -152,7 +152,7 @@ class AuthService {
         final token = data['accessToken'] ?? data['sessionToken'];
         final refreshToken = data['refreshToken'];
         if (token == null || refreshToken == null) {
-          return {'success': false, 'message': 'Token alınamadı'};
+          return {'success': false, 'code': 'no-token', 'message': 'Token alınamadı'};
         }
 
         final user = _normalizeUserPayload(
@@ -289,7 +289,7 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         _debugLog('googleLogin cancelled by user');
-        return {'success': false, 'message': 'Giriş iptal edildi'};
+        return {'success': false, 'code': 'cancelled', 'message': 'Giriş iptal edildi'};
       }
       _debugLog(
         'google account id=${googleUser.id}, email=${googleUser.email}, displayName=${googleUser.displayName}',
@@ -345,7 +345,7 @@ class AuthService {
         final token = data['accessToken'] ?? data['sessionToken'];
         final refreshToken = data['refreshToken'];
         if (token == null || refreshToken == null) {
-          return {'success': false, 'message': 'Token alınamadı'};
+          return {'success': false, 'code': 'no-token', 'message': 'Token alınamadı'};
         }
 
         final user = _normalizeUserPayload(
@@ -372,13 +372,17 @@ class AuthService {
         _debugLog('googleLogin failed message=${data['error']}');
         return {
           'success': false,
+          'code': 'server',
           'message': data['error'] ?? 'Google ile giriş başarısız'
         };
       }
     } catch (e) {
       _debugLog('googleLogin exception=$e');
+      // `code` is what the shipping landing page reads and localises; `message`
+      // is the English sentence the retired screens still show verbatim.
       return {
         'success': false,
+        'code': GoogleLoginErrorMessageFormatter.codeFor(e),
         'message': GoogleLoginErrorMessageFormatter.format(e),
       };
     }

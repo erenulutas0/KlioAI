@@ -71,6 +71,25 @@ class _NfLandingView extends StatefulWidget {
 class _NfLandingViewState extends State<_NfLandingView> {
   bool _isSigningIn = false;
 
+  /// The failure sentence in the learner's language, chosen by code.
+  ///
+  /// Every code `GoogleLoginErrorMessageFormatter.codeFor` can return has a
+  /// `login.error.<code>` key in all seven locales; anything without one falls
+  /// to the generic line rather than to the English `message`.
+  static String _messageFor(BuildContext context, Map<String, dynamic> result) {
+    const Map<String, String> keys = <String, String>{
+      'cancelled': 'login.error.cancelled',
+      'offline': 'login.error.offline',
+      'network': 'login.error.network',
+      'config': 'login.error.config',
+      'unavailable': 'login.error.unavailable',
+      'no-token': 'login.error.noToken',
+      'server': 'login.error.server',
+    };
+    final String? key = keys[result['code']?.toString()];
+    return context.tr(key ?? 'login.error.google');
+  }
+
   Future<void> _handleGoogleLogin() async {
     if (_isSigningIn) return;
     setState(() => _isSigningIn = true);
@@ -107,15 +126,16 @@ class _NfLandingViewState extends State<_NfLandingView> {
       return;
     }
 
-    // Everything that is not a success arrives here, cancellation included:
-    // `AuthService.googleLogin` returns its own line for a dismissed sheet and
-    // `GoogleLoginErrorMessageFormatter`'s for a real failure. Both are already
-    // written for a learner to read, so the screen shows them as they are.
+    // Everything that is not a success arrives here, cancellation included.
+    // The result carries a short code, and the sentence for it comes from the
+    // same key table as the rest of the screen. It used to show `message` as
+    // handed over -- an English paragraph for every failure and Turkish for a
+    // dismissed sheet -- on the one screen every new learner has to get past.
     final NfTokens t = NfTokens.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          (result['message'] as String?) ?? context.tr('login.error.google'),
+          _messageFor(context, result),
           style: NfTokens.body(size: NfFont.s135, color: t.primaryInk),
         ),
         backgroundColor: t.wrong,

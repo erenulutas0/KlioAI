@@ -1768,7 +1768,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 12),
           _buildInfoTile(
             Icons.info_outline,
-            _text('Uygulama surumu', 'App version'),
+            _text('Uygulama sürümü', 'App version'),
             _appVersionLabel ?? '-',
           ),
           const SizedBox(height: 12),

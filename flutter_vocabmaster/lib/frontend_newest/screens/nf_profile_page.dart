@@ -233,6 +233,13 @@ class _NfProfilePageState extends State<NfProfilePage>
         case 'FREE':
           return context.tr('profile.plan.free');
         case 'FREE_TRIAL_7D':
+          // With the count when the server has sent one. The days were fetched
+          // and merged into userInfo all along and shown nowhere, so learners
+          // hit the wall with no warning and read it as the app breaking.
+          final Object? days = user?['trialDaysRemaining'];
+          if (days is int && days >= 0) {
+            return context.tr('trial.daysLeft').replaceAll('{n}', '$days');
+          }
           return context.tr('profile.plan.trial');
         default:
           // A paid tier the app has no name for. The server's own code is the
