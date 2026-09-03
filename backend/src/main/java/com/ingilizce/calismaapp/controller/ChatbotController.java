@@ -2326,12 +2326,24 @@ public class ChatbotController {
     }
 
     // Representative total (prompt + completion) token cost per user-facing action.
-    // These are deliberately conservative rounded averages so the "N actions left"
-    // hint never over-promises; they translate the opaque token quota into units
-    // users understand. Keep the keys stable: the Flutter card localizes the labels.
-    private static final int TOKENS_PER_CONVERSATION_MESSAGE = 700;
-    private static final int TOKENS_PER_TRANSLATION_CHECK = 450;
-    private static final int TOKENS_PER_SENTENCE_SET = 1000;
+    // These translate the opaque token quota into units a learner understands, so
+    // they must never over-promise. Keep the keys stable: the Flutter card
+    // localizes the labels.
+    //
+    // Raised on 2026-09-03. The old numbers predated REASONING_TOKEN_ALLOWANCE,
+    // the 1600 tokens added to every completion budget because these models bill
+    // hidden reasoning as completion. A chat turn was costed at 700 and measured
+    // at 1200-1900; a sentence set at 1000 and measured at 2000-3300. So the card
+    // told a learner they had twice the conversations they actually had, and the
+    // quota ran out at about the halfway mark of its own estimate -- which reads
+    // as the app lying, not as a limit.
+    //
+    // If the reasoning allowance changes, these change with it.
+    private static final int TOKENS_PER_CONVERSATION_MESSAGE = 1600;
+    private static final int TOKENS_PER_TRANSLATION_CHECK = 1200;
+    private static final int TOKENS_PER_SENTENCE_SET = 2600;
+    // The only honest one already: grammar checks are charged a flat 400
+    // regardless of what they cost, so the estimate is the charge.
     private static final int TOKENS_PER_GRAMMAR_CHECK = 400;
 
     private Map<String, Integer> estimateRemainingActivities(long tokensRemaining) {

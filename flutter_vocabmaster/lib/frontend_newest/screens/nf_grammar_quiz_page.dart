@@ -159,9 +159,8 @@ class _NfGrammarQuizPageState extends State<NfGrammarQuizPage> {
         });
         return;
       }
-      final String msg = e is ApiQuotaExceededException
-          ? AiErrorMessageFormatter.forQuota(e)
-          : loadErrorTemplate.replaceAll('{error}', '$e');
+      final String msg =
+          AiErrorMessageFormatter.intoTemplate(loadErrorTemplate, e);
       setState(() {
         _errorMessage = msg;
         _isLoading = false;

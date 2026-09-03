@@ -125,7 +125,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
+          : AiErrorMessageFormatter.forError(e);
       _showMessage(msg);
     }
   }
@@ -189,7 +189,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
+          : AiErrorMessageFormatter.forError(e);
       _showMessage(msg);
     }
   }

@@ -285,7 +285,7 @@ class _NfTranslationPracticePageState extends State<NfTranslationPracticePage> {
       if (!mounted) return;
       final String msg = e is ApiQuotaExceededException
           ? AiErrorMessageFormatter.forQuota(e)
-          : context.tr('common.errorDetail').replaceAll('{e}', '$e');
+          : AiErrorMessageFormatter.forError(e);
       _showError(msg);
     }
   }

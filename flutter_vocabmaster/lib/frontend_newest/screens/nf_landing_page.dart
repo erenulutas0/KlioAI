@@ -101,9 +101,20 @@ class _NfLandingViewState extends State<_NfLandingView> {
     setState(() => _isSigningIn = false);
 
     if (result['success'] == true) {
+      // Google sign-in is the only way in, and it looks the same to the client
+      // whether the account is a month old or thirty seconds old -- so this
+      // logged login_completed for both and signup_completed for nobody, and
+      // install-to-account was unmeasurable. The server now says which it was.
+      final String? userId = _extractUserId(result);
+      if (result['newAccount'] == true) {
+        await AnalyticsService.logSignupCompleted(
+          method: 'google',
+          userId: userId,
+        );
+      }
       await AnalyticsService.logLoginCompleted(
         method: 'google',
-        userId: _extractUserId(result),
+        userId: userId,
       );
 
       if (!mounted) return;

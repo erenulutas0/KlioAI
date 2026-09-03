@@ -1,11 +1,25 @@
+import 'dart:ui';
+
+import '../l10n/app_localizations.dart';
 import '../models/writing_practice_models.dart';
 import 'api_service.dart';
+import 'locale_text_service.dart';
 
 /// All AI features are proxied via backend so daily token quota (50k/user/day)
 /// and rate limits can be enforced centrally.
 ///
 /// Historical name kept to avoid touching many call sites.
 class GroqService {
+  /// "No meaning found", in the learner's language.
+  ///
+  /// It was the Turkish sentence, hard-coded, and it is what the reader's word
+  /// sheet and the dictionary display when a lookup comes back without a
+  /// definition -- so a Spanish or German learner was shown Turkish inside an
+  /// otherwise translated screen.
+  static String get _noMeaning =>
+      AppLocalizations(Locale(LocaleTextService.appLanguageCode))
+          .t('dict.noMeaning');
+
   static final ApiService _api = ApiService();
 
   /// Backward-compatible daily words entry point.
@@ -53,14 +67,14 @@ class GroqService {
         word: word,
         sentence: sentence,
       );
-      return result['definition']?.toString() ?? 'Anlam bulunamadı.';
+      return result['definition']?.toString() ?? _noMeaning;
     } catch (e) {
       if (e is ApiQuotaExceededException ||
           e is ApiUpgradeRequiredException ||
           e is ApiUnauthorizedException) {
         rethrow;
       }
-      return 'Anlam bulunamadı.';
+      return _noMeaning;
     }
   }
 

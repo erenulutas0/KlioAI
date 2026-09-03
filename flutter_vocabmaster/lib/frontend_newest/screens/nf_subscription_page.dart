@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/app_state_provider.dart';
+import '../../services/ai_error_message_formatter.dart';
 import '../../services/analytics_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
@@ -195,7 +196,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnack(
-        context.tr('subscription.err.load').replaceAll('{error}', '$e'),
+        AiErrorMessageFormatter.intoTemplate(context.tr('subscription.err.load'), e),
         error: true,
       );
     }
@@ -405,7 +406,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       _pendingPurchasePlanName = null;
       setState(() => _isPurchasing = false);
       _showSnack(
-        context.tr('subscription.err.payment').replaceAll('{error}', '$e'),
+        AiErrorMessageFormatter.intoTemplate(context.tr('subscription.err.payment'), e),
         error: true,
       );
     }
@@ -431,7 +432,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       setState(() => _isPurchasing = false);
       _showSnack(
-        context.tr('subscription.err.demo').replaceAll('{error}', '$e'),
+        AiErrorMessageFormatter.intoTemplate(context.tr('subscription.err.demo'), e),
         error: true,
       );
     }
@@ -460,7 +461,7 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
       if (!mounted) return;
       setState(() => _isPurchasing = false);
       _showSnack(
-        context.tr('subscription.err.restore').replaceAll('{error}', '$e'),
+        AiErrorMessageFormatter.intoTemplate(context.tr('subscription.err.restore'), e),
         error: true,
       );
     }

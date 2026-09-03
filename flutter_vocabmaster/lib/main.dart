@@ -103,7 +103,17 @@ void main() async {
     await CrashlyticsService.setUserId(currentUserId.toString());
   }
   if (await authService.isLoggedIn()) {
-    await offlineSyncService.initialDataLoad();
+    // Bounded, because this runs before runApp and is two sequential API calls
+    // at a 30s deadline each, either of which may retry once on a 401. On a
+    // captive wifi or against a stalled server that was up to two minutes of
+    // blank window before the first frame, which Android reports as an ANR.
+    //
+    // The timeout abandons the wait, not the work: the futures keep running
+    // and finish into the local database while the app is already usable, and
+    // every screen reads from that database anyway.
+    await offlineSyncService
+        .initialDataLoad()
+        .timeout(const Duration(seconds: 8), onTimeout: () {});
   }
   await LocalReminderService().initialize();
   if (_firebaseTelemetryEnabled && await authService.isLoggedIn()) {

@@ -319,6 +319,13 @@ public class AuthController {
             TokenBundle tokens = issueTokens(user, rememberMe, deviceId, httpRequest);
             authRateLimitService.resetLogin(email, clientIp);
             Map<String, Object> response = buildAuthSuccessResponse(user, tokens);
+            // Whether this call created the account. Google sign-in is the only
+            // route in, and it looks identical to the client whether the person
+            // has been here for a month or arrived thirty seconds ago -- so the
+            // app logged login_completed for both and signup_completed never at
+            // all. Install-to-account was therefore unmeasurable, which is the
+            // one number a launch exists to produce.
+            response.put("newAccount", createdUser);
             if (photoUrl != null && !photoUrl.isBlank()) {
                 response.put("photoUrl", photoUrl);
             }

@@ -122,7 +122,7 @@ class AppStateProvider extends ChangeNotifier {
 
   Map<String, dynamic> _buildDefaultUserStats() {
     return {
-      'name': 'Kullanıcı',
+      'name': '',
       'level': 1,
       'xp': 0,
       'xpToNextLevel': 100,
@@ -154,7 +154,10 @@ class AppStateProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════════════
   // USER DATA
   // ═══════════════════════════════════════════════════════════════
-  String _userName = 'Kullanıcı';
+  /// Empty rather than a word in one language: NfTodayPage renders the
+  /// greeting alone when there is no name, so a Google account without a
+  /// display name greeted a German learner with "Willkommen, Kullanıcı".
+  String _userName = '';
   Map<String, dynamic>? _userInfo; // Full user info from auth
   late Map<String, dynamic> _userStats = _buildDefaultUserStats();
   List<Map<String, dynamic>> _weeklyActivity = [];

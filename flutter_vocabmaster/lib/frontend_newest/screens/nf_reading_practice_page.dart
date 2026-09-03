@@ -141,9 +141,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
       });
       return;
     }
-    final String msg = e is ApiQuotaExceededException
-        ? AiErrorMessageFormatter.forQuota(e)
-        : loadFailed.replaceAll('{error}', '$e');
+    final String msg = AiErrorMessageFormatter.intoTemplate(loadFailed, e);
     setState(() {
       _errorMessage = msg;
       _isLoading = false;
