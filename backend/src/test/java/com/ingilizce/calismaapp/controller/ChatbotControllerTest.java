@@ -315,7 +315,10 @@ public class ChatbotControllerTest {
 
         mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
                 .file(audio)
-                .param("durationMs", "61000")
+                // 60s cap plus SPEECH_DURATION_TOLERANCE_MS (2s) for a client
+                // that reports 60.4s on a 60s recording. 61s is inside that and
+                // is supposed to be accepted; 63s is unambiguously over.
+                .param("durationMs", "63000")
                 .header("X-User-Id", "1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.reason").value("audio-too-long"));
@@ -1677,10 +1680,13 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.tokensRemaining").value(37500))
                 .andExpect(jsonPath("$.usagePercent").value(25.0))
                 .andExpect(jsonPath("$.remainingPercent").value(75.0))
-                // 37500 / {700, 450, 1000, 400} representative per-action token costs
-                .andExpect(jsonPath("$.activityEstimates.conversations").value(53))
-                .andExpect(jsonPath("$.activityEstimates.translationChecks").value(83))
-                .andExpect(jsonPath("$.activityEstimates.sentenceSets").value(37))
+                // 37500 / {1600, 1200, 2600, 400} representative per-action token
+                // costs. These track the reasoning allowance: when the old 700 was
+                // still here the card promised 53 conversations and the quota ran
+                // out at about 23.
+                .andExpect(jsonPath("$.activityEstimates.conversations").value(23))
+                .andExpect(jsonPath("$.activityEstimates.translationChecks").value(31))
+                .andExpect(jsonPath("$.activityEstimates.sentenceSets").value(14))
                 .andExpect(jsonPath("$.activityEstimates.grammarChecks").value(93));
     }
 
