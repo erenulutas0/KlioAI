@@ -46,9 +46,12 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled true
-        ndk {
-            abiFilters "arm64-v8a"
-        }
+        // No abiFilters. Restricting this to arm64-v8a on 2 May 2026 (the 16 KB
+        // page-size commit) silently dropped 32-bit ARM, and Play then refused
+        // the next release outright: everyone still on an armeabi-v7a device
+        // from a build published before that date had no bundle they could
+        // upgrade to. The 16 KB requirement only governs 64-bit libraries, so
+        // shipping 32-bit alongside them costs compliance nothing.
     }
 
     signingConfigs {
@@ -73,11 +76,6 @@ android {
         }
     }
 
-    packaging {
-        jniLibs {
-            excludes += ["lib/armeabi-v7a/**", "lib/x86_64/**"]
-        }
-    }
 }
 
 flutter {

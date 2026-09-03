@@ -134,6 +134,14 @@ jobs:
             --build-number=${{ steps.versioncode.outputs.value }} \
             --dart-define=BACKEND_URL="${{ inputs.backend_url }}"
 
+      # Every device the app already reaches must still be reachable, and the 64-bit
+      # libraries must stay 16 KB aligned. Those two pull against each other: the 16 KB
+      # commit in May 2026 satisfied the rule by shipping only arm64-v8a, which stranded
+      # every 32-bit user and got the next release refused by Play outright -- four months
+      # later, at upload, with no signal in between. This asserts both at once.
+      - name: Verify AAB device coverage and 16 KB alignment
+        run: python ./scripts/check-aab-abis.py flutter_vocabmaster/build/app/outputs/bundle/release/app-release.aab
+
       # Records which commit produced which versionCode, so the mapping is not lost just
       # because the number is no longer written in the repository.
       - name: Record build identity
