@@ -1,6 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
 import com.ingilizce.calismaapp.config.AiModelRoutingProperties;
+import com.ingilizce.calismaapp.config.SyntheticProbeProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -30,7 +31,8 @@ class SyntheticProbeServiceTest {
                 .thenReturn("OK");
 
         SyntheticProbeService service =
-                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null);
+                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null,
+                        new SyntheticProbeProperties());
 
         assertTrue(service.runProbe());
     }
@@ -41,7 +43,8 @@ class SyntheticProbeServiceTest {
                 .thenReturn(null);
 
         SyntheticProbeService service =
-                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null);
+                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null,
+                        new SyntheticProbeProperties());
 
         assertFalse(service.runProbe());
     }
@@ -52,7 +55,8 @@ class SyntheticProbeServiceTest {
                 .thenReturn("I refuse to answer");
 
         SyntheticProbeService service =
-                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null);
+                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null,
+                        new SyntheticProbeProperties());
 
         assertFalse(service.runProbe());
     }
@@ -63,7 +67,8 @@ class SyntheticProbeServiceTest {
                 .thenThrow(new RuntimeException("provider down"));
 
         SyntheticProbeService service =
-                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null);
+                new SyntheticProbeService(aiCompletionProvider, modelRoutingProperties, null,
+                        new SyntheticProbeProperties());
 
         assertFalse(service.runProbe());
     }

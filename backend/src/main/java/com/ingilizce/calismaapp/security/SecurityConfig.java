@@ -130,7 +130,11 @@ public class SecurityConfig {
                             "/api/subscription/google-play/rtdn",
                             "/api/subscription/plans",
                             "/actuator/health",
-                            "/actuator/health/**")
+                            "/actuator/health/**",
+                            // Read by an external uptime monitor, which cannot
+                            // authenticate. One word and a timestamp; see
+                            // AiStatusController for what it deliberately omits.
+                            "/api/ops/ai-status")
                             .permitAll();
                     // Readable only by something holding the scrape token. The
                     // check is on the request rather than on an authenticated
