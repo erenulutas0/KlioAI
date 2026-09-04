@@ -42,16 +42,16 @@ void main() {
   });
 
   test('a template never carries the exception into the UI', () {
-    const String template = 'Payment failed: {error}';
+    // An unrecognised failure: nothing true can be said about it, so the
+    // placeholder and its separator go rather than being filled with noise.
+    // A SocketException no longer lands here -- it is named instead, which
+    // offline_message_test.dart covers.
     final String filled = AiErrorMessageFormatter.intoTemplate(
-      template,
-      const SocketExceptionLike(
-        "Failed host lookup: 'api.klioai.app' (OS Error: errno = 7)",
-      ),
+      'Payment failed: {error}',
+      const SocketExceptionLike('some unrecognised internal state'),
     );
 
-    expect(filled, isNot(contains('errno')));
-    expect(filled, isNot(contains('api.klioai.app')));
+    expect(filled, isNot(contains('unrecognised')));
     expect(filled, isNot(contains('{error}')));
     // The separator goes with the placeholder rather than dangling.
     expect(filled, 'Payment failed');
@@ -75,6 +75,7 @@ void main() {
         placeholder: '{e}',
       ),
       'Error',
+      reason: 'an unrecognised failure strips; a named one fills',
     );
   });
 
@@ -145,5 +146,5 @@ class SocketExceptionLike {
   final String detail;
 
   @override
-  String toString() => 'SocketException: $detail';
+  String toString() => detail;
 }

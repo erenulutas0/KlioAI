@@ -1,3 +1,5 @@
+import 'network_failure.dart';
+
 /// Turns a Google sign-in failure into something a screen can act on.
 ///
 /// Two outputs, for two audiences. [codeFor] returns a short stable code —
@@ -26,10 +28,9 @@ class GoogleLoginErrorMessageFormatter {
   static String codeFor(Object error) {
     final String normalized = error.toString().toLowerCase();
 
-    if (normalized.contains('socketexception') ||
-        normalized.contains('failed host lookup') ||
-        normalized.contains('connection refused') ||
-        normalized.contains('network is unreachable')) {
+    // Shared with AiErrorMessageFormatter, so the two cannot drift apart on
+    // what counts as being offline.
+    if (looksOffline(error)) {
       return 'offline';
     }
 
@@ -52,7 +53,7 @@ class GoogleLoginErrorMessageFormatter {
 
     if (normalized.contains('network_error') ||
         normalized.contains('network error') ||
-        normalized.contains('timeoutexception')) {
+        looksTimedOut(error)) {
       return 'network';
     }
 

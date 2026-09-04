@@ -3,6 +3,7 @@ import 'dart:ui';
 import '../l10n/app_localizations.dart';
 import 'api_service.dart';
 import 'locale_text_service.dart';
+import 'network_failure.dart';
 
 /// What to tell a learner when an AI request fails.
 ///
@@ -105,10 +106,19 @@ class AiErrorMessageFormatter {
   }
 
   /// The message for a failure this class recognises, or null.
+  ///
+  /// The network cases are here rather than left to the caller because
+  /// [intoTemplate] has nothing useful to say without them. Every template
+  /// this fills reads "<something>: {error}", so an unrecognised failure
+  /// strips down to a bare label -- offline, the paywall's restore button
+  /// said exactly "Hata" and nothing else, which is no more use to a learner
+  /// than the stack trace it replaced.
   static String? _specificFor(Object e) {
     if (e is ApiQuotaExceededException) return forQuota(e);
     if (e is ApiUpgradeRequiredException) return forUpgrade(e);
     if (e is ApiAiServiceException) return _t('ai.err.aiService');
+    if (looksOffline(e)) return _t('common.err.offline');
+    if (looksTimedOut(e)) return _t('common.err.timeout');
     return null;
   }
 
