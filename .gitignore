@@ -100,3 +100,4 @@ ui-review/
 # Stray Maven repo created when -Dmaven.repo.local backslashes are eaten by Git Bash
 backend/Userspc.m2-repo/
 scripts/_tour.ps1
+monitoring/prometheus/scrape-token

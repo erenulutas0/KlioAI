@@ -14,6 +14,17 @@ alerting:
 scrape_configs:
   - job_name: backend-actuator
     metrics_path: /actuator/prometheus
+    # /actuator/prometheus is not public: Spring permits only /actuator/health,
+    # and everything else needs authentication. Without these credentials every
+    # scrape came back 401, so `up` stayed 0 and every rule in alerts/ evaluated
+    # against no data -- alerting that looked configured and saw nothing.
+    #
+    # The file holds the same value as APP_OPS_METRICS_SCRAPE_TOKEN in the
+    # backend's environment. It is mounted from the VPS and deliberately not in
+    # git; see docs/MONITORING_SCRAPE_TOKEN.md.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/scrape-token
     static_configs:
       - targets:
           - backend:8082

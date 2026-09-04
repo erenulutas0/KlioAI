@@ -13,10 +13,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Map;
 
@@ -31,6 +35,23 @@ public class SecurityConfig {
     private final UserHeaderConsistencyFilter userHeaderConsistencyFilter;
     private final ObjectMapper objectMapper;
 
+    /// Shared secret Prometheus presents to read /actuator/prometheus.
+    ///
+    /// Empty means the endpoint stays behind normal authentication, which is
+    /// the state this property was written to fix: the metrics endpoint was
+    /// switched on in prod, and SecurityConfig permitted only /actuator/health,
+    /// so every scrape got 401 and the alert rules had no data at all -- the
+    /// alerting looked configured and saw nothing.
+    ///
+    /// A token rather than an IP allowlist because Prometheus reaches the
+    /// backend over the Docker network while Caddy reaches it from the host,
+    /// and both arrive from private addresses that cannot be told apart. A
+    /// token rather than a separate management port because the public
+    /// /actuator/health is load-bearing: the deploy's own smoke test, the
+    /// rollout verification and the readiness scripts all call it.
+    @Value("${app.ops.metrics-scrape-token:}")
+    private String metricsScrapeTokenValue;
+
     public SecurityConfig(JwtProperties jwtProperties,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           UserHeaderConsistencyFilter userHeaderConsistencyFilter,
@@ -39,6 +60,11 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userHeaderConsistencyFilter = userHeaderConsistencyFilter;
         this.objectMapper = objectMapper;
+    }
+
+    private boolean hasValidScrapeToken(HttpServletRequest request) {
+        return new MetricsScrapeToken(metricsScrapeTokenValue)
+                .matches(request.getHeader("Authorization"));
     }
 
     @Bean
@@ -106,6 +132,14 @@ public class SecurityConfig {
                             "/actuator/health",
                             "/actuator/health/**")
                             .permitAll();
+                    // Readable only by something holding the scrape token. The
+                    // check is on the request rather than on an authenticated
+                    // principal because Prometheus has no account and should
+                    // not need one.
+                    auth.requestMatchers("/actuator/prometheus")
+                            .access((authentication, context) ->
+                                    new AuthorizationDecision(
+                                            hasValidScrapeToken(context.getRequest())));
                     if (jwtProperties.isEnforceAuth()) {
                         auth.anyRequest().authenticated();
                     } else {

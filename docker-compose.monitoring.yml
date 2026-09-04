@@ -14,6 +14,10 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
+      # The bearer token the backend expects on /actuator/prometheus. Same
+      # value as APP_OPS_METRICS_SCRAPE_TOKEN in the backend environment; kept
+      # out of git, created on the VPS. See docs/MONITORING_SCRAPE_TOKEN.md.
+      - ./monitoring/prometheus/scrape-token:/etc/prometheus/scrape-token:ro
       - prometheus_data:/prometheus
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
