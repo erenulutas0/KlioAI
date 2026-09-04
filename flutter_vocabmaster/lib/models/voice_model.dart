@@ -8,6 +8,20 @@ class VoiceModel {
   final String accent; // 'American', 'British', 'Australian', 'Canadian'
   final String locale; // 'en_US', 'en_GB', etc.
   final String piperVoice; // Piper TTS voice name (e.g., 'amy', 'lessac')
+  /// Deliberately empty for the built-in voices.
+  ///
+  /// These used to be Unsplash photographs of real people, drawn as the face
+  /// of "Amy, your AI tutor". The Unsplash licence covers commercial use of
+  /// the image; it explicitly does not grant model rights, and using a
+  /// recognisable person as a product's persona is the case it excludes.
+  /// Those people did not agree to front an English tutor.
+  ///
+  /// It also removed a third-party request from the tutor screen — every time
+  /// it opened, images.unsplash.com learned a user existed — and a network
+  /// dependency from a screen that has to work on a bad connection.
+  ///
+  /// The field survives so a stored selection round-trips through
+  /// [fromJson] unchanged; the UI draws a monogram and ignores it.
   final String avatarUrl;
   final String sampleText;
 
@@ -18,7 +32,7 @@ class VoiceModel {
     required this.accent,
     required this.locale,
     required this.piperVoice,
-    required this.avatarUrl,
+    this.avatarUrl = '',
     required this.sampleText,
   });
 
@@ -73,7 +87,6 @@ class VoiceModel {
       accent: 'American',
       locale: 'en_US',
       piperVoice: 'amy',
-      avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop',
       sampleText: "Hi! I'm Amy, and I'm here to help you practice English. Let's have a great conversation!",
     ),
     const VoiceModel(
@@ -83,7 +96,6 @@ class VoiceModel {
       accent: 'American',
       locale: 'en_US',
       piperVoice: 'ryan',
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
       sampleText: "Hello there! I'm Ryan, ready to assist you with your English learning journey.",
     ),
     const VoiceModel(
@@ -93,7 +105,6 @@ class VoiceModel {
       accent: 'American',
       locale: 'en_US',
       piperVoice: 'lessac',
-      avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
       sampleText: "Hey! I'm Emma. I'm excited to practice English with you and make learning fun!",
     ),
     const VoiceModel(
@@ -103,7 +114,6 @@ class VoiceModel {
       accent: 'British',
       locale: 'en_GB',
       piperVoice: 'alan',
-      avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
       sampleText: "Hi! I'm Alan from the UK. Let's improve your English skills together, shall we?",
     ),
     const VoiceModel(
@@ -113,7 +123,6 @@ class VoiceModel {
       accent: 'British',
       locale: 'en_GB',
       piperVoice: 'jenny_dioco',
-      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
       sampleText: "Hello! I'm Jenny from Britain. I'm here to help you become more confident in English!",
     ),
     const VoiceModel(
@@ -123,7 +132,6 @@ class VoiceModel {
       accent: 'British',
       locale: 'en_GB',
       piperVoice: 'cori',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
       sampleText: "G'day! I'm Cori. Let's make your English practice enjoyable and effective!",
     ),
   ];

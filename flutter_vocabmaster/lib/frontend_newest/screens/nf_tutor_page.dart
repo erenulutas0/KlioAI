@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
@@ -1760,6 +1759,21 @@ class _SpeakerAvatar extends StatelessWidget {
   final VoiceModel voice;
   final double size;
 
+  /// A soft ground per speaker, so Amy and Ryan are not the same tile.
+  ///
+  /// Opacity over the theme's own accents rather than fixed hex values, so
+  /// the tiles stay legible in both light and dark without a second palette.
+  static const List<double> _hues = <double>[0.10, 0.18, 0.26, 0.34, 0.42, 0.50];
+
+  Color _tint(NfTokens t) {
+    final int index =
+        VoiceModel.availableVoices.indexWhere((VoiceModel v) => v.id == voice.id);
+    if (index < 0) {
+      return t.primarySoft;
+    }
+    return Color.lerp(t.primarySoft, t.primary, _hues[index % _hues.length])!;
+  }
+
   @override
   Widget build(BuildContext context) {
     final NfTokens t = NfTokens.of(context);
@@ -1769,22 +1783,22 @@ class _SpeakerAvatar extends StatelessWidget {
       height: size,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: t.primarySoft,
+        color: _tint(t),
         borderRadius: NfRadius.iconTileAll,
         border: Border.fromBorderSide(t.side),
       ),
-      child: CachedNetworkImage(
-        imageUrl: voice.avatarUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        placeholder: (BuildContext context, String url) => _initial(t),
-        errorWidget: (BuildContext context, String url, Object error) =>
-            _initial(t),
-      ),
+      child: _initial(t),
     );
   }
 
+  /// The speaker's initial on a colour of its own.
+  ///
+  /// This was the fallback behind a network photograph and is now the whole
+  /// thing — see [VoiceModel.avatarUrl] for why the photographs went. The
+  /// colour comes from the voice's position in the built-in list rather than
+  /// from a hash of its id: six names over a small palette collide often
+  /// enough that two speakers would have shared a tile, which is the one job
+  /// this has.
   Widget _initial(NfTokens t) {
     final String name = voice.name;
     return Center(

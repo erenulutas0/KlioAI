@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/ai_bot_chat_page.dart';
@@ -17,13 +16,20 @@ class _AnimatedAIChatCardState extends State<AnimatedAIChatCard>
   late AnimationController _avatarAnimationController;
   late Animation<double> _avatarAnimation;
 
-  final List<String> _avatarUrls = [
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop',
-    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop',
+  /// Six discs that drift behind the card, at a fifth of full opacity.
+  ///
+  /// These were photographs of six real people, fetched from Unsplash. The
+  /// licence covers using the image commercially; it does not grant model
+  /// rights, and nobody in those photographs agreed to decorate an English
+  /// tutor. At 0.2 opacity behind a gradient they were barely faces anyway --
+  /// plain colour reads the same and asks nothing of the network.
+  final List<Color> _avatarTints = const [
+    Color(0xFF6C4EF5),
+    Color(0xFF3A24A0),
+    Color(0xFF0EA5E9),
+    Color(0xFF06B6D4),
+    Color(0xFF8B5CF6),
+    Color(0xFF2563EB),
   ];
 
   @override
@@ -65,7 +71,7 @@ class _AnimatedAIChatCardState extends State<AnimatedAIChatCard>
                   const double avatarWidth = 48.0;
                   const double gap = 16.0;
                   final double setWidth =
-                      (avatarWidth + gap) * _avatarUrls.length;
+                      (avatarWidth + gap) * _avatarTints.length;
                   final double offset = -(_avatarAnimation.value * setWidth);
 
                   return Transform.translate(
@@ -77,16 +83,14 @@ class _AnimatedAIChatCardState extends State<AnimatedAIChatCard>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           for (var i = 0; i < 3; i++)
-                            ..._avatarUrls.map(
-                              (url) => Padding(
+                            ..._avatarTints.map(
+                              (tint) => Padding(
                                 padding: const EdgeInsets.only(right: gap),
                                 child: Opacity(
                                   opacity: 0.2,
                                   child: CircleAvatar(
                                     radius: avatarWidth / 2,
-                                    backgroundImage:
-                                        CachedNetworkImageProvider(url),
-                                    backgroundColor: const Color(0x1AFFFFFF),
+                                    backgroundColor: tint,
                                   ),
                                 ),
                               ),
