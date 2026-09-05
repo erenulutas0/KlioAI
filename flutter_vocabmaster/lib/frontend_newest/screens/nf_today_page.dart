@@ -16,6 +16,7 @@ import '../../providers/app_state_provider.dart';
 import '../../services/learning_language_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/xp_manager.dart';
+import '../services/nf_practice_history.dart';
 import '../services/nf_tutor_voice.dart';
 import '../theme/nf_theme_scope.dart';
 import '../models/nf_plan_state.dart';
@@ -104,6 +105,13 @@ class _NfTodayPageState extends State<NfTodayPage> {
   /// changes when XP is awarded, so this is the exact edge to re-read on.
   int _lastSeenXpSeq = -1;
 
+  /// The last thirty days, or null until the ledger has been read.
+  ///
+  /// Null renders nothing rather than thirty empty cells: an unread ledger and
+  /// a month of missed days look identical drawn, and only one of them is the
+  /// learner's fault.
+  NfPracticeHistory? _history;
+
   @override
   void initState() {
     super.initState();
@@ -140,10 +148,19 @@ class _NfTodayPageState extends State<NfTodayPage> {
         }
         counts[id] = (counts[id] ?? 0) + 1;
       }
+      // The same `today` the loop above counted against, so the strip's last
+      // cell and the plan's ticks can never disagree about which day it is.
+      final Set<String> activeDays = await LocalDatabaseService()
+          .activePracticeDays(DateTime(today.year, today.month, today.day)
+              .subtract(const Duration(days: NfPracticeHistory.window - 1)));
+
       if (!mounted) {
         return;
       }
-      setState(() => _todayXpActions = counts);
+      setState(() {
+        _todayXpActions = counts;
+        _history = NfPracticeHistory.from(activeDays, today);
+      });
     } catch (error) {
       // The ledger is a nicety, not a dependency: without it the plan simply
       // shows XP rewards instead of completion checks.
@@ -232,6 +249,15 @@ class _NfTodayPageState extends State<NfTodayPage> {
               const SizedBox(height: NfSpace.s16),
               _TutorCard(onOpenTutor: widget.onOpenTutor),
               const SizedBox(height: NfSpace.s16),
+              // Above the stat tiles, not under the week strip. The strip
+              // up top is about today; this belongs with the totals, which is
+              // where someone looks when the question is how it is going
+              // rather than what is left.
+              if (_history case final NfPracticeHistory history)
+                if (history.isWorthShowing) ...<Widget>[
+                  _PracticeHistoryCard(history: history),
+                  const SizedBox(height: NfSpace.s16),
+                ],
               _StatRow(model: model),
             ],
           ),
@@ -1483,6 +1509,110 @@ class _TutorCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 // STATS
 // ═══════════════════════════════════════════════════════════════════════════
+
+/// Thirty cells: one per day, filled on the days there was practice.
+///
+/// Borrowed from the shape everybody already reads without a legend — a row of
+/// squares where density is the message. No numbers on the cells, no tooltip,
+/// no tap target: the two sentences under it say everything the strip means,
+/// and a chart that needs explaining on a phone is a chart nobody reads.
+///
+/// Today is the last cell and carries a ring whether or not it is filled, so
+/// the row has a right-hand edge that means "now" rather than trailing off.
+class _PracticeHistoryCard extends StatelessWidget {
+  const _PracticeHistoryCard({required this.history});
+
+  final NfPracticeHistory history;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final String best = history.longestRun == 1
+        ? context.tr('home.history.best.one')
+        : context
+            .tr('home.history.best')
+            .replaceAll('{n}', '${history.longestRun}');
+
+    return NfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                context.tr('home.history.title'),
+                style: NfTokens.display(size: NfFont.s16, color: t.ink),
+              ),
+              Text(
+                best,
+                style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
+              ),
+            ],
+          ),
+          const SizedBox(height: NfSpace.s4),
+          Text(
+            context
+                .tr('home.history.active')
+                .replaceAll('{n}', '${history.activeDays}'),
+            style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+          ),
+          const SizedBox(height: NfSpace.s12),
+          // Sized by the row rather than by a fixed cell width: thirty cells
+          // across a narrow phone and a wide one are the same thirty days, and
+          // a hard-coded width either overflows the first or leaves a gap on
+          // the second.
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              const double gap = 3;
+              final double cell =
+                  (constraints.maxWidth - gap * (NfPracticeHistory.window - 1))
+                      / NfPracticeHistory.window;
+              return Row(
+                children: <Widget>[
+                  for (int i = 0; i < history.days.length; i++) ...<Widget>[
+                    if (i > 0) const SizedBox(width: gap),
+                    _HistoryCell(
+                      size: cell,
+                      practised: history.days[i],
+                      isToday: i == history.days.length - 1,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryCell extends StatelessWidget {
+  const _HistoryCell({
+    required this.size,
+    required this.practised,
+    required this.isToday,
+  });
+
+  final double size;
+  final bool practised;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    return Container(
+      width: size,
+      height: size * 1.6,
+      decoration: BoxDecoration(
+        color: practised ? t.streakText : t.border,
+        borderRadius: BorderRadius.circular(2),
+        border: isToday ? Border.fromBorderSide(t.side) : null,
+      ),
+    );
+  }
+}
 
 class _StatRow extends StatelessWidget {
   const _StatRow({required this.model});

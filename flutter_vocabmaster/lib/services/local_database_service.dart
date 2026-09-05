@@ -1631,4 +1631,30 @@ class LocalDatabaseService {
       limit: limit,
     );
   }
+
+  /// The days since [since] on which the learner earned XP at all, as
+  /// `yyyy-MM-dd`.
+  ///
+  /// The ledger is the only record that covers every kind of practice: adding
+  /// a word, a review, a translation set and a tutor turn all write to it,
+  /// while `learned_today_<date>` in preferences counts words and nothing
+  /// else. A learner who spent twenty minutes talking to Amy practised, and a
+  /// history built on the word counter would show that day empty.
+  ///
+  /// Grouped in SQL rather than in Dart because the alternative is reading
+  /// every row of a month to throw almost all of them away; this returns at
+  /// most one row per day. `createdAt` is an ISO-8601 string, so its first ten
+  /// characters are the date and lexicographic comparison is chronological.
+  Future<Set<String>> activePracticeDays(DateTime since) async {
+    final db = await database;
+    final List<Map<String, Object?>> rows = await db.rawQuery(
+      'SELECT DISTINCT substr(createdAt, 1, 10) AS day '
+      'FROM xp_history WHERE createdAt >= ?',
+      <Object?>[since.toIso8601String()],
+    );
+    return <String>{
+      for (final Map<String, Object?> row in rows)
+        if (row['day'] case final String day) day,
+    };
+  }
 }
