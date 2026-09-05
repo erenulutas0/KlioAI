@@ -1719,8 +1719,11 @@ public class ChatbotController {
             LearningLanguageProfile languageProfile = languageProfileFrom(request, userId);
             // Optional and new: older clients omit it and keep the daily persona rotation.
             String speakerName = request.get("speakerName");
+            // Sent on the opening message of a thread only; absent on every other turn.
+            String recall = request.get("recall");
             ChatbotService.ChatTurn turn = chatbotService.chatTurn(
-                    message.trim(), scenario, scenarioContext, userId, languageProfile, speakerName);
+                    message.trim(), scenario, scenarioContext, userId, languageProfile, speakerName,
+                    recall);
             ChatbotService.AiCallResult llm = turn.ai();
             consumeAiTokens(userId, httpRequest, "chat", llm.totalTokens());
             Map<String, Object> result = new HashMap<>();

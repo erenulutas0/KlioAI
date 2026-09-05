@@ -81,14 +81,20 @@ class ChatbotService {
   }
 
   /// The reply together with the correction the tutor offered, if any.
+  /// [recall] is one sentence about the previous conversation, sent on the
+  /// first message of a thread only. See NfTutorRecall.
   Future<TutorReply> chatTurn(String message,
-      {String? scenario, String? scenarioContext, String? speakerName}) async {
+      {String? scenario,
+      String? scenarioContext,
+      String? speakerName,
+      String? recall}) async {
     try {
       return await _api.chatbotChatTurn(
         message: message,
         scenario: scenario,
         scenarioContext: scenarioContext,
         speakerName: speakerName,
+        recall: recall,
       );
     } catch (e) {
       debugPrint('ChatbotService.chatTurn error: $e');

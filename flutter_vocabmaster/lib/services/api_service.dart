@@ -1334,6 +1334,7 @@ class ApiService {
     String? scenario,
     String? scenarioContext,
     String? speakerName,
+    String? recall,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1346,6 +1347,11 @@ class ApiService {
             'speakerName': speakerName,
           if (scenario != null) 'scenario': scenario,
           if (scenarioContext != null) 'scenarioContext': scenarioContext,
+          // What the two of them did last time, sent on the opening message of
+          // a thread and never again. Separate from scenarioContext because
+          // that field is labelled to the model as facts the learner supplied
+          // about the scene, and this is the app remembering.
+          if (recall != null && recall.isNotEmpty) 'recall': recall,
           ..._learningLanguageProfile(),
         }),
       ),

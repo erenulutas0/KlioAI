@@ -23,6 +23,7 @@ import '../../services/chatbot_service.dart';
 import '../../services/piper_tts_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_speech_capture.dart';
+import '../services/nf_tutor_recall.dart';
 import '../services/nf_tutor_sessions.dart';
 import '../services/nf_tutor_voice.dart';
 import '../theme/nf_theme_scope.dart';
@@ -101,6 +102,15 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// The other saved conversations, newest first, for the history sheet. Read
   /// once at bootstrap and kept in step from here.
   List<NfTutorSession> _history = const <NfTutorSession>[];
+
+  /// One sentence about the previous conversation, waiting to be spent.
+  ///
+  /// Computed when a thread begins and cleared as soon as it has been sent,
+  /// so the model is reminded once and then gets on with the conversation.
+  /// Repeating it every turn would make the tutor bring up last Tuesday in
+  /// the middle of ordering a coffee, and would pay for it in tokens on
+  /// every single message.
+  String? _pendingRecall;
 
   @override
   void initState() {
@@ -219,6 +229,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
   void _beginThread() {
     _threadId = DateTime.now().microsecondsSinceEpoch.toString();
     _threadStartedAt = DateTime.now();
+    _pendingRecall = NfTutorRecall.build(
+      _history,
+      currentThreadId: _threadId,
+      now: _threadStartedAt,
+    );
     // The server keeps the model's memory of the previous thread; clearing
     // the screen without clearing that left the barista answering in free
     // chat. Not awaited -- this runs inside setState, and a failure costs one
@@ -456,10 +471,15 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // speakerName entirely, so sending Amy's name alongside "You are Emma"
       // would tell the model two different things about who it is.
       final NfScene? scene = _scene;
+      // Taken before the await, so a second message sent while the first is
+      // still in flight cannot send the same recall twice.
+      final String? recall = _pendingRecall;
+      _pendingRecall = null;
       final TutorReply reply = await _chatbot.chatTurn(
         trimmed,
         scenario: scene?.id,
         speakerName: scene == null ? _voice.name : null,
+        recall: recall,
       );
       if (!mounted) {
         return;

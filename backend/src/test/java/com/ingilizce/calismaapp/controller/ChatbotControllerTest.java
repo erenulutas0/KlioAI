@@ -159,7 +159,7 @@ public class ChatbotControllerTest {
 
     @Test
     void chatReturnsOkWhenValid() throws Exception {
-        when(chatbotService.chatTurn("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile(), null))
+        when(chatbotService.chatTurn("Hello", null, null, 1L, LearningLanguageProfile.defaultProfile(), null, null))
                 .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -179,7 +179,7 @@ public class ChatbotControllerTest {
     @Test
     void chatPassesLanguageProfileFromRequestBody() throws Exception {
         when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
-                nullable(String.class)))
+                nullable(String.class), nullable(String.class)))
                 .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -202,7 +202,7 @@ public class ChatbotControllerTest {
                         "Spanish".equals(profile.sourceLanguage())
                                 && "A2".equals(profile.englishLevel())
                                 && "Travel".equals(profile.learningGoal())),
-                nullable(String.class));
+                nullable(String.class), nullable(String.class));
     }
 
     @Test
@@ -214,7 +214,8 @@ public class ChatbotControllerTest {
 
         verify(chatbotService, never())
                 .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class), nullable(String.class));
+                        any(LearningLanguageProfile.class), nullable(String.class),
+                        nullable(String.class));
     }
 
     @Test
@@ -222,7 +223,8 @@ public class ChatbotControllerTest {
         // The client shows this beside the reply. It travels as its own key rather than
         // inside the reply text, so the screen never has to parse prose to find it.
         when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class),
-                anyLong(), any(LearningLanguageProfile.class), nullable(String.class)))
+                anyLong(), any(LearningLanguageProfile.class), nullable(String.class),
+                nullable(String.class)))
                 .thenReturn(new ChatbotService.ChatTurn(
                         ai("Where did you go?"),
                         new ChatbotService.Correction("I go yesterday", "I went yesterday")));
@@ -242,7 +244,8 @@ public class ChatbotControllerTest {
         // Absent, not empty. An empty object would give the client something to render a
         // chip around, and the learner a correction of nothing.
         when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class),
-                anyLong(), any(LearningLanguageProfile.class), nullable(String.class)))
+                anyLong(), any(LearningLanguageProfile.class), nullable(String.class),
+                nullable(String.class)))
                 .thenReturn(turn("Sounds good."));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -264,13 +267,14 @@ public class ChatbotControllerTest {
 
         verify(chatbotService, never())
                 .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class), nullable(String.class));
+                        any(LearningLanguageProfile.class), nullable(String.class),
+                        nullable(String.class));
     }
 
     @Test
     void chatReturnsInternalServerErrorWhenServiceThrows() throws Exception {
         when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                any(LearningLanguageProfile.class), nullable(String.class)))
+                any(LearningLanguageProfile.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new RuntimeException("downstream"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -341,7 +345,8 @@ public class ChatbotControllerTest {
 
         verify(chatbotService, never())
                 .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class), nullable(String.class));
+                        any(LearningLanguageProfile.class), nullable(String.class),
+                        nullable(String.class));
         // A blocked request never reaches consumeAiTokens, so it must not
         // credit the streak either.
         verify(progressService, never()).updateStreak(anyLong());
@@ -364,7 +369,8 @@ public class ChatbotControllerTest {
 
         verify(chatbotService, never())
                 .chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
-                        any(LearningLanguageProfile.class), nullable(String.class));
+                        any(LearningLanguageProfile.class), nullable(String.class),
+                        nullable(String.class));
     }
 
     @Test
@@ -1167,7 +1173,7 @@ public class ChatbotControllerTest {
         LanguageProfile spanish = new LanguageProfile(7701L, "Spanish", "English", "C1", "Exam", true);
         languageProfileRepository.save(spanish);
         when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
-                nullable(String.class)))
+                nullable(String.class), nullable(String.class)))
                 .thenReturn(turn("Hola!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -1183,6 +1189,7 @@ public class ChatbotControllerTest {
                                 && "Spanish".equals(profile.feedbackLanguage())
                                 && "C1".equals(profile.englishLevel())
                                 && "Exam".equals(profile.learningGoal())),
+                nullable(String.class),
                 nullable(String.class));
     }
 
@@ -1191,7 +1198,7 @@ public class ChatbotControllerTest {
         LanguageProfile spanish = new LanguageProfile(7702L, "Spanish", "English", "C1", "Exam", true);
         languageProfileRepository.save(spanish);
         when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(), any(LearningLanguageProfile.class),
-                nullable(String.class)))
+                nullable(String.class), nullable(String.class)))
                 .thenReturn(turn("Hola!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -1205,12 +1212,14 @@ public class ChatbotControllerTest {
                         "Spanish".equals(profile.sourceLanguage())
                                 && "A2".equals(profile.englishLevel())
                                 && "Exam".equals(profile.learningGoal())),
+                nullable(String.class),
                 nullable(String.class));
     }
 
     @Test
     void chatForAUserWithNoProfileRow_GetsTheDefaultProfileCreated() throws Exception {
-        when(chatbotService.chatTurn("Hello", null, null, 7703L, LearningLanguageProfile.defaultProfile(), null))
+        when(chatbotService.chatTurn("Hello", null, null, 7703L, LearningLanguageProfile.defaultProfile(),
+                null, null))
                 .thenReturn(turn("Hi there!"));
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -1735,7 +1744,7 @@ public class ChatbotControllerTest {
         // is supposed to be, and introduces itself as whoever the daily rotation picked.
         try {
             when(chatbotService.chatTurn(anyString(), any(), any(), anyLong(),
-                    any(LearningLanguageProfile.class), nullable(String.class)))
+                    any(LearningLanguageProfile.class), nullable(String.class), nullable(String.class)))
                     .thenReturn(turn("Hi there!"));
 
             mockMvc.perform(post("/api/chatbot/chat")
@@ -1745,7 +1754,7 @@ public class ChatbotControllerTest {
                     .andExpect(status().isOk());
 
             verify(chatbotService).chatTurn(eq("Hello"), any(), any(), eq(1L),
-                    any(LearningLanguageProfile.class), eq("Ryan"));
+                    any(LearningLanguageProfile.class), eq("Ryan"), nullable(String.class));
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
