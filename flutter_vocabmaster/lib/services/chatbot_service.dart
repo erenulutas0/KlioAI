@@ -139,10 +139,17 @@ class ChatbotService {
         rangeDb: rangeDb,
       );
       final measured = result['measuredDurationMs'];
+      final Object? rawWords = result['words'];
       return SpeechTranscription(
         text: (result['text'] ?? '').toString().trim(),
         measuredDurationMs:
             measured is num && measured > 0 ? measured.toInt() : null,
+        words: rawWords is List
+            ? rawWords
+                .map(NfWordTiming.fromJson)
+                .whereType<NfWordTiming>()
+                .toList()
+            : const <NfWordTiming>[],
       );
     } catch (e) {
       debugPrint('ChatbotService.transcribeSpeech error: $e');
@@ -987,12 +994,56 @@ JSON formatında döndür:
 }
 
 /// Transkript + Whisper'ın ölçtüğü gerçek ses süresi (varsa).
+/// When one word started and stopped, in seconds from the clip's beginning.
+///
+/// Whisper returns these whenever `timestamp_granularities[]=word` is asked
+/// for, which the backend has done since word timestamps went in. They reached
+/// the client in the transcribe response and were discarded here; NfSpokenPace
+/// is what reads them now.
+class NfWordTiming {
+  const NfWordTiming({
+    required this.word,
+    required this.start,
+    required this.end,
+  });
+
+  final String word;
+  final double start;
+  final double end;
+
+  /// One entry of the response's `words` array, or null if it is malformed.
+  ///
+  /// Tolerant because this is model output that has crossed a JSON boundary,
+  /// and a single unreadable word must cost that word rather than the
+  /// transcript it belongs to.
+  static NfWordTiming? fromJson(Object? value) {
+    if (value is! Map) {
+      return null;
+    }
+    final String word = (value['word'] ?? '').toString();
+    final Object? start = value['start'];
+    final Object? end = value['end'];
+    if (word.isEmpty || start is! num || end is! num) {
+      return null;
+    }
+    return NfWordTiming(
+      word: word,
+      start: start.toDouble(),
+      end: end.toDouble(),
+    );
+  }
+}
+
 class SpeechTranscription {
   final String text;
   final int? measuredDurationMs;
 
+  /// Empty when the server sent none, which older builds and short clips do.
+  final List<NfWordTiming> words;
+
   const SpeechTranscription({
     required this.text,
     this.measuredDurationMs,
+    this.words = const <NfWordTiming>[],
   });
 }

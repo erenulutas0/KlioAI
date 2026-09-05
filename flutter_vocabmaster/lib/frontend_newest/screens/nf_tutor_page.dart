@@ -23,6 +23,7 @@ import '../../services/chatbot_service.dart';
 import '../../services/piper_tts_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_speech_capture.dart';
+import '../services/nf_spoken_pace.dart';
 import '../services/nf_tutor_recall.dart';
 import '../services/nf_tutor_sessions.dart';
 import '../services/nf_tutor_voice.dart';
@@ -367,7 +368,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
     switch (result.outcome) {
       case NfCaptureOutcome.transcribed:
-        await _send(result.transcript);
+        await _send(result.transcript, pace: result.pace);
       case NfCaptureOutcome.silent:
         _showHint(context.tr('tutor.hint.noSpeech'));
       case NfCaptureOutcome.tooShort:
@@ -450,14 +451,15 @@ class _NfTutorPageState extends State<NfTutorPage> {
   // Conversation
   // ---------------------------------------------------------------------------
 
-  Future<void> _send(String text) async {
+  Future<void> _send(String text, {NfSpokenPace? pace}) async {
     final String trimmed = text.trim();
     if (trimmed.isEmpty) {
       return;
     }
 
     setState(() {
-      _turns.add(_NfTurn(id: _nextTurnId++, text: trimmed, fromTutor: false));
+      _turns.add(_NfTurn(
+          id: _nextTurnId++, text: trimmed, fromTutor: false, pace: pace));
       _isReplying = true;
     });
     _scrollToBottom();
@@ -1224,7 +1226,12 @@ class _NfTurn {
     this.hasAudio = false,
     this.note,
     this.correction,
+    this.pace,
   });
+
+  /// How fast this turn was spoken. Learner turns only, and only when the
+  /// clip was long enough to measure — see [NfSpokenPace.from].
+  final NfSpokenPace? pace;
 
   final int id;
 
@@ -1341,7 +1348,50 @@ class _TurnView extends StatelessWidget {
             child: _FeedbackNote(text: turn.note!),
           ),
         ],
+        // Last, under the correction rather than above it. The correction is
+        // the thing to act on and belongs against the sentence it is about;
+        // this is an observation, and it reads as one from down here.
+        if (turn.pace case final NfSpokenPace pace) ...<Widget>[
+          const SizedBox(height: NfSpace.s6),
+          _PaceLine(pace: pace),
+        ],
       ],
+    );
+  }
+}
+
+/// How fast that turn was spoken, stated and not judged.
+///
+/// No colour, no threshold, no "too slow" — a rate and a count, in the
+/// smallest type on the screen. The number is worth showing because a learner
+/// watching it climb over a fortnight is watching the thing they actually came
+/// here to change; it is not worth a verdict, because 62 words a minute is
+/// only slow next to a native speaker, and nobody opens this app already
+/// being one.
+class _PaceLine extends StatelessWidget {
+  const _PaceLine({required this.pace});
+
+  final NfSpokenPace pace;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+
+    final String rate = context
+        .tr('tutor.pace.rate')
+        .replaceAll('{n}', '${pace.wordsPerMinute}');
+    // A turn with no long pause says nothing about pauses. "0 duraklama" is
+    // the same information as silence, spent on a line of text.
+    final String? pauses = switch (pace.longPauses) {
+      0 => null,
+      1 => context.tr('tutor.pace.pause.one'),
+      final int n =>
+        context.tr('tutor.pace.pauses').replaceAll('{n}', '$n'),
+    };
+
+    return Text(
+      pauses == null ? rate : '$rate · $pauses',
+      style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
     );
   }
 }

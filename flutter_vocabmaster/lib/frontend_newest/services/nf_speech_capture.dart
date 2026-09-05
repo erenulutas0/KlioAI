@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 import '../../services/chatbot_service.dart';
+import 'nf_spoken_pace.dart';
 
 /// How a `start()` attempt ended.
 /// How an attempt to start recording ended.
@@ -43,12 +44,21 @@ enum NfCaptureOutcome {
 
 @immutable
 class NfCaptureResult {
-  const NfCaptureResult._(this.outcome, {this.transcript = '', this.error});
+  const NfCaptureResult._(
+    this.outcome, {
+    this.transcript = '',
+    this.error,
+    this.pace,
+  });
 
   final NfCaptureOutcome outcome;
 
   /// Trimmed transcript. Non-empty only for [NfCaptureOutcome.transcribed].
   final String transcript;
+
+  /// How fast this was spoken, or null when the clip was too short to say.
+  /// Null is "nothing to report", never "slow".
+  final NfSpokenPace? pace;
 
   /// The thrown object for [NfCaptureOutcome.failed], so the caller can decide
   /// between a paywall, a quota message and a generic retry.
@@ -262,20 +272,23 @@ class NfSpeechCapture extends ChangeNotifier {
     _transcribing = true;
     _notify();
     try {
-      final String transcript = await _chatbot.transcribeSpeech(
+      // The detailed call, not the string one: it is the same request, and
+      // the word timings come back on it instead of being thrown away.
+      final SpeechTranscription result = await _chatbot.transcribeSpeechDetailed(
         audioPath: path,
         durationMs: durationMs,
         locale: locale,
         peakDb: peakDb,
         rangeDb: rangeDb,
       );
-      final String trimmed = transcript.trim();
+      final String trimmed = result.text.trim();
       if (trimmed.isEmpty) {
         return const NfCaptureResult._(NfCaptureOutcome.silent);
       }
       return NfCaptureResult._(
         NfCaptureOutcome.transcribed,
         transcript: trimmed,
+        pace: NfSpokenPace.from(result.words),
       );
     } catch (e) {
       return NfCaptureResult._(NfCaptureOutcome.failed, error: e);
