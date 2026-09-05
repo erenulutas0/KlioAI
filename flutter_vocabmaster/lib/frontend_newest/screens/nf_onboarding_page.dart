@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -61,8 +63,7 @@ class NfOnboardingPage extends StatelessWidget {
   /// screen did.
   final bool fromSettings;
 
-  /// Index into the pager (tour slides first, [profilePageIndex] last).
-  /// `OnboardingScreen.initialPage` under a different name.
+  /// Index into the pager. [profilePageIndex] is first, the tour follows.
   final int initialPage;
 
   /// Forces the app-language step on or off.
@@ -77,12 +78,24 @@ class NfOnboardingPage extends StatelessWidget {
   /// shell should pass the new sign-in page here.
   final WidgetBuilder? nextPageBuilder;
 
-  /// How many pages the pager holds: the tour, then the profile.
+  /// How many pages the pager holds: the profile, then the tour.
   static const int pageCount = _kTourSlideCount + 1;
 
-  /// The learning-profile step. Skip and "replay from settings" both aim here,
-  /// and it is what `OnboardingScreen(initialPage: 4)` used to mean.
-  static const int profilePageIndex = pageCount - 1;
+  /// The learning-profile step, and the first thing a new learner sees.
+  ///
+  /// It used to be last, behind four slides about features nobody had used
+  /// yet. Amy asking three questions is not a form standing between someone
+  /// and the product -- she *is* the product, and her answers decide what
+  /// every screen after this shows: which language meanings arrive in, how
+  /// often the tutor corrects, what the daily plan contains. Collecting them
+  /// last meant the tour that preceded them was the same for everybody, and
+  /// that the one screen carrying the app's whole promise was the one most
+  /// likely to be skipped.
+  static const int profilePageIndex = 0;
+
+  /// Where the tour starts, and where "Replay app tour" in Settings opens.
+  /// Replaying is about the slides; the profile has its own card there.
+  static const int tourStartIndex = profilePageIndex + 1;
 
   @override
   Widget build(BuildContext context) {
@@ -208,7 +221,7 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
   }
 
   void _next() {
-    if (_page >= NfOnboardingPage.profilePageIndex) {
+    if (_page >= NfOnboardingPage.pageCount - 1) {
       _finish();
       return;
     }
@@ -218,12 +231,15 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
     );
   }
 
+  /// Leave the flow, keeping whatever is on screen.
+  ///
+  /// Skipping used to jump forward to the profile questions, which was the
+  /// only sensible reading when they were last. With them first there is
+  /// nothing ahead worth jumping to, so this finishes -- and finishing commits
+  /// the displayed defaults, which is what stopped a learner who skipped from
+  /// being answered in Turkish.
   void _skip() {
-    _pageController.animateToPage(
-      NfOnboardingPage.profilePageIndex,
-      duration: _kPageDuration,
-      curve: Curves.easeInOut,
-    );
+    unawaited(_finish());
   }
 
   /// The same three writes the old screen made, in the same order: report the
@@ -323,7 +339,7 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
   }
 
   Widget _buildPager() {
-    final bool onLastPage = _page >= NfOnboardingPage.profilePageIndex;
+    final bool onLastPage = _page >= NfOnboardingPage.pageCount - 1;
 
     return Column(
       children: <Widget>[
@@ -336,6 +352,9 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
             controller: _pageController,
             onPageChanged: _onPageChanged,
             children: const <Widget>[
+              // First. Everything below it is easier to follow once Amy knows
+              // who she is talking to.
+              _ProfileStep(),
               _TourSlide(
                 icon: LucideIcons.bookMarked,
                 titleKey: 'onboarding.tour.deck.title',
@@ -380,7 +399,6 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
                   'onboarding.tour.practice.p3',
                 ],
               ),
-              _ProfileStep(),
             ],
           ),
         ),
@@ -693,7 +711,7 @@ class _FlowFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool onLastPage = page >= NfOnboardingPage.profilePageIndex;
+    final bool onLastPage = page >= NfOnboardingPage.pageCount - 1;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(

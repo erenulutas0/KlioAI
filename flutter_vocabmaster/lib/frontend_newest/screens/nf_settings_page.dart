@@ -410,7 +410,13 @@ class NfSettingsPage extends StatelessWidget {
                 // fromSettings already does everything a replay needs: it skips
                 // the app-language step, tags analytics as a replay, and pops
                 // at the end instead of replacing the shell underneath it.
-                builder: (_) => const NfOnboardingPage(fromSettings: true),
+                builder: (_) => const NfOnboardingPage(
+                  fromSettings: true,
+                  // The row says "replay the tour", and the tour now
+                  // starts after the profile questions. Settings has its
+                  // own Learning Profile card for those.
+                  initialPage: NfOnboardingPage.tourStartIndex,
+                ),
               ),
             ),
           ),
