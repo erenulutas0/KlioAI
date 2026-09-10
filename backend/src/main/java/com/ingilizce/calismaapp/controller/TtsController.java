@@ -52,6 +52,7 @@ public class TtsController {
         }
 
         String trimmedText = text.trim();
+        long startedNs = System.nanoTime();
         if (trimmedText.length() > maxTextLength) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Text is too long for speech synthesis");
@@ -87,6 +88,11 @@ public class TtsController {
             // Service bize zaten Base64 string veriyor, onu hiç bozmadan JSON'a koyuyoruz.
             // (Eskiden decode edip byte[] yapıyorduk, artık gerek yok)
             String audioBase64 = piperTtsService.synthesizeSpeech(trimmedText, voice);
+            // End to end on the server, availability check and rate limit included. The
+            // Base64 length is what the phone has to download before it can play a thing.
+            log.info("TIMING tts-request ms={} chars={} voice={} base64Chars={}",
+                    (System.nanoTime() - startedNs) / 1_000_000L, trimmedText.length(), voice,
+                    audioBase64 == null ? 0 : audioBase64.length());
 
             Map<String, String> response = new HashMap<>();
             response.put("audio", audioBase64); // "audio" anahtarı ile gönderiyoruz

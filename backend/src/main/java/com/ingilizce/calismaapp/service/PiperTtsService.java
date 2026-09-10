@@ -53,6 +53,17 @@ public class PiperTtsService {
     @Value("${app.tts.cache-max-entries:20000}")
     private int cacheMaxEntries = 20000;
 
+    // How long a "yes, Piper is here" is trusted. The TTS endpoint asks before every
+    // synthesis, and asking forks `piper --version` -- so without this, every reply the
+    // tutor speaks paid for a process start first, cached single words included. Only a yes
+    // is remembered: a Piper that was down is asked again on the next request, and is back
+    // the moment it is. Off for plain `new`, like the audio cache, so each seam test still
+    // exercises the real check.
+    @Value("${app.tts.availability-cache-ms:60000}")
+    private long availabilityCacheMs = 0;
+
+    private volatile long availabilityConfirmedAtMs = -1;
+
     // --- KRİTİK DEĞİŞİKLİK BURADA ---
     // Modelleri Türkçe karakter sorunu olmaması için C:\piper klasöründen okuyoruz.
     // Docker'da /piper mount point'i kullanılır
@@ -94,6 +105,7 @@ public class PiperTtsService {
      * @return Base64 encoded WAV audio data
      */
     public String synthesizeSpeech(String text, String voice) {
+        long startedNs = System.nanoTime();
         try {
             // Select model based on voice
             String modelFile = getModelFile(voice);
@@ -102,7 +114,7 @@ public class PiperTtsService {
             if (cacheFile != null) {
                 byte[] cachedAudio = readCachedAudio(cacheFile);
                 if (cachedAudio != null && cachedAudio.length > 0) {
-                    log.debug("Piper TTS cache hit for model={} textLength={}", modelFile, text.length());
+                    log.info("TIMING tts cache=hit chars={} ms={}", text.length(), elapsedMs(startedNs));
                     return Base64.getEncoder().encodeToString(cachedAudio);
                 }
             }
@@ -162,7 +174,14 @@ public class PiperTtsService {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         output.append(line).append("\n");
-                        log.debug("Piper output: {}", line);
+                        // Piper reports how long the voice took to load and how long the
+                        // speech took to infer. Every call starts a new process, so the first
+                        // is paid on every reply; these two lines are how we know how much.
+                        if (line.contains("Loaded voice") || line.contains("Real-time factor")) {
+                            log.info("TIMING piper {}", line.trim());
+                        } else {
+                            log.debug("Piper output: {}", line);
+                        }
                     }
                 } catch (IOException e) {
                     log.warn("Error reading Piper output", e);
@@ -192,6 +211,8 @@ public class PiperTtsService {
 
             // Read generated audio file
             byte[] audioData = readAllBytes(outputPath);
+            log.info("TIMING tts cache=miss chars={} ms={} bytes={}", text.length(),
+                    elapsedMs(startedNs), audioData == null ? 0 : audioData.length);
 
             if (cacheFile != null && audioData != null && audioData.length > 0) {
                 writeCachedAudio(cacheFile, audioData);
@@ -376,16 +397,26 @@ public class PiperTtsService {
      * Check if Piper TTS is available
      */
     public boolean isAvailable() {
+        long confirmedAt = availabilityConfirmedAtMs;
+        if (availabilityCacheMs > 0 && confirmedAt >= 0
+                && System.currentTimeMillis() - confirmedAt < availabilityCacheMs) {
+            return true;
+        }
+        boolean available = checkAvailability();
+        availabilityConfirmedAtMs = available ? System.currentTimeMillis() : -1;
+        return available;
+    }
+
+    private boolean checkAvailability() {
         try {
             String piperPath = findPiperPath();
             log.debug("Trying Piper path: {}", piperPath);
 
             Process process = startAvailabilityProcess(piperPath);
 
-            long startTime = System.currentTimeMillis();
-            while (process.isAlive() && (System.currentTimeMillis() - startTime) < 5000) {
-                Thread.sleep(100);
-            }
+            // Waited on, not polled: the old loop slept in 100 ms steps, so even a Piper
+            // that answered in 5 ms cost a tenth of a second.
+            process.waitFor(5, TimeUnit.SECONDS);
 
             if (process.isAlive()) {
                 process.destroy();
@@ -404,6 +435,10 @@ public class PiperTtsService {
             log.warn("Piper TTS availability check failed", e);
             return false;
         }
+    }
+
+    private static long elapsedMs(long startedNs) {
+        return (System.nanoTime() - startedNs) / 1_000_000L;
     }
 
     public String[] getSupportedVoices() {

@@ -1721,10 +1721,17 @@ public class ChatbotController {
             String speakerName = request.get("speakerName");
             // Sent on the opening message of a thread only; absent on every other turn.
             String recall = request.get("recall");
+            long startedNs = System.nanoTime();
             ChatbotService.ChatTurn turn = chatbotService.chatTurn(
                     message.trim(), scenario, scenarioContext, userId, languageProfile, speakerName,
                     recall);
             ChatbotService.AiCallResult llm = turn.ai();
+            // The tutor's whole turn. Completion tokens include the model's reasoning, which
+            // is spent before the first word of the reply exists.
+            log.info("TIMING chat ms={} promptTokens={} completionTokens={} replyChars={} corrections={}",
+                    (System.nanoTime() - startedNs) / 1_000_000L, llm.promptTokens(),
+                    llm.completionTokens(), llm.content() == null ? 0 : llm.content().length(),
+                    turn.corrections().size());
             consumeAiTokens(userId, httpRequest, "chat", llm.totalTokens());
             Map<String, Object> result = new HashMap<>();
             result.put("response", llm.content());
@@ -1844,12 +1851,18 @@ public class ChatbotController {
 
         long estimatedTokens = estimateSpeechTokens(durationMs);
         try {
+            long startedNs = System.nanoTime();
             GroqSpeechToTextService.TranscriptionResult transcription = speechToTextService.transcribe(
                     audio.getBytes(),
                     audio.getOriginalFilename(),
                     audio.getContentType(),
                     locale,
                     speechVocabularyHint(userId));
+            // Both Whisper passes and the vocabulary lookup: everything between the upload
+            // arriving and the transcript leaving.
+            log.info("TIMING transcribe ms={} audioBytes={} durationMs={} chars={}",
+                    (System.nanoTime() - startedNs) / 1_000_000L, audio.getSize(), durationMs,
+                    transcription.text() == null ? 0 : transcription.text().length());
             consumeAiTokens(userId, httpRequest, "speech-transcribe", estimatedTokens);
 
             Map<String, Object> result = new HashMap<>();

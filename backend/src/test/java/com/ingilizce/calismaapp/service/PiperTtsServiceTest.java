@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -221,6 +222,31 @@ class PiperTtsServiceTest {
     void isAvailable_ShouldReturnTrue_WhenPiperAndModelAvailable() {
         boolean available = service.isAvailable();
         assertTrue(available);
+    }
+
+    @Test
+    void isAvailable_ShouldNotStartAProcessOnEveryRequest_WhenRecentlyConfirmed() {
+        // The TTS endpoint asks before every synthesis, and every ask started `piper
+        // --version` and slept at least 100 ms waiting on it -- on the path of every reply
+        // the tutor speaks.
+        ReflectionTestUtils.setField(service, "availabilityCacheMs", 60_000L);
+
+        assertTrue(service.isAvailable());
+        assertTrue(service.isAvailable());
+        assertTrue(service.isAvailable());
+
+        verify(availabilityProcess, times(1)).exitValue();
+    }
+
+    @Test
+    void isAvailable_ShouldAskAgain_WhenTheLastAnswerWasNo() {
+        // Only a yes is remembered, so a Piper that was down is back the moment it is.
+        ReflectionTestUtils.setField(service, "availabilityCacheMs", 60_000L);
+        when(availabilityProcess.exitValue()).thenReturn(2);
+        assertFalse(service.isAvailable());
+
+        when(availabilityProcess.exitValue()).thenReturn(0);
+        assertTrue(service.isAvailable());
     }
 
     @Test
