@@ -370,7 +370,9 @@ class _NfShellState extends State<NfShell> {
         onOpenMode: _openMode,
         onStartTodaysPlan: () => _select(NfShell.todayTab),
       ),
-      const NfTutorPage(),
+      // Told whether it is the tab on screen: it answers out loud now, and a
+      // reply that lands after the learner has moved on must stay quiet.
+      NfTutorPage(visible: _index == NfShell.tutorTab),
       NfWordsPage(
         onOpenWord: _openWord,
         onOpenDictionary: _openDictionary,

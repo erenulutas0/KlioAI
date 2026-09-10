@@ -46,11 +46,16 @@ import '../widgets/nf_word_lookup.dart';
 /// (via [NfSpeechCapture]) for the transcript, and [PiperTtsService] with the
 /// device TTS as fallback for the voice.
 class NfTutorPage extends StatefulWidget {
-  const NfTutorPage({super.key, this.apiService});
+  const NfTutorPage({super.key, this.apiService, this.visible = true});
 
   /// Injectable for tests, the same way the reader page takes one. Defaults to
   /// the shared [ApiService].
   final ApiService? apiService;
+
+  /// Whether this tab is the one on screen. The shell keeps every tab alive in
+  /// an IndexedStack, so a reply can arrive after the learner has gone to
+  /// another tab -- and must not start talking from one they cannot see.
+  final bool visible;
 
   @override
   State<NfTutorPage> createState() => _NfTutorPageState();
@@ -605,6 +610,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       if (!mounted) {
         return;
       }
+      _NfTurn? answer;
       setState(() {
         _isReplying = false;
         // The correction hangs off what the LEARNER said, not off the reply.
@@ -631,12 +637,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
         // read out silence -- and the correction above is still shown, so the
         // turn is not lost, only the empty half of it.
         if (!reply.isEmpty) {
-          _turns.add(_NfTurn(
+          final _NfTurn spoken = _NfTurn(
             id: _nextTurnId++,
             text: reply.text,
             fromTutor: true,
             hasAudio: true,
-          ));
+          );
+          answer = spoken;
+          _turns.add(spoken);
         } else if (!corrected) {
           // Empty reply AND nothing to show under their turn. Without this the
           // typing dots simply vanish and nothing arrives -- no bubble, no
@@ -653,6 +661,18 @@ class _NfTutorPageState extends State<NfTutorPage> {
         }
       });
       _scrollToBottom();
+      // Answered out loud, as a person answers -- see [nfReadsReplyAloud] for
+      // the seconds this took when it waited for a tap.
+      final _NfTurn? spoken = answer;
+      if (spoken != null &&
+          nfReadsReplyAloud(
+            serverVoice: _ttsAvailable,
+            visible: widget.visible,
+            recording: _capture.isRecording,
+            lifecycle: WidgetsBinding.instance.lifecycleState,
+          )) {
+        unawaited(_speak(spoken));
+      }
       unawaited(_persist());
       await _maybeAwardSessionXp();
     } catch (e) {
@@ -2381,6 +2401,34 @@ Widget nfConfirmTranscriptForTest({
       onSend: onSend,
       onDiscard: onDiscard,
     );
+
+/// Whether a reply that has just arrived is read aloud without a tap.
+///
+/// Measured on the server, five spoken turns: Whisper about 0.2 s, the tutor
+/// about 0.3 s, Piper about 0.55 s -- and then 2.5 to 12 seconds before the
+/// phone asked for the audio, because nothing asked until the learner pressed
+/// play. The twelve-second turns were the ones with a correction card: they
+/// read the card first. A person answers when you finish speaking, and that
+/// gap was most of why this did not feel like talking to one.
+///
+/// The opening line is still not spoken on its own -- a tab that talks the
+/// moment you reach it is hostile -- but a reply is different: the learner has
+/// just spoken and is waiting. Only in the tutor's own voice, since the device
+/// fallback is the robotic one the persona exists to replace and a tap still
+/// gets it; never from a tab they have left, over their own recording, or from
+/// the background. An app that has not reported a lifecycle state yet is
+/// taken to be in front, which is where it is when it is being talked to.
+@visibleForTesting
+bool nfReadsReplyAloud({
+  required bool serverVoice,
+  required bool visible,
+  required bool recording,
+  required AppLifecycleState? lifecycle,
+}) =>
+    serverVoice &&
+    visible &&
+    !recording &&
+    (lifecycle == null || lifecycle == AppLifecycleState.resumed);
 
 class _FeedbackNote extends StatelessWidget {
   const _FeedbackNote({required this.text});
