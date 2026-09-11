@@ -128,6 +128,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
     return null;
   }
 
+  /// Who is talking, by name: the scene's character, or the tutor. On a
+  /// device the caption under the button said "Amy is speaking..." over Luca
+  /// the waiter's lines, in Luca's voice.
+  String get _speakerName => _scene?.character ?? _voice.name;
+
   /// Who is speaking: the scene's character in its own voice, or the tutor.
   ///
   /// The header has said "Mark" at the check-in desk since the scenes began,
@@ -1258,7 +1263,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              for (final VoiceModel speaker in _speakers) ...<Widget>[
+              // Not in a scene: the character speaks in its own voice there, so
+              // a tutor picked here would change nothing but the thread, and
+              // "Amy" highlighted above Luca's lines reads as Amy playing him.
+              for (final VoiceModel speaker
+                  in _scene == null ? _speakers : const <VoiceModel>[]) ...<Widget>[
                 if (speaker != _speakers.first)
                   const SizedBox(width: NfSpace.s6),
                 NfChip(
@@ -1652,12 +1661,12 @@ class _NfTutorPageState extends State<NfTutorPage> {
     if (_isReplying) {
       return context
           .tr('tutor.caption.thinking')
-          .replaceAll('{name}', _voice.name);
+          .replaceAll('{name}', _speakerName);
     }
     if (_speakingTurnId != null) {
       return context
           .tr('tutor.caption.speaking')
-          .replaceAll('{name}', _voice.name);
+          .replaceAll('{name}', _speakerName);
     }
     return context.tr('tutor.caption.hold');
   }
