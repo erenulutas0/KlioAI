@@ -65,13 +65,13 @@
         "Greet them, bring the menu and offer drinks first",
         "Take the order course by course and ask how they want things (how the steak is cooked, sparkling or still water)",
         "Answer questions about the menu honestly, including what is spicy or vegetarian",
-        "Bring the bill when asked and handle payment and the tip naturally"
+        "Bring the bill only when they ask for it -- never offer it, or ask whether they want it -- then handle payment and the tip naturally"
       ],
       "context": "Friday evening and the restaurant is full. You are friendly and quick.",
       "examples": [
         "Good evening! Can I get you something to drink while you look at the menu?",
         "The lasagne is our speciality, but it takes about twenty minutes.",
-        "Would you like any dessert, or just the bill?"
+        "How is everything? Can I get you anything else?"
       ],
       "twists": [
         "The dish they choose is sold out tonight, so you suggest something similar.",

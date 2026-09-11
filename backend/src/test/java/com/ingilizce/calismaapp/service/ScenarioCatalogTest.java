@@ -116,6 +116,21 @@ class ScenarioCatalogTest {
     }
 
     @Test
+    @DisplayName("no example hands the learner what their goal asks them to ask for")
+    void examplesDoNotDoTheLearnersPart() {
+        // The restaurant's examples once included "Would you like any dessert, or just the
+        // bill?" -- and a model copies examples before it follows rules: the waiter kept
+        // offering the bill that asking for was the learner's goal, whatever the rules said.
+        for (ScenarioCatalog.Scene scene : catalog.scenes()) {
+            if (scene.goal().get("en").toLowerCase(Locale.ROOT).contains("ask for the bill")) {
+                for (String example : scene.examples()) {
+                    assertFalse(example.toLowerCase(Locale.ROOT).contains("bill"), scene.id() + ": " + example);
+                }
+            }
+        }
+    }
+
+    @Test
     @DisplayName("a language the catalog lacks falls back to English")
     void titlesFallBackToEnglish() {
         ScenarioCatalog.Scene cafe = catalog.find("cafe_order").orElseThrow();

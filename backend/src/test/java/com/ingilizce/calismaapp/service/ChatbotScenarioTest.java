@@ -218,6 +218,10 @@ class ChatbotScenarioTest {
         String prompt = systemPromptFor("restaurant_order", null);
         assertTrue(prompt.contains("The goal is theirs to reach, not yours to hand them"));
         assertTrue(prompt.contains("you do not mention the bill until they do"));
+        // And what to end on instead. With only the prohibition, a fresh conversation still
+        // ended one reply on "or should I bring the bill now?" -- a waiter ends on an offer.
+        assertTrue(prompt.contains("never with an offer of what the goal asks them to ask for"));
+        assertTrue(prompt.contains("never offer it, or ask whether they want it"));
     }
 
     @Test
