@@ -159,6 +159,49 @@ class ChatbotServiceTest {
     }
 
     @Test
+    void chatTurn_ShouldRewriteANoteThatStrayedOutOfTheLearnersLanguage() {
+        // 475, on a device: "a" unnecessary before abstract game terms. -- for a Turkish
+        // learner. Dropping it would leave a card that only says "wrong"; it is rewritten.
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(), nullable(String.class)))
+                .thenReturn(
+                        AiCompletionProvider.CompletionResult.of(
+                                "Nice!\n[[FIX]] a crit and a lifesteal -> crit and lifesteal"
+                                        + " || \"a\" unnecessary before abstract game terms.\n"
+                                        + "[[SENTENCE]] It requires crit and lifesteal.",
+                                1, 1, 2),
+                        AiCompletionProvider.CompletionResult.of(
+                                "Soyut oyun terimlerinin önüne \"a\" gelmez.", 1, 1, 2));
+
+        ChatbotService.ChatTurn turn = chatbotService.chatTurn("It requires a crit and a lifesteal",
+                null, null, null,
+                LearningLanguageProfile.of("Turkish", "English", "Turkish", "B2", "Speaking"), null);
+
+        assertEquals("Soyut oyun terimlerinin önüne \"a\" gelmez.", turn.correction().note());
+        assertEquals("crit and lifesteal", turn.correction().better());
+    }
+
+    @Test
+    void chatTurn_ShouldDropANoteItCouldNotRewrite() {
+        // A rewrite that is still English faces the same test and fails it; the correction
+        // itself is kept, as it always was.
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(), nullable(String.class)))
+                .thenReturn(
+                        AiCompletionProvider.CompletionResult.of(
+                                "Nice!\n[[FIX]] a crit and a lifesteal -> crit and lifesteal"
+                                        + " || \"a\" unnecessary before abstract game terms.",
+                                1, 1, 2),
+                        AiCompletionProvider.CompletionResult.of(
+                                "\"a\" unnecessary before abstract game terms.", 1, 1, 2));
+
+        ChatbotService.ChatTurn turn = chatbotService.chatTurn("It requires a crit and a lifesteal",
+                null, null, null,
+                LearningLanguageProfile.of("Turkish", "English", "Turkish", "B2", "Speaking"), null);
+
+        assertEquals("crit and lifesteal", turn.correction().better());
+        assertNull(turn.correction().note());
+    }
+
+    @Test
     void chatTurn_ShouldDropALineTheWholeSentenceContradicts() {
         // The third device run: "more simpler -> simpler" under a sentence that said "more
         // simply". The card leads with the sentence, and the sentence already fixes what the

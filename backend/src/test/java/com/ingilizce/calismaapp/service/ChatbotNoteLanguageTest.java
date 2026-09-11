@@ -125,6 +125,35 @@ class ChatbotNoteLanguageTest {
     }
 
     @Test
+    @DisplayName("a note with no sign of the learner's language is not in it")
+    void aNoteWithoutTheLanguageIsCaught() {
+        // 475, on a device, the card after the "Emi" one: not a single English function
+        // word outside the quotes, so counting them could never have caught it.
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "\"a\" unnecessary before abstract game terms.", "Turkish"));
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "\"a\" unnecessary before abstract game terms.", "Indonesian"));
+    }
+
+    @Test
+    @DisplayName("a Turkish note without one Turkish letter still shows its words")
+    void turkishWithoutTurkishLettersPasses() {
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"a\" burada gereksiz, sadece \"crit\" yeter.", "Turkish"));
+    }
+
+    @Test
+    @DisplayName("too little outside the quotes to judge is left alone")
+    void tooShortToJudge() {
+        assertFalse(ChatbotService.noteStraysFromLanguage("\"a\" gereksiz.", "Turkish"));
+        assertFalse(ChatbotService.noteStraysFromLanguage("\"a\" extra here.", "Turkish"),
+                "two words are not a verdict");
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"a\" unnecessary before abstract game terms.", "Japanese"),
+                "a language with no signs listed is judged by the English count alone");
+    }
+
+    @Test
     @DisplayName("nothing to drop leaves nothing changed")
     void absentNotesAndAbsentCorrectionsPassThrough() {
         ChatbotService.Correction bare = new ChatbotService.Correction("I go", "I went");

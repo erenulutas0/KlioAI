@@ -502,14 +502,15 @@ HOW TO OFFER A CORRECTION:
         systemPrompt, history, message, 560 + REASONING_TOKEN_ALLOWANCE, "speaking-chat");
 
     // As many as this level's card holds, most important first, each note checked for
-    // language on its own: one stray note still costs only itself.
+    // language on its own and rewritten in the learner's language if it strayed out of it.
+    // See inLearnersLanguage.
     int cap = maxChanges(profile.englishLevel());
     List<Correction> corrections = new ArrayList<>();
     for (Correction found : extractCorrections(result.content())) {
       if (corrections.size() == cap) {
         break;
       }
-      corrections.add(withoutStrayNote(found, profile.sourceLanguage()));
+      corrections.add(inLearnersLanguage(found, profile.sourceLanguage()));
     }
     // Only beside a correction -- a card cannot lead with a sentence it does not explain --
     // and only when it changes something: their own words handed back as "the right way to
@@ -605,7 +606,137 @@ HOW TO OFFER A CORRECTION:
         hits.add(token);
       }
     }
-    return hits.size() >= 3;
+    return hits.size() >= 3 || lacksLanguageSigns(outsideQuotes, nativeLanguage);
+  }
+
+  /**
+   * What a note in each language the app teaches from can hardly help containing.
+   *
+   * <p>Counting English words misses the notes that have none. On a device a Turkish learner
+   * got: "a" unnecessary before abstract game terms. -- not one word from the list outside
+   * the quotes, and English from end to end. So the question is also asked the other way
+   * round: does the note show any sign of the language it was meant to be in? Letters
+   * English does not use, or short words English does not have. A Turkish note is almost
+   * never without an ı, ş, ğ, ç, ö or ü, and when it is, "yerine", "demek" or "gerekir" is
+   * there instead.
+   *
+   * <p>No word here is also an English word ("no", "as", "do", "in", "per", "sin", "con",
+   * "man", "die" were all left out), so an English note cannot pass for one by accident.
+   */
+  private record LanguageSigns(String letters, Set<String> words) {
+  }
+
+  private static final Map<String, LanguageSigns> NOTE_LANGUAGE_SIGNS = Map.of(
+      "turkish", new LanguageSigns("çğıöşüÇĞİÖŞÜ", Set.of(
+          "ve", "bir", "bu", "için", "ile", "yerine", "demek", "değil", "daha", "olur",
+          "gerekir", "burada", "yok", "var", "ama", "da", "de", "ki", "gibi", "sadece",
+          "tek", "yeter", "kullanılır", "anlamı", "denir")),
+      "german", new LanguageSigns("äöüßÄÖÜ", Set.of(
+          "der", "das", "und", "ist", "nicht", "ein", "eine", "einen", "heißt", "mit",
+          "auf", "für", "zu", "im", "wird", "sagt", "sich", "auch", "nur", "statt",
+          "bedeutet", "klingt", "hier")),
+      "french", new LanguageSigns("éèêàçùâîôûëïœÉÈÊÀ", Set.of(
+          "le", "la", "les", "de", "des", "du", "est", "et", "que", "un", "une", "pour",
+          "pas", "dit", "se", "en", "qui", "veut", "dire", "sans", "avec", "ici")),
+      "spanish", new LanguageSigns("ñáéíóúü¿¡ÑÁÉÍÓÚ", Set.of(
+          "el", "la", "los", "las", "de", "del", "que", "es", "y", "un", "una", "para",
+          "se", "en", "significa", "lleva", "aquí", "mejor", "dice")),
+      "portuguese", new LanguageSigns("ãõçáéíóúâêôàÃÕÇÁÉÍÓÚ", Set.of(
+          "o", "os", "de", "da", "que", "é", "e", "um", "uma", "para", "não", "se", "em",
+          "com", "quer", "dizer", "aqui", "sem", "precisa")),
+      "italian", new LanguageSigns("àèéìòùÀÈÉÌÒÙ", Set.of(
+          "il", "lo", "la", "le", "di", "del", "che", "è", "e", "un", "una", "si", "con",
+          "significa", "serve", "qui", "senza", "dice")),
+      "indonesian", new LanguageSigns("", Set.of(
+          "yang", "dan", "ini", "itu", "dengan", "untuk", "tidak", "adalah", "artinya",
+          "kamu", "di", "ke", "dari", "bukan", "lebih", "sudah", "perlu", "kata",
+          "berarti", "harus", "jadi", "saja")));
+
+  /**
+   * Whether the words outside the quotes show no sign at all of [nativeLanguage].
+   *
+   * <p>Below three words there is too little to judge, and the note stands. A language with
+   * no signs listed is never judged this way, only by the English count.
+   */
+  static boolean lacksLanguageSigns(String outsideQuotes, String nativeLanguage) {
+    if (outsideQuotes == null || nativeLanguage == null) {
+      return false;
+    }
+    LanguageSigns signs = NOTE_LANGUAGE_SIGNS.get(nativeLanguage.trim().toLowerCase(Locale.ROOT));
+    if (signs == null) {
+      return false;
+    }
+    List<String> words = new ArrayList<>();
+    for (String token : outsideQuotes.toLowerCase(Locale.ROOT).split("[^\\p{L}']+")) {
+      if (!token.isEmpty()) {
+        words.add(token);
+      }
+    }
+    if (words.size() < 3) {
+      return false;
+    }
+    for (int i = 0; i < outsideQuotes.length(); i++) {
+      if (signs.letters().indexOf(outsideQuotes.charAt(i)) >= 0) {
+        return false;
+      }
+    }
+    for (String word : words) {
+      if (signs.words().contains(word)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The correction with a note the learner can read: rewritten in their language if it
+   * strayed out of it, and dropped only if even that fails.
+   *
+   * <p>Dropping was the first answer, and it cost the part the tester had asked for: two
+   * cards in one morning came with English notes, and a card without its reason only says
+   * "wrong". So the small model puts the note into the learner's language, leaving the
+   * quoted English exactly as it was. Its answer faces the same test the original failed,
+   * and one that fails it too is not shown either.
+   *
+   * <p>Only on the turns that need it -- a note that was right costs nothing -- and not
+   * billed to the learner: it repairs the tutor's mistake, not anything they asked for.
+   */
+  Correction inLearnersLanguage(Correction correction, String nativeLanguage) {
+    if (correction == null || correction.note() == null
+        || !noteStraysFromLanguage(correction.note(), nativeLanguage)) {
+      return correction;
+    }
+    String rewritten = rewriteNote(correction.note(), nativeLanguage);
+    if (rewritten != null && rewritten.length() <= FIX_NOTE_MAX_LENGTH
+        && !noteStraysFromLanguage(rewritten, nativeLanguage)) {
+      logger.info("Rewrote a correction note in {}: '{}' -> '{}'",
+          nativeLanguage, correction.note(), rewritten);
+      return new Correction(correction.said(), correction.better(), rewritten);
+    }
+    return withoutStrayNote(correction, nativeLanguage);
+  }
+
+  private String rewriteNote(String note, String nativeLanguage) {
+    String systemPrompt = "Translate the text you are given into " + nativeLanguage + ". "
+        + "It explains an English mistake to a learner whose own language is " + nativeLanguage
+        + ". Every part inside double quotation marks is the English being explained: copy "
+        + "those parts exactly, quotation marks included. Everything else goes into "
+        + nativeLanguage + ". Reply with the translation only, as one short sentence.";
+    try {
+      AiCallResult result =
+          callGroqText(systemPrompt, note, 200 + REASONING_TOKEN_ALLOWANCE, "speaking-note");
+      String text = result == null || result.content() == null ? "" : result.content().trim();
+      // The whole answer in one pair of quotation marks would read as all-English to the
+      // check and show on the card with quotes around it.
+      if (text.length() > 1 && text.startsWith("\"") && text.endsWith("\"")
+          && text.chars().filter(c -> c == '"').count() == 2) {
+        text = text.substring(1, text.length() - 1).trim();
+      }
+      return text.isEmpty() ? null : text;
+    } catch (Exception e) {
+      logger.warn("Could not rewrite a correction note in {}: {}", nativeLanguage, e.toString());
+      return null;
+    }
   }
 
   /**
