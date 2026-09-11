@@ -108,15 +108,25 @@ public class PiperTtsService {
     // the next entry for THE SAME voice. That means this can ship before the .onnx files
     // are on the server -- nothing breaks, and each voice upgrades itself the moment its
     // high build is dropped in.
-    private static final List<String> MODELS_LESSAC =
-            List.of("en_US-lessac-high.onnx", "en_US-lessac-medium.onnx");
-    private static final List<String> MODELS_RYAN =
-            List.of("en_US-ryan-high.onnx", "en_US-ryan-medium.onnx");
+    //
+    // en_US-lessac and en_US-ryan are gone from here, and a test keeps them gone. Their
+    // datasets forbid selling what they say: the Blizzard 2013 Lessac agreement excludes
+    // "any commercial purpose, including the development, marketing, commercialisation,
+    // sale or licencing of voice synthesis or speech recognition products or services",
+    // and RyanSpeech is CC BY-NC-SA 4.0. This app has a subscription.
+    //
+    // The two ids stay, because the app, the scene catalog and every saved conversation
+    // name them. They speak through voices that are free to use instead: cori is public
+    // domain (LibriVox) and alan is CC BY-SA, and both keep the character's gender. This
+    // is only what a learner hears when Kokoro -- Apache 2.0, and the engine now -- cannot
+    // be reached; see KokoroTtsService.
     private static final List<String> MODELS_CORI =
             List.of("en_GB-cori-high.onnx", "en_GB-cori-medium.onnx");
-    private static final List<String> MODELS_AMY = List.of("en_US-amy-medium.onnx");
     private static final List<String> MODELS_ALAN = List.of("en_GB-alan-medium.onnx");
+    private static final List<String> MODELS_AMY = List.of("en_US-amy-medium.onnx");
     private static final List<String> MODELS_JENNY = List.of("en_GB-jenny_dioco-medium.onnx");
+    private static final List<String> MODELS_LESSAC = MODELS_CORI;
+    private static final List<String> MODELS_RYAN = MODELS_ALAN;
 
     /**
      * Generate speech audio from text using Piper TTS
@@ -737,9 +747,10 @@ public class PiperTtsService {
 
     private String getDefaultModelName() {
         if (configuredDefaultModel == null || configuredDefaultModel.trim().isEmpty()) {
-            // lessac rather than amy: this is the voice a learner hears unless they pick
-            // one, so it should be the best build available, and amy has no high build.
-            return MODELS_LESSAC.get(0);
+            // cori rather than amy: this is the voice a learner hears unless they pick one,
+            // so it should be the best build we may actually ship -- cori is public domain
+            // and has a high build; amy has no high build at all.
+            return MODELS_CORI.get(0);
         }
         return configuredDefaultModel.trim();
     }

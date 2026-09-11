@@ -103,7 +103,7 @@ public class ChatbotControllerTest {
     private SentenceStarterTrackingService sentenceStarterTrackingService;
 
     @MockBean
-    private com.ingilizce.calismaapp.service.PiperTtsService piperTtsService;
+    private com.ingilizce.calismaapp.service.SpeechService speechService;
 
     @Autowired
     private MeterRegistry meterRegistry;
@@ -296,8 +296,8 @@ public class ChatbotControllerTest {
     @Test
     void chatCarriesTheRepliesAudio_WhenTheAppNamesAVoice() throws Exception {
         tutorSays("Sure! Steamed milk is milk heated with steam.");
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.synthesizeSpeech("Sure! Steamed milk is milk heated with steam.", "amy"))
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech("Sure! Steamed milk is milk heated with steam.", "amy"))
                 .thenReturn("UklGRg==");
 
         mockMvc.perform(post("/api/chatbot/chat")
@@ -313,7 +313,7 @@ public class ChatbotControllerTest {
     void chatSendsNoAudio_ToAnAppThatNamesNoVoice() throws Exception {
         // Every build before this one. It must not pay for synthesis it will never play.
         tutorSays("Sure! Steamed milk is milk heated with steam.");
-        when(piperTtsService.isAvailable()).thenReturn(true);
+        when(speechService.isAvailable()).thenReturn(true);
 
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
@@ -321,15 +321,15 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"What is steamed milk?\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.audio").doesNotExist());
-        verify(piperTtsService, never()).synthesizeSpeech(anyString(), anyString());
+        verify(speechService, never()).synthesizeSpeech(anyString(), anyString());
     }
 
     @Test
     void chatStillAnswers_WhenTheAudioCannotBeMade() throws Exception {
         // The audio is a convenience; the reply is the point. Piper failing costs the former.
         tutorSays("Sure! Steamed milk is milk heated with steam.");
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.synthesizeSpeech(anyString(), anyString()))
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(anyString(), anyString()))
                 .thenThrow(new RuntimeException("piper down"));
 
         mockMvc.perform(post("/api/chatbot/chat")

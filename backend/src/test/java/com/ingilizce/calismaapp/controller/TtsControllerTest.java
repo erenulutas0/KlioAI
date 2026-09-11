@@ -1,7 +1,7 @@
 package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.service.AiRateLimitService;
-import com.ingilizce.calismaapp.service.PiperTtsService;
+import com.ingilizce.calismaapp.service.SpeechService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +38,7 @@ class TtsControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private PiperTtsService piperTtsService;
+    private SpeechService speechService;
 
     @MockBean
     private AiRateLimitService aiRateLimitService;
@@ -60,7 +60,7 @@ class TtsControllerTest {
 
     @Test
     void synthesizeReturnsServiceUnavailableWhenPiperUnavailable() throws Exception {
-        when(piperTtsService.isAvailable()).thenReturn(false);
+        when(speechService.isAvailable()).thenReturn(false);
 
         mockMvc.perform(post("/api/tts/synthesize")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -71,8 +71,8 @@ class TtsControllerTest {
 
     @Test
     void synthesizeReturnsAudioWhenSuccessful() throws Exception {
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.synthesizeSpeech(eq("hello world"), eq("amy"))).thenReturn("BASE64_AUDIO");
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(eq("hello world"), eq("amy"))).thenReturn("BASE64_AUDIO");
 
         mockMvc.perform(post("/api/tts/synthesize")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -80,13 +80,13 @@ class TtsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.audio").value("BASE64_AUDIO"));
 
-        verify(piperTtsService).synthesizeSpeech("hello world", "amy");
+        verify(speechService).synthesizeSpeech("hello world", "amy");
     }
 
     @Test
     void synthesizeReturnsInternalServerErrorWhenSynthesisFails() throws Exception {
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.synthesizeSpeech(anyString(), anyString())).thenThrow(new RuntimeException("failed"));
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(anyString(), anyString())).thenThrow(new RuntimeException("failed"));
 
         mockMvc.perform(post("/api/tts/synthesize")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -106,7 +106,7 @@ class TtsControllerTest {
                 .andExpect(jsonPath("$.error").value("Text is too long for speech synthesis"))
                 .andExpect(jsonPath("$.maxTextLength").value(400));
 
-        verify(piperTtsService, never()).synthesizeSpeech(anyString(), anyString());
+        verify(speechService, never()).synthesizeSpeech(anyString(), anyString());
     }
 
     @Test
@@ -122,13 +122,13 @@ class TtsControllerTest {
                 .andExpect(jsonPath("$.reason").value("scope-window"))
                 .andExpect(jsonPath("$.retryAfterSeconds").value(42));
 
-        verify(piperTtsService, never()).synthesizeSpeech(anyString(), anyString());
+        verify(speechService, never()).synthesizeSpeech(anyString(), anyString());
     }
 
     @Test
     void synthesizeUsesUserIdHeaderForRateLimitSubject() throws Exception {
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.synthesizeSpeech(anyString(), any())).thenReturn("BASE64_AUDIO");
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(anyString(), any())).thenReturn("BASE64_AUDIO");
 
         mockMvc.perform(post("/api/tts/synthesize")
                 .header("X-User-Id", "7")
@@ -141,8 +141,8 @@ class TtsControllerTest {
 
     @Test
     void getStatusReturnsAvailabilityAndVoices() throws Exception {
-        when(piperTtsService.isAvailable()).thenReturn(true);
-        when(piperTtsService.getSupportedVoices()).thenReturn(new String[] { "default", "ryan" });
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.supportedVoices()).thenReturn(new String[] { "default", "ryan" });
 
         mockMvc.perform(get("/api/tts/status"))
                 .andExpect(status().isOk())

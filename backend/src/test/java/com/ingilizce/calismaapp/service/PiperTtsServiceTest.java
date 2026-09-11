@@ -96,7 +96,9 @@ class PiperTtsServiceTest {
 
     @Test
     void synthesizeSpeech_ShouldFallbackToDefaultModel_WhenRequestedVoiceMissing() {
-        service.existingPaths.put("C:\\models\\en_US-ryan-medium.onnx", false);
+        // "ryan" speaks through alan now -- RyanSpeech is CC BY-NC-SA 4.0 and this app is
+        // sold, see VoiceLicenceTest -- so alan's file is the one whose absence falls back.
+        service.existingPaths.put("C:\\models\\en_GB-alan-medium.onnx", false);
 
         service.synthesizeSpeech("text", "ryan");
 
@@ -128,9 +130,18 @@ class PiperTtsServiceTest {
     }
 
     @Test
-    void synthesizeSpeech_ShouldUseLessacModel_WhenVoiceIsLessac() {
+    void theLessacIdSpeaksThroughCori_BecauseLessacMayNotBeSold() {
+        // The ids stay -- the app, the scene catalog and every saved conversation name them --
+        // and what they name is a voice that is free to use: cori is public domain, alan is
+        // CC BY-SA, and each keeps the character's gender. See VoiceLicenceTest.
         service.synthesizeSpeech("text", "lessac");
-        assertTrue(service.lastCommand.stream().anyMatch(s -> s.endsWith("en_US-lessac-medium.onnx")));
+        assertTrue(service.lastCommand.stream().anyMatch(s -> s.endsWith("en_GB-cori-medium.onnx")));
+    }
+
+    @Test
+    void theRyanIdSpeaksThroughAlan_BecauseRyanSpeechMayNotBeSold() {
+        service.synthesizeSpeech("text", "ryan");
+        assertTrue(service.lastCommand.stream().anyMatch(s -> s.endsWith("en_GB-alan-medium.onnx")));
     }
 
     @Test
@@ -287,16 +298,17 @@ class PiperTtsServiceTest {
 
     @Test
     void getSupportedVoices_ShouldReflectExistingModels() {
-        ReflectionTestUtils.setField(service, "configuredDefaultModel", "en_US-ryan-medium.onnx");
+        // Only cori's file is here. "lessac" is offered too, because that id is what cori
+        // answers to now; "ryan" is not, because alan's file -- the one it answers to -- is
+        // missing.
+        ReflectionTestUtils.setField(service, "configuredDefaultModel", "en_GB-cori-medium.onnx");
         service.existingPaths.put("C:\\models\\en_US-amy-medium.onnx", false);
-        service.existingPaths.put("C:\\models\\en_US-lessac-medium.onnx", false);
         service.existingPaths.put("C:\\models\\en_GB-alan-medium.onnx", false);
         service.existingPaths.put("C:\\models\\en_GB-jenny_dioco-medium.onnx", false);
-        service.existingPaths.put("C:\\models\\en_GB-cori-medium.onnx", false);
 
         String[] supported = service.getSupportedVoices();
 
-        assertArrayEquals(new String[] { "default", "ryan" }, supported);
+        assertArrayEquals(new String[] { "default", "lessac", "cori" }, supported);
     }
 
     @Test
@@ -744,12 +756,12 @@ class PiperTtsServiceTest {
             }
         };
 
-        present.add("en_US-lessac-high.onnx");
-        present.add("en_US-lessac-medium.onnx");
-        assertTrue(service.getModelFile("lessac").endsWith("en_US-lessac-high.onnx"));
+        present.add("en_GB-cori-high.onnx");
+        present.add("en_GB-cori-medium.onnx");
+        assertTrue(service.getModelFile("cori").endsWith("en_GB-cori-high.onnx"));
 
-        present.remove("en_US-lessac-high.onnx");
-        assertTrue(service.getModelFile("lessac").endsWith("en_US-lessac-medium.onnx"),
+        present.remove("en_GB-cori-high.onnx");
+        assertTrue(service.getModelFile("cori").endsWith("en_GB-cori-medium.onnx"),
                 "a missing high build must not silently change which person is speaking");
     }
 

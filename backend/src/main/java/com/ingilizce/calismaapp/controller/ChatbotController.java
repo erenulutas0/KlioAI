@@ -99,7 +99,7 @@ public class ChatbotController {
     // For the reply's audio, sent in the same response when the app names a voice. Optional:
     // a context without Piper simply never sends audio. See replyAudio.
     @Autowired(required = false)
-    private com.ingilizce.calismaapp.service.PiperTtsService piperTtsService;
+    private com.ingilizce.calismaapp.service.SpeechService speechService;
 
     // The TTS endpoint's own cap, so a reply too long for /api/tts is not spoken here either.
     @org.springframework.beans.factory.annotation.Value("${app.tts.max-text-length:400}")
@@ -1860,7 +1860,7 @@ public class ChatbotController {
      * bubble later is a cache hit.
      */
     private String replyAudio(String reply, String voice) {
-        if (piperTtsService == null || reply == null) {
+        if (speechService == null || reply == null) {
             return null;
         }
         String text = reply.trim();
@@ -1869,10 +1869,10 @@ public class ChatbotController {
         }
         long startedNs = System.nanoTime();
         try {
-            if (!piperTtsService.isAvailable()) {
+            if (!speechService.isAvailable()) {
                 return null;
             }
-            String audio = piperTtsService.synthesizeSpeech(text, voice);
+            String audio = speechService.synthesizeSpeech(text, voice);
             log.info("TIMING chat-audio ms={} chars={} base64Chars={}",
                     (System.nanoTime() - startedNs) / 1_000_000L, text.length(),
                     audio == null ? 0 : audio.length());

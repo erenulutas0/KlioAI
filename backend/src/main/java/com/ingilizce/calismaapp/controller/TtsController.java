@@ -2,7 +2,7 @@ package com.ingilizce.calismaapp.controller;
 
 import com.ingilizce.calismaapp.security.ClientIpResolver;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
-import com.ingilizce.calismaapp.service.PiperTtsService;
+import com.ingilizce.calismaapp.service.SpeechService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ public class TtsController {
     private static final Logger log = LoggerFactory.getLogger(TtsController.class);
     private static final String RATE_LIMIT_SCOPE = "tts-synthesize";
 
-    private final PiperTtsService piperTtsService;
+    private final SpeechService speechService;
     private final AiRateLimitService aiRateLimitService;
     private final ClientIpResolver clientIpResolver;
 
@@ -30,10 +30,10 @@ public class TtsController {
     @Value("${app.tts.max-text-length:400}")
     private int maxTextLength;
 
-    public TtsController(PiperTtsService piperTtsService,
+    public TtsController(SpeechService speechService,
             @Autowired(required = false) AiRateLimitService aiRateLimitService,
             @Autowired(required = false) ClientIpResolver clientIpResolver) {
-        this.piperTtsService = piperTtsService;
+        this.speechService = speechService;
         this.aiRateLimitService = aiRateLimitService;
         this.clientIpResolver = clientIpResolver;
     }
@@ -78,7 +78,7 @@ public class TtsController {
         }
 
         try {
-            if (!piperTtsService.isAvailable()) {
+            if (!speechService.isAvailable()) {
                 Map<String, Object> error = new HashMap<>();
                 error.put("error", "Piper TTS is not available.");
                 error.put("available", false);
@@ -87,7 +87,7 @@ public class TtsController {
 
             // Service bize zaten Base64 string veriyor, onu hiç bozmadan JSON'a koyuyoruz.
             // (Eskiden decode edip byte[] yapıyorduk, artık gerek yok)
-            String audioBase64 = piperTtsService.synthesizeSpeech(trimmedText, voice);
+            String audioBase64 = speechService.synthesizeSpeech(trimmedText, voice);
             // End to end on the server, availability check and rate limit included. The
             // Base64 length is what the phone has to download before it can play a thing.
             log.info("TIMING tts-request ms={} chars={} voice={} base64Chars={}",
@@ -110,9 +110,9 @@ public class TtsController {
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getStatus() {
         Map<String, Object> status = new HashMap<>();
-        boolean available = piperTtsService.isAvailable();
+        boolean available = speechService.isAvailable();
         status.put("available", available);
-        status.put("voices", piperTtsService.getSupportedVoices());
+        status.put("voices", speechService.supportedVoices());
         return ResponseEntity.ok(status);
     }
 }
