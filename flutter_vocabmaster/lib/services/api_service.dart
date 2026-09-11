@@ -1384,6 +1384,23 @@ class ApiService {
     );
   }
 
+  /// The scene catalog in [language]: every scene the server can play, with
+  /// its title and goal in that language. See NfSceneCatalog. Costs no quota.
+  Future<Map<String, dynamic>> chatbotScenarios(String language) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.get(
+        Uri.parse('$url/chatbot/scenarios')
+            .replace(queryParameters: <String, String>{'lang': language}),
+        headers: headers,
+      ),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load scenarios: ${response.statusCode}');
+    }
+    return Map<String, dynamic>.from(json.decode(response.body) as Map);
+  }
+
   /// The reply's audio when the server sent it inline. Anything else is null,
   /// so a malformed field costs the prefetch, never the reply.
   static Uint8List? _replyAudio(Object? value) {
@@ -1410,6 +1427,7 @@ class ApiService {
     String? speakerName,
     String? recall,
     String? voice,
+    int? scenarioVariant,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1428,6 +1446,10 @@ class ApiService {
           // about the scene, and this is the app remembering.
           if (recall != null && recall.isNotEmpty) 'recall': recall,
           if (voice != null && voice.isNotEmpty) 'voice': voice,
+          // Which opening and complication this conversation was dealt, the
+          // same on every turn. A string, like every value this body carries.
+          if (scenarioVariant != null)
+            'scenarioVariant': scenarioVariant.toString(),
           ..._learningLanguageProfile(),
         }),
       ),

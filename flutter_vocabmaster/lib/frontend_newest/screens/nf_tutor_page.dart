@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show Random;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -25,6 +26,7 @@ import '../../services/api_service.dart';
 import '../../services/chatbot_service.dart';
 import '../../services/piper_tts_service.dart';
 import '../../services/xp_manager.dart';
+import '../services/nf_scenes.dart';
 import '../services/nf_speech_capture.dart';
 import '../services/nf_spoken_pace.dart';
 import '../services/nf_tutor_recall.dart';
@@ -35,6 +37,10 @@ import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
 import '../widgets/nf_word_lookup.dart';
+
+// NfScene lived in this file until the catalog gave it a file of its own;
+// everything that reached it through here still does.
+export '../services/nf_scenes.dart' show NfScene;
 
 /// The tutor tab: a spoken conversation with the AI partner, promoted from a
 /// screen buried behind the AI menu to a top-level destination.
@@ -81,8 +87,64 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// replies go through [ChatbotService]; this is the words half of the screen.
   late final ApiService _api;
 
-  /// The scene being played, or null for ordinary conversation.
-  NfScene? _scene;
+  /// The scene being played, by id, or null for ordinary conversation.
+  ///
+  /// An id rather than the scene itself: a conversation restored before the
+  /// catalog has loaded names a scene this page cannot describe yet, and it
+  /// must still be played as that scene -- [_send] sends the id as it is --
+  /// and drawn as it the moment the catalog arrives.
+  String? _sceneId;
+
+  /// Which opening and complication this conversation was dealt, chosen when
+  /// the scene starts and sent on every turn. See [NfScene.openingFor].
+  int? _sceneVariant;
+
+  /// The scenes on offer: the catalog once it has loaded, the built-in ones
+  /// until then.
+  List<NfScene> _scenes = NfScene.all;
+
+  /// The language [_scenes] were loaded in, so a change of app language
+  /// reloads them.
+  String? _scenesLanguage;
+
+  NfScene? get _scene => _sceneById(_sceneId);
+
+  set _scene(NfScene? scene) => _sceneId = scene?.id;
+
+  NfScene? _sceneById(String? id) {
+    if (id == null) {
+      return null;
+    }
+    for (final NfScene scene in _scenes) {
+      if (scene.id == id) {
+        return scene;
+      }
+    }
+    for (final NfScene scene in NfScene.all) {
+      if (scene.id == id) {
+        return scene;
+      }
+    }
+    return null;
+  }
+
+  /// Who is speaking: the scene's character in its own voice, or the tutor.
+  ///
+  /// The header has said "Mark" at the check-in desk since the scenes began,
+  /// in Amy's voice. The catalog gives each character one of the six Piper
+  /// voices; free chat is still the tutor the learner picked.
+  VoiceModel get _speakingVoice {
+    final String? piper = _scene?.voice;
+    if (piper == null) {
+      return _voice;
+    }
+    for (final VoiceModel voice in VoiceModel.availableVoices) {
+      if (voice.piperVoice == piper) {
+        return voice;
+      }
+    }
+    return _voice;
+  }
 
   late final NfSpeechCapture _capture;
 
@@ -167,6 +229,34 @@ class _NfTutorPageState extends State<NfTutorPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final String language = Localizations.localeOf(context).languageCode;
+    if (language != _scenesLanguage) {
+      _scenesLanguage = language;
+      unawaited(_loadScenes(language));
+    }
+  }
+
+  /// The catalog in [language]: the copy on the device at once, then the
+  /// server's. Nothing waits on either -- the rail starts with the built-in
+  /// scenes and grows when the catalog arrives, and a failure keeps what it had.
+  Future<void> _loadScenes(String language) async {
+    final List<NfScene>? cached = await NfSceneCatalog.cached(language);
+    if (!mounted || language != _scenesLanguage) {
+      return;
+    }
+    if (cached != null) {
+      setState(() => _scenes = cached);
+    }
+    final List<NfScene>? fresh = await NfSceneCatalog.refresh(_api, language);
+    if (!mounted || language != _scenesLanguage || fresh == null) {
+      return;
+    }
+    setState(() => _scenes = fresh);
+  }
+
+  @override
   void dispose() {
     _hintTimer?.cancel();
     _confirming?.dispose();
@@ -248,9 +338,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
     _clearConfirming();
     _threadId = saved.id;
     _threadStartedAt = saved.startedAt;
-    _scene = NfScene.all
-        .where((NfScene scene) => scene.id == saved.sceneId)
-        .firstOrNull;
+    _sceneId = saved.sceneId;
+    _sceneVariant = saved.sceneVariant;
     _voice = _speakers.firstWhere(
       (VoiceModel v) => v.id == saved.voiceId,
       orElse: () => _voice,
@@ -303,7 +392,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
       id: _threadId,
       startedAt: _threadStartedAt,
       voiceId: _voice.id,
-      sceneId: _scene?.id,
+      sceneId: _sceneId,
+      sceneVariant: _sceneVariant,
       turns: _turns
           .map((_NfTurn t) => NfSavedTurn(
                 text: t.text,
@@ -603,19 +693,23 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // In a scene the server prompt names its own character and ignores
       // speakerName entirely, so sending Amy's name alongside "You are Emma"
       // would tell the model two different things about who it is.
-      final NfScene? scene = _scene;
+      final String? sceneId = _sceneId;
       // Taken before the await, so a second message sent while the first is
       // still in flight cannot send the same recall twice.
       final String? recall = _pendingRecall;
       _pendingRecall = null;
       final TutorReply reply = await _chatbot.chatTurn(
         trimmed,
-        scenario: scene?.id,
-        speakerName: scene == null ? _voice.name : null,
+        scenario: sceneId,
+        speakerName: sceneId == null ? _voice.name : null,
         recall: recall,
         // Asked for with the text, so the reply can be spoken the moment it
-        // arrives -- see ApiService.chatbotChatTurn.
-        voice: _voice.piperVoice,
+        // arrives -- see ApiService.chatbotChatTurn. In the character's own
+        // voice when there is a scene.
+        voice: _speakingVoice.piperVoice,
+        // The same variant on every turn, so the complication the server
+        // plays does not change halfway through the conversation.
+        scenarioVariant: sceneId == null ? null : _sceneVariant,
       );
       if (!mounted) {
         return;
@@ -841,8 +935,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
     _stopAudio();
 
+    // Dealt here, once, and kept for the whole conversation: which of the
+    // scene's openings the learner sees and which complication the server
+    // brings in. A new conversation in the same scene is dealt again.
+    final int? variant = scene == null ? null : Random().nextInt(1 << 20);
+
     setState(() {
       _scene = scene;
+      _sceneVariant = variant;
       _beginThread();
       _turns
         ..clear()
@@ -852,7 +952,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
                 id: _nextTurnId++,
                 fromTutor: true,
                 hasAudio: true,
-                text: scene.opening,
+                text: scene.openingFor(variant),
               ));
       _resetSessionXp();
     });
@@ -929,7 +1029,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
     Uint8List? audio = _prefetchedAudio.remove(turn.id);
     if (audio == null && _ttsAvailable) {
       try {
-        audio = await _piper.synthesize(spoken, voice: _voice.piperVoice);
+        audio =
+            await _piper.synthesize(spoken, voice: _speakingVoice.piperVoice);
       } catch (e) {
         debugPrint('NfTutor Piper synthesize error: $e');
       }
@@ -959,9 +1060,10 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
 
-    await _deviceTts.setLanguage(_voice.locale.replaceAll('_', '-'));
+    final VoiceModel speaking = _speakingVoice;
+    await _deviceTts.setLanguage(speaking.locale.replaceAll('_', '-'));
     await _deviceTts.setSpeechRate(0.5);
-    await _deviceTts.setPitch(_voice.gender == 'female' ? 1.1 : 0.9);
+    await _deviceTts.setPitch(speaking.gender == 'female' ? 1.1 : 0.9);
     await _deviceTts.awaitSpeakCompletion(true);
     await _deviceTts.speak(spoken);
   }
@@ -1065,6 +1167,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
           children: <Widget>[
             _buildHeader(t, level),
             _buildSceneBar(t),
+            if (_scene?.goal case final String goal) _buildGoalBanner(t, goal),
             Expanded(child: _buildConversation(t)),
             _buildFooter(t),
           ],
@@ -1183,12 +1286,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
       builder: (_) => NfThemeScope(
         child: _HistorySheet(
           sessions: _history,
+          scenes: _scenes,
           currentId: _threadId,
           onNew: () {
             Navigator.of(context).pop();
             setState(() {
               _beginThread();
               _scene = null;
+              _sceneVariant = null;
               _turns
                 ..clear()
                 ..add(_greeting(_voice));
@@ -1211,6 +1316,89 @@ class _NfTutorPageState extends State<NfTutorPage> {
             }
           },
         ),
+      ),
+    );
+  }
+
+  /// Every scene, grouped by kind, in a sheet.
+  void _openScenePicker() {
+    if (_capture.isBusy || _isReplying) {
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NfTokens.transparent,
+      builder: (_) => NfThemeScope(
+        child: _ScenePickerSheet(
+          scenes: _scenes,
+          currentId: _sceneId,
+          onPick: (NfScene scene) {
+            Navigator.of(context).pop();
+            _selectScene(scene);
+          },
+        ),
+      ),
+    );
+  }
+
+  /// The scenes on the rail itself: the first few of the catalog, and the one
+  /// being played if it is not among them. The rest are one tap away in the
+  /// picker -- twenty-five chips in a row is a list nobody scrolls to the end
+  /// of, and a chip that moved when tapped would be one nobody could find twice.
+  List<NfScene> _railScenes() {
+    final List<NfScene> rail = _scenes.take(5).toList();
+    final NfScene? current = _scene;
+    if (current != null && !rail.any((NfScene s) => s.id == current.id)) {
+      rail.insert(0, current);
+    }
+    return rail;
+  }
+
+  /// What the learner is in this scene to do, kept in sight while they do it.
+  ///
+  /// Above the conversation rather than in it: a goal scrolled away after two
+  /// turns stops being a goal, and the complication the server deals is only
+  /// a complication to someone who remembers what they were trying to do.
+  Widget _buildGoalBanner(NfTokens t, String goal) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: t.primarySoft,
+        border: Border(bottom: t.side),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: NfSpace.s16,
+        vertical: NfSpace.s8,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.flag_outlined, size: 18, color: t.primary),
+          const SizedBox(width: NfSpace.s8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: <InlineSpan>[
+                  TextSpan(
+                    text: '${context.tr('tutor.scene.goal')}: ',
+                    style: NfTokens.body(
+                      size: NfFont.s125,
+                      weight: NfTokens.bodyEmphasisWeight,
+                      color: t.primary,
+                    ),
+                  ),
+                  TextSpan(
+                    text: goal,
+                    style: NfTokens.body(size: NfFont.s125, color: t.ink),
+                  ),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1245,7 +1433,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
                         : NfChipVariant.unselected,
                     onTap: () => _selectScene(null),
                   ),
-                  for (final NfScene scene in NfScene.all) ...<Widget>[
+                  const SizedBox(width: NfSpace.s6),
+                  NfChip(
+                    label: context.tr('tutor.scene.all'),
+                    dense: true,
+                    variant: NfChipVariant.unselected,
+                    onTap: _openScenePicker,
+                  ),
+                  for (final NfScene scene in _railScenes()) ...<Widget>[
                     const SizedBox(width: NfSpace.s6),
                     NfChip(
                       label: scene.nameOf(context),
@@ -2896,118 +3091,207 @@ int _seedFor(String text) {
   return hash;
 }
 
-/// A situation the tutor plays instead of being itself.
-///
-/// The backend has had roleplay prompts since long before this tab existed,
-/// reached through a `scenario` argument that only the retired chat screen ever
-/// filled in. Everything worked except the part a learner could touch: the
-/// server knew how to be a barista and the app never asked it to.
-///
-/// [opening] is written here rather than fetched, for the same reason the plain
-/// greeting is: choosing a scene should not spend a request from someone's
-/// daily quota before they have said a word. [character] is who the model
-/// becomes, and has to match the name in that scene's server prompt -- the
-/// header shows it, and a learner reading "Amy" while the voice says "I am
-/// Emma" is being told the app does not know who is talking.
-class NfScene {
-  const NfScene({
-    required this.id,
-    required this.character,
-    required this.opening,
-    required this.icon,
-  });
-
-  /// Matches the scenario id the backend switches on. Not a display string.
-  final String id;
-  final String character;
-  final String opening;
-  final IconData icon;
-
-  /// What the tutor opens with when no scene is chosen.
-  ///
-  /// English, like every [opening] below it, and for a reason that took a
-  /// phone to see. This line used to be translated, so a Turkish learner was
-  /// greeted with "Selam, ben Ryan" — and then Piper read that Turkish
-  /// sentence with an English voice, which sounds exactly like a foreigner
-  /// struggling through Turkish. The tutor is the one thing in this app that
-  /// must never do that: it is here to be a native speaker.
-  ///
-  /// The interface around it stays translated. The caption under the button
-  /// still reads "Konuşmak için basılı tut", so the instruction is available
-  /// in the learner's own language without the tutor breaking character.
-  static const String freeChatOpening =
-      "Hi, I'm {name}. Hold the button below and tell me about your day — "
-      "I'll answer out loud.";
-
-  /// The scene's name in the learner's own language.
-  String nameOf(BuildContext context) => context.tr('tutor.scene.$id');
-
-  /// Everyday scenes first. The four that already existed are all office and
-  /// lecture hall, and the person who needs those is not the person who most
-  /// needs this feature.
-  static const List<NfScene> all = <NfScene>[
-    NfScene(
-      id: 'cafe_order',
-      character: 'Emma',
-      opening: 'Hi there! What can I get started for you?',
-      icon: Icons.local_cafe_outlined,
-    ),
-    NfScene(
-      id: 'airport_checkin',
-      character: 'Mark',
-      opening:
-          'Good morning. Passport, please — and where are you flying to today?',
-      icon: Icons.flight_takeoff_outlined,
-    ),
-    NfScene(
-      id: 'hotel_checkin',
-      character: 'Nina',
-      opening: 'Welcome! Could I have your booking name and some ID?',
-      icon: Icons.hotel_outlined,
-    ),
-    NfScene(
-      id: 'small_talk',
-      character: 'Alex',
-      opening:
-          'I do not think we have met — I am Alex. How do you know the host?',
-      icon: Icons.waving_hand_outlined,
-    ),
-    NfScene(
-      id: 'doctor_visit',
-      character: 'Dr. Patel',
-      opening: 'Come in, have a seat. So, what has been bothering you?',
-      icon: Icons.medical_services_outlined,
-    ),
-    NfScene(
-      id: 'shopping_return',
-      character: 'Sam',
-      opening: 'Hello! What seems to be the problem with it?',
-      icon: Icons.shopping_bag_outlined,
-    ),
-    NfScene(
-      id: 'job_interview_followup',
-      character: 'Sarah',
-      opening: 'Thanks for calling back. How are you feeling about the role?',
-      icon: Icons.business_center_outlined,
-    ),
-    NfScene(
-      id: 'academic_presentation_qa',
-      character: 'Dr. Johnson',
-      opening:
-          'Thank you for the presentation. I have a few questions about your method.',
-      icon: Icons.school_outlined,
-    ),
-  ];
-}
-
 /// The last few conversations, and the way to start another.
 ///
 /// Both live here rather than in the header because they are the same
 /// decision — which conversation am I in — and because the header had room for
 /// one control, not two.
+/// Every scene, by kind, with what the learner would be there to do.
+///
+/// The rail shows a handful; this is the whole catalog. The goal is on each
+/// row because it is what a learner chooses by: "order a meal and ask for the
+/// bill" says more about whether a scene is for them than "At a restaurant".
+class _ScenePickerSheet extends StatelessWidget {
+  const _ScenePickerSheet({
+    required this.scenes,
+    required this.currentId,
+    required this.onPick,
+  });
+
+  final List<NfScene> scenes;
+  final String? currentId;
+  final void Function(NfScene) onPick;
+
+  static const List<String> _kinds = <String>[
+    'daily',
+    'travel',
+    'social',
+    'work',
+    'health',
+    'problems',
+  ];
+
+  static String _kindName(BuildContext context, String kind) {
+    final String key = 'tutor.scene.cat.$kind';
+    final String name = context.tr(key);
+    return name == key ? kind : name;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    // Known kinds in their order, then any a newer catalog has that this app
+    // does not know yet -- listed under their own id rather than dropped.
+    final List<String> kinds = <String>[
+      ..._kinds.where((String k) => scenes.any((NfScene s) => s.category == k)),
+      ...<String>{for (final NfScene s in scenes) s.category}
+          .where((String k) => !_kinds.contains(k)),
+    ];
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(NfSpace.s20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+            NfSpace.s16, NfSpace.s12, NfSpace.s16, NfSpace.s8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: t.border,
+                  borderRadius: BorderRadius.circular(NfSpace.s4),
+                ),
+              ),
+            ),
+            const SizedBox(height: NfSpace.s12),
+            Text(
+              context.tr('tutor.scene.pick'),
+              style: NfTokens.display(size: NfFont.s18, color: t.ink),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  for (final String kind in kinds) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          top: NfSpace.s14, bottom: NfSpace.s4),
+                      child: Text(
+                        _kindName(context, kind),
+                        style: NfTokens.body(
+                          size: NfFont.s125,
+                          weight: NfTokens.bodyEmphasisWeight,
+                          color: t.inkMuted,
+                        ),
+                      ),
+                    ),
+                    for (final NfScene scene
+                        in scenes.where((NfScene s) => s.category == kind))
+                      _SceneRow(
+                        scene: scene,
+                        selected: scene.id == currentId,
+                        onTap: () => onPick(scene),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One scene in the picker: what it is, what the learner does in it, and who
+/// they will be talking to.
+class _SceneRow extends StatelessWidget {
+  const _SceneRow({
+    required this.scene,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NfScene scene;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final NfTokens t = NfTokens.of(context);
+    final String? goal = scene.goal;
+    final String? level = scene.minLevel;
+    final String who = level == null
+        ? scene.character
+        : '${scene.character} · '
+            '${context.tr('tutor.scene.level').replaceAll('{level}', level)}';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: NfRadius.controlAll,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: NfSpace.s8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? t.primarySoft : t.ground,
+                borderRadius: NfRadius.iconTileAll,
+                border: Border.fromBorderSide(
+                    t.sideOf(selected ? t.primary : t.border)),
+              ),
+              child: Icon(scene.icon,
+                  size: 20, color: selected ? t.primary : t.inkMuted),
+            ),
+            const SizedBox(width: NfSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    scene.nameOf(context),
+                    style: NfTokens.body(
+                      size: NfFont.s14,
+                      weight: NfTokens.bodyEmphasisWeight,
+                      color: selected ? t.primary : t.ink,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (goal != null) ...<Widget>[
+                    const SizedBox(height: NfSpace.s4),
+                    Text(
+                      goal,
+                      style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: NfSpace.s4),
+                  Text(
+                    who,
+                    style: NfTokens.body(size: NfFont.s12, color: t.inkFaint),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HistorySheet extends StatelessWidget {
   const _HistorySheet({
     required this.sessions,
+    required this.scenes,
     required this.currentId,
     required this.onNew,
     required this.onOpen,
@@ -3015,6 +3299,10 @@ class _HistorySheet extends StatelessWidget {
   });
 
   final List<NfTutorSession> sessions;
+
+  /// The catalog as the page has it, so a conversation in a scene the app
+  /// never shipped with is listed under its name rather than as free chat.
+  final List<NfScene> scenes;
   final String currentId;
   final VoidCallback onNew;
   final void Function(NfTutorSession) onOpen;
@@ -3082,7 +3370,7 @@ class _HistorySheet extends StatelessWidget {
                   itemCount: sessions.length,
                   itemBuilder: (BuildContext context, int i) {
                     final NfTutorSession s = sessions[i];
-                    final NfScene? scene = NfScene.all
+                    final NfScene? scene = <NfScene>[...scenes, ...NfScene.all]
                         .where((NfScene sc) => sc.id == s.sceneId)
                         .firstOrNull;
                     return ListTile(

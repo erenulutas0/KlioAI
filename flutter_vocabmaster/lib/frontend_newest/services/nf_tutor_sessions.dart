@@ -66,6 +66,7 @@ class NfTutorSession {
     required this.voiceId,
     required this.sceneId,
     required this.turns,
+    this.sceneVariant,
   });
 
   final String id;
@@ -77,6 +78,11 @@ class NfTutorSession {
 
   /// The scene, or null for free chat.
   final String? sceneId;
+
+  /// Which opening and complication the scene was dealt, so a conversation
+  /// picked up again is the same conversation. Null for free chat, and for
+  /// every conversation saved before scenes were dealt one.
+  final int? sceneVariant;
 
   final List<NfSavedTurn> turns;
 
@@ -101,6 +107,7 @@ class NfTutorSession {
         'at': startedAt.toIso8601String(),
         'voice': voiceId,
         if (sceneId != null) 'scene': sceneId,
+        if (sceneVariant != null) 'sv': sceneVariant,
         'turns': turns.map((NfSavedTurn t) => t.toJson()).toList(),
       };
 
@@ -121,6 +128,7 @@ class NfTutorSession {
       startedAt: at,
       voiceId: value['voice']?.toString() ?? '',
       sceneId: value['scene']?.toString(),
+      sceneVariant: value['sv'] is int ? value['sv'] as int : null,
       turns: turns,
     );
   }

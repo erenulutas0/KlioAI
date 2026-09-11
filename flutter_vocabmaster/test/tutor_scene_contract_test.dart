@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocabmaster/frontend_newest/screens/nf_tutor_page.dart';
 import 'package:vocabmaster/l10n/app_localizations.dart';
+import 'package:vocabmaster/models/voice_model.dart';
 
 /// The agreement between the scene rail and the server that plays the scene.
 ///
@@ -49,6 +50,19 @@ void main() {
     return null;
   }
 
+  final String l10n = File('lib/l10n/app_localizations.dart').readAsStringSync();
+
+  Set<String> keysFor(String language) {
+    final RegExpMatch? block = RegExp("^    '$language': \\{(.*?)^    \\},",
+            multiLine: true, dotAll: true)
+        .firstMatch(l10n);
+    expect(block, isNotNull, reason: 'no translation block for $language');
+    return RegExp(r"^\s+'([^']+)':", multiLine: true)
+        .allMatches(block!.group(1)!)
+        .map((RegExpMatch m) => m.group(1)!)
+        .toSet();
+  }
+
   test('the scene rail is not empty', () {
     // Every assertion below is a loop over this list, so an empty list would
     // make all of them pass.
@@ -81,24 +95,34 @@ void main() {
         reason: 'the server plays a different character: ${wrong.join(', ')}');
   });
 
+  test('a built-in scene speaks in the voice the catalog gives it', () {
+    // Offline the rail falls back to these; the character must not change
+    // voice depending on whether the catalog happened to load.
+    final List<String> wrong = <String>[
+      for (final NfScene scene in NfScene.all)
+        if (scene.voice != serverScene(scene.id)?['voice'])
+          '${scene.id}: app ${scene.voice}, server ${serverScene(scene.id)?['voice']}',
+    ];
+    expect(wrong, isEmpty, reason: wrong.join(', '));
+  });
+
+  test('every character speaks in a voice the app can play', () {
+    final Set<String> voices =
+        VoiceModel.availableVoices.map((VoiceModel v) => v.piperVoice).toSet();
+    final List<String> wrong = <String>[
+      for (final Map<String, dynamic> scene in serverScenes)
+        if (!voices.contains(scene['voice'])) '${scene['id']}: ${scene['voice']}',
+    ];
+    expect(wrong, isEmpty,
+        reason: 'the app has no voice by these names and would fall back to '
+            "the tutor's: ${wrong.join(', ')}");
+  });
+
   test('every scene has a name in every language', () {
     // The rail builds its key as `tutor.scene.$id`, which is interpolated -- so
     // the coverage test that walks `context.tr('literal')` calls cannot see any
     // of these. Without this, a new scene ships with a chip labelled
     // "tutor.scene.hotel_checkin".
-    final String l10n = File('lib/l10n/app_localizations.dart').readAsStringSync();
-
-    Set<String> keysFor(String language) {
-      final RegExpMatch? block = RegExp("^    '$language': \\{(.*?)^    \\},",
-              multiLine: true, dotAll: true)
-          .firstMatch(l10n);
-      expect(block, isNotNull, reason: 'no translation block for $language');
-      return RegExp(r"^\s+'([^']+)':", multiLine: true)
-          .allMatches(block!.group(1)!)
-          .map((RegExpMatch m) => m.group(1)!)
-          .toSet();
-    }
-
     final List<String> missing = <String>[];
     for (final Locale locale in AppLocalizations.supportedLocales) {
       final Set<String> keys = keysFor(locale.languageCode);
@@ -113,6 +137,23 @@ void main() {
     }
     expect(missing, isEmpty,
         reason: 'these would render as their own key on a chip: '
+            '${missing.join(', ')}');
+  });
+
+  test('every kind of scene in the catalog has a name in every language', () {
+    // Interpolated as `tutor.scene.cat.$kind`, like the scene names above.
+    final Set<String> kinds = <String>{
+      for (final Map<String, dynamic> scene in serverScenes)
+        scene['category'] as String,
+    };
+    final List<String> missing = <String>[
+      for (final Locale locale in AppLocalizations.supportedLocales)
+        for (final String kind in kinds)
+          if (!keysFor(locale.languageCode).contains('tutor.scene.cat.$kind'))
+            '${locale.languageCode}: tutor.scene.cat.$kind',
+    ];
+    expect(missing, isEmpty,
+        reason: 'the picker would head these with their bare id: '
             '${missing.join(', ')}');
   });
 

@@ -65,6 +65,25 @@ void main() {
     expect(sent!.containsKey('voice'), isFalse);
   });
 
+  test('the variant a scene was dealt travels with every turn', () async {
+    // What keeps one conversation's complication the same from turn to turn.
+    await serving(<String, Object?>{'response': 'Sure!'}).chatbotChatTurn(
+      message: 'A latte, please',
+      scenario: 'cafe_order',
+      scenarioVariant: 7,
+    );
+
+    expect(sent!['scenario'], 'cafe_order');
+    expect(sent!['scenarioVariant'], '7');
+  });
+
+  test('free chat sends no variant', () async {
+    await serving(<String, Object?>{'response': 'Sure!'})
+        .chatbotChatTurn(message: 'Hi');
+
+    expect(sent!.containsKey('scenarioVariant'), isFalse);
+  });
+
   test('a server that sends no audio is a server that never did', () async {
     // Every backend before this one: the app asks /api/tts as it always has.
     final TutorReply reply = await serving(<String, Object?>{'response': 'Sure!'})
