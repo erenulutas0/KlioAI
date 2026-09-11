@@ -575,7 +575,9 @@ class ChatbotServiceTest {
         verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(false), any(), any(),
                 nullable(String.class));
         String systemPrompt = messagesCaptor.getValue().get(0).get("content");
-        assertTrue(systemPrompt.contains("You are Alex"));
+        // Chris, not Alex, since the catalog: Alex is the stranger at the party in small_talk,
+        // and two scenes should not share one name for two different people.
+        assertTrue(systemPrompt.contains("You are Chris"));
         assertTrue(systemPrompt.contains("LEARNER LEVEL: B1"));
         assertTrue(systemPrompt.contains("recast at most ONE clear error"));
     }

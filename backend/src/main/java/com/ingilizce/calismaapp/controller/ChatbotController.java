@@ -1698,6 +1698,50 @@ public class ChatbotController {
      * already being cleared on the client; the model's memory of the previous
      * thread was not, so the barista was still in the room when free chat began.
      */
+    /**
+     * The scenes the app can offer, in the learner's language.
+     *
+     * <p>Only the half a learner sees: the title, the goal, who they will talk to, in which
+     * voice, and how the scene can open. The rules and the complications stay on the server --
+     * a complication the learner has already read is not one. Costs no AI quota: nothing here
+     * calls a model.
+     */
+    @GetMapping("/scenarios")
+    public ResponseEntity<Map<String, Object>> scenarios(
+            @RequestParam(value = "lang", required = false) String lang) {
+        com.ingilizce.calismaapp.service.ScenarioCatalog catalog =
+                com.ingilizce.calismaapp.service.ScenarioCatalog.bundled();
+        List<Map<String, Object>> scenes = new ArrayList<>();
+        for (com.ingilizce.calismaapp.service.ScenarioCatalog.Scene scene : catalog.scenes()) {
+            Map<String, Object> item = new java.util.LinkedHashMap<>();
+            item.put("id", scene.id());
+            item.put("category", scene.category());
+            item.put("icon", scene.icon());
+            item.put("minLevel", scene.minLevel());
+            item.put("character", scene.character());
+            item.put("voice", scene.voice());
+            item.put("openings", scene.openings());
+            item.put("title", scene.titleIn(lang));
+            item.put("goal", scene.goalIn(lang));
+            scenes.add(item);
+        }
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("version", catalog.version());
+        body.put("scenes", scenes);
+        return ResponseEntity.ok(body);
+    }
+
+    private static Integer parseScenarioVariant(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(raw.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     @PostMapping("/chat/reset")
     public ResponseEntity<Map<String, Object>> resetChat(@RequestHeader("X-User-Id") Long userId) {
         chatbotService.resetConversation(userId);
@@ -1730,10 +1774,15 @@ public class ChatbotController {
             String speakerName = request.get("speakerName");
             // Sent on the opening message of a thread only; absent on every other turn.
             String recall = request.get("recall");
+            // Which opening and complication this conversation was dealt; see ScenarioCatalog.
+            // Absent from an app that predates the catalog, which keeps the old call exactly.
+            Integer scenarioVariant = parseScenarioVariant(request.get("scenarioVariant"));
             long startedNs = System.nanoTime();
-            ChatbotService.ChatTurn turn = chatbotService.chatTurn(
-                    message.trim(), scenario, scenarioContext, userId, languageProfile, speakerName,
-                    recall);
+            ChatbotService.ChatTurn turn = scenarioVariant == null
+                    ? chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
+                            languageProfile, speakerName, recall)
+                    : chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
+                            languageProfile, speakerName, recall, scenarioVariant);
             ChatbotService.AiCallResult llm = turn.ai();
             // The tutor's whole turn. Completion tokens include the model's reasoning, which
             // is spent before the first word of the reply exists.

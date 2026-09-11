@@ -11,8 +11,10 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -123,6 +125,71 @@ class ChatbotScenarioTest {
             assertTrue(prompt.contains("EXAMPLE RESPONSES"), id + " has no examples");
             assertTrue(prompt.contains("CONTEXT:"), id + " has no context");
         }
+    }
+
+    /** The system prompt for a turn in [scenario] from an app that dealt it [variant]. */
+    @SuppressWarnings("unchecked")
+    private String dealtPromptFor(String scenario, int variant) {
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(),
+                nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("ok", 1, 1, 2));
+
+        chatbotService.chatTurn("Hello", scenario, null, 1L, LearningLanguageProfile.defaultProfile(),
+                null, null, variant);
+
+        ArgumentCaptor<List<Map<String, String>>> captor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider, atLeastOnce()).chatCompletionWithUsage(captor.capture(), anyBoolean(), any(),
+                any(), nullable(String.class));
+        List<List<Map<String, String>>> calls = captor.getAllValues();
+        return calls.get(calls.size() - 1).get(0).get("content");
+    }
+
+    @Test
+    @DisplayName("a conversation is dealt one opening and one complication, and keeps them")
+    void aVariantDealsTheSameOpeningAndComplicationEveryTurn() {
+        ScenarioCatalog.Scene cafe = ScenarioCatalog.bundled().find("cafe_order").orElseThrow();
+
+        String first = dealtPromptFor("cafe_order", 1);
+        String again = dealtPromptFor("cafe_order", 1);
+
+        // The model is told what the app showed as its opening line -- otherwise it never knows
+        // it said it -- and which complication is its to bring in.
+        assertTrue(first.contains("YOU OPENED THE CONVERSATION WITH: \"" + cafe.openingFor(1) + "\""));
+        assertTrue(first.contains("A COMPLICATION FOR THIS CONVERSATION: " + cafe.twistFor(1)));
+        assertEquals(first, again, "the same conversation must not change its complication between turns");
+    }
+
+    @Test
+    @DisplayName("every complication a scene has can come up")
+    void everyComplicationCanBeDealt() {
+        for (ScenarioCatalog.Scene scene : ScenarioCatalog.bundled().scenes()) {
+            Set<String> dealt = new HashSet<>();
+            for (int variant = 0; variant < 200; variant++) {
+                dealt.add(scene.twistFor(variant));
+            }
+            assertEquals(scene.twists().size(), dealt.size(), scene.id() + " has a complication that never comes up");
+        }
+    }
+
+    @Test
+    @DisplayName("the learner's goal and a complication reach the model, even from an older app")
+    void theGoalAndAComplicationReachTheModel() {
+        String prompt = systemPromptFor("hotel_checkin", null);
+
+        assertTrue(prompt.contains("THE LEARNER'S GOAL: "));
+        assertTrue(prompt.contains("A COMPLICATION FOR THIS CONVERSATION: "));
+        assertFalse(prompt.contains("YOU OPENED THE CONVERSATION WITH"),
+                "an app that sends no variant showed its own opening, not one of the catalog's");
+    }
+
+    @Test
+    @DisplayName("the scenes the app never offered before are playable too")
+    void theNewScenesPlay() {
+        assertTrue(systemPromptFor("passport_control", null).contains("Officer Grant"));
+        assertTrue(systemPromptFor("restaurant_order", null).contains("Luca"));
+        assertTrue(systemPromptFor("bank_card_blocked", null).contains("Laura"));
+        assertTrue(systemPromptFor("disagreement_colleague", null).contains("Chris"));
+        assertTrue(systemPromptFor("explaining_to_manager", null).contains("Michael"));
     }
 
     @Test

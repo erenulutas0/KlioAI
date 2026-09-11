@@ -341,6 +341,47 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.audio").doesNotExist());
     }
 
+    /**
+     * The catalog, as the app sees it: in the learner's language, and without the half that
+     * is the server's to play. A complication the learner has already read is not one.
+     */
+    @Test
+    void scenariosAreServedInTheLearnersLanguage_WithoutTheirRulesOrComplications() throws Exception {
+        mockMvc.perform(get("/api/chatbot/scenarios").param("lang", "tr").header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").isNotEmpty())
+                .andExpect(jsonPath("$.scenes.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(20)))
+                .andExpect(jsonPath("$.scenes[?(@.id == 'cafe_order')].title").value("Kahve siparişi"))
+                .andExpect(jsonPath("$.scenes[?(@.id == 'cafe_order')].character").value("Emma"))
+                .andExpect(jsonPath("$.scenes[0].goal").isNotEmpty())
+                .andExpect(jsonPath("$.scenes[0].openings").isArray())
+                .andExpect(jsonPath("$.scenes[0].twists").doesNotExist())
+                .andExpect(jsonPath("$.scenes[0].rules").doesNotExist())
+                .andExpect(jsonPath("$.scenes[0].persona").doesNotExist());
+    }
+
+    @Test
+    void scenariosFallBackToEnglish_ForALanguageTheCatalogDoesNotHave() throws Exception {
+        mockMvc.perform(get("/api/chatbot/scenarios").param("lang", "ja").header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scenes[?(@.id == 'cafe_order')].title").value("Ordering coffee"));
+    }
+
+    @Test
+    void chatPassesTheScenesVariant_WhenTheAppSendsOne() throws Exception {
+        // The variant is what keeps one conversation's complication the same from turn to turn.
+        when(chatbotService.chatTurn(anyString(), eq("cafe_order"), nullable(String.class), anyLong(),
+                any(LearningLanguageProfile.class), nullable(String.class), nullable(String.class), eq(7)))
+                .thenReturn(new ChatbotService.ChatTurn(ai("Oat milk's out today, sorry!"), null));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"A latte please\",\"scenario\":\"cafe_order\",\"scenarioVariant\":\"7\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Oat milk's out today, sorry!"));
+    }
+
     @Test
     void chatCarriesTheNoteWhenTheModelExplainedTheMistake() throws Exception {
         // The note is the half of the card a beginner can actually read: two English
