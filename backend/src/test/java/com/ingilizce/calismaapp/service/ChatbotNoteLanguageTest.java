@@ -96,6 +96,35 @@ class ChatbotNoteLanguageTest {
     }
 
     @Test
+    @DisplayName("a short note in English is still English")
+    void shortEnglishNotesAreCaught() {
+        // 475, on a device: English from end to end, and it passed, because outside the
+        // quotes only "is" and "you" were on the list.
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "\"Emi\" is a different name; you meant \"Amy\".", "Turkish"));
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "\"more simpler\" is wrong, native speakers only say \"simpler\".", "Turkish"));
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "This sounds better: \"I'm bored\".", "German"));
+    }
+
+    @Test
+    @DisplayName("and the notes that shipped in the learner's language still pass")
+    void theDeviceNotesInTurkishStillPass() {
+        // Every one of these was on a card on a device, in Turkish, and was right.
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"complicating\" yerine \"complicated\" kullanılır.", "Turkish"));
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"more simpler\" çift karşılaştırma, tek \"simpler\" yeter.", "Turkish"));
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"what's\" tek başına \"what is\" demek, burada \"what ... are\" gerekir.", "Turkish"));
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"I am boring\" karşındakini sıkıyorsun demek; senin hissettiğin şey \"bored\".", "Turkish"));
+        assertFalse(ChatbotService.noteStraysFromLanguage(
+                "\"I am boring\" artinya kamu membuat orang lain bosan; perasaannya \"bored\".", "Indonesian"));
+    }
+
+    @Test
     @DisplayName("nothing to drop leaves nothing changed")
     void absentNotesAndAbsentCorrectionsPassThrough() {
         ChatbotService.Correction bare = new ChatbotService.Correction("I go", "I went");

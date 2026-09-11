@@ -571,7 +571,16 @@ HOW TO OFFER A CORRECTION:
   private static final Set<String> ENGLISH_FUNCTION_WORDS = Set.of(
       "is", "are", "be", "the", "to", "of", "for", "you", "it", "this", "that",
       "not", "with", "and", "use", "used", "way", "means", "correct", "instead",
-      "when", "would", "should", "because");
+      "when", "would", "should", "because",
+      // The words a SHORT English note is made of. On a device a Turkish learner got
+      // "Emi" is a different name; you meant "Amy". -- English from end to end, with only
+      // "is" and "you" from the list above outside the quotes, so it passed. None of these
+      // means anything in the other seven languages. Left off on purpose: "a", "an", "can",
+      // "name", "was", "do", which do; and "have", "has", "had", which a Turkish note can
+      // name unquoted as the very thing it is explaining.
+      "meant", "mean", "different", "your", "they", "here", "what", "which", "word",
+      "words", "sentence", "right", "wrong", "better", "only", "need", "needs", "must",
+      "sounds", "native", "speaker", "already", "it's", "don't", "doesn't");
 
   /** A span between double quotation marks of any regional shape. */
   private static final Pattern QUOTED_SPAN = Pattern.compile("[\"“”„«»][^\"“”„«»]*[\"“”„«»]");
