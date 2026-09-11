@@ -7,6 +7,17 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -411,6 +422,176 @@ class PiperTtsServiceTest {
 
         assertEquals(1, tempDir.toFile().listFiles().length,
                 "cache must keep at most cacheMaxEntries files");
+    }
+
+    // -------------------------------------------------------------------------
+    // One Piper per voice, kept running
+    // -------------------------------------------------------------------------
+
+    private ResidentStub residentStub() {
+        ResidentStub stub = new ResidentStub();
+        ReflectionTestUtils.setField(stub, "configuredPiperPath", "/mock/piper");
+        ReflectionTestUtils.setField(stub, "residentEnabled", true);
+        ReflectionTestUtils.setField(stub, "residentTimeoutMs", 2_000L);
+        stub.synthProcess = synthProcess;
+        stub.availabilityProcess = availabilityProcess;
+        stub.modelContent = new byte[] { 1, 2, 3, 4 };
+        stub.existingPaths.putAll(service.existingPaths);
+        stub.executablePaths.putAll(service.executablePaths);
+        return stub;
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldKeepOnePiperRunning_AndReuseItForEveryReply() {
+        // Measured on the server: 0.24-0.43 s of every reply's synthesis was Piper loading the
+        // voice, paid again each time because every reply started a new process.
+        ResidentStub stub = residentStub();
+
+        String first = stub.synthesizeSpeech("Oh cool! I love hearing about it.", "amy");
+        String second = stub.synthesizeSpeech("Do you think \"crit\" matters?\nOr lifesteal?", "amy");
+
+        assertEquals(Base64.getEncoder().encodeToString(new byte[] { 1, 2, 3, 4 }), first);
+        assertEquals(first, second);
+        assertEquals(1, stub.residentsStarted.size(), "one process for the voice, not one per reply");
+        assertFalse(stub.startProcessCalled, "no reply may have fallen back to a one-off process");
+        EchoPiperProcess piper = stub.residentsStarted.get(0);
+        assertEquals(3, piper.lines.size(), "a warm-up line, then one line per reply");
+        assertTrue(piper.lines.get(2).contains("\\\"crit\\\""),
+                "a quotation mark travels escaped, and the newline did not split the line");
+        assertTrue(stub.lastResidentCommand.contains("--json-input"));
+        assertFalse(stub.lastResidentCommand.contains("--output_file"),
+                "with --output_file Piper waits for the end of its input and never answers");
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldAnswerFromAOneOffPiper_WhileTheResidentIsStillStarting() {
+        // Loading and warming the voice must never be what a reply waits on.
+        ResidentStub stub = residentStub();
+        stub.startResidentsNow = false;
+
+        String audio = stub.synthesizeSpeech("Hello there", "amy");
+
+        assertEquals(Base64.getEncoder().encodeToString(new byte[] { 1, 2, 3, 4 }), audio);
+        assertTrue(stub.startProcessCalled);
+        assertTrue(stub.residentsStarted.isEmpty());
+        assertEquals(1, stub.deferred.size(), "the resident is being started for the next reply");
+    }
+
+    @Test
+    void synthesizeSpeech_ShouldFallBackAndReplaceTheResident_WhenItStopsAnswering() {
+        ResidentStub stub = residentStub();
+        ReflectionTestUtils.setField(stub, "residentTimeoutMs", 200L);
+        stub.answerFirst = 1; // answers its warm-up line, then nothing
+
+        String audio = stub.synthesizeSpeech("Hello there", "amy");
+
+        assertEquals(Base64.getEncoder().encodeToString(new byte[] { 1, 2, 3, 4 }), audio);
+        assertTrue(stub.startProcessCalled, "the one-off path answers instead");
+        assertFalse(stub.residentsStarted.get(0).isAlive(), "a Piper that stopped answering is stopped");
+
+        stub.answerFirst = Integer.MAX_VALUE;
+        stub.startProcessCalled = false;
+        stub.synthesizeSpeech("Hello again", "amy");
+
+        assertEquals(2, stub.residentsStarted.size(), "and replaced by a new one");
+        assertFalse(stub.startProcessCalled);
+    }
+
+    /** Stands in for `piper --json-input`: answers each JSON line with its output_file. */
+    static class EchoPiperProcess extends Process {
+        final List<String> lines = new CopyOnWriteArrayList<>();
+        private final PipedOutputStream toPiper = new PipedOutputStream();
+        private final PipedInputStream fromPiper = new PipedInputStream();
+        private volatile boolean alive = true;
+
+        EchoPiperProcess(int answerFirst) throws IOException {
+            PipedInputStream piperStdin = new PipedInputStream(toPiper);
+            PipedOutputStream piperStdout = new PipedOutputStream(fromPiper);
+            Thread piper = new Thread(() -> {
+                ObjectMapper json = new ObjectMapper();
+                try (BufferedReader in = new BufferedReader(
+                        new InputStreamReader(piperStdin, StandardCharsets.UTF_8));
+                        Writer out = new OutputStreamWriter(piperStdout, StandardCharsets.UTF_8)) {
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        lines.add(line);
+                        if (lines.size() <= answerFirst) {
+                            out.write(json.readTree(line).get("output_file").asText() + "\n");
+                            out.flush();
+                        }
+                    }
+                } catch (IOException ignored) {
+                    // The test is over, or the service closed the pipe.
+                }
+            });
+            piper.setDaemon(true);
+            piper.start();
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return toPiper;
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return fromPiper;
+        }
+
+        @Override
+        public InputStream getErrorStream() {
+            return new ByteArrayInputStream(new byte[0]);
+        }
+
+        @Override
+        public int waitFor() {
+            return 0;
+        }
+
+        @Override
+        public int exitValue() {
+            if (alive) {
+                throw new IllegalThreadStateException("still running");
+            }
+            return 0;
+        }
+
+        @Override
+        public void destroy() {
+            alive = false;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return alive;
+        }
+    }
+
+    static class ResidentStub extends StubPiperTtsService {
+        final List<EchoPiperProcess> residentsStarted = new CopyOnWriteArrayList<>();
+        final List<Runnable> deferred = new ArrayList<>();
+        volatile int answerFirst = Integer.MAX_VALUE;
+        boolean startResidentsNow = true;
+        List<String> lastResidentCommand;
+
+        @Override
+        protected Process startResidentProcess(List<String> command, File workingDir) throws IOException {
+            lastResidentCommand = command;
+            EchoPiperProcess process = new EchoPiperProcess(answerFirst);
+            residentsStarted.add(process);
+            return process;
+        }
+
+        @Override
+        protected Executor residentStarter() {
+            return task -> {
+                if (startResidentsNow) {
+                    task.run();
+                } else {
+                    deferred.add(task);
+                }
+            };
+        }
     }
 
     static class StubPiperTtsService extends PiperTtsService {

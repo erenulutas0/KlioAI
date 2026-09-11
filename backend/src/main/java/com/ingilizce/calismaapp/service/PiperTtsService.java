@@ -16,7 +16,13 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -63,6 +69,21 @@ public class PiperTtsService {
     private long availabilityCacheMs = 0;
 
     private volatile long availabilityConfirmedAtMs = -1;
+
+    // One Piper per voice, kept running between replies. Measured on the server, loading the
+    // voice was 0.24-0.43 s of every reply's synthesis, paid again each time because each
+    // reply started a new process. Off for plain `new`, like the audio cache, so the seam
+    // tests keep exercising the one-off path. See synthesizeResident.
+    @Value("${app.tts.resident-enabled:true}")
+    private boolean residentEnabled = false;
+
+    // How long a running Piper may take over one line before it is presumed stuck and replaced.
+    // A 400-character reply infers in well under two seconds on the server.
+    @Value("${app.tts.resident-timeout-ms:15000}")
+    private long residentTimeoutMs = 15000;
+
+    private final Map<String, ResidentPiper> residents = new ConcurrentHashMap<>();
+    private final Set<String> residentsStarting = ConcurrentHashMap.newKeySet();
 
     // --- KRİTİK DEĞİŞİKLİK BURADA ---
     // Modelleri Türkçe karakter sorunu olmaması için C:\piper klasöründen okuyoruz.
@@ -116,6 +137,20 @@ public class PiperTtsService {
                 if (cachedAudio != null && cachedAudio.length > 0) {
                     log.info("TIMING tts cache=hit chars={} ms={}", text.length(), elapsedMs(startedNs));
                     return Base64.getEncoder().encodeToString(cachedAudio);
+                }
+            }
+
+            // A voice already loaded in a running Piper answers without loading it again. Null
+            // means it could not this time, and the one-off path below answers instead.
+            if (residentEnabled) {
+                byte[] residentAudio = synthesizeResident(modelFile, text);
+                if (residentAudio != null && residentAudio.length > 0) {
+                    if (cacheFile != null) {
+                        writeCachedAudio(cacheFile, residentAudio);
+                    }
+                    log.info("TIMING tts cache=miss resident=true chars={} ms={} bytes={}",
+                            text.length(), elapsedMs(startedNs), residentAudio.length);
+                    return Base64.getEncoder().encodeToString(residentAudio);
                 }
             }
 
@@ -211,7 +246,7 @@ public class PiperTtsService {
 
             // Read generated audio file
             byte[] audioData = readAllBytes(outputPath);
-            log.info("TIMING tts cache=miss chars={} ms={} bytes={}", text.length(),
+            log.info("TIMING tts cache=miss resident=false chars={} ms={} bytes={}", text.length(),
                     elapsedMs(startedNs), audioData == null ? 0 : audioData.length);
 
             if (cacheFile != null && audioData != null && audioData.length > 0) {
@@ -434,6 +469,223 @@ public class PiperTtsService {
         } catch (Exception e) {
             log.warn("Piper TTS availability check failed", e);
             return false;
+        }
+    }
+
+    /**
+     * Speech from the running Piper for this voice, or null if it cannot answer right now.
+     *
+     * <p>Null covers every reason not to wait: the process is still starting (it was asked
+     * for just now and is loading in the background), it is busy with another reply, it did
+     * not answer within {@link #residentTimeoutMs}, or it has died. The caller then takes the
+     * one-off path, so a reply is never slower than it was before this existed. A process
+     * that failed is stopped and replaced on the next request.
+     */
+    private byte[] synthesizeResident(String modelFile, String text) {
+        String modelPath = absolutePath(modelFile);
+        if (!pathExists(modelPath)) {
+            return null;
+        }
+        ResidentPiper resident = residentFor(modelPath);
+        if (resident == null || !resident.lock.tryLock()) {
+            return null;
+        }
+        Path outputPath = createTempOutputPath();
+        try {
+            if (!resident.speak(text, outputPath, residentTimeoutMs)) {
+                log.warn("Resident Piper did not answer within {} ms for {}; replacing it",
+                        residentTimeoutMs, modelPath);
+                retire(modelPath, resident);
+                return null;
+            }
+            return readAllBytes(outputPath);
+        } catch (Exception e) {
+            log.warn("Resident Piper failed for {}: {}", modelPath, e.toString());
+            retire(modelPath, resident);
+            return null;
+        } finally {
+            resident.lock.unlock();
+            try {
+                deleteIfExists(outputPath);
+            } catch (IOException ignored) {
+                // A stray temp file costs disk, never a reply.
+            }
+        }
+    }
+
+    /** The running Piper for [modelPath] if it is ready; otherwise starts one and returns null. */
+    private ResidentPiper residentFor(String modelPath) {
+        ResidentPiper resident = residents.get(modelPath);
+        if (resident != null && resident.isAlive()) {
+            return resident;
+        }
+        if (resident != null) {
+            residents.remove(modelPath, resident);
+        }
+        if (residentsStarting.add(modelPath)) {
+            residentStarter().execute(() -> {
+                try {
+                    ResidentPiper started = startResident(modelPath);
+                    if (started != null) {
+                        residents.put(modelPath, started);
+                    }
+                } finally {
+                    residentsStarting.remove(modelPath);
+                }
+            });
+        }
+        ResidentPiper ready = residents.get(modelPath);
+        return ready != null && ready.isAlive() ? ready : null;
+    }
+
+    /**
+     * A new Piper for [modelPath], already warmed up, or null if it would not start.
+     *
+     * <p>The first line a fresh process speaks is the slow one -- the voice loads, and the
+     * first inference warms the runtime -- so it is spent on a throwaway word, in the
+     * background, and no learner waits for it.
+     */
+    private ResidentPiper startResident(String modelPath) {
+        long startedNs = System.nanoTime();
+        Path warmup = createTempOutputPath();
+        ResidentPiper resident = null;
+        try {
+            // No --output_file: with it Piper reads to the end of its input and writes one file,
+            // which a process that is meant to keep running never reaches.
+            List<String> command = List.of(findPiperPath(), "--model", modelPath, "--json-input",
+                    "--output_dir", System.getProperty("java.io.tmpdir"));
+            resident = new ResidentPiper(startResidentProcess(command, new File(getModelBaseDir())));
+            if (!resident.speak("Hello.", warmup, residentTimeoutMs)) {
+                log.warn("A resident Piper for {} did not answer its warm-up line", modelPath);
+                resident.stop();
+                return null;
+            }
+            log.info("TIMING tts resident-ready model={} ms={}",
+                    Paths.get(modelPath).getFileName(), elapsedMs(startedNs));
+            return resident;
+        } catch (Exception e) {
+            log.warn("Could not start a resident Piper for {}: {}", modelPath, e.toString());
+            if (resident != null) {
+                resident.stop();
+            }
+            return null;
+        } finally {
+            try {
+                deleteIfExists(warmup);
+            } catch (IOException ignored) {
+                // Same as above.
+            }
+        }
+    }
+
+    private void retire(String modelPath, ResidentPiper resident) {
+        residents.remove(modelPath, resident);
+        resident.stop();
+    }
+
+    @jakarta.annotation.PreDestroy
+    void stopResidents() {
+        residents.values().forEach(ResidentPiper::stop);
+        residents.clear();
+    }
+
+    /**
+     * Starts a Piper that stays running. Protected to allow a fake in tests.
+     *
+     * <p>Unlike {@link #startProcess}, stderr is kept apart: stdout carries only Piper's
+     * answers, one output path per line, and a log line mixed into it would be read as one.
+     */
+    protected Process startResidentProcess(List<String> command, File workingDir) throws IOException {
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        if (workingDir != null && workingDir.exists()) {
+            processBuilder.directory(workingDir);
+        }
+        return processBuilder.start();
+    }
+
+    /** Where a resident Piper is started. A daemon thread, so no request waits on it. */
+    protected Executor residentStarter() {
+        return task -> {
+            Thread thread = new Thread(task, "piper-resident-start");
+            thread.setDaemon(true);
+            thread.start();
+        };
+    }
+
+    /**
+     * One running `piper --json-input`: a JSON line in, the WAV written, its path printed back.
+     *
+     * <p>The path comes back only after the file is complete, so reading it the moment the
+     * line arrives is safe. One line at a time, under {@link #lock}.
+     */
+    static final class ResidentPiper {
+        private static final ObjectMapper JSON = new ObjectMapper();
+
+        final ReentrantLock lock = new ReentrantLock();
+        private final Process process;
+        private final BufferedWriter stdin;
+        private final BlockingQueue<String> answers = new LinkedBlockingQueue<>();
+
+        ResidentPiper(Process process) {
+            this.process = process;
+            this.stdin = new BufferedWriter(
+                    new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+            Thread out = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        answers.offer(line.trim());
+                    }
+                } catch (IOException ignored) {
+                    // The process is gone; speak() sees it time out or the process dead.
+                }
+            }, "piper-resident-out");
+            out.setDaemon(true);
+            out.start();
+            // Piper's own log. Its "Real-time factor" line is a running total in this mode, not
+            // the cost of the line just spoken, so it stays at debug; TIMING tts carries the real
+            // figure per reply.
+            Thread err = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        log.debug("Resident Piper: {}", line);
+                    }
+                } catch (IOException ignored) {
+                    // Nothing to log from a process that is gone.
+                }
+            }, "piper-resident-err");
+            err.setDaemon(true);
+            err.start();
+        }
+
+        /** Speaks [text] into [outputPath]; false if Piper did not answer with it in time. */
+        boolean speak(String text, Path outputPath, long timeoutMs) throws IOException, InterruptedException {
+            if (!process.isAlive()) {
+                return false;
+            }
+            answers.clear();
+            // JSON, so a newline or a quotation mark in the reply stays inside one line.
+            stdin.write(JSON.writeValueAsString(Map.of("text", text, "output_file", outputPath.toString())));
+            stdin.write('\n');
+            stdin.flush();
+            String answer = answers.poll(timeoutMs, TimeUnit.MILLISECONDS);
+            return answer != null && answer.endsWith(outputPath.getFileName().toString());
+        }
+
+        boolean isAlive() {
+            return process.isAlive();
+        }
+
+        void stop() {
+            try {
+                stdin.close();
+            } catch (IOException ignored) {
+                // Closing is a courtesy; destroy below is the stop.
+            }
+            process.destroy();
         }
     }
 
