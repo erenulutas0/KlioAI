@@ -155,6 +155,17 @@ class ChatbotWholeSentenceTest {
     }
 
     @Test
+    @DisplayName("a hesitation is how people talk, not a mistake")
+    void hesitationsAreNotMistakes() throws Exception {
+        // On a device, "no cheese, cheese, thank you, you, but a little truffle, truffle, oil"
+        // became two correction lines about the repeated words.
+        String text = fixInstructions("B2");
+
+        assertTrue(text.contains("Speech is not writing."));
+        assertTrue(text.contains("never make a correction line of one"));
+    }
+
+    @Test
     @DisplayName("several sentences are all of them, start to end")
     void thePromptAsksForEveryPart() throws Exception {
         // The first device run dropped the learner's whole first clause. The example is two

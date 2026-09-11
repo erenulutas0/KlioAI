@@ -413,6 +413,9 @@ HOW TO OFFER A CORRECTION:
   "explain me", "I am boring" meant as "I'm bored"). The meaning being clear does not
   make the words correct. Word order counts too ("tell me where is it"), and so does a
   doubled comparative ("more simpler").
+- Speech is not writing. A word said twice, a sentence started again, "um", "oh" or "you
+  know" is how people talk, not a mistake: never make a correction line of one. The
+  whole-message line simply leaves them out.
 - Each correction line holds only the words that were wrong, with no more around them
   than the fix needs: a few words, never a whole clause or question. Two mistakes in one
   clause are two lines, not one wide one. For "Why don't you tell me where is the station
@@ -1290,7 +1293,11 @@ HOW TO OFFER A CORRECTION:
     // app was built -- falls through to ordinary chat below rather than to nothing.
     ScenarioCatalog.Scene scene = scenarioCatalog.find(scenario).orElse(null);
     if (scene != null) {
-      return scenePrompt(scene, contextStr, scenarioVariant, userId, profile);
+      // Two stored messages per completed turn, as for the conversation phase below.
+      int learnerTurnsSoFar = conversationSessionService != null
+          ? conversationSessionService.sessionMessageCount(userId) / 2
+          : 0;
+      return scenePrompt(scene, contextStr, scenarioVariant, userId, profile, learnerTurnsSoFar);
     }
 
     // Default: normal chat mode with a stable daily persona and conversation phases.
@@ -1363,7 +1370,7 @@ IMPORTANT:
    * left out, because the app showed its own.
    */
   private String scenePrompt(ScenarioCatalog.Scene scene, String contextStr, Integer variant,
-      Long userId, LearningLanguageProfile profile) {
+      Long userId, LearningLanguageProfile profile, int learnerTurnsSoFar) {
     int dealt = variant != null ? variant : Objects.hash(userId, scene.id(), LocalDate.now());
     String opened = variant != null
         ? "\nYOU OPENED THE CONVERSATION WITH: \"" + scene.openingFor(variant) + "\"\n"
@@ -1379,10 +1386,10 @@ SCENARIO RULES:
 - Stay in the scene. Do not break character to explain English unless they ask.
 
 THE LEARNER'S GOAL: %s
-Let them work towards it. If they drift, steer back gently; once they have reached it, wrap the scene up naturally.
+The goal is theirs to reach, not yours to hand them. Never offer or suggest the things it asks them to ask for -- if it says to ask for the bill, you do not mention the bill until they do. React to what they say and let them lead; if they drift away from it for a few turns, bring them back with one natural question. Once they have done all of it, wrap the scene up naturally.
 
 A COMPLICATION FOR THIS CONVERSATION: %s
-Bring it in yourself at a natural moment, after the learner's first or second turn, the way it would really happen. The learner does not know it is coming: never announce it as a test or a twist.
+%s The learner does not know it is coming: never announce it as a test or a twist, and let it change what happens next, the way it really would.
 %s
 LEARNER LEVEL: %s (CEFR)
 CORRECTION FREQUENCY FOR THIS LEVEL:
@@ -1393,9 +1400,30 @@ CONTEXT: %s
 EXAMPLE RESPONSES:
 %s
 """.formatted(scene.persona(), contextStr, bullets(scene.rules(), false), scene.goalIn("en"),
-        scene.twistFor(dealt), opened, profile.englishLevel(),
+        scene.twistFor(dealt), complicationTiming(learnerTurnsSoFar), opened, profile.englishLevel(),
         correctionFrequencyGuidance(profile.englishLevel()), scene.context(),
         bullets(scene.examples(), true));
+  }
+
+  /**
+   * When the complication comes in, by how far into the scene the learner is.
+   *
+   * <p>"After the learner's first or second turn, at a natural moment" was a suggestion, and
+   * the model never took it: seven turns in a restaurant on a device with no complication at
+   * all, even after the learner said the dish looked different from what they had ordered. The
+   * server knows which turn it is, so the prompt says which: not yet on the first message, in
+   * this reply on the second, and in this reply after that if it was missed.
+   */
+  static String complicationTiming(int learnerTurnsSoFar) {
+    if (learnerTurnsSoFar <= 0) {
+      return "Not yet: this is the learner's first message, so answer it as the scene begins, "
+          + "and bring the complication in on your next reply.";
+    }
+    if (learnerTurnsSoFar == 1) {
+      return "Bring it in IN THIS REPLY, in your own words, as a natural part of what you say.";
+    }
+    return "It should have come up by now. If it has not, bring it in IN THIS REPLY; if it has, "
+        + "do not repeat it -- let it play out.";
   }
 
   private static String bullets(List<String> lines, boolean quoted) {

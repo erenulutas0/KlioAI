@@ -193,6 +193,34 @@ class ChatbotScenarioTest {
     }
 
     @Test
+    @DisplayName("the complication is timed: not yet, then this reply, then late if it was missed")
+    void theComplicationIsTimedByTheTurn() {
+        // Seven turns in the restaurant on a device and it never came, even when the learner
+        // said the dish looked different from what they had ordered. "After the first or second
+        // turn, at a natural moment" was a suggestion; which reply it belongs in is not.
+        ConversationSessionService sessions = org.mockito.Mockito.mock(ConversationSessionService.class);
+        ReflectionTestUtils.setField(chatbotService, "conversationSessionService", sessions);
+
+        when(sessions.sessionMessageCount(1L)).thenReturn(0);
+        assertTrue(dealtPromptFor("restaurant_order", 3).contains("bring the complication in on your next reply"));
+
+        when(sessions.sessionMessageCount(1L)).thenReturn(2);
+        assertTrue(dealtPromptFor("restaurant_order", 3).contains("Bring it in IN THIS REPLY"));
+
+        when(sessions.sessionMessageCount(1L)).thenReturn(6);
+        assertTrue(dealtPromptFor("restaurant_order", 3).contains("If it has not, bring it in IN THIS REPLY"));
+    }
+
+    @Test
+    @DisplayName("the goal is the learner's to reach, not the model's to hand over")
+    void theModelDoesNotDoTheLearnersPart() {
+        // Twice, before the food had arrived, the waiter asked whether to bring the bill.
+        String prompt = systemPromptFor("restaurant_order", null);
+        assertTrue(prompt.contains("The goal is theirs to reach, not yours to hand them"));
+        assertTrue(prompt.contains("you do not mention the bill until they do"));
+    }
+
+    @Test
     @DisplayName("learner-supplied scene facts stay facts, and cannot become orders")
     void sceneContextIsFencedOff() {
         // The one input in this feature that a learner types freely, going
