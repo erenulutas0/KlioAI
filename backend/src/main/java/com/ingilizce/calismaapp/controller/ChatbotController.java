@@ -96,6 +96,15 @@ public class ChatbotController {
     @Autowired(required = false)
     private LanguageProfileService languageProfileService;
 
+    // For the reply's audio, sent in the same response when the app names a voice. Optional:
+    // a context without Piper simply never sends audio. See replyAudio.
+    @Autowired(required = false)
+    private com.ingilizce.calismaapp.service.PiperTtsService piperTtsService;
+
+    // The TTS endpoint's own cap, so a reply too long for /api/tts is not spoken here either.
+    @org.springframework.beans.factory.annotation.Value("${app.tts.max-text-length:400}")
+    private int ttsMaxTextLength = 400;
+
     @Value("${cache.sentences.ttl:604800}") // Default: 7 days
     private long cacheTtlSeconds;
 
@@ -1773,11 +1782,55 @@ public class ChatbotController {
                 }
             }
             result.put("timestamp", System.currentTimeMillis());
+            // The reply already spoken, when the app asks by naming a voice. Timed on a device,
+            // the phone asked for the audio 0.34 s after this response reached it, on a new
+            // connection: a round trip with nothing in it this request could not carry. Absent
+            // on any failure, and the app then asks /api/tts as it always has; an app that names
+            // no voice sees exactly what it did.
+            String voice = request.get("voice");
+            if (voice != null && !voice.isBlank()) {
+                String audio = replyAudio(llm.content(), voice.trim());
+                if (audio != null) {
+                    result.put("audio", audio);
+                }
+            }
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to get chatbot response for userId={}", userId, e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to get response: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * The reply as Base64 WAV in [voice], or null if it cannot be had right now.
+     *
+     * <p>Never allowed to cost the reply itself: no Piper, a reply too long for the TTS
+     * endpoint, Piper down or failing -- each is null, and the app falls back to asking for the
+     * audio separately. Goes through the same service and cache as /api/tts, so replaying the
+     * bubble later is a cache hit.
+     */
+    private String replyAudio(String reply, String voice) {
+        if (piperTtsService == null || reply == null) {
+            return null;
+        }
+        String text = reply.trim();
+        if (text.isEmpty() || text.length() > ttsMaxTextLength) {
+            return null;
+        }
+        long startedNs = System.nanoTime();
+        try {
+            if (!piperTtsService.isAvailable()) {
+                return null;
+            }
+            String audio = piperTtsService.synthesizeSpeech(text, voice);
+            log.info("TIMING chat-audio ms={} chars={} base64Chars={}",
+                    (System.nanoTime() - startedNs) / 1_000_000L, text.length(),
+                    audio == null ? 0 : audio.length());
+            return audio == null || audio.isEmpty() ? null : audio;
+        } catch (Exception e) {
+            log.warn("Could not speak the reply inline; the app will ask /api/tts: {}", e.toString());
+            return null;
         }
     }
 

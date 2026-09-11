@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// One thing the learner said, and the way to say it.
 ///
 /// The speaking tab has always had corrections and never shown them. The server
@@ -305,10 +307,14 @@ class TutorCorrection {
 
 /// A reply, and whatever came back with it.
 class TutorReply {
-  const TutorReply({required this.text, this.correction});
+  const TutorReply({required this.text, this.correction, this.audio});
 
   final String text;
   final TutorCorrection? correction;
+
+  /// The reply already spoken, when the server sent it with the text -- see
+  /// [ApiService.chatbotChatTurn]. Null means nothing more than "ask for it".
+  final Uint8List? audio;
 
   bool get isEmpty => text.trim().isEmpty;
 }

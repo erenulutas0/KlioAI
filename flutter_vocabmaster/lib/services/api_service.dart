@@ -1384,12 +1384,32 @@ class ApiService {
     );
   }
 
+  /// The reply's audio when the server sent it inline. Anything else is null,
+  /// so a malformed field costs the prefetch, never the reply.
+  static Uint8List? _replyAudio(Object? value) {
+    if (value is! String || value.isEmpty) {
+      return null;
+    }
+    try {
+      final Uint8List bytes = base64Decode(value);
+      return bytes.isEmpty ? null : bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// [voice] asks for the reply already spoken, in that Piper voice. Timed on
+  /// a device, the phone asked for the audio 0.34 s after the reply reached
+  /// it, on a new connection; the chat response can carry it instead. A
+  /// server that does not know the field sends no audio, and the app asks for
+  /// it separately as it always has.
   Future<TutorReply> chatbotChatTurn({
     required String message,
     String? scenario,
     String? scenarioContext,
     String? speakerName,
     String? recall,
+    String? voice,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1407,6 +1427,7 @@ class ApiService {
           // that field is labelled to the model as facts the learner supplied
           // about the scene, and this is the app remembering.
           if (recall != null && recall.isNotEmpty) 'recall': recall,
+          if (voice != null && voice.isNotEmpty) 'voice': voice,
           ..._learningLanguageProfile(),
         }),
       ),
@@ -1421,6 +1442,7 @@ class ApiService {
           // Every change and the whole sentence when the server sends them, the
           // single correction when it is older than that.
           correction: TutorCorrection.fromResponse(decoded),
+          audio: _replyAudio(decoded['audio']),
         );
       }
       return const TutorReply(text: '');

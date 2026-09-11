@@ -101,6 +101,13 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
   int _nextTurnId = 0;
 
+  /// The latest reply's audio, when it came with the reply, keyed by turn.
+  ///
+  /// Played once and dropped; a replay asks the server, which answers from its
+  /// cache. Only the latest is kept, so a long conversation does not hold every
+  /// reply it ever heard.
+  final Map<int, Uint8List> _prefetchedAudio = <int, Uint8List>{};
+
   /// True between pointer-down and pointer-up on the speak button. The recorder
   /// starts asynchronously (permission, temp file), so a quick press can be
   /// over before it is running; this is what tells the start path to bin it.
@@ -606,6 +613,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
         scenario: scene?.id,
         speakerName: scene == null ? _voice.name : null,
         recall: recall,
+        // Asked for with the text, so the reply can be spoken the moment it
+        // arrives -- see ApiService.chatbotChatTurn.
+        voice: _voice.piperVoice,
       );
       if (!mounted) {
         return;
@@ -664,9 +674,17 @@ class _NfTutorPageState extends State<NfTutorPage> {
       // Answered out loud, as a person answers -- see [nfReadsReplyAloud] for
       // the seconds this took when it waited for a tap.
       final _NfTurn? spoken = answer;
+      final Uint8List? audio = reply.audio;
+      if (spoken != null && audio != null) {
+        _prefetchedAudio
+          ..clear()
+          ..[spoken.id] = audio;
+      }
       if (spoken != null &&
           nfReadsReplyAloud(
-            serverVoice: _ttsAvailable,
+            // The tutor's own voice is here either way: Piper is up, or the
+            // reply came already spoken in it.
+            serverVoice: _ttsAvailable || _prefetchedAudio.containsKey(spoken.id),
             visible: widget.visible,
             recording: _capture.isRecording,
             lifecycle: WidgetsBinding.instance.lifecycleState,
@@ -906,8 +924,10 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
   /// Piper first, the device voice if the backend has nothing to offer.
   Future<void> _readAloud(_NfTurn turn, String spoken) async {
-    Uint8List? audio;
-    if (_ttsAvailable) {
+    // Sent with the reply, and played from here once. A replay, or a reply
+    // that came without it, asks the server as before.
+    Uint8List? audio = _prefetchedAudio.remove(turn.id);
+    if (audio == null && _ttsAvailable) {
       try {
         audio = await _piper.synthesize(spoken, voice: _voice.piperVoice);
       } catch (e) {

@@ -102,6 +102,9 @@ public class ChatbotControllerTest {
     @MockBean
     private SentenceStarterTrackingService sentenceStarterTrackingService;
 
+    @MockBean
+    private com.ingilizce.calismaapp.service.PiperTtsService piperTtsService;
+
     @Autowired
     private MeterRegistry meterRegistry;
 
@@ -275,6 +278,67 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.corrections[1].better").value("more simply"))
                 .andExpect(jsonPath("$.corrections[1].note").doesNotExist())
                 .andExpect(jsonPath("$.correctedSentence").value("This is getting more complicated."));
+    }
+
+    private void tutorSays(String reply) {
+        when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class),
+                anyLong(), any(LearningLanguageProfile.class), nullable(String.class),
+                nullable(String.class)))
+                .thenReturn(new ChatbotService.ChatTurn(ai(reply), null));
+    }
+
+    /**
+     * The reply arrives already spoken.
+     *
+     * <p>Timed on a device, the phone asked for the audio 0.34 s after the reply reached it,
+     * on a new connection. An app that names a voice now gets the audio in the same response.
+     */
+    @Test
+    void chatCarriesTheRepliesAudio_WhenTheAppNamesAVoice() throws Exception {
+        tutorSays("Sure! Steamed milk is milk heated with steam.");
+        when(piperTtsService.isAvailable()).thenReturn(true);
+        when(piperTtsService.synthesizeSpeech("Sure! Steamed milk is milk heated with steam.", "amy"))
+                .thenReturn("UklGRg==");
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"What is steamed milk?\",\"voice\":\"amy\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Sure! Steamed milk is milk heated with steam."))
+                .andExpect(jsonPath("$.audio").value("UklGRg=="));
+    }
+
+    @Test
+    void chatSendsNoAudio_ToAnAppThatNamesNoVoice() throws Exception {
+        // Every build before this one. It must not pay for synthesis it will never play.
+        tutorSays("Sure! Steamed milk is milk heated with steam.");
+        when(piperTtsService.isAvailable()).thenReturn(true);
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"What is steamed milk?\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audio").doesNotExist());
+        verify(piperTtsService, never()).synthesizeSpeech(anyString(), anyString());
+    }
+
+    @Test
+    void chatStillAnswers_WhenTheAudioCannotBeMade() throws Exception {
+        // The audio is a convenience; the reply is the point. Piper failing costs the former.
+        tutorSays("Sure! Steamed milk is milk heated with steam.");
+        when(piperTtsService.isAvailable()).thenReturn(true);
+        when(piperTtsService.synthesizeSpeech(anyString(), anyString()))
+                .thenThrow(new RuntimeException("piper down"));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"What is steamed milk?\",\"voice\":\"amy\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Sure! Steamed milk is milk heated with steam."))
+                .andExpect(jsonPath("$.audio").doesNotExist());
     }
 
     @Test

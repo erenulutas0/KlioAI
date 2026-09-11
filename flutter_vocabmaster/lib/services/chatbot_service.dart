@@ -92,7 +92,8 @@ class ChatbotService {
       {String? scenario,
       String? scenarioContext,
       String? speakerName,
-      String? recall}) async {
+      String? recall,
+      String? voice}) async {
     try {
       return await _api.chatbotChatTurn(
         message: message,
@@ -100,6 +101,7 @@ class ChatbotService {
         scenarioContext: scenarioContext,
         speakerName: speakerName,
         recall: recall,
+        voice: voice,
       );
     } catch (e) {
       debugPrint('ChatbotService.chatTurn error: $e');
