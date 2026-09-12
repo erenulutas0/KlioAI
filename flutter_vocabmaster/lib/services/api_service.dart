@@ -1415,6 +1415,15 @@ class ApiService {
     }
   }
 
+  /// The unspoken remainder of a reply, when the server sent one.
+  static String? _replyAudioRest(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    final String text = value.trim();
+    return text.isEmpty ? null : text;
+  }
+
   /// [voice] asks for the reply already spoken, in that Piper voice. Timed on
   /// a device, the phone asked for the audio 0.34 s after the reply reached
   /// it, on a new connection; the chat response can carry it instead. A
@@ -1465,6 +1474,10 @@ class ApiService {
           // single correction when it is older than that.
           correction: TutorCorrection.fromResponse(decoded),
           audio: _replyAudio(decoded['audio']),
+          // Only present when the server spoke the opening and left the rest
+          // for the app to ask for. A server that predates it sends nothing
+          // and the reply is played exactly as before.
+          audioRest: _replyAudioRest(decoded['audioRest']),
         );
       }
       return const TutorReply(text: '');

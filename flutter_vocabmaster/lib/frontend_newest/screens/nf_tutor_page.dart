@@ -175,6 +175,10 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// reply it ever heard.
   final Map<int, Uint8List> _prefetchedAudio = <int, Uint8List>{};
 
+  /// What the server spoke only the opening of. Asked for while that opening
+  /// plays, so the synthesis costs none of the wait -- see [_readAloud].
+  final Map<int, String> _prefetchedRest = <int, String>{};
+
   /// True between pointer-down and pointer-up on the speak button. The recorder
   /// starts asynchronously (permission, temp file), so a quick press can be
   /// over before it is running; this is what tells the start path to bin it.
@@ -778,6 +782,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
         _prefetchedAudio
           ..clear()
           ..[spoken.id] = audio;
+        _prefetchedRest.clear();
+        final String? rest = reply.audioRest;
+        if (rest != null) {
+          _prefetchedRest[spoken.id] = rest;
+        }
       }
       if (spoken != null &&
           nfReadsReplyAloud(
@@ -1012,7 +1021,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     _updateWakelock();
 
     try {
-      await _readAloud(turn, spoken).timeout(_speechTimeout(spoken));
+      await _readAloud(turn, spoken, seq).timeout(_speechTimeout(spoken));
     } catch (e) {
       debugPrint('NfTutor TTS error: $e');
     } finally {
@@ -1028,10 +1037,24 @@ class _NfTutorPageState extends State<NfTutorPage> {
   }
 
   /// Piper first, the device voice if the backend has nothing to offer.
-  Future<void> _readAloud(_NfTurn turn, String spoken) async {
+  Future<void> _readAloud(_NfTurn turn, String spoken, int seq) async {
     // Sent with the reply, and played from here once. A replay, or a reply
     // that came without it, asks the server as before.
     Uint8List? audio = _prefetchedAudio.remove(turn.id);
+    // A long reply arrives with only its first sentence spoken. Asking for the
+    // rest starts here, before a note of the first has played, so the four or
+    // five seconds of the opening are the four or five seconds the synthesis
+    // had -- and the learner waits for a sentence instead of a paragraph.
+    final String? rest = _prefetchedRest.remove(turn.id);
+    Future<Uint8List?>? restAudio;
+    if (audio != null && rest != null && _ttsAvailable) {
+      restAudio = _piper
+          .synthesize(rest, voice: _speakingVoice.piperVoice)
+          .catchError((Object e) {
+        debugPrint('NfTutor rest synthesize error: $e');
+        return null;
+      });
+    }
     if (audio == null && _ttsAvailable) {
       try {
         audio =
@@ -1051,17 +1074,17 @@ class _NfTutorPageState extends State<NfTutorPage> {
     }
 
     if (audio != null && mounted) {
-      final Directory dir = await getTemporaryDirectory();
-      final File file = File('${dir.path}/nf_tutor_reply.wav');
-      await file.writeAsBytes(audio);
-      await _player.setFilePath(file.path);
-      await _player.play();
-      // `idle` as well as `completed`: stopping the player is how the learner
-      // interrupts, and waiting only for `completed` would leave this future
-      // hanging and the bubble stuck showing a stop button.
-      await _player.playerStateStream.firstWhere((PlayerState state) =>
-          state.processingState == ProcessingState.completed ||
-          state.processingState == ProcessingState.idle);
+      await _playBytes(audio, 'nf_tutor_reply.wav');
+      // The second half, if there is one. `seq` is what a stop bumps, so an
+      // interrupted reply does not come back to life halfway through; and a
+      // remainder that failed to synthesise simply ends the turn early rather
+      // than repeating the opening in the device voice.
+      if (restAudio != null) {
+        final Uint8List? more = await restAudio;
+        if (more != null && mounted && _playbackSeq == seq) {
+          await _playBytes(more, 'nf_tutor_reply_rest.wav');
+        }
+      }
       return;
     }
 
@@ -1071,6 +1094,25 @@ class _NfTutorPageState extends State<NfTutorPage> {
     await _deviceTts.setPitch(speaking.gender == 'female' ? 1.1 : 0.9);
     await _deviceTts.awaitSpeakCompletion(true);
     await _deviceTts.speak(spoken);
+  }
+
+  /// Plays one clip through and returns when it has finished or been stopped.
+  ///
+  /// Its own file per part: `just_audio` is told a path, and handing it the
+  /// same one twice in a row is how a second clip becomes a replay of the
+  /// first.
+  Future<void> _playBytes(Uint8List audio, String name) async {
+    final Directory dir = await getTemporaryDirectory();
+    final File file = File('${dir.path}/$name');
+    await file.writeAsBytes(audio);
+    await _player.setFilePath(file.path);
+    await _player.play();
+    // `idle` as well as `completed`: stopping the player is how the learner
+    // interrupts, and waiting only for `completed` would leave this future
+    // hanging and the bubble stuck showing a stop button.
+    await _player.playerStateStream.firstWhere((PlayerState state) =>
+        state.processingState == ProcessingState.completed ||
+        state.processingState == ProcessingState.idle);
   }
 
   /// A ceiling on the whole read-aloud, not on the speech itself.

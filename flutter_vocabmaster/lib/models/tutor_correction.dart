@@ -307,14 +307,29 @@ class TutorCorrection {
 
 /// A reply, and whatever came back with it.
 class TutorReply {
-  const TutorReply({required this.text, this.correction, this.audio});
+  const TutorReply({
+    required this.text,
+    this.correction,
+    this.audio,
+    this.audioRest,
+  });
 
   final String text;
   final TutorCorrection? correction;
 
   /// The reply already spoken, when the server sent it with the text -- see
   /// [ApiService.chatbotChatTurn]. Null means nothing more than "ask for it".
+  ///
+  /// On a long reply this is only its first sentence: the voice costs about
+  /// twenty milliseconds a character, so speaking the whole of one was six
+  /// seconds before anything was heard. What is left is [audioRest].
   final Uint8List? audio;
+
+  /// The rest of the reply, as text, when [audio] is only its opening. Spoken
+  /// after it, and asked for while it plays, so the synthesis happens inside
+  /// the seconds the learner is already listening. Null when the server spoke
+  /// the reply whole, which is the ordinary short-reply case.
+  final String? audioRest;
 
   bool get isEmpty => text.trim().isEmpty;
 }

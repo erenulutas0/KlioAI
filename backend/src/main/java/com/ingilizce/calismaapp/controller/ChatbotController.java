@@ -10,6 +10,7 @@ import com.ingilizce.calismaapp.service.LanguageProfileService;
 import com.ingilizce.calismaapp.service.LearningLanguageProfile;
 import com.ingilizce.calismaapp.service.PracticeSentencePrompt;
 import com.ingilizce.calismaapp.service.PromptCatalog;
+import com.ingilizce.calismaapp.service.SpokenReply;
 import com.ingilizce.calismaapp.service.WordService;
 import com.ingilizce.calismaapp.service.GrammarCheckService;
 import com.ingilizce.calismaapp.service.AiRateLimitService;
@@ -1838,10 +1839,7 @@ public class ChatbotController {
             // no voice sees exactly what it did.
             String voice = request.get("voice");
             if (voice != null && !voice.isBlank()) {
-                String audio = replyAudio(llm.content(), voice.trim());
-                if (audio != null) {
-                    result.put("audio", audio);
-                }
+                speakReply(result, llm.content(), voice.trim());
             }
             return ResponseEntity.ok(result);
         } catch (Exception e) {
@@ -1852,34 +1850,48 @@ public class ChatbotController {
     }
 
     /**
-     * The reply as Base64 WAV in [voice], or null if it cannot be had right now.
+     * Puts the reply's speech into [result]: "audio" as Base64 WAV in [voice], and "audioRest"
+     * when there is more of the reply to say.
      *
-     * <p>Never allowed to cost the reply itself: no Piper, a reply too long for the TTS
-     * endpoint, Piper down or failing -- each is null, and the app falls back to asking for the
-     * audio separately. Goes through the same service and cache as /api/tts, so replaying the
-     * bubble later is a cache hit.
+     * <p>Never allowed to cost the reply itself: no engine, a reply too long for the TTS
+     * endpoint, the engine down or failing -- each leaves both keys off, and the app falls back
+     * to asking for the audio separately. Goes through the same service and cache as /api/tts,
+     * so replaying the bubble later is a cache hit.
+     *
+     * <p>Only the reply's first sentence is spoken here; whatever follows goes back as
+     * "audioRest", text, for the app to ask for while that first sentence is playing. Kokoro
+     * costs about twenty milliseconds a character, so speaking a long reply whole was six
+     * seconds of silence before the learner heard anything -- see {@link SpokenReply}. A short
+     * reply has no seam and no "audioRest", exactly as before.
      */
-    private String replyAudio(String reply, String voice) {
+    private void speakReply(Map<String, Object> result, String reply, String voice) {
         if (speechService == null || reply == null) {
-            return null;
+            return;
         }
         String text = reply.trim();
         if (text.isEmpty() || text.length() > ttsMaxTextLength) {
-            return null;
+            return;
         }
         long startedNs = System.nanoTime();
         try {
             if (!speechService.isAvailable()) {
-                return null;
+                return;
             }
-            String audio = speechService.synthesizeSpeech(text, voice);
-            log.info("TIMING chat-audio ms={} chars={} base64Chars={}",
+            SpokenReply.Split split = SpokenReply.of(text);
+            String audio = speechService.synthesizeSpeech(split.lead(), voice);
+            log.info("TIMING chat-audio ms={} chars={} leadChars={} restChars={} base64Chars={}",
                     (System.nanoTime() - startedNs) / 1_000_000L, text.length(),
+                    split.lead().length(), split.rest().length(),
                     audio == null ? 0 : audio.length());
-            return audio == null || audio.isEmpty() ? null : audio;
+            if (audio == null || audio.isEmpty()) {
+                return;
+            }
+            result.put("audio", audio);
+            if (!split.isWhole()) {
+                result.put("audioRest", split.rest());
+            }
         } catch (Exception e) {
             log.warn("Could not speak the reply inline; the app will ask /api/tts: {}", e.toString());
-            return null;
         }
     }
 

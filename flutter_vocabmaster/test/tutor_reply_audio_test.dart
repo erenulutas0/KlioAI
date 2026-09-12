@@ -93,6 +93,44 @@ void main() {
     expect(reply.text, 'Sure!');
   });
 
+  test('a long reply comes back opening-first, with the rest to say after',
+      () async {
+    // What the server sends when speaking the whole reply would have been six
+    // seconds of silence: the first sentence spoken, the remainder as text for
+    // the app to ask for while that sentence plays.
+    final TutorReply reply = await serving(<String, Object?>{
+      'response': 'I am afraid the lasagne is sold out tonight. '
+          'The penne arrabbiata is very good though.',
+      'audio': base64Encode(<int>[82, 73, 70, 70]),
+      'audioRest': 'The penne arrabbiata is very good though.',
+    }).chatbotChatTurn(message: 'The lasagne please', voice: 'amy');
+
+    expect(reply.audio, <int>[82, 73, 70, 70]);
+    expect(reply.audioRest, 'The penne arrabbiata is very good though.');
+  });
+
+  test('a short reply is spoken whole and leaves nothing over', () async {
+    final TutorReply reply = await serving(<String, Object?>{
+      'response': 'Sure!',
+      'audio': base64Encode(<int>[82, 73, 70, 70]),
+    }).chatbotChatTurn(message: 'Hi', voice: 'amy');
+
+    expect(reply.audioRest, isNull);
+  });
+
+  test('a malformed rest costs the rest, never the reply', () async {
+    for (final Object junk in <Object>[42, '', '   ', <int>[1]]) {
+      final TutorReply reply = await serving(<String, Object?>{
+        'response': 'Sure!',
+        'audio': base64Encode(<int>[82, 73, 70, 70]),
+        'audioRest': junk,
+      }).chatbotChatTurn(message: 'Hi', voice: 'amy');
+
+      expect(reply.audioRest, isNull, reason: 'read $junk as the rest');
+      expect(reply.text, 'Sure!', reason: '$junk cost the reply');
+    }
+  });
+
   test('a malformed audio field costs the audio, never the reply', () async {
     for (final Object junk in <Object>['not base64 at all!', 42, '', <int>[1]]) {
       final TutorReply reply = await serving(<String, Object?>{

@@ -306,7 +306,40 @@ public class ChatbotControllerTest {
                 .content("{\"message\":\"What is steamed milk?\",\"voice\":\"amy\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Sure! Steamed milk is milk heated with steam."))
-                .andExpect(jsonPath("$.audio").value("UklGRg=="));
+                .andExpect(jsonPath("$.audio").value("UklGRg=="))
+                // Short enough to say in one piece, so there is nothing left over.
+                .andExpect(jsonPath("$.audioRest").doesNotExist());
+    }
+
+    /**
+     * A long reply is spoken a sentence ahead of itself.
+     *
+     * <p>Kokoro costs about twenty milliseconds a character. Measured on the server, a
+     * 289-character reply was 6.0 s of synthesis before the learner heard a sound -- and
+     * seventeen seconds of speech once they did. Its first sentence is about a second. So that
+     * is what comes back spoken; the remainder comes back as text, and the app asks for it
+     * while the first sentence is playing. See SpokenReply.
+     */
+    @Test
+    void chatSpeaksTheFirstSentenceOnly_WhenTheReplyIsLongEnoughToHurt() throws Exception {
+        String lead = "I'm afraid the lasagne is sold out tonight.";
+        String rest = "The penne arrabbiata is very good though, and the kitchen can have it out "
+                + "to you in a few minutes. Would you like me to put that in?";
+        tutorSays(lead + " " + rest);
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(lead, "amy")).thenReturn("UklGRg==");
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"I would like the lasagne please\",\"voice\":\"amy\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(lead + " " + rest))
+                .andExpect(jsonPath("$.audio").value("UklGRg=="))
+                .andExpect(jsonPath("$.audioRest").value(rest));
+
+        // The whole reply is never synthesised here: that is the six seconds being removed.
+        verify(speechService, never()).synthesizeSpeech(eq(lead + " " + rest), anyString());
     }
 
     @Test
