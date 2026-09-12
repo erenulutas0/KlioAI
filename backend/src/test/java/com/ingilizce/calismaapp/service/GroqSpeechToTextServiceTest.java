@@ -614,6 +614,27 @@ class GroqSpeechToTextServiceTest {
         assertEquals(mixed, result.text());
     }
 
+    /**
+     * A mixed sentence the pin mangled is held back.
+     *
+     * <p>Measured on a device: the Turkish half of a sentence came back as one nonsense word,
+     * the two transcripts shared six words of ten -- exactly the old 0.6 -- and it went
+     * straight to the tutor, where the card taught "a beer" for a request for water.
+     */
+    @Test
+    void transcribeShouldHoldAMixedSentenceThePinMangled() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        stubBothPasses(
+                "{\"text\":\"I'd like the pasta, and also birasso?\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-0.3}]}",
+                "{\"text\":\"I'd like the pasta, and also biraz su alabilir miyiz?\",\"language\":\"turkish\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US");
+
+        assertTrue(result.otherLanguage());
+        assertTrue(result.lowConfidence(), "a mangled sentence reached the tutor unchecked");
+    }
+
     @Test
     void theAgreementCheckCountsWordsNotPunctuation() {
         assertEquals(1.0, GroqSpeechToTextService.SpokenLanguage.wordOverlap(

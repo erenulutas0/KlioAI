@@ -186,6 +186,10 @@ class ChatbotFixInstructionsTest {
         String text = fixInstructions();
 
         assertThat(text).contains("Anything they said in another language is a correction too");
+        // And the first time it was used, it went wrong both ways at once: "birasso" -- a
+        // mangled "biraz su" -- was guessed at and "corrected" into Turkish for "a beer".
+        assertThat(text).contains("The corrected side is always English");
+        assertThat(text).contains("Never\n  guess at one");
         assertThat(text).contains("even\n  when your reply understood them and carried on");
     }
 

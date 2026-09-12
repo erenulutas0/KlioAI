@@ -130,8 +130,16 @@ public class GroqSpeechToTextService {
          * <p>Two readings of one clip differ in punctuation and the odd filler, never in most
          * of their words. A pinned "Hello, can you please take a while?" against a free
          * "Merhaba, biraz su alabilir miyiz?" shares nothing at all.
+         *
+         * <p>This was 0.6 and that was too loose. A sentence that changes language halfway can
+         * come back pinned as "I'd like the pasta, and also birasso" -- the Turkish mangled
+         * into one nonsense word -- against a free pass that kept "biraz su alabilir miyiz".
+         * Six shared words out of ten is exactly 0.6: counted as the same sentence, sent
+         * straight on, and the card then taught "a beer" for a request for water. A
+         * transcript that lost or changed a third of the words is not the same sentence,
+         * and holding it back is the behaviour this threshold falls back to anyway.
          */
-        static final double SAME_SENTENCE_OVERLAP = 0.6;
+        static final double SAME_SENTENCE_OVERLAP = 0.85;
 
         static SpokenLanguage from(Map<String, Object> payload, String pinnedTranscript) {
             // The transcript about to be sent is supposed to be English. If it carries

@@ -452,9 +452,13 @@ HOW TO OFFER A CORRECTION:
 %s
 - Correct only what they actually said. Never invent a mistake to have something to show.
 - Anything they said in another language is a correction too: those words exactly as they
-  said them, then the English for them. Somebody who switches language mid-sentence has just
-  shown you precisely which English they do not have yet, so it is never let pass -- even
+  said them, then the English for them. The corrected side is always English -- never their
+  own language put right. Somebody who switches language mid-sentence has just shown you
+  precisely which English they do not have yet, so it is never let pass -- even
   when your reply understood them and carried on.
+- But only when you can tell what those words meant. Speech-to-text mangles a sentence that
+  changes language halfway, and a mangled word reads as nonsense in every language. Never
+  guess at one: a guess teaches them a word they did not ask for. Leave it off the card.
 - At most %d correction lines, then the whole-message line, and nothing after it.
 """.formatted(
         maxChanges,
@@ -529,6 +533,13 @@ HOW TO OFFER A CORRECTION:
       if (corrections.size() == cap) {
         break;
       }
+      // See bringsInOwnLanguage.
+      if (isEnglish(profile.targetLanguage())
+          && bringsInOwnLanguage(found.better(), found.said(), profile.sourceLanguage())) {
+        logger.info("Dropping a correction whose better way is not English: '{}' -> '{}'",
+            found.said(), found.better());
+        continue;
+      }
       corrections.add(inLearnersLanguage(found, profile.sourceLanguage()));
     }
     // Only beside a correction -- a card cannot lead with a sentence it does not explain --
@@ -537,6 +548,12 @@ HOW TO OFFER A CORRECTION:
     String correctedSentence =
         corrections.isEmpty() ? null : extractCorrectedSentence(result.content());
     if (correctedSentence != null && sameWords(correctedSentence, message)) {
+      correctedSentence = null;
+    }
+    // And only in English. The same failure as a correction line, one level up.
+    if (correctedSentence != null && isEnglish(profile.targetLanguage())
+        && bringsInOwnLanguage(correctedSentence, message, profile.sourceLanguage())) {
+      logger.info("Dropping a corrected sentence that is not English: '{}'", correctedSentence);
       correctedSentence = null;
     }
     // And only when it is the whole message. See keepsTheRestOf.
@@ -677,6 +694,49 @@ HOW TO OFFER A CORRECTION:
    * <p>Below three words there is too little to judge, and the note stands. A language with
    * no signs listed is never judged this way, only by the English count.
    */
+  /**
+   * Whether a corrected phrase carries the learner's own language that their words did not.
+   *
+   * <p>Measured on a device, in the restaurant scene: the learner asked for some water half in
+   * Turkish, the transcript came back with "birasso", and the card struck it through and
+   * offered "bir birasi" -- broken Turkish for "a beer", under a Turkish note explaining it.
+   * The better side of a card is what the learner is told to say instead, and for somebody
+   * learning English it is English or it is wrong. So a correction that brings in letters or
+   * words of their own language is dropped.
+   *
+   * <p>Only what it brings in. A learner who lives in Umraniye says so, and "in Umraniye" is a
+   * perfectly good correction of how they said it: a sign already in their own words is theirs,
+   * not the model's.
+   */
+  static boolean bringsInOwnLanguage(String corrected, String original, String nativeLanguage) {
+    if (corrected == null || nativeLanguage == null) {
+      return false;
+    }
+    LanguageSigns signs = NOTE_LANGUAGE_SIGNS.get(nativeLanguage.trim().toLowerCase(Locale.ROOT));
+    if (signs == null) {
+      return false;
+    }
+    Set<String> theirs = new HashSet<>(wordList(original));
+    for (String word : wordList(corrected)) {
+      if (theirs.contains(word)) {
+        continue;
+      }
+      if (signs.words().contains(word)) {
+        return true;
+      }
+      for (int i = 0; i < word.length(); i++) {
+        if (signs.letters().indexOf(word.charAt(i)) >= 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private static boolean isEnglish(String language) {
+    return language == null || "english".equalsIgnoreCase(language.trim());
+  }
+
   static boolean lacksLanguageSigns(String outsideQuotes, String nativeLanguage) {
     if (outsideQuotes == null || nativeLanguage == null) {
       return false;
