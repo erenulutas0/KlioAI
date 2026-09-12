@@ -171,6 +171,9 @@ class ChatbotService {
         // thing this feature is not allowed to slow down.
         lowConfidence: result['lowConfidence'] == true,
         avgLogprob: rawLogprob is num ? rawLogprob.toDouble() : null,
+        // Same reading, for the same reason: absent means the server never had
+        // an opinion, and no opinion is not a verdict of "another language".
+        otherLanguage: result['otherLanguage'] == true,
       );
     } catch (e) {
       debugPrint('ChatbotService.transcribeSpeech error: $e');
@@ -1084,11 +1087,24 @@ class SpeechTranscription {
   /// their pronunciation, which it is not. Null when the server sent none.
   final double? avgLogprob;
 
+  /// Why [lowConfidence] is set, when the reason was the language.
+  ///
+  /// The transcription is pinned to the language being learned, so it cannot
+  /// report this itself: given Turkish, it returns confident English that was
+  /// never said. A second, unpinned pass over the same audio is what notices,
+  /// and the difference matters to the person reading the footer. "We may have
+  /// misheard that" is the wrong thing to say to somebody who spoke their own
+  /// language perfectly clearly and has nothing to correct.
+  ///
+  /// False for every server that does not send the field.
+  final bool otherLanguage;
+
   const SpeechTranscription({
     required this.text,
     this.measuredDurationMs,
     this.words = const <NfWordTiming>[],
     this.lowConfidence = false,
     this.avgLogprob,
+    this.otherLanguage = false,
   });
 }

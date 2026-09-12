@@ -197,6 +197,17 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// the learner has corrected is simply what they said.
   TextEditingController? _confirming;
 
+  /// Whether what is waiting in [_confirming] was held back because it was
+  /// heard as another language, rather than because the words were a guess.
+  ///
+  /// The two need different words. "We may have misheard that" is wrong for
+  /// somebody who spoke their own language clearly: they have nothing to fix,
+  /// and the sentence in the field is not a mishearing of what they said but
+  /// English invented from audio that was never English. Measured on a device:
+  /// "Merhaba, biraz su alabilir miyiz?" came back as "Hello, can you be able
+  /// to do it?" and was offered to them to correct.
+  bool _confirmingOtherLanguage = false;
+
   /// The pace measured from the clip that produced [_confirming].
   ///
   /// Kept across an edit. It is a fact about how fast they spoke, and fixing
@@ -560,6 +571,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// interrupt a screen whose whole rhythm is press, speak, release.
   void _askBeforeSending(NfCaptureResult result) {
     _confirmingPace = result.pace;
+    _confirmingOtherLanguage = result.otherLanguage;
     setState(() {
       _confirming = TextEditingController(text: result.transcript);
     });
@@ -609,6 +621,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     }
     _confirming = null;
     _confirmingPace = null;
+    _confirmingOtherLanguage = false;
     // Disposed after the frame that takes the field out of the tree, not now.
     // A TextField still mounted this frame would be holding a dead controller
     // and throws on its next paint.
@@ -1661,7 +1674,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     // unexplained text field.
     if (_confirming != null) {
       return Text(
-        context.tr('tutor.confirm.hint'),
+        context.tr(nfConfirmHintKey(_confirmingOtherLanguage)),
         style: NfTokens.body(size: NfFont.s125, color: t.streakText),
         textAlign: TextAlign.center,
         maxLines: 1,
@@ -1700,7 +1713,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
   String _captionText(BuildContext context) {
     if (_confirming != null) {
-      return context.tr('tutor.confirm.caption');
+      return context.tr(nfConfirmCaptionKey(_confirmingOtherLanguage));
     }
     if (_capture.isTranscribing) {
       return context.tr('tutor.caption.transcribing');
@@ -2693,6 +2706,28 @@ Widget nfConfirmTranscriptForTest({
 /// the background. An app that has not reported a lifecycle state yet is
 /// taken to be in front, which is where it is when it is being talked to.
 @visibleForTesting
+/// What the held-back sentence is introduced with.
+///
+/// Two different situations wear the same footer, and they need different
+/// words. A doubted transcript is a mishearing the learner can repair -- "I am
+/// agree with you" for "I am angry with you" -- and asking them to check it is
+/// exactly right. A sentence held back because it was heard as another language
+/// is not a mishearing of anything: measured on a device, "Merhaba, biraz su
+/// alabilir miyiz?" arrived as "Hello, can you be able to do it?", English
+/// invented from Turkish audio because the recogniser is pinned to the language
+/// being learned. Telling that learner "we may have misheard you" invites them
+/// to correct a sentence they never said a word of.
+///
+/// Both keep the same two ways out. The verdict comes from a detector that has
+/// been seen to be wrong once on clear English, and a learner who was speaking
+/// the right language all along must still be one tap from sending.
+String nfConfirmHintKey(bool otherLanguage) =>
+    otherLanguage ? 'tutor.confirm.hint.language' : 'tutor.confirm.hint';
+
+/// The line under the field. See [nfConfirmHintKey].
+String nfConfirmCaptionKey(bool otherLanguage) =>
+    otherLanguage ? 'tutor.confirm.caption.language' : 'tutor.confirm.caption';
+
 bool nfReadsReplyAloud({
   required bool serverVoice,
   required bool visible,

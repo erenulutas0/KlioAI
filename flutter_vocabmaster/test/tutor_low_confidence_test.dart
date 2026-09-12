@@ -133,6 +133,51 @@ void main() {
       }
     });
 
+    test('a doubt raised by the language says so', () async {
+      // Measured on a device: "Merhaba, biraz su alabilir miyiz?" came back as
+      // "Hello, can you be able to do it?" -- confident English invented from
+      // audio that was never English. The transcription is pinned to the
+      // language being learned, so only the second, unpinned pass can notice,
+      // and the footer needs to know: there is nothing to correct in that
+      // sentence, and telling the learner they were misheard is telling them
+      // the wrong thing.
+      final SpeechTranscription heard = await transcribe(<String, Object?>{
+        'text': 'Hello, can you be able to do it?',
+        'lowConfidence': true,
+        'avgLogprob': -0.91,
+        'otherLanguage': true,
+        'detectedLanguage': 'turkish',
+      });
+
+      expect(heard.lowConfidence, isTrue);
+      expect(heard.otherLanguage, isTrue);
+    });
+
+    test('a doubt raised by the words alone is not a language verdict',
+        () async {
+      final SpeechTranscription heard = await transcribe(<String, Object?>{
+        'text': 'I am angry with you',
+        'lowConfidence': true,
+        'avgLogprob': -0.91,
+        'otherLanguage': false,
+      });
+
+      expect(heard.lowConfidence, isTrue);
+      expect(heard.otherLanguage, isFalse);
+    });
+
+    test('a server that never sends the verdict has not given one', () async {
+      for (final Object? junk in <Object?>[null, 'true', 1, <String>[]]) {
+        final SpeechTranscription heard = await transcribe(<String, Object?>{
+          'text': 'I am agree with you',
+          'lowConfidence': true,
+          if (junk != null) 'otherLanguage': junk,
+        });
+        expect(heard.otherLanguage, isFalse,
+            reason: 'read $junk as a language verdict');
+      }
+    });
+
     test('the debugging score never becomes part of what was said', () async {
       // avgLogprob is for the log. "-0.82" beside their own sentence would be
       // read by a learner as a score of their pronunciation, which it is not.
@@ -198,6 +243,34 @@ void main() {
   // ---------------------------------------------------------------------------
   // The footer while a doubtful sentence waits
   // ---------------------------------------------------------------------------
+
+  group('what the footer says, and why', () {
+    test('a mishearing is introduced as a mishearing', () {
+      expect(nfConfirmHintKey(false), 'tutor.confirm.hint');
+      expect(nfConfirmCaptionKey(false), 'tutor.confirm.caption');
+    });
+
+    test('another language is not', () {
+      // There is nothing in "Hello, can you be able to do it?" for somebody who
+      // said "Merhaba, biraz su alabilir miyiz?" to correct.
+      expect(nfConfirmHintKey(true), 'tutor.confirm.hint.language');
+      expect(nfConfirmCaptionKey(true), 'tutor.confirm.caption.language');
+    });
+
+    test('every interface language has both of them', () {
+      for (final Locale locale in AppLocalizations.supportedLocales) {
+        final AppLocalizations strings = AppLocalizations(locale);
+        for (final bool otherLanguage in <bool>[true, false]) {
+          final String hint = strings.t(nfConfirmHintKey(otherLanguage));
+          final String caption = strings.t(nfConfirmCaptionKey(otherLanguage));
+          expect(hint, isNotEmpty, reason: '${locale.languageCode} hint');
+          expect(caption, isNotEmpty, reason: '${locale.languageCode} caption');
+          expect(hint, isNot(contains('tutor.confirm')),
+              reason: '${locale.languageCode} fell through to the key itself');
+        }
+      }
+    });
+  });
 
   group('checking the sentence', () {
     late TextEditingController controller;

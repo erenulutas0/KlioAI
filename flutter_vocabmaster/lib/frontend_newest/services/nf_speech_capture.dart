@@ -50,6 +50,7 @@ class NfCaptureResult {
     this.error,
     this.pace,
     this.lowConfidence = false,
+    this.otherLanguage = false,
   });
 
   final NfCaptureOutcome outcome;
@@ -66,6 +67,12 @@ class NfCaptureResult {
   /// computed from peak and range would just be the silence gate answering a
   /// question it was not asked.
   final bool lowConfidence;
+
+  /// Whether [lowConfidence] was raised by the language rather than the words —
+  /// see [SpeechTranscription.otherLanguage]. What the footer says depends on
+  /// it: there is nothing to correct in a sentence somebody meant to say in
+  /// their own language.
+  final bool otherLanguage;
 
   /// How fast this was spoken, or null when the clip was too short to say.
   /// Null is "nothing to report", never "slow".
@@ -342,6 +349,7 @@ class NfSpeechCapture extends ChangeNotifier {
         // clips scored. The number never reaches the screen.
         debugPrint('NfSpeechCapture low confidence: '
             'avgLogprob=${result.avgLogprob?.toStringAsFixed(2) ?? 'n/a'} '
+            'otherLanguage=${result.otherLanguage} '
             'peak=${peakDb.toStringAsFixed(1)} '
             'range=${rangeDb.toStringAsFixed(1)} dB');
       }
@@ -350,6 +358,7 @@ class NfSpeechCapture extends ChangeNotifier {
         transcript: trimmed,
         pace: NfSpokenPace.from(result.words),
         lowConfidence: result.lowConfidence,
+        otherLanguage: result.otherLanguage,
       );
     } catch (e) {
       return NfCaptureResult._(NfCaptureOutcome.failed, error: e);
