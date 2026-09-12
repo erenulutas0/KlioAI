@@ -451,6 +451,12 @@ HOW TO OFFER A CORRECTION:
 %s
 %s
 - Correct only what they actually said. Never invent a mistake to have something to show.
+- A correction is about how they said something, never about what they chose. What they
+  ordered, asked for or decided stays theirs, word for word -- even when the scene is about
+  to change it. The kitchen running out of their dish is the story, not their mistake.
+- A word that makes no sense where it stands was most likely misheard by the speech-to-text,
+  not misspoken: "a table for two police" was not a request for the police. Never guess a
+  different word into its place -- leave it off the card.
 - Anything they said in another language is a correction too: those words exactly as they
   said them, then the English for them. The corrected side is always English -- never their
   own language put right. Somebody who switches language mid-sentence has just shown you
@@ -537,6 +543,12 @@ HOW TO OFFER A CORRECTION:
       if (isEnglish(profile.targetLanguage())
           && bringsInOwnLanguage(found.better(), found.said(), profile.sourceLanguage())) {
         logger.info("Dropping a correction whose better way is not English: '{}' -> '{}'",
+            found.said(), found.better());
+        continue;
+      }
+      // See replacesWhatTheySaid.
+      if (replacesWhatTheySaid(found.said(), found.better())) {
+        logger.info("Dropping a correction that replaces what they said: '{}' -> '{}'",
             found.said(), found.better());
         continue;
       }
@@ -731,6 +743,41 @@ HOW TO OFFER A CORRECTION:
       }
     }
     return false;
+  }
+
+  /**
+   * Whether a correction of an English phrase replaces the phrase rather than mending it.
+   *
+   * <p>Measured on a device, in the restaurant scene: "I would like the pasta" -- nothing wrong
+   * with it -- came back struck through, with "I'd like the penne Arrabbiata" as the better
+   * way, and a note that "the pasta" was too general. The same reply had just told the learner
+   * the pasta was sold out and suggested the penne: the model carried the story into the card,
+   * and the card told them their correct order was a mistake. A correction mends how something
+   * was said; it keeps most of the words it mends. This one kept two of five.
+   *
+   * <p>Only for a phrase of four words or more, where keeping half is a real test -- "I am
+   * boring" to "I'm bored" shares nothing and is exactly right -- and only for a phrase that
+   * is English, which is what the function words say. A phrase said in the learner's own
+   * language shares nothing with its English on purpose.
+   */
+  static boolean replacesWhatTheySaid(String said, String better) {
+    List<String> theirs = wordList(said);
+    if (theirs.size() < 4 || better == null) {
+      return false;
+    }
+    boolean english = false;
+    for (String word : theirs) {
+      if (ENGLISH_FUNCTION_WORDS.contains(word)) {
+        english = true;
+        break;
+      }
+    }
+    if (!english) {
+      return false;
+    }
+    Set<String> kept = new HashSet<>(wordList(better));
+    long survived = theirs.stream().filter(kept::contains).count();
+    return survived * 2 < theirs.size();
   }
 
   private static boolean isEnglish(String language) {

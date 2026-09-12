@@ -189,6 +189,10 @@ class ChatbotFixInstructionsTest {
         // And the first time it was used, it went wrong both ways at once: "birasso" -- a
         // mangled "biraz su" -- was guessed at and "corrected" into Turkish for "a beer".
         assertThat(text).contains("The corrected side is always English");
+        // And on the next conversation: a correct order struck through for the dish the waiter
+        // was about to suggest, and "police" guessed into "people" for somebody who said please.
+        assertThat(text).contains("never about what they chose");
+        assertThat(text).contains("Never guess a\n  different word into its place");
         assertThat(text).contains("Never\n  guess at one");
         assertThat(text).contains("even\n  when your reply understood them and carried on");
     }

@@ -1374,6 +1374,16 @@ class _NfTutorPageState extends State<NfTutorPage> {
           },
           onOpen: (NfTutorSession saved) {
             Navigator.of(context).pop();
+            // The server remembers the last conversation it took part in, not this one. Going
+            // back to an older thread without clearing that had the character answer it with
+            // another conversation's memory -- a barista remembering the doctor. Clearing it
+            // costs the older thread's own context, which the model had lost anyway; answering
+            // from the wrong one is worse. Not when the thread opened is the one already here.
+            if (saved.id != _threadId) {
+              unawaited(_chatbot.resetConversation().catchError(
+                    (Object e) => debugPrint('NfTutor reset conversation: $e'),
+                  ));
+            }
             setState(() {
               _adopt(saved);
               _resetSessionXp();
