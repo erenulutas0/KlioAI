@@ -1988,10 +1988,12 @@ public class ChatbotController {
             // arriving and the transcript leaving. avgLogprob and lowConfidence are Whisper's
             // own reading of how sure it was: without them in the log, "it mishears me" and
             // "it heard me and the tutor answered oddly" look identical from here.
-            log.info("TIMING transcribe ms={} audioBytes={} durationMs={} chars={} avgLogprob={} lowConfidence={}",
+            log.info("TIMING transcribe ms={} audioBytes={} durationMs={} chars={} avgLogprob={} "
+                            + "lowConfidence={} otherLanguage={} detectedLanguage={}",
                     (System.nanoTime() - startedNs) / 1_000_000L, audio.getSize(), durationMs,
                     transcription.text() == null ? 0 : transcription.text().length(),
-                    transcription.avgLogprob(), transcription.lowConfidence());
+                    transcription.avgLogprob(), transcription.lowConfidence(),
+                    transcription.otherLanguage(), transcription.detectedLanguage());
             consumeAiTokens(userId, httpRequest, "speech-transcribe", estimatedTokens);
 
             Map<String, Object> result = new HashMap<>();
