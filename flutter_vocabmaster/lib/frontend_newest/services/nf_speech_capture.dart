@@ -260,7 +260,13 @@ class NfSpeechCapture extends ChangeNotifier {
   }
 
   /// Stops the recording and, if it sounded like speech, transcribes it.
-  Future<NfCaptureResult> stopAndTranscribe({String locale = 'en_US'}) async {
+  /// [scenario] is the scene being played, when one is: its own words go to
+  /// the recogniser as a spelling hint, which is what a scene needs and free
+  /// chat does not have.
+  Future<NfCaptureResult> stopAndTranscribe({
+    String locale = 'en_US',
+    String? scenario,
+  }) async {
     if (!_recording) {
       return const NfCaptureResult._(NfCaptureOutcome.notRecording);
     }
@@ -317,10 +323,12 @@ class NfSpeechCapture extends ChangeNotifier {
     try {
       // The detailed call, not the string one: it is the same request, and
       // the word timings come back on it instead of being thrown away.
-      final SpeechTranscription result = await _chatbot.transcribeSpeechDetailed(
+      final SpeechTranscription result =
+          await _chatbot.transcribeSpeechDetailed(
         audioPath: path,
         durationMs: durationMs,
         locale: locale,
+        scenario: scenario,
         peakDb: peakDb,
         rangeDb: rangeDb,
       );

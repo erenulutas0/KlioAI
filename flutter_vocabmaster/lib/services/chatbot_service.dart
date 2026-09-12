@@ -136,6 +136,7 @@ class ChatbotService {
     required String audioPath,
     required int durationMs,
     String locale = 'en_US',
+    String? scenario,
     double? peakDb,
     double? rangeDb,
   }) async {
@@ -144,6 +145,7 @@ class ChatbotService {
         audioPath: audioPath,
         durationMs: durationMs,
         locale: locale,
+        scenario: scenario,
         peakDb: peakDb,
         rangeDb: rangeDb,
       );

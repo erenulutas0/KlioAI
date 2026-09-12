@@ -388,8 +388,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
     // chat. Not awaited -- this runs inside setState, and a failure costs one
     // stale reply rather than the thread.
     unawaited(_chatbot.resetConversation().catchError(
-      (Object e) => debugPrint('NfTutor reset conversation: $e'),
-    ));
+          (Object e) => debugPrint('NfTutor reset conversation: $e'),
+        ));
   }
 
   /// Write the conversation on screen, and refresh the list beside it.
@@ -508,8 +508,13 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return;
     }
 
-    final NfCaptureResult result =
-        await _capture.stopAndTranscribe(locale: _speechLocale);
+    final NfCaptureResult result = await _capture.stopAndTranscribe(
+      locale: _speechLocale,
+      // In a scene, what the learner is about to say is the scene's own
+      // vocabulary -- the character's name, the dish, the twist. The server
+      // turns the id into a spelling hint for the recogniser.
+      scenario: _sceneId,
+    );
     if (!mounted) {
       return;
     }
@@ -625,8 +630,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-                MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+            child:
+                Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -792,7 +797,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
           nfReadsReplyAloud(
             // The tutor's own voice is here either way: Piper is up, or the
             // reply came already spoken in it.
-            serverVoice: _ttsAvailable || _prefetchedAudio.containsKey(spoken.id),
+            serverVoice:
+                _ttsAvailable || _prefetchedAudio.containsKey(spoken.id),
             visible: widget.visible,
             recording: _capture.isRecording,
             lifecycle: WidgetsBinding.instance.lifecycleState,
@@ -935,7 +941,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
   /// not "everything that is not a-z": the learning language is not always
   /// English here, and folding away every accented letter would make two
   /// different phrases look like one.
-  static final RegExp _notPartOfAPhrase = RegExp(r'''[\s.,!?;:'"“”‘’()\[\]-]+''');
+  static final RegExp _notPartOfAPhrase =
+      RegExp(r'''[\s.,!?;:'"“”‘’()\[\]-]+''');
 
   /// Switch scenes, which starts the conversation over.
   ///
@@ -1308,8 +1315,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
               // Not in a scene: the character speaks in its own voice there, so
               // a tutor picked here would change nothing but the thread, and
               // "Amy" highlighted above Luca's lines reads as Amy playing him.
-              for (final VoiceModel speaker
-                  in _scene == null ? _speakers : const <VoiceModel>[]) ...<Widget>[
+              for (final VoiceModel speaker in _scene == null
+                  ? _speakers
+                  : const <VoiceModel>[]) ...<Widget>[
                 if (speaker != _speakers.first)
                   const SizedBox(width: NfSpace.s6),
                 NfChip(
@@ -1946,8 +1954,7 @@ class _PaceLine extends StatelessWidget {
     final String? pauses = switch (pace.longPauses) {
       0 => null,
       1 => context.tr('tutor.pace.pause.one'),
-      final int n =>
-        context.tr('tutor.pace.pauses').replaceAll('{n}', '$n'),
+      final int n => context.tr('tutor.pace.pauses').replaceAll('{n}', '$n'),
     };
 
     return Text(
@@ -2313,7 +2320,8 @@ class _CorrectionNoteState extends State<_CorrectionNote> {
     }
 
     final String fixed = line.replaceRange(at, at + said.length, better);
-    return _NfTutorPageState._deckKey(fixed) == _NfTutorPageState._deckKey(better)
+    return _NfTutorPageState._deckKey(fixed) ==
+            _NfTutorPageState._deckKey(better)
         ? null
         : fixed;
   }
@@ -2412,7 +2420,8 @@ class _CorrectionNoteState extends State<_CorrectionNote> {
                 color: t.ink,
               ),
             ),
-            for (final TutorCorrection change in correction.changes) ...<Widget>[
+            for (final TutorCorrection change
+                in correction.changes) ...<Widget>[
               const SizedBox(height: NfSpace.s8),
               _changeLine(t, change),
             ],
@@ -2543,9 +2552,7 @@ class _CorrectionNoteState extends State<_CorrectionNote> {
             ),
           )
         : Icon(
-            done
-                ? Icons.bookmark_added_rounded
-                : Icons.bookmark_add_outlined,
+            done ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
             size: NfFont.s16,
             color: done ? t.correct : t.streakText,
           );
@@ -2641,7 +2648,8 @@ Widget nfTurnForTest({
   ApiService? api,
 }) =>
     _TurnView(
-      turn: _NfTurn(id: 0, text: text, fromTutor: fromTutor, hasAudio: hasAudio),
+      turn:
+          _NfTurn(id: 0, text: text, fromTutor: fromTutor, hasAudio: hasAudio),
       speaking: false,
       onPlay: onPlay ?? () {},
       api: api ?? ApiService(),
@@ -2819,11 +2827,18 @@ class _SpeakerAvatar extends StatelessWidget {
   ///
   /// Opacity over the theme's own accents rather than fixed hex values, so
   /// the tiles stay legible in both light and dark without a second palette.
-  static const List<double> _hues = <double>[0.10, 0.18, 0.26, 0.34, 0.42, 0.50];
+  static const List<double> _hues = <double>[
+    0.10,
+    0.18,
+    0.26,
+    0.34,
+    0.42,
+    0.50
+  ];
 
   Color _tint(NfTokens t) {
-    final int index =
-        VoiceModel.availableVoices.indexWhere((VoiceModel v) => v.id == voice.id);
+    final int index = VoiceModel.availableVoices
+        .indexWhere((VoiceModel v) => v.id == voice.id);
     if (index < 0) {
       return t.primarySoft;
     }
@@ -3319,7 +3334,8 @@ class _SceneRow extends StatelessWidget {
                     const SizedBox(height: NfSpace.s4),
                     Text(
                       goal,
-                      style: NfTokens.body(size: NfFont.s125, color: t.inkMuted),
+                      style:
+                          NfTokens.body(size: NfFont.s125, color: t.inkMuted),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

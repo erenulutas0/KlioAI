@@ -48,6 +48,17 @@ public final class ScenarioCatalog {
       return localized(goal, language);
     }
 
+    /**
+     * The words this scene is about, as a spelling hint for the speech recogniser.
+     *
+     * <p>See {@link SceneSpeechHints}: the character's name, the dish, whatever the twist
+     * turns on -- the words a learner says in this scene and nowhere else, which are the
+     * words a recogniser mishears.
+     */
+    public List<String> speechHints() {
+      return SceneSpeechHints.of(this);
+    }
+
     /** The opening for [variant]: the variant modulo the count, which the app computes too. */
     public String openingFor(int variant) {
       return openings.get(Math.floorMod(variant, openings.size()));

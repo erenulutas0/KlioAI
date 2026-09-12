@@ -1927,6 +1927,9 @@ public class ChatbotController {
             @RequestParam("audio") MultipartFile audio,
             @RequestParam(value = "durationMs", required = false) Long durationMs,
             @RequestParam(value = "locale", required = false) String locale,
+            // Which scene they are in, so the words that scene is about go to the recogniser
+            // as a spelling hint. Optional: free chat and older clients send none.
+            @RequestParam(value = "scenario", required = false) String scenario,
             // What the microphone measured, for tuning the client-side silence gate from
             // real recordings instead of from guesses. Optional: older clients omit it.
             @RequestParam(value = "peakDb", required = false) Double peakDb,
@@ -1980,12 +1983,15 @@ public class ChatbotController {
                     audio.getOriginalFilename(),
                     audio.getContentType(),
                     locale,
-                    speechVocabularyHint(userId));
+                    speechHint(scenario, userId));
             // Both Whisper passes and the vocabulary lookup: everything between the upload
-            // arriving and the transcript leaving.
-            log.info("TIMING transcribe ms={} audioBytes={} durationMs={} chars={}",
+            // arriving and the transcript leaving. avgLogprob and lowConfidence are Whisper's
+            // own reading of how sure it was: without them in the log, "it mishears me" and
+            // "it heard me and the tutor answered oddly" look identical from here.
+            log.info("TIMING transcribe ms={} audioBytes={} durationMs={} chars={} avgLogprob={} lowConfidence={}",
                     (System.nanoTime() - startedNs) / 1_000_000L, audio.getSize(), durationMs,
-                    transcription.text() == null ? 0 : transcription.text().length());
+                    transcription.text() == null ? 0 : transcription.text().length(),
+                    transcription.avgLogprob(), transcription.lowConfidence());
             consumeAiTokens(userId, httpRequest, "speech-transcribe", estimatedTokens);
 
             Map<String, Object> result = new HashMap<>();
@@ -2061,6 +2067,38 @@ public class ChatbotController {
      * <p>Every failure path returns an empty list, and an empty list transcribes exactly as
      * it did before this existed. A missing deck must never cost a learner their recording.
      */
+    /**
+     * The scene's words first, then the learner's own.
+     *
+     * <p>Both are spelling hints for the same Whisper prompt, and order is what decides which
+     * survives its cap. The scene's go first because they are the words this recording is
+     * about to contain -- the character's name, the dish, whatever the twist turns on -- and
+     * a saved deck word is one the learner might say on any turn of any day.
+     */
+    private List<String> speechHint(String scenario, Long userId) {
+        List<String> learnerWords = speechVocabularyHint(userId);
+        if (scenario == null || scenario.isBlank()) {
+            return learnerWords;
+        }
+        try {
+            List<String> sceneWords = com.ingilizce.calismaapp.service.ScenarioCatalog.bundled()
+                    .find(scenario.trim())
+                    .map(com.ingilizce.calismaapp.service.ScenarioCatalog.Scene::speechHints)
+                    .orElse(List.of());
+            if (sceneWords.isEmpty()) {
+                return learnerWords;
+            }
+            List<String> both = new ArrayList<>(sceneWords);
+            both.addAll(learnerWords);
+            return both;
+        } catch (RuntimeException e) {
+            // Same trade as the deck lookup below: the hint is an accuracy improvement and
+            // the recording is the learner's actual work.
+            log.warn("SPEECH_SCENE_HINT_FAILED scenario={} error={}", scenario, e.toString());
+            return learnerWords;
+        }
+    }
+
     private List<String> speechVocabularyHint(Long userId) {
         if (wordService == null || userId == null) {
             return List.of();

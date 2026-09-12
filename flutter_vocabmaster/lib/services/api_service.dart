@@ -312,7 +312,8 @@ class ApiService {
         }),
       );
 
-      if (refreshResponse.statusCode == 401 || refreshResponse.statusCode == 403) {
+      if (refreshResponse.statusCode == 401 ||
+          refreshResponse.statusCode == 403) {
         return RefreshOutcome.rejected;
       }
       if (refreshResponse.statusCode != 200) {
@@ -531,7 +532,8 @@ class ApiService {
             // stores null, and the review surface has an explicit branch for a
             // sentence without a translation — it draws the line on its own,
             // which is the honest rendering of "this book has no translation".
-            if (translation != null && translation.trim().isNotEmpty) ...<String, dynamic>{
+            if (translation != null &&
+                translation.trim().isNotEmpty) ...<String, dynamic>{
               'translation': translation.trim(),
               'sourceTranslation': translation.trim(),
             },
@@ -759,7 +761,8 @@ class ApiService {
             'A profile for $targetLanguage already exists.',
       );
     }
-    throw Exception('Failed to create language profile: ${response.statusCode}');
+    throw Exception(
+        'Failed to create language profile: ${response.statusCode}');
   }
 
   /// PUT /language-profiles/{id} → the updated profile. Only passed fields are sent.
@@ -785,7 +788,8 @@ class ApiService {
         Map<String, dynamic>.from(json.decode(response.body) as Map),
       );
     }
-    throw Exception('Failed to update language profile: ${response.statusCode}');
+    throw Exception(
+        'Failed to update language profile: ${response.statusCode}');
   }
 
   /// POST /language-profiles/{id}/activate → the now-active profile.
@@ -1500,6 +1504,10 @@ class ApiService {
     required String audioPath,
     required int durationMs,
     String locale = 'en_US',
+    // The scene being played, so its own words -- the character's name, the
+    // dish, whatever the twist turns on -- reach the recogniser as a spelling
+    // hint. Null in free chat.
+    String? scenario,
     double? peakDb,
     double? rangeDb,
   }) async {
@@ -1513,11 +1521,18 @@ class ApiService {
         request.headers.addAll(headers);
         request.fields['durationMs'] = durationMs.toString();
         request.fields['locale'] = locale;
+        if (scenario != null && scenario.isNotEmpty) {
+          request.fields['scenario'] = scenario;
+        }
         // Diagnostic, not a control. The client-side silence gate has been tuned twice from
         // guesswork; sending what the microphone actually measured means the next threshold
         // comes from recordings real learners made, in the rooms they were sitting in.
-        if (peakDb != null) request.fields['peakDb'] = peakDb.toStringAsFixed(1);
-        if (rangeDb != null) request.fields['rangeDb'] = rangeDb.toStringAsFixed(1);
+        if (peakDb != null) {
+          request.fields['peakDb'] = peakDb.toStringAsFixed(1);
+        }
+        if (rangeDb != null) {
+          request.fields['rangeDb'] = rangeDb.toStringAsFixed(1);
+        }
         request.files.add(await http.MultipartFile.fromPath(
           'audio',
           audioPath,
@@ -1953,7 +1968,6 @@ class ApiService {
     }
     throw Exception('İlerleme kaydedilemedi: ${response.statusCode}');
   }
-
 }
 
 class ApiQuotaExceededException implements Exception {
