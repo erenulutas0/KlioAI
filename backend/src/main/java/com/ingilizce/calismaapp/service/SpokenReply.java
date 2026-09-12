@@ -18,14 +18,18 @@ import java.util.regex.Pattern;
  * <p>So the wait becomes the first sentence's wait. The seam is at a full stop, where a
  * speaker pauses anyway, which is why the cut is never made mid-sentence even when that would
  * balance the halves better.
+ *
+ * <p>How short that first sentence may be is {@link #leadMinFor}, and it is deliberately
+ * short: a clip takes about a fifth of its own playing time to synthesise, so the opening
+ * covers a remainder several times its length.
  */
 public final class SpokenReply {
 
     /** Below this, the whole reply is spoken in one piece: the seam would cost more than it saves. */
-    private static final int SPLIT_ABOVE_CHARS = 140;
+    private static final int SPLIT_ABOVE_CHARS = 70;
 
     /** A lead shorter than this is not worth a seam -- "Of course!" buys nothing. */
-    private static final int LEAD_MIN_CHARS = 40;
+    private static final int LEAD_FLOOR_CHARS = 25;
 
     /** Nor is a remainder shorter than this. */
     private static final int REST_MIN_CHARS = 25;
@@ -71,10 +75,11 @@ public final class SpokenReply {
         if (text.length() <= SPLIT_ABOVE_CHARS) {
             return new Split(text, "");
         }
+        int leadMin = leadMinFor(text.length());
         Matcher boundary = BOUNDARY.matcher(text);
         while (boundary.find()) {
             int cut = boundary.end();
-            if (cut < LEAD_MIN_CHARS || isAbbreviation(text, boundary.start())) {
+            if (cut < leadMin || isAbbreviation(text, boundary.start())) {
                 continue;
             }
             String lead = text.substring(0, cut).trim();
@@ -86,6 +91,24 @@ public final class SpokenReply {
             return new Split(lead, rest);
         }
         return new Split(text, "");
+    }
+
+    /**
+     * The shortest first part that still covers making the second one.
+     *
+     * <p>Measured on the server: Kokoro synthesises at about 17 ms a character and what it
+     * produces plays at about 15 characters a second. So a clip takes roughly a fifth of its
+     * own playing time to make, and the first part only has to play for as long as the rest
+     * takes to arrive -- itself plus the round trip. Working that through, the lead needs to be
+     * about a fifth of the whole, plus a few characters for the network.
+     *
+     * <p>Which is why this is a proportion and not a constant. A fixed 40 characters is
+     * generous for a 125-character reply and far too thin for a 400-character one, where the
+     * remainder would still be synthesising when the opening ran out -- a second silence, in
+     * the middle of a sentence this time.
+     */
+    private static int leadMinFor(int totalChars) {
+        return Math.max(LEAD_FLOOR_CHARS, (int) Math.ceil(0.20 * totalChars) + 4);
     }
 
     private static boolean isAbbreviation(String text, int punctuationStart) {

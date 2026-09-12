@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -52,6 +53,32 @@ class KokoroTtsServiceTest {
         ReflectionTestUtils.setField(service, "cacheEnabled", true);
         ReflectionTestUtils.setField(service, "configuredCacheDir", cacheDir.toString());
         ReflectionTestUtils.setField(service, "cacheMaxEntries", 100);
+    }
+
+    /**
+     * The first request of the day is the backend's, not a learner's.
+     *
+     * <p>Measured after a restart: 8.4 s to speak a 127-character reply, against 2.3 s for the
+     * same length once Kokoro had loaded its voice. Somebody has to pay that, and it should not
+     * be the person mid-conversation.
+     */
+    @Test
+    @DisplayName("startup speaks one throwaway line so the model is loaded")
+    void theWarmUpIsTheFirstRequest() {
+        service.warmUp();
+
+        verify(restTemplate).postForObject(
+                eq("http://kokoro:8880/v1/audio/speech"), any(), eq(byte[].class));
+    }
+
+    @Test
+    @DisplayName("a backend without Kokoro warms nothing up")
+    void nothingIsWarmedUpWhenKokoroIsOff() {
+        ReflectionTestUtils.setField(service, "baseUrl", "");
+
+        service.warmUpInBackground();
+
+        verifyNoInteractions(restTemplate);
     }
 
     @Test

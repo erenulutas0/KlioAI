@@ -88,6 +88,50 @@ class SpokenReplyTest {
         assertTrue(split.isWhole());
     }
 
+    /**
+     * The replies the tutor actually sends are split too.
+     *
+     * <p>The first threshold was 140 characters, set before the prompt was tightened. Measured
+     * on the server afterwards, real replies came in at 125 to 180 -- so most of them fell
+     * under it and paid the full 2.3 to 2.5 seconds, while the one that did split answered in
+     * 871 ms. The threshold was the bug.
+     */
+    @Test
+    void aReplyOfTheLengthTheTutorActuallySendsIsSplit() {
+        String reply = "Good evening! Of course, we have a lovely table by the window. "
+                + "Would you like to see the wine list while you settle in?";
+
+        SpokenReply.Split split = SpokenReply.of(reply);
+
+        assertFalse(split.isWhole());
+        assertEquals("Good evening! Of course, we have a lovely table by the window.", split.lead());
+    }
+
+    /**
+     * A long reply needs a longer opening, not the same one.
+     *
+     * <p>The opening has to keep playing until the remainder has been made. A fixed floor that
+     * suits a short reply leaves a long one silent in the middle, so the floor rises with the
+     * length: here the first sentence is past the old 40 and still too thin.
+     */
+    @Test
+    void aLongReplyGetsAnOpeningLongEnoughToCoverTheRest() {
+        String reply = "I am so sorry about that. The kitchen has been under real pressure "
+                + "since a large party arrived just before you did, and your main course is "
+                + "plated and coming out to you right now. Can I bring you anything while you "
+                + "wait, on the house?";
+
+        SpokenReply.Split split = SpokenReply.of(reply);
+
+        assertFalse(split.isWhole());
+        assertTrue(split.lead().length() >= reply.length() / 5,
+                "an opening that runs out before the rest arrives is a silence mid-reply: "
+                        + split.lead().length() + " of " + reply.length());
+        // Not the first sentence: "I am so sorry about that." is 25 characters, which would
+        // have run out well before the remaining 228 had been synthesised.
+        assertTrue(split.lead().endsWith("coming out to you right now."), split.lead());
+    }
+
     @Test
     void nothingToSayIsNotACrash() {
         assertEquals(new SpokenReply.Split("", ""), SpokenReply.of(null));

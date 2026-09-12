@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -101,6 +103,35 @@ public class KokoroTtsService {
 
     public boolean isEnabled() {
         return baseUrl != null && !baseUrl.isBlank();
+    }
+
+    /**
+     * One throwaway line at startup, so the first learner does not pay for the model loading.
+     *
+     * <p>Measured after a restart: the first reply of the day took 8.4 s to speak where the
+     * same length later took 2.3 s. Kokoro loads its voice on the first request it is given,
+     * and the person who happened to be talking to the tutor was the one who waited. Now the
+     * backend is that person.
+     *
+     * <p>On its own thread: this must not hold up the application coming ready, and a Kokoro
+     * that is still starting itself is an ordinary failure here -- the next real request pays
+     * what it would have paid anyway.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void warmUpInBackground() {
+        if (!isEnabled()) {
+            return;
+        }
+        Thread warmUp = new Thread(this::warmUp, "kokoro-warm-up");
+        warmUp.setDaemon(true);
+        warmUp.start();
+    }
+
+    void warmUp() {
+        long startedNs = System.nanoTime();
+        String audio = synthesize("Hello.", null);
+        log.info("TIMING tts engine=kokoro warm-up ms={} ready={}",
+                elapsedMs(startedNs), audio != null);
     }
 
     /** Base64 WAV in [voice], or null if Kokoro is off or could not answer. */
