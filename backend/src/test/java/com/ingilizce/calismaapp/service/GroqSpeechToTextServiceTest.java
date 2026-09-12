@@ -483,6 +483,28 @@ class GroqSpeechToTextServiceTest {
         assertFalse(asked.contains("tr"), asked.toString());
     }
 
+    /**
+     * A sentence only partly in the learner's language keeps both halves.
+     *
+     * <p>The free pass writes a mixed sentence with its English and its Turkish intact. Pinned
+     * to Turkish for a respelling, the English half would be forced into Turkish as well.
+     */
+    @Test
+    void aSentenceOnlyPartlyInTheLearnersLanguageIsNotRespelled() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        List<String> asked = stubThreePasses(
+                "{\"text\":\"I'd like the pasta, and also birasso?\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-0.3}]}",
+                "{\"text\":\"I'd like the pasta, and also biraz su alabilir miyiz?\",\"language\":\"turkish\"}",
+                "{\"text\":\"Ayd layk dhe pasta, end olso biraz su alabilir miyiz?\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US", List.of(), "Turkish");
+
+        assertTrue(result.otherLanguage(), "held back for the learner to check");
+        assertEquals("I'd like the pasta, and also biraz su alabilir miyiz?", result.heardAs());
+        assertFalse(asked.contains("tr"), "respelled a sentence that was half English: " + asked);
+    }
+
     @Test
     void aRespellingThatFailsLeavesWhatTheFreePassHeard() {
         ReflectionTestUtils.setField(service, "detectLanguage", true);

@@ -141,6 +141,13 @@ public class GroqSpeechToTextService {
          */
         static final double SAME_SENTENCE_OVERLAP = 0.85;
 
+        /**
+         * Below this, the two transcripts are two different sentences: the audio was mostly
+         * another language and the pinned pass invented English from it. Only then is the
+         * sentence respelled -- see respellInNativeLanguage.
+         */
+        static final double MOSTLY_ANOTHER_LANGUAGE = 0.3;
+
         static SpokenLanguage from(Map<String, Object> payload, String pinnedTranscript) {
             // The transcript about to be sent is supposed to be English. If it carries
             // letters English does not use, the pin did not hold -- on a device, a request
@@ -155,7 +162,8 @@ public class GroqSpeechToTextService {
             if (named != null && !named.toString().isBlank()) {
                 String language = named.toString().trim().toLowerCase(Locale.ROOT);
                 if (pinnedIsForeign) {
-                    return new SpokenLanguage(true, language, blankToNull(free), null);
+                    return new SpokenLanguage(true, language, blankToNull(free),
+                            wordOverlap(pinnedTranscript, free));
                 }
                 if (isEnglish(language)) {
                     return new SpokenLanguage(false, language);
@@ -573,6 +581,13 @@ public class GroqSpeechToTextService {
         boolean spokenInIt = detected.equals(nativeName)
                 || MISTAKEN_FOR.getOrDefault(nativeName, Set.of()).contains(detected);
         if (code == null || !spokenInIt) {
+            return spoken;
+        }
+        // Not a sentence that was only partly in it. "I'd like the pasta, and also biraz su
+        // alabilir miyiz?" is written by the free pass with both halves intact; pinned to
+        // Turkish, the English half would be forced into Turkish too, and the learner would be
+        // shown a sentence worse than the one the free pass already had.
+        if (spoken.overlap() != null && spoken.overlap() >= SpokenLanguage.MOSTLY_ANOTHER_LANGUAGE) {
             return spoken;
         }
         try {
