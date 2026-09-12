@@ -737,6 +737,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
         // The same variant on every turn, so the complication the server
         // plays does not change halfway through the conversation.
         scenarioVariant: sceneId == null ? null : _sceneVariant,
+        // Remembered on its own on the server, so going back to this thread
+        // from the history sheet finds the character remembering it.
+        threadId: _threadId,
       );
       if (!mounted) {
         return;
@@ -1374,16 +1377,8 @@ class _NfTutorPageState extends State<NfTutorPage> {
           },
           onOpen: (NfTutorSession saved) {
             Navigator.of(context).pop();
-            // The server remembers the last conversation it took part in, not this one. Going
-            // back to an older thread without clearing that had the character answer it with
-            // another conversation's memory -- a barista remembering the doctor. Clearing it
-            // costs the older thread's own context, which the model had lost anyway; answering
-            // from the wrong one is worse. Not when the thread opened is the one already here.
-            if (saved.id != _threadId) {
-              unawaited(_chatbot.resetConversation().catchError(
-                    (Object e) => debugPrint('NfTutor reset conversation: $e'),
-                  ));
-            }
+            // Nothing to clear on the server: every turn names its thread, and each thread
+            // is remembered on its own -- see chatbotChatTurn's threadId.
             setState(() {
               _adopt(saved);
               _resetSessionXp();

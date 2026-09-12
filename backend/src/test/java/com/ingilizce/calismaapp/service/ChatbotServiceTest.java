@@ -316,6 +316,36 @@ class ChatbotServiceTest {
         return systemPrompt.lines().findFirst().orElse("");
     }
 
+    /**
+     * A turn that names its conversation is answered from that conversation's memory, and
+     * remembered there.
+     *
+     * <p>Measured on a device: an older conversation opened from the history sheet was answered
+     * with the newest one's memory -- "the lasagne is sold out", in reply to a remark about the
+     * bill. See ConversationSessionService#recentMessages(Long, String).
+     */
+    @Test
+    void chatTurn_ShouldUseTheMemoryOfTheConversationItNames() {
+        ConversationSessionService sessionService = org.mockito.Mockito.mock(ConversationSessionService.class);
+        ReflectionTestUtils.setField(chatbotService, "conversationSessionService", sessionService);
+        when(sessionService.recentMessages(42L, "1757600000000002")).thenReturn(List.of(
+                Map.of("role", "user", "content", "Could we have the bill, please?"),
+                Map.of("role", "assistant", "content", "Your total is 42 euros.")));
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(), nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("It is a little high, I know.", 1, 1, 2));
+
+        chatbotService.chatTurn("It's too much, isn't it?", null, null, 42L,
+                LearningLanguageProfile.defaultProfile(), null, null, null, "1757600000000002");
+
+        ArgumentCaptor<List<Map<String, String>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider).chatCompletionWithUsage(messagesCaptor.capture(), eq(false), any(), any(),
+                nullable(String.class));
+        assertEquals("Your total is 42 euros.", messagesCaptor.getValue().get(2).get("content"));
+        verify(sessionService, org.mockito.Mockito.never()).recentMessages(42L);
+        verify(sessionService).recordTurn(42L, "1757600000000002", "It's too much, isn't it?",
+                "It is a little high, I know.");
+    }
+
     @Test
     void chat_ShouldIncludeConversationHistoryBetweenSystemAndUserMessage() {
         ConversationSessionService sessionService = org.mockito.Mockito.mock(ConversationSessionService.class);

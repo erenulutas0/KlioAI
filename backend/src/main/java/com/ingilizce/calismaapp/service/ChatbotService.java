@@ -44,6 +44,16 @@ public class ChatbotService {
   @Autowired(required = false)
   private ConversationSessionService conversationSessionService;
 
+  /** How far into this conversation it is, in stored messages. */
+  private int storedMessages(Long userId, String threadId) {
+    if (conversationSessionService == null) {
+      return 0;
+    }
+    return threadId == null
+        ? conversationSessionService.sessionMessageCount(userId)
+        : conversationSessionService.sessionMessageCount(userId, threadId);
+  }
+
   /** Drops the server-side thread so the next turn starts from nothing. */
   public void resetConversation(Long userId) {
     if (conversationSessionService != null) {
@@ -505,15 +515,30 @@ HOW TO OFFER A CORRECTION:
    */
   public ChatTurn chatTurn(String message, String scenario, String scenarioContext, Long userId,
       LearningLanguageProfile profile, String speakerName, String recall, Integer scenarioVariant) {
+    return chatTurn(message, scenario, scenarioContext, userId, profile, speakerName, recall,
+        scenarioVariant, null);
+  }
+
+  /**
+   * @param threadId the app's id for this conversation, so it is remembered on its own and not
+   *                 as whatever the learner said last anywhere -- see
+   *                 ConversationSessionService#recentMessages(Long, String). Null from an app
+   *                 that predates it, which keeps the per-learner memory.
+   */
+  public ChatTurn chatTurn(String message, String scenario, String scenarioContext, Long userId,
+      LearningLanguageProfile profile, String speakerName, String recall, Integer scenarioVariant,
+      String threadId) {
     String systemPrompt =
         buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile, speakerName,
-            scenarioVariant)
+            scenarioVariant, threadId)
             + nativeLanguageBlock(profile)
             + recallBlock(recall)
             + fixInstructions(profile);
-    List<Map<String, String>> history = conversationSessionService != null
-        ? conversationSessionService.recentMessages(userId)
-        : List.of();
+    List<Map<String, String>> history = conversationSessionService == null
+        ? List.of()
+        : threadId == null
+            ? conversationSessionService.recentMessages(userId)
+            : conversationSessionService.recentMessages(userId, threadId);
     // 260 was sized for a two-or-three-sentence reply and a bare correction. The
     // correction now carries a note in the learner's own language, and a language
     // that is not English costs more tokens per word than the reply it explains.
@@ -600,7 +625,11 @@ HOW TO OFFER A CORRECTION:
     // so a blank completion silently dropped what the learner had just said and the next
     // reply came back out of context.
     if (conversationSessionService != null) {
-      conversationSessionService.recordTurn(userId, message, reply);
+      if (threadId == null) {
+        conversationSessionService.recordTurn(userId, message, reply);
+      } else {
+        conversationSessionService.recordTurn(userId, threadId, message, reply);
+      }
     }
 
     AiCallResult cleaned = new AiCallResult(
@@ -1393,7 +1422,7 @@ HOW TO OFFER A CORRECTION:
   private ScenarioCatalog scenarioCatalog = ScenarioCatalog.bundled();
 
   private String buildChatSystemPrompt(String userMessage, String scenario, String scenarioContext, Long userId,
-      LearningLanguageProfile profile, String speakerName, Integer scenarioVariant) {
+      LearningLanguageProfile profile, String speakerName, Integer scenarioVariant, String threadId) {
     String safeScenarioContext = sanitizeScenarioContext(scenarioContext);
     String contextStr = !safeScenarioContext.isEmpty()
         ? "LEARNER-SUPPLIED SCENE FACTS: " + safeScenarioContext
@@ -1405,18 +1434,14 @@ HOW TO OFFER A CORRECTION:
     ScenarioCatalog.Scene scene = scenarioCatalog.find(scenario).orElse(null);
     if (scene != null) {
       // Two stored messages per completed turn, as for the conversation phase below.
-      int learnerTurnsSoFar = conversationSessionService != null
-          ? conversationSessionService.sessionMessageCount(userId) / 2
-          : 0;
+      int learnerTurnsSoFar = storedMessages(userId, threadId) / 2;
       return scenePrompt(scene, contextStr, scenarioVariant, userId, profile, learnerTurnsSoFar);
     }
 
     // Default: normal chat mode with a stable daily persona and conversation phases.
     Persona persona = selectPersona(userId, speakerName);
     ConversationMode mode = selectConversationMode(userMessage);
-    ConversationPhase phase = phaseFor(conversationSessionService != null
-        ? conversationSessionService.sessionMessageCount(userId)
-        : 0);
+    ConversationPhase phase = phaseFor(storedMessages(userId, threadId));
     return """
 You are %s, %s.
 

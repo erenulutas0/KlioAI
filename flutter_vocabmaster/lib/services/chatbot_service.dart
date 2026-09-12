@@ -94,7 +94,8 @@ class ChatbotService {
       String? speakerName,
       String? recall,
       String? voice,
-      int? scenarioVariant}) async {
+      int? scenarioVariant,
+      String? threadId}) async {
     try {
       return await _api.chatbotChatTurn(
         message: message,
@@ -104,6 +105,7 @@ class ChatbotService {
         recall: recall,
         voice: voice,
         scenarioVariant: scenarioVariant,
+        threadId: threadId,
       );
     } catch (e) {
       debugPrint('ChatbotService.chatTurn error: $e');

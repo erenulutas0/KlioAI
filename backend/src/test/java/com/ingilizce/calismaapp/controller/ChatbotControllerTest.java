@@ -369,6 +369,21 @@ public class ChatbotControllerTest {
     }
 
     @Test
+    void chatPassesTheConversationItBelongsTo() throws Exception {
+        when(chatbotService.chatTurn(anyString(), nullable(String.class), nullable(String.class), anyLong(),
+                any(LearningLanguageProfile.class), nullable(String.class), nullable(String.class),
+                nullable(Integer.class), eq("1757600000000002")))
+                .thenReturn(new ChatbotService.ChatTurn(ai("It is a little high, I know."), null));
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"It's too much, isn't it?\",\"threadId\":\"1757600000000002\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("It is a little high, I know."));
+    }
+
+    @Test
     void chatSendsNoAudio_ToAnAppThatNamesNoVoice() throws Exception {
         // Every build before this one. It must not pay for synthesis it will never play.
         tutorSays("Sure! Steamed milk is milk heated with steam.");

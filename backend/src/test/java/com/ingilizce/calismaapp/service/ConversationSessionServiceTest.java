@@ -44,6 +44,55 @@ class ConversationSessionServiceTest {
         lenient().when(redisTemplate.opsForList()).thenReturn(listOperations);
     }
 
+    /**
+     * Two conversations of one learner do not share a memory.
+     *
+     * <p>Measured on a device: the lasagne was ordered in one conversation, an older one was
+     * opened from the history sheet -- the bill had come -- and "It's too much, isn't it?" was
+     * answered with "the lasagne is sold out". One list per learner held the newest
+     * conversation, whatever conversation was on the screen.
+     */
+    @Test
+    void eachConversationIsRememberedOnItsOwn() {
+        java.util.Map<String, List<Object>> redis = new java.util.HashMap<>();
+        lenient().when(listOperations.rightPush(anyString(), any())).thenAnswer(invocation -> {
+            List<Object> list = redis.computeIfAbsent(invocation.getArgument(0), k -> new ArrayList<>());
+            list.add(invocation.getArgument(1));
+            return (long) list.size();
+        });
+        lenient().when(listOperations.range(anyString(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong())).thenAnswer(invocation ->
+                new ArrayList<>(redis.getOrDefault(invocation.getArgument(0), List.of())));
+
+        service.recordTurn(42L, "1757700000000001", "I'd like the lasagne, please.", "Of course.");
+        service.recordTurn(42L, "1757600000000002", "Could we have the bill?", "Your total is 42 euros.");
+
+        List<Map<String, String>> older = service.recentMessages(42L, "1757600000000002");
+        assertEquals(2, older.size());
+        assertEquals("Could we have the bill?", older.get(0).get("content"));
+        assertTrue(older.stream().noneMatch(m -> m.get("content").contains("lasagne")),
+                "the older conversation remembered the newer one: " + older);
+    }
+
+    @Test
+    void aConversationIsKeptForAWeekAndTheLearnersListForTwoHours() {
+        service.recordTurn(42L, "1757700000000001", "Hello", "Hi");
+        verify(redisTemplate).expire("chat:session:user:42:thread:1757700000000001:messages", Duration.ofDays(7));
+
+        service.recordTurn(42L, "Hello again", "Hi again");
+        verify(redisTemplate).expire(KEY, Duration.ofHours(2));
+    }
+
+    @Test
+    void aThreadIdThatIsNotAPlainTokenIsNotAKey() {
+        // It becomes part of a Redis key. The learner's own list is the furthest an odd one
+        // should reach.
+        service.recordTurn(42L, "abc:*:other-user", "Hello", "Hi");
+
+        // Both halves of the turn, on the learner's own list.
+        verify(listOperations, org.mockito.Mockito.times(2)).rightPush(eq(KEY), any());
+    }
+
     /** A message as it is stored: a JSON string. */
     private static String stored(String role, String content) {
         return "{\"role\":\"" + role + "\",\"content\":\"" + content + "\"}";

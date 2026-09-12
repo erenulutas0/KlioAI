@@ -1779,11 +1779,20 @@ public class ChatbotController {
             // Absent from an app that predates the catalog, which keeps the old call exactly.
             Integer scenarioVariant = parseScenarioVariant(request.get("scenarioVariant"));
             long startedNs = System.nanoTime();
-            ChatbotService.ChatTurn turn = scenarioVariant == null
-                    ? chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
-                            languageProfile, speakerName, recall)
-                    : chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
-                            languageProfile, speakerName, recall, scenarioVariant);
+            // Which conversation this is, so it is remembered on its own. Absent from an app
+            // that predates it, which keeps exactly the calls it always made.
+            String threadId = request.get("threadId");
+            ChatbotService.ChatTurn turn;
+            if (threadId != null && !threadId.isBlank()) {
+                turn = chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
+                        languageProfile, speakerName, recall, scenarioVariant, threadId.trim());
+            } else if (scenarioVariant == null) {
+                turn = chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
+                        languageProfile, speakerName, recall);
+            } else {
+                turn = chatbotService.chatTurn(message.trim(), scenario, scenarioContext, userId,
+                        languageProfile, speakerName, recall, scenarioVariant);
+            }
             ChatbotService.AiCallResult llm = turn.ai();
             // The tutor's whole turn. Completion tokens include the model's reasoning, which
             // is spent before the first word of the reply exists.

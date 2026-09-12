@@ -88,6 +88,18 @@ void main() {
     expect(sent!['scenarioVariant'], '7');
   });
 
+  test('every turn names the conversation it belongs to', () async {
+    // So the server answers an older thread from its own memory, not from the
+    // newest one: measured on a device, "It's too much, isn't it?" about a
+    // bill was answered with "the lasagne is sold out" from another thread.
+    await serving(<String, Object?>{'response': 'Sure!'}).chatbotChatTurn(
+      message: "It's too much, isn't it?",
+      threadId: '1757600000000002',
+    );
+
+    expect(sent!['threadId'], '1757600000000002');
+  });
+
   test('free chat sends no variant', () async {
     await serving(<String, Object?>{'response': 'Sure!'})
         .chatbotChatTurn(message: 'Hi');

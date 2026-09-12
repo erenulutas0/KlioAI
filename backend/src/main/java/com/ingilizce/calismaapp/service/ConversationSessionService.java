@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Redis-backed short-term speaking-chat memory (prompt strategy Phase 2, "conversation memory").
@@ -36,6 +37,18 @@ public class ConversationSessionService {
 
     private static final String KEY_PREFIX = "chat:session:user:";
     private static final Duration SESSION_TTL = Duration.ofHours(2);
+
+    /**
+     * How long one conversation is remembered once it has its own memory.
+     *
+     * <p>Longer than the per-user memory, because what it is for is going back: the app keeps
+     * every conversation in a history sheet, and a learner who opens one from yesterday should
+     * find the character remembering it. Twelve messages a conversation is a few kilobytes.
+     */
+    private static final Duration THREAD_TTL = Duration.ofDays(7);
+
+    /** What a thread id may be. The app sends a timestamp; anything else is not a key. */
+    private static final Pattern THREAD_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final int MAX_STORED_MESSAGES = 12;
     private static final int CONTEXT_MESSAGES = 6;
 
@@ -53,11 +66,28 @@ public class ConversationSessionService {
      * Each entry is a provider-ready map with "role" and "content" keys.
      */
     public List<Map<String, String>> recentMessages(Long userId) {
+        return recentMessages(userId, null);
+    }
+
+    /**
+     * The same, for one conversation.
+     *
+     * <p>Memory used to be one list per learner. Measured on a device: a learner ordered the
+     * lasagne in one conversation, opened an older one from the history sheet -- the bill had
+     * come, EUR 42 -- and said "It's too much, isn't it?". The waiter answered that the lasagne
+     * was sold out and offered water: the newest conversation's memory, applied to the one on
+     * the screen. Clearing the list on opening would only have swapped the wrong memory for
+     * none. Each conversation keeps its own, and the one on the screen is the one remembered.
+     *
+     * @param threadId the app's id for the conversation, or null for the per-learner memory an
+     *     older app still uses
+     */
+    public List<Map<String, String>> recentMessages(Long userId, String threadId) {
         if (userId == null || redisTemplate == null) {
             return List.of();
         }
         try {
-            List<Object> stored = redisTemplate.opsForList().range(key(userId), -CONTEXT_MESSAGES, -1);
+            List<Object> stored = redisTemplate.opsForList().range(key(userId, threadId), -CONTEXT_MESSAGES, -1);
             if (stored == null || stored.isEmpty()) {
                 return List.of();
             }
@@ -81,7 +111,7 @@ public class ConversationSessionService {
             // build a history that works, instead of failing the same way for two hours.
             log.warn("Conversation history for userId={} could not be read and was cleared: {}",
                     userId, e.toString());
-            clearSession(userId);
+            clear(key(userId, threadId), userId);
             return List.of();
         } catch (Exception e) {
             // A warning, not a debug line: this is the model answering with no memory of the
@@ -124,11 +154,16 @@ public class ConversationSessionService {
      * Used to derive the conversation phase.
      */
     public int sessionMessageCount(Long userId) {
+        return sessionMessageCount(userId, null);
+    }
+
+    /** The same, for one conversation. See {@link #recentMessages(Long, String)}. */
+    public int sessionMessageCount(Long userId, String threadId) {
         if (userId == null || redisTemplate == null) {
             return 0;
         }
         try {
-            Long size = redisTemplate.opsForList().size(key(userId));
+            Long size = redisTemplate.opsForList().size(key(userId, threadId));
             return size == null ? 0 : size.intValue();
         } catch (Exception e) {
             log.debug("Conversation size unavailable for userId={}: {}", userId, e.toString());
@@ -147,6 +182,11 @@ public class ConversationSessionService {
      * something they believe they already said.
      */
     public void recordTurn(Long userId, String userMessage, String assistantReply) {
+        recordTurn(userId, null, userMessage, assistantReply);
+    }
+
+    /** The same, for one conversation. See {@link #recentMessages(Long, String)}. */
+    public void recordTurn(Long userId, String threadId, String userMessage, String assistantReply) {
         if (userId == null || redisTemplate == null) {
             return;
         }
@@ -156,7 +196,7 @@ public class ConversationSessionService {
             return;
         }
         try {
-            String key = key(userId);
+            String key = key(userId, threadId);
             if (hasUserMessage) {
                 redisTemplate.opsForList().rightPush(key, encode("user", userMessage));
             }
@@ -164,7 +204,7 @@ public class ConversationSessionService {
                 redisTemplate.opsForList().rightPush(key, encode("assistant", assistantReply));
             }
             redisTemplate.opsForList().trim(key, -MAX_STORED_MESSAGES, -1);
-            redisTemplate.expire(key, SESSION_TTL);
+            redisTemplate.expire(key, validThread(threadId) != null ? THREAD_TTL : SESSION_TTL);
         } catch (Exception e) {
             log.debug("Could not record conversation turn for userId={}: {}", userId, e.toString());
         }
@@ -184,14 +224,34 @@ public class ConversationSessionService {
         if (userId == null || redisTemplate == null) {
             return;
         }
+        clear(key(userId, null), userId);
+    }
+
+    private void clear(String key, Long userId) {
         try {
-            redisTemplate.delete(key(userId));
+            redisTemplate.delete(key);
         } catch (Exception e) {
             log.debug("Could not clear conversation for userId={}: {}", userId, e.toString());
         }
     }
 
-    private String key(Long userId) {
-        return KEY_PREFIX + userId + ":messages";
+    /**
+     * The per-learner list, or one conversation's. A thread id that is not a plain token falls
+     * back to the per-learner list: the id becomes part of a Redis key, and a learner's own
+     * memory is the worst an odd id should be able to reach.
+     */
+    private String key(Long userId, String threadId) {
+        String thread = validThread(threadId);
+        return thread == null
+                ? KEY_PREFIX + userId + ":messages"
+                : KEY_PREFIX + userId + ":thread:" + thread + ":messages";
+    }
+
+    private static String validThread(String threadId) {
+        if (threadId == null) {
+            return null;
+        }
+        String trimmed = threadId.trim();
+        return THREAD_ID.matcher(trimmed).matches() ? trimmed : null;
     }
 }

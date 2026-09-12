@@ -1441,6 +1441,7 @@ class ApiService {
     String? recall,
     String? voice,
     int? scenarioVariant,
+    String? threadId,
   }) async {
     final url = await baseUrl;
     final response = await _withAiRetry(
@@ -1468,6 +1469,10 @@ class ApiService {
           // same on every turn. A string, like every value this body carries.
           if (scenarioVariant != null)
             'scenarioVariant': scenarioVariant.toString(),
+          // Which conversation this is. The server remembers each one on its own, so a
+          // thread opened again from the history sheet is answered from its own past and
+          // not from whichever conversation came last.
+          if (threadId != null && threadId.isNotEmpty) 'threadId': threadId,
           ..._learningLanguageProfile(),
         }),
       ),
