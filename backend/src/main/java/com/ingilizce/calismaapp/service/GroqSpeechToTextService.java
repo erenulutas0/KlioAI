@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -65,16 +66,30 @@ public class GroqSpeechToTextService {
                                       boolean lowConfidence,
                                       Double avgLogprob,
                                       boolean otherLanguage,
-                                      String detectedLanguage) {
+                                      String detectedLanguage,
+                                      String heardAs) {
         public TranscriptionResult(String text, String model) {
-            this(text, model, null, List.of(), false, null, false, null);
+            this(text, model, null, List.of(), false, null, false, null, null);
+        }
+
+        /** A language verdict without the free transcript: what every caller before it meant. */
+        public TranscriptionResult(String text,
+                                   String model,
+                                   Double durationSeconds,
+                                   List<WordTiming> words,
+                                   boolean lowConfidence,
+                                   Double avgLogprob,
+                                   boolean otherLanguage,
+                                   String detectedLanguage) {
+            this(text, model, durationSeconds, words, lowConfidence, avgLogprob, otherLanguage,
+                    detectedLanguage, null);
         }
 
         public TranscriptionResult(String text,
                                    String model,
                                    Double durationSeconds,
                                    List<WordTiming> words) {
-            this(text, model, durationSeconds, words, false, null, false, null);
+            this(text, model, durationSeconds, words, false, null, false, null, null);
         }
 
         /** Confidence without a language verdict: what every caller before detection meant. */
@@ -84,7 +99,7 @@ public class GroqSpeechToTextService {
                                    List<WordTiming> words,
                                    boolean lowConfidence,
                                    Double avgLogprob) {
-            this(text, model, durationSeconds, words, lowConfidence, avgLogprob, false, null);
+            this(text, model, durationSeconds, words, lowConfidence, avgLogprob, false, null, null);
         }
     }
 
@@ -96,8 +111,22 @@ public class GroqSpeechToTextService {
      * on, and it is true only on positive evidence that the audio was not English. Absent
      * data is never evidence -- the rule this whole file already follows.
      */
-    record SpokenLanguage(boolean other, String detected) {
+    record SpokenLanguage(boolean other, String detected, String heardAs, Double overlap) {
         static final SpokenLanguage UNKNOWN = new SpokenLanguage(false, null);
+
+        SpokenLanguage(boolean other, String detected) {
+            this(other, detected, null, null);
+        }
+
+        /**
+         * The share of words two transcripts of the same audio have in common, above which
+         * they are the same sentence.
+         *
+         * <p>Two readings of one clip differ in punctuation and the odd filler, never in most
+         * of their words. A pinned "Hello, can you please take a while?" against a free
+         * "Merhaba, biraz su alabilir miyiz?" shares nothing at all.
+         */
+        static final double SAME_SENTENCE_OVERLAP = 0.6;
 
         static SpokenLanguage from(Map<String, Object> payload, String pinnedTranscript) {
             // The transcript about to be sent is supposed to be English. If it carries
@@ -108,10 +137,35 @@ public class GroqSpeechToTextService {
             if (payload == null) {
                 return pinnedIsForeign ? new SpokenLanguage(true, "non-english-script") : UNKNOWN;
             }
+            String free = payload.get("text") == null ? "" : payload.get("text").toString().trim();
             Object named = payload.get("language");
             if (named != null && !named.toString().isBlank()) {
                 String language = named.toString().trim().toLowerCase(Locale.ROOT);
-                return new SpokenLanguage(pinnedIsForeign || !isEnglish(language), language);
+                if (pinnedIsForeign) {
+                    return new SpokenLanguage(true, language, blankToNull(free), null);
+                }
+                if (isEnglish(language)) {
+                    return new SpokenLanguage(false, language);
+                }
+                // The label says another language and the pinned transcript looks English.
+                // Whether to believe the label is settled by what the free pass wrote, not by
+                // the label alone. Measured on a device, the label was wrong twice in five
+                // turns -- "dutch" on 1.7 seconds of clear English, and another on 2.5 -- and
+                // both times the transcript was right. Language identification on a clip that
+                // short is a guess. But a pass that got the language wrong still hears the
+                // words: if it wrote the same sentence, the audio was that sentence, and it
+                // is the label that is noise.
+                //
+                // The case this exists to catch cannot pass that test. When the pin invents
+                // English from a Turkish sentence -- "No, so, so, name me." -- the two
+                // transcripts share no words at all. And a learner who mixes the languages is
+                // transcribed the same way by both passes, both languages intact, so what
+                // reaches the tutor is what they said.
+                double overlap = wordOverlap(pinnedTranscript, free);
+                if (overlap >= SAME_SENTENCE_OVERLAP) {
+                    return new SpokenLanguage(false, language, null, overlap);
+                }
+                return new SpokenLanguage(true, language, blankToNull(free), overlap);
             }
             // No language field. Groq's documentation shows none in its verbose_json
             // example, so this cannot be the only path or the feature silently does
@@ -121,11 +175,68 @@ public class GroqSpeechToTextService {
             // The free pass's letters count too. This used to require the pinned transcript
             // to be clean as well, which is exactly backwards: with both in Turkish it said
             // nothing at all.
-            String free = payload.get("text") == null ? "" : payload.get("text").toString();
             if (pinnedIsForeign || hasLettersEnglishLacks(free)) {
-                return new SpokenLanguage(true, "non-english-script");
+                return new SpokenLanguage(true, "non-english-script", blankToNull(free), null);
             }
             return UNKNOWN;
+        }
+
+        /**
+         * Without the free transcript's words: that is the learner's own speech, and this line
+         * is logged on every turn. Its length is enough to see whether there was one.
+         */
+        @Override
+        public String toString() {
+            return "SpokenLanguage[other=" + other + ", detected=" + detected
+                    + ", overlap=" + overlap
+                    + ", heardAsChars=" + (heardAs == null ? 0 : heardAs.length()) + "]";
+        }
+
+        /** Shared words over the longer transcript's length; 0 when either is empty. */
+        static double wordOverlap(String pinned, String free) {
+            List<String> left = words(pinned);
+            List<String> right = words(free);
+            if (left.isEmpty() || right.isEmpty()) {
+                return 0;
+            }
+            Map<String, Integer> remaining = new HashMap<>();
+            for (String word : right) {
+                remaining.merge(word, 1, Integer::sum);
+            }
+            int shared = 0;
+            for (String word : left) {
+                Integer count = remaining.get(word);
+                if (count != null && count > 0) {
+                    shared++;
+                    remaining.put(word, count - 1);
+                }
+            }
+            return (double) shared / Math.max(left.size(), right.size());
+        }
+
+        /** Lowercased runs of letters, digits and apostrophes: punctuation is not a word. */
+        static List<String> words(String text) {
+            List<String> words = new ArrayList<>();
+            if (text == null) {
+                return words;
+            }
+            StringBuilder current = new StringBuilder();
+            text.toLowerCase(Locale.ROOT).codePoints().forEach(cp -> {
+                if (Character.isLetterOrDigit(cp) || cp == 39) {
+                    current.appendCodePoint(cp);
+                } else if (current.length() > 0) {
+                    words.add(current.toString());
+                    current.setLength(0);
+                }
+            });
+            if (current.length() > 0) {
+                words.add(current.toString());
+            }
+            return words;
+        }
+
+        private static String blankToNull(String text) {
+            return text == null || text.isBlank() ? null : text;
         }
 
         /** "en" and "english" are both seen in the wild; nothing else is English. */
@@ -329,8 +440,11 @@ public class GroqSpeechToTextService {
             // asked before it is sent, instead of being corrected for words they never said.
             boolean otherLanguage = !text.isBlank() && spoken.other();
             boolean lowConfidence = !text.isBlank() && (isLowConfidence(avgLogprob) || otherLanguage);
+            // What the learner actually said, when it was not the language being practised --
+            // so the app can show them their own sentence instead of the English the pin made
+            // up from it. Asked for on a device: "it did not show the Turkish I said".
             return new TranscriptionResult(text, model, durationSeconds, words, lowConfidence, avgLogprob,
-                    otherLanguage, spoken.detected());
+                    otherLanguage, spoken.detected(), otherLanguage ? spoken.heardAs() : null);
         } catch (RestClientResponseException e) {
             log.warn("Groq speech transcription failed: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new RuntimeException("Groq speech transcription failed: " + e.getStatusCode(), e);

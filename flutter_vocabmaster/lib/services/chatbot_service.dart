@@ -174,11 +174,20 @@ class ChatbotService {
         // Same reading, for the same reason: absent means the server never had
         // an opinion, and no opinion is not a verdict of "another language".
         otherLanguage: result['otherLanguage'] == true,
+        heardAs: _heardAs(result['heardAs']),
       );
     } catch (e) {
       debugPrint('ChatbotService.transcribeSpeech error: $e');
       rethrow;
     }
+  }
+
+  static String? _heardAs(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    final String text = value.trim();
+    return text.isEmpty ? null : text;
   }
 
   /// Telaffuz calismasi icin kisa okunacak metinler uretir.
@@ -1099,6 +1108,16 @@ class SpeechTranscription {
   /// False for every server that does not send the field.
   final bool otherLanguage;
 
+  /// What the learner actually said, when [otherLanguage] is set and the
+  /// server heard it. [text] is then English the transcriber invented from
+  /// that audio; this is the sentence itself.
+  ///
+  /// Reported from a device: after "Merhaba, biraz su alabilir miyiz?" the
+  /// footer offered "Hello, can you please take a while?" and nothing else,
+  /// and the learner could not see what they had said. Null for English, and
+  /// for every server older than the field.
+  final String? heardAs;
+
   const SpeechTranscription({
     required this.text,
     this.measuredDurationMs,
@@ -1106,5 +1125,6 @@ class SpeechTranscription {
     this.lowConfidence = false,
     this.avgLogprob,
     this.otherLanguage = false,
+    this.heardAs,
   });
 }

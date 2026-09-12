@@ -691,7 +691,7 @@ public class ChatbotControllerTest {
         when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
                         "No, so, so, name me.", "whisper-large-v3-turbo", 2.4, List.of(), true, -0.35,
-                        true, "turkish"));
+                        true, "turkish", "Bugun hava cok guzel, disari cikalim."));
 
         mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
                 .file(new MockMultipartFile("audio", "speech.m4a", "audio/mp4", new byte[]{1, 2, 3, 4}))
@@ -702,7 +702,24 @@ public class ChatbotControllerTest {
                 .andExpect(jsonPath("$.lowConfidence").value(true))
                 .andExpect(jsonPath("$.otherLanguage").value(true))
                 .andExpect(jsonPath("$.detectedLanguage").value("turkish"))
-                .andExpect(jsonPath("$.avgLogprob").value(-0.35));
+                .andExpect(jsonPath("$.avgLogprob").value(-0.35))
+                // What they said, so the app can show it instead of the English made up from it.
+                .andExpect(jsonPath("$.heardAs").value("Bugun hava cok guzel, disari cikalim."));
+    }
+
+    @Test
+    void speechTranscribeSendsNoHeardAsForEnglish() throws Exception {
+        // An older app must see exactly the response it always did.
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+                .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
+                        "I want to practice speaking.", "whisper-large-v3-turbo"));
+
+        mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
+                .file(new MockMultipartFile("audio", "speech.m4a", "audio/mp4", new byte[]{1, 2, 3, 4}))
+                .param("durationMs", "2600")
+                .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.heardAs").doesNotExist());
     }
 
     private Word deckWord(String englishWord, LocalDate learnedDate, LocalDate nextReviewDate) {

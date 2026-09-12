@@ -2039,6 +2039,13 @@ public class ChatbotController {
             if (transcription.detectedLanguage() != null) {
                 result.put("detectedLanguage", transcription.detectedLanguage());
             }
+            // What they actually said, when it was another language: the pinned "text" above
+            // is English the transcriber made up from it, and showing a learner words they
+            // never said -- with nothing to show what they did say -- was reported from a
+            // device. Absent otherwise, so an older app sees exactly what it did.
+            if (transcription.heardAs() != null) {
+                result.put("heardAs", transcription.heardAs());
+            }
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to transcribe speech for userId={}", userId, e);

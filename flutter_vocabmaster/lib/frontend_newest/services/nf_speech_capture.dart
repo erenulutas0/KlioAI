@@ -51,6 +51,7 @@ class NfCaptureResult {
     this.pace,
     this.lowConfidence = false,
     this.otherLanguage = false,
+    this.heardAs,
   });
 
   final NfCaptureOutcome outcome;
@@ -73,6 +74,10 @@ class NfCaptureResult {
   /// it: there is nothing to correct in a sentence somebody meant to say in
   /// their own language.
   final bool otherLanguage;
+
+  /// The learner's own sentence when it was another language -- see
+  /// [SpeechTranscription.heardAs]. Null otherwise.
+  final String? heardAs;
 
   /// How fast this was spoken, or null when the clip was too short to say.
   /// Null is "nothing to report", never "slow".
@@ -103,6 +108,8 @@ class NfCaptureResult {
     NfCaptureOutcome outcome, {
     String transcript = '',
     bool lowConfidence = false,
+    bool otherLanguage = false,
+    String? heardAs,
     NfSpokenPace? pace,
     Object? error,
   }) =>
@@ -110,6 +117,8 @@ class NfCaptureResult {
         outcome,
         transcript: transcript,
         lowConfidence: lowConfidence,
+        otherLanguage: otherLanguage,
+        heardAs: heardAs,
         pace: pace,
         error: error,
       );
@@ -359,6 +368,7 @@ class NfSpeechCapture extends ChangeNotifier {
         pace: NfSpokenPace.from(result.words),
         lowConfidence: result.lowConfidence,
         otherLanguage: result.otherLanguage,
+        heardAs: result.heardAs,
       );
     } catch (e) {
       return NfCaptureResult._(NfCaptureOutcome.failed, error: e);

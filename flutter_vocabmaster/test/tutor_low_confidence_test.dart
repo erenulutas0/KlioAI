@@ -178,6 +178,32 @@ void main() {
       }
     });
 
+    test('what the learner actually said comes with the verdict', () async {
+      final SpeechTranscription heard = await transcribe(<String, Object?>{
+        'text': 'Hello, can you please take a while?',
+        'lowConfidence': true,
+        'avgLogprob': -1.17,
+        'otherLanguage': true,
+        'detectedLanguage': 'azerbaijani',
+        'heardAs': 'Merhaba, biraz su alabilir miyiz?',
+      });
+
+      expect(heard.heardAs, 'Merhaba, biraz su alabilir miyiz?');
+      expect(heard.text, 'Hello, can you please take a while?',
+          reason: 'the transcript itself is left as the server sent it');
+    });
+
+    test('a heardAs that is not a sentence is not one', () async {
+      for (final Object? junk in <Object?>[null, '', '   ', 42, <String>[]]) {
+        final SpeechTranscription heard = await transcribe(<String, Object?>{
+          'text': 'Hello',
+          'otherLanguage': true,
+          if (junk != null) 'heardAs': junk,
+        });
+        expect(heard.heardAs, isNull, reason: 'read $junk as a sentence');
+      }
+    });
+
     test('the debugging score never becomes part of what was said', () async {
       // avgLogprob is for the log. "-0.82" beside their own sentence would be
       // read by a learner as a score of their pronunciation, which it is not.
@@ -255,6 +281,58 @@ void main() {
       // said "Merhaba, biraz su alabilir miyiz?" to correct.
       expect(nfConfirmHintKey(true), 'tutor.confirm.hint.language');
       expect(nfConfirmCaptionKey(true), 'tutor.confirm.caption.language');
+    });
+
+    test('the field shows the sentence they said, not the one made up', () {
+      // Measured on a device: "Merhaba, biraz su alabilir miyiz?" was offered
+      // back as "Hello, can you please take a while?".
+      final NfCaptureResult turkish = NfCaptureResult.forTest(
+        NfCaptureOutcome.transcribed,
+        transcript: 'Hello, can you please take a while?',
+        lowConfidence: true,
+        otherLanguage: true,
+        heardAs: 'Merhaba, biraz su alabilir miyiz?',
+      );
+
+      expect(nfConfirmFieldText(turkish), 'Merhaba, biraz su alabilir miyiz?');
+    });
+
+    test('a mishearing keeps its transcript, whatever else came with it', () {
+      // heardAs only means anything alongside a language verdict. A doubted
+      // English sentence is the learner's to correct, in the words they see.
+      final NfCaptureResult doubted = NfCaptureResult.forTest(
+        NfCaptureOutcome.transcribed,
+        transcript: 'I am angry with you',
+        lowConfidence: true,
+        heardAs: 'something else entirely',
+      );
+
+      expect(nfConfirmFieldText(doubted), 'I am angry with you');
+    });
+
+    test('another language with nothing heard falls back to the transcript', () {
+      final NfCaptureResult unheard = NfCaptureResult.forTest(
+        NfCaptureOutcome.transcribed,
+        transcript: 'No, so, so, name me.',
+        lowConfidence: true,
+        otherLanguage: true,
+      );
+
+      expect(nfConfirmFieldText(unheard), 'No, so, so, name me.');
+    });
+
+    test('the captions fit on the one line they are given', () {
+      // The first version of the language caption was 54 characters in
+      // Turkish and was cut off mid-word on a 1080-wide phone. The caption is
+      // maxLines: 1; the ordinary one beside it is 32 characters and fits.
+      for (final Locale locale in AppLocalizations.supportedLocales) {
+        final AppLocalizations strings = AppLocalizations(locale);
+        for (final bool otherLanguage in <bool>[true, false]) {
+          final String caption = strings.t(nfConfirmCaptionKey(otherLanguage));
+          expect(caption.length, lessThanOrEqualTo(40),
+              reason: '${locale.languageCode}: "$caption"');
+        }
+      }
     });
 
     test('every interface language has both of them', () {

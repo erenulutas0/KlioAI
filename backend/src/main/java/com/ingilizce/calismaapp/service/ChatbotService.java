@@ -451,6 +451,10 @@ HOW TO OFFER A CORRECTION:
 %s
 %s
 - Correct only what they actually said. Never invent a mistake to have something to show.
+- Anything they said in another language is a correction too: those words exactly as they
+  said them, then the English for them. Somebody who switches language mid-sentence has just
+  shown you precisely which English they do not have yet, so it is never let pass -- even
+  when your reply understood them and carried on.
 - At most %d correction lines, then the whole-message line, and nothing after it.
 """.formatted(
         maxChanges,

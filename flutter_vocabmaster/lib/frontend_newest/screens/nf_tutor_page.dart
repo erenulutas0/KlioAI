@@ -573,7 +573,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     _confirmingPace = result.pace;
     _confirmingOtherLanguage = result.otherLanguage;
     setState(() {
-      _confirming = TextEditingController(text: result.transcript);
+      _confirming = TextEditingController(text: nfConfirmFieldText(result));
     });
   }
 
@@ -2723,6 +2723,23 @@ Widget nfConfirmTranscriptForTest({
 /// the right language all along must still be one tap from sending.
 String nfConfirmHintKey(bool otherLanguage) =>
     otherLanguage ? 'tutor.confirm.hint.language' : 'tutor.confirm.hint';
+
+/// What goes in the field while a sentence waits to be checked.
+///
+/// The transcript, except when it was another language and the server heard
+/// what that was. Then the transcript is English invented from the audio --
+/// "Hello, can you please take a while?" for "Merhaba, biraz su alabilir
+/// miyiz?", measured on a device -- and putting that in front of the learner
+/// shows them words they never said and hides the ones they did. Their own
+/// sentence is the honest thing to show; sending it gives the tutor what they
+/// actually said.
+String nfConfirmFieldText(NfCaptureResult result) {
+  final String? heardAs = result.heardAs;
+  if (result.otherLanguage && heardAs != null && heardAs.trim().isNotEmpty) {
+    return heardAs.trim();
+  }
+  return result.transcript;
+}
 
 /// The line under the field. See [nfConfirmHintKey].
 String nfConfirmCaptionKey(bool otherLanguage) =>

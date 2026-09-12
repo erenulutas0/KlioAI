@@ -443,6 +443,97 @@ class GroqSpeechToTextServiceTest {
         assertFalse(result.lowConfidence());
     }
 
+    /**
+     * A wrong label on words both passes agree on is not a verdict.
+     *
+     * <p>Measured on a device: 1.7 seconds of clear English, transcribed correctly, labelled
+     * "dutch" by the free pass, and held back for the learner to approve a sentence that was
+     * exactly what they said. Twice in five turns, both times on a short clip. The free pass
+     * got the language wrong and the words right -- and when two readings of the same audio
+     * write the same sentence, the audio was that sentence.
+     */
+    @Test
+    void transcribeShouldNotHoldEnglishWhoseLabelAloneDisagrees() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        stubBothPasses(
+                "{\"text\":\"Hi, good evening.\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-0.38}]}",
+                "{\"text\":\"Hi, good evening.\",\"language\":\"dutch\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US");
+
+        assertFalse(result.otherLanguage());
+        assertFalse(result.lowConfidence(), "a sentence the learner said exactly was held back");
+        assertEquals("dutch", result.detectedLanguage(), "the label stays visible in the log");
+    }
+
+    /**
+     * The sentence the learner said, instead of the one the pin invented.
+     *
+     * <p>Measured on a device: "Merhaba, biraz su alabilir miyiz?" came back pinned as
+     * "Hello, can you please take a while?", and the footer offered that to the learner --
+     * words they never said, with nothing to show what they had said. The free pass had it.
+     */
+    @Test
+    void transcribeShouldCarryWhatTheFreePassHeardWhenTheLanguageWasAnother() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        stubBothPasses(
+                "{\"text\":\"Hello, can you please take a while?\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-1.17}]}",
+                "{\"text\":\"Merhaba, biraz su alabilir miyiz?\",\"language\":\"azerbaijani\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US");
+
+        assertTrue(result.otherLanguage());
+        assertTrue(result.lowConfidence());
+        assertEquals("Merhaba, biraz su alabilir miyiz?", result.heardAs());
+        assertEquals("Hello, can you please take a while?", result.text(),
+                "the pinned transcript is unchanged; the app chooses what to show");
+    }
+
+    /**
+     * A learner who mixes the languages is sent as they spoke.
+     *
+     * <p>Measured on a device: "Spaghetti Pomodoro sounds good and also, merhaba, biraz su
+     * alabilir miyiz?" -- both languages written faithfully by the pinned pass, at a
+     * confident -0.18, and labelled Turkish by the free one. There is nothing invented in
+     * that transcript to protect anyone from; what reaches the tutor is what they said.
+     */
+    @Test
+    void transcribeShouldNotHoldAMixedSentenceBothPassesWroteTheSame() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        String mixed = "Spaghetti Pomodoro sounds good and also, merhaba, biraz su alabilir miyiz?";
+        stubBothPasses(
+                "{\"text\":\"" + mixed + "\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-0.18}]}",
+                "{\"text\":\"" + mixed + "\",\"language\":\"turkish\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US");
+
+        assertFalse(result.otherLanguage());
+        assertFalse(result.lowConfidence());
+        assertEquals(mixed, result.text());
+    }
+
+    @Test
+    void theAgreementCheckCountsWordsNotPunctuation() {
+        assertEquals(1.0, GroqSpeechToTextService.SpokenLanguage.wordOverlap(
+                "Hi, good evening.", "hi good evening"), 0.0001);
+        assertEquals(0.0, GroqSpeechToTextService.SpokenLanguage.wordOverlap(
+                "Hello, can you please take a while?", "Merhaba, biraz su alabilir miyiz?"), 0.0001);
+        assertEquals(0.0, GroqSpeechToTextService.SpokenLanguage.wordOverlap("", "anything"), 0.0001);
+    }
+
+    @Test
+    void whatTheLearnerSaidIsNeverWrittenToTheLog() {
+        // The verdict is logged on every turn; the free transcript is their own speech.
+        GroqSpeechToTextService.SpokenLanguage spoken = new GroqSpeechToTextService.SpokenLanguage(
+                true, "turkish", "Merhaba, biraz su alabilir miyiz?", 0.0);
+
+        assertFalse(spoken.toString().contains("Merhaba"), spoken.toString());
+        assertTrue(spoken.toString().contains("heardAsChars=33"), spoken.toString());
+    }
+
     @Test
     void transcribeShouldReadTheScriptWhenTheProviderNamesNoLanguage() {
         // Groq's documented verbose_json example carries no language field. If it really

@@ -176,6 +176,20 @@ class ChatbotFixInstructionsTest {
     }
 
     @Test
+    @DisplayName("words said in another language are taught, not let pass")
+    void wordsInAnotherLanguageAreACorrection() throws Exception {
+        // Measured on a device, in the restaurant scene: "Spaghetti Pomodoro sounds good and
+        // also, merhaba, biraz su alabilir miyiz?" The waiter understood, brought the water,
+        // and the card listed nothing -- corrections=0 -- on the one turn where the learner
+        // had shown exactly which English they were missing. Staying in the scene is right;
+        // the card is where the English goes.
+        String text = fixInstructions();
+
+        assertThat(text).contains("Anything they said in another language is a correction too");
+        assertThat(text).contains("even\n  when your reply understood them and carried on");
+    }
+
+    @Test
     @DisplayName("a note gives a reason, never a label")
     void aNoteIsNotALabel() throws Exception {
         // From a tester, about the card for "I had like": the note read "\"had like\" is
