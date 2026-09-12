@@ -35,6 +35,17 @@ public final class SpokenReply {
     private static final int REST_MIN_CHARS = 25;
 
     /**
+     * An opening sentence longer than this is cut at a comma instead.
+     *
+     * <p>Measured on two real replies: their first sentences were 121 and 131 characters, and
+     * speaking them cost 2.0 s where the shorter openings in the same conversation cost 0.86 s.
+     * A full stop is the seam a listener never notices, but there was not one to use, and two
+     * seconds of nothing is more noticeable than a pause at a comma -- which is a pause the
+     * speaker was going to make anyway.
+     */
+    private static final int CLAUSE_FALLBACK_ABOVE_CHARS = 90;
+
+    /**
      * Words whose full stop does not end a sentence. Cutting after one of these would put the
      * seam inside a phrase -- "Mr. | Rossi will be right with you" -- which is exactly the
      * pause a listener notices.
@@ -49,6 +60,9 @@ public final class SpokenReply {
      */
     private static final Pattern BOUNDARY =
             Pattern.compile("[.!?\\u2026]+[\"'\\u201D\\u2019)\\]]*(?=\\s)");
+
+    /** A comma, semicolon or colon with whitespace after it: where a speaker draws breath. */
+    private static final Pattern CLAUSE = Pattern.compile("[,;:](?=\\s)");
 
     /** The word right before a boundary, without its punctuation. */
     private static final Pattern WORD_BEFORE =
@@ -76,21 +90,51 @@ public final class SpokenReply {
             return new Split(text, "");
         }
         int leadMin = leadMinFor(text.length());
+        int cut = sentenceCut(text, leadMin);
+        if (cut < 0) {
+            return new Split(text, "");
+        }
+        if (cut > CLAUSE_FALLBACK_ABOVE_CHARS) {
+            int earlier = clauseCut(text, leadMin, cut);
+            if (earlier > 0) {
+                cut = earlier;
+            }
+        }
+        return new Split(text.substring(0, cut).trim(), text.substring(cut).trim());
+    }
+
+    /** The first full stop worth cutting at, or -1 when the reply has none. */
+    private static int sentenceCut(String text, int leadMin) {
         Matcher boundary = BOUNDARY.matcher(text);
         while (boundary.find()) {
             int cut = boundary.end();
             if (cut < leadMin || isAbbreviation(text, boundary.start())) {
                 continue;
             }
-            String lead = text.substring(0, cut).trim();
-            String rest = text.substring(cut).trim();
-            if (rest.length() < REST_MIN_CHARS) {
+            if (text.length() - cut < REST_MIN_CHARS) {
                 // Everything after this point is shorter still, so there is no seam to find.
-                break;
+                return -1;
             }
-            return new Split(lead, rest);
+            return cut;
         }
-        return new Split(text, "");
+        return -1;
+    }
+
+    /**
+     * The first comma inside an opening sentence that is too long to wait for, or -1.
+     *
+     * <p>Only ever earlier than the full stop, never later: this exists to shorten the wait,
+     * and a seam that does not shorten it is a seam for nothing.
+     */
+    private static int clauseCut(String text, int leadMin, int sentenceEnd) {
+        Matcher clause = CLAUSE.matcher(text.substring(0, sentenceEnd));
+        while (clause.find()) {
+            int cut = clause.end();
+            if (cut >= leadMin) {
+                return cut;
+            }
+        }
+        return -1;
     }
 
     /**

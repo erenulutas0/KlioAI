@@ -128,8 +128,43 @@ class SpokenReplyTest {
                 "an opening that runs out before the rest arrives is a silence mid-reply: "
                         + split.lead().length() + " of " + reply.length());
         // Not the first sentence: "I am so sorry about that." is 25 characters, which would
-        // have run out well before the remaining 228 had been synthesised.
-        assertTrue(split.lead().endsWith("coming out to you right now."), split.lead());
+        // have run out well before the remaining 228 had been synthesised. The second sentence
+        // is far too long to wait for, so the cut lands at its comma.
+        assertTrue(split.lead().endsWith("just before you did,"), split.lead());
+    }
+
+    /**
+     * An opening sentence too long to wait for is cut at a comma.
+     *
+     * <p>Two replies in one conversation opened with a 121- and a 131-character sentence, and
+     * speaking those cost 2.0 s where the short openings in the same conversation cost 0.86 s.
+     * There was no full stop to use. A comma is where the speaker was going to pause anyway,
+     * and a pause there is less noticeable than two seconds of nothing.
+     */
+    @Test
+    void anOpeningSentenceTooLongToWaitForIsCutWhereTheSpeakerBreathes() {
+        // Shaped like the replies that were measured at 2.0 s: a 129-character opening
+        // sentence inside a 158-character reply, with nowhere to cut but a comma.
+        String reply = "I would honestly recommend the seafood risotto tonight, because the fish "
+                + "came in this morning and the kitchen is very proud of it. Does that sound good "
+                + "to you?";
+
+        SpokenReply.Split split = SpokenReply.of(reply);
+
+        assertEquals("I would honestly recommend the seafood risotto tonight,", split.lead());
+        assertTrue(split.rest().startsWith("because the fish"));
+    }
+
+    @Test
+    void anOpeningSentenceShortEnoughIsLeftWhole() {
+        // The comma is there, but the full stop comes soon enough that cutting at the comma
+        // would buy nothing and cost a seam mid-sentence.
+        String reply = "Yes, of course, we have a table by the window. The kitchen is still "
+                + "open for another hour, so there is no rush at all.";
+
+        SpokenReply.Split split = SpokenReply.of(reply);
+
+        assertEquals("Yes, of course, we have a table by the window.", split.lead());
     }
 
     @Test
