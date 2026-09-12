@@ -332,7 +332,8 @@ public class ChatbotControllerTest {
         mockMvc.perform(post("/api/chatbot/chat")
                 .header("X-User-Id", "1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"message\":\"I would like the lasagne please\",\"voice\":\"amy\"}"))
+                .content("{\"message\":\"I would like the lasagne please\",\"voice\":\"amy\","
+                        + "\"audioSplit\":\"true\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value(lead + " " + rest))
                 .andExpect(jsonPath("$.audio").value("UklGRg=="))
@@ -340,6 +341,31 @@ public class ChatbotControllerTest {
 
         // The whole reply is never synthesised here: that is the six seconds being removed.
         verify(speechService, never()).synthesizeSpeech(eq(lead + " " + rest), anyString());
+    }
+
+    /**
+     * An app that cannot play two parts is never sent two.
+     *
+     * <p>Every build in the store before this field reads "audio" and nothing else. Splitting
+     * for one of those would have the tutor say the first sentence of every long reply and
+     * then go quiet, with the rest of it visible in the bubble -- a worse failure than the
+     * wait the split removes.
+     */
+    @Test
+    void chatSpeaksTheWholeReply_ToAnAppThatCannotPlayTwoParts() throws Exception {
+        String whole = "I'm afraid the lasagne is sold out tonight. The penne arrabbiata is very "
+                + "good though, and the kitchen can have it out to you in a few minutes.";
+        tutorSays(whole);
+        when(speechService.isAvailable()).thenReturn(true);
+        when(speechService.synthesizeSpeech(whole, "amy")).thenReturn("UklGRg==");
+
+        mockMvc.perform(post("/api/chatbot/chat")
+                .header("X-User-Id", "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"I would like the lasagne please\",\"voice\":\"amy\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audio").value("UklGRg=="))
+                .andExpect(jsonPath("$.audioRest").doesNotExist());
     }
 
     @Test

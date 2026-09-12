@@ -63,6 +63,17 @@ void main() {
         .chatbotChatTurn(message: 'Hi');
 
     expect(sent!.containsKey('voice'), isFalse);
+    expect(sent!.containsKey('audioSplit'), isFalse);
+  });
+
+  test('asking for a voice says this build can play the reply in two parts',
+      () async {
+    // What keeps the server from splitting a reply for a build that would play
+    // the opening and then fall silent.
+    await serving(<String, Object?>{'response': 'Sure!'})
+        .chatbotChatTurn(message: 'Hi', voice: 'amy');
+
+    expect(sent!['audioSplit'], 'true');
   });
 
   test('the variant a scene was dealt travels with every turn', () async {

@@ -1455,6 +1455,11 @@ class ApiService {
           // about the scene, and this is the app remembering.
           if (recall != null && recall.isNotEmpty) 'recall': recall,
           if (voice != null && voice.isNotEmpty) 'voice': voice,
+          // This build can play a reply in two parts, so the server may speak
+          // only its opening and send the rest as text -- see [TutorReply
+          // .audioRest]. Sent only alongside a voice, because without one
+          // there is no audio to split.
+          if (voice != null && voice.isNotEmpty) 'audioSplit': 'true',
           // Which opening and complication this conversation was dealt, the
           // same on every turn. A string, like every value this body carries.
           if (scenarioVariant != null)

@@ -1839,7 +1839,12 @@ public class ChatbotController {
             // no voice sees exactly what it did.
             String voice = request.get("voice");
             if (voice != null && !voice.isBlank()) {
-                speakReply(result, llm.content(), voice.trim());
+                // Only an app that says it can play a reply in two parts is sent one. Every
+                // build before this field plays "audio" and nothing else, so splitting for it
+                // would have the tutor stop speaking halfway through every long reply -- with
+                // the whole of it sitting there in the bubble.
+                speakReply(result, llm.content(), voice.trim(),
+                        Boolean.parseBoolean(request.get("audioSplit")));
             }
             return ResponseEntity.ok(result);
         } catch (Exception e) {
@@ -1858,13 +1863,15 @@ public class ChatbotController {
      * to asking for the audio separately. Goes through the same service and cache as /api/tts,
      * so replaying the bubble later is a cache hit.
      *
-     * <p>Only the reply's first sentence is spoken here; whatever follows goes back as
-     * "audioRest", text, for the app to ask for while that first sentence is playing. Kokoro
-     * costs about twenty milliseconds a character, so speaking a long reply whole was six
-     * seconds of silence before the learner heard anything -- see {@link SpokenReply}. A short
-     * reply has no seam and no "audioRest", exactly as before.
+     * <p>When the app says it can play two parts, only the reply's first sentence is spoken
+     * here and whatever follows goes back as "audioRest", text, for the app to ask for while
+     * that first sentence is playing. Kokoro costs about twenty milliseconds a character, so
+     * speaking a long reply whole was six seconds of silence before the learner heard anything
+     * -- see {@link SpokenReply}. A short reply has no seam and no "audioRest", and neither
+     * does any reply to an app that did not ask: it would play the opening and fall silent.
      */
-    private void speakReply(Map<String, Object> result, String reply, String voice) {
+    private void speakReply(Map<String, Object> result, String reply, String voice,
+            boolean appCanPlayTwoParts) {
         if (speechService == null || reply == null) {
             return;
         }
@@ -1877,7 +1884,9 @@ public class ChatbotController {
             if (!speechService.isAvailable()) {
                 return;
             }
-            SpokenReply.Split split = SpokenReply.of(text);
+            SpokenReply.Split split = appCanPlayTwoParts
+                    ? SpokenReply.of(text)
+                    : new SpokenReply.Split(text, "");
             String audio = speechService.synthesizeSpeech(split.lead(), voice);
             log.info("TIMING chat-audio ms={} chars={} leadChars={} restChars={} base64Chars={}",
                     (System.nanoTime() - startedNs) / 1_000_000L, text.length(),
