@@ -537,7 +537,7 @@ public class ChatbotControllerTest {
     @Test
     void speechTranscribeReturnsTextAndConsumesEstimatedAudioTokens() throws Exception {
         when(speechToTextService.transcribe(any(byte[].class), eq("speech.m4a"), eq("audio/mp4"), eq("en_US"),
-                anyList()))
+                anyList(), eq("Turkish")))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult("I want to practice speaking.", "whisper-large-v3-turbo"));
 
         MockMultipartFile audio = new MockMultipartFile(
@@ -578,7 +578,7 @@ public class ChatbotControllerTest {
         // check here is that the controller hands the list on without reordering or losing it.
         when(wordService.vocabularyHintWords(eq(1L), anyInt()))
                 .thenReturn(List.of("agree", " married ", "", "teacher"));
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult("I am agree with you.", "whisper-large-v3-turbo"));
 
         mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
@@ -589,7 +589,7 @@ public class ChatbotControllerTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> vocabulary = ArgumentCaptor.forClass(List.class);
-        verify(speechToTextService).transcribe(any(byte[].class), any(), any(), any(), vocabulary.capture());
+        verify(speechToTextService).transcribe(any(byte[].class), any(), any(), any(), vocabulary.capture(), any());
         assertEquals(List.of("agree", "married", "teacher"), vocabulary.getValue(),
                 "the query's order survives, trimmed, with blanks dropped");
     }
@@ -605,7 +605,7 @@ public class ChatbotControllerTest {
     void speechTranscribeStillSucceedsWhenTheWordLookupFails() throws Exception {
         when(wordService.vocabularyHintWords(eq(1L), anyInt()))
                 .thenThrow(new RuntimeException("db down"));
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult("I am agree with you.", "whisper-large-v3-turbo"));
 
         mockMvc.perform(multipart("/api/chatbot/speech/transcribe")
@@ -618,7 +618,7 @@ public class ChatbotControllerTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> vocabulary = ArgumentCaptor.forClass(List.class);
-        verify(speechToTextService).transcribe(any(byte[].class), any(), any(), any(), vocabulary.capture());
+        verify(speechToTextService).transcribe(any(byte[].class), any(), any(), any(), vocabulary.capture(), any());
         assertEquals(List.of(), vocabulary.getValue(), "A failed lookup sends no hint, not a broken one");
     }
 
@@ -633,7 +633,7 @@ public class ChatbotControllerTest {
      */
     @Test
     void speechTranscribeReportsLowConfidenceAndTheNumberItCameFrom() throws Exception {
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
                         "I am angry with you.", "whisper-large-v3-turbo", 1.9, List.of(), true, -0.93));
 
@@ -658,7 +658,7 @@ public class ChatbotControllerTest {
      */
     @Test
     void speechTranscribeNeverWarnsWhenThereIsNoConfidenceDataAndLeavesOldFieldsAlone() throws Exception {
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
                         "I want to practice speaking.", "whisper-large-v3-turbo"));
 
@@ -688,7 +688,7 @@ public class ChatbotControllerTest {
      */
     @Test
     void speechTranscribeReportsWhenTheAudioWasNotEnglish() throws Exception {
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
                         "No, so, so, name me.", "whisper-large-v3-turbo", 2.4, List.of(), true, -0.35,
                         true, "turkish", "Bugun hava cok guzel, disari cikalim."));
@@ -710,7 +710,7 @@ public class ChatbotControllerTest {
     @Test
     void speechTranscribeSendsNoHeardAsForEnglish() throws Exception {
         // An older app must see exactly the response it always did.
-        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList()))
+        when(speechToTextService.transcribe(any(byte[].class), any(), any(), any(), anyList(), any()))
                 .thenReturn(new GroqSpeechToTextService.TranscriptionResult(
                         "I want to practice speaking.", "whisper-large-v3-turbo"));
 
@@ -748,7 +748,7 @@ public class ChatbotControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.reason").value("audio-too-long"));
 
-        verify(speechToTextService, never()).transcribe(any(), any(), any(), any(), anyList());
+        verify(speechToTextService, never()).transcribe(any(), any(), any(), any(), anyList(), any());
     }
 
     @Test

@@ -118,6 +118,11 @@ public class GroqSpeechToTextService {
             this(other, detected, null, null);
         }
 
+        /** The same verdict, with the sentence written the way the learner would write it. */
+        SpokenLanguage withHeardAs(String respelled) {
+            return new SpokenLanguage(other, detected, respelled, overlap);
+        }
+
         /**
          * The share of words two transcripts of the same audio have in common, above which
          * they are the same sentence.
@@ -348,6 +353,19 @@ public class GroqSpeechToTextService {
                                           String contentType,
                                           String requestedLocale,
                                           List<String> learnerVocabulary) {
+        return transcribe(audioBytes, filename, contentType, requestedLocale, learnerVocabulary, null);
+    }
+
+    /**
+     * @param nativeLanguage the learner's own language by name ("Turkish"), or null. Used only
+     *     to write out a sentence that was spoken in it -- see {@link #respellInNativeLanguage}.
+     */
+    public TranscriptionResult transcribe(byte[] audioBytes,
+                                          String filename,
+                                          String contentType,
+                                          String requestedLocale,
+                                          List<String> learnerVocabulary,
+                                          String nativeLanguage) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("Groq API key is not configured");
         }
@@ -434,6 +452,9 @@ public class GroqSpeechToTextService {
             // still reported, because a discarded transcript is exactly the case somebody
             // will be reading a log line about later.
             SpokenLanguage spoken = awaitDetection(detection, text);
+            if (!text.isBlank() && spoken.other()) {
+                spoken = respellInNativeLanguage(spoken, nativeLanguage, audioBytes, safeFilename, contentType);
+            }
             log.info("Speech language: {}", spoken);
             // Either signal is enough to hold the transcript for a second look. The learner
             // sees the same English transcript either way; what changes is that they are
@@ -492,6 +513,89 @@ public class GroqSpeechToTextService {
         } catch (Exception e) {
             log.warn("Speech language detection failed: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Whisper's code for each native language the app supports. English is absent on purpose:
+     * it is the language being learned, and a sentence is never respelled into it.
+     */
+    private static final Map<String, String> WHISPER_CODES = Map.of(
+            "turkish", "tr",
+            "spanish", "es",
+            "portuguese", "pt",
+            "indonesian", "id",
+            "german", "de",
+            "french", "fr",
+            "italian", "it");
+
+    /**
+     * The languages Whisper has been seen to name instead of a learner's own.
+     *
+     * <p>Measured on a device: two of the three sentences spoken in Turkish were labelled
+     * "azerbaijani", and the free pass wrote them in Azerbaijani spelling -- "Merhaba, biraz su
+     * alabilir miyiz?" came back as "Məhəba, bir az su ala bilir məyiz?". The two languages
+     * are close enough that the recogniser cannot keep them apart; a learner reading their own
+     * sentence can, and the schwa reads as a bug. Add a pair here when it is seen, not before:
+     * respelling a sentence into a language it was never spoken in would garble it.
+     */
+    private static final Map<String, Set<String>> MISTAKEN_FOR = Map.of(
+            "turkish", Set.of("azerbaijani"));
+
+    /**
+     * The sentence written in the learner's own language, when that is what they spoke.
+     *
+     * <p>The free pass has to stay unpinned -- it is the only thing that can say the audio was
+     * not English -- so the spelling it writes is the spelling of whatever it guessed. When the
+     * guess is the learner's own language, or one it is known to mistake for it, one more pass
+     * pinned to that language writes the sentence as they would. Only on this path: a turn
+     * already held back for the learner to read, where a quarter of a second more is not a
+     * wait anyone feels, and a request on every turn would be a cost for nothing.
+     *
+     * <p>Anything short of a clean answer leaves the verdict as it was.
+     */
+    SpokenLanguage respellInNativeLanguage(SpokenLanguage spoken, String nativeLanguage,
+                                           byte[] audioBytes, String safeFilename, String contentType) {
+        if (spoken.heardAs() == null || nativeLanguage == null || spoken.detected() == null) {
+            return spoken;
+        }
+        String nativeName = nativeLanguage.trim().toLowerCase(Locale.ROOT);
+        String code = WHISPER_CODES.get(nativeName);
+        String detected = spoken.detected().trim().toLowerCase(Locale.ROOT);
+        boolean spokenInIt = detected.equals(nativeName)
+                || MISTAKEN_FOR.getOrDefault(nativeName, Set.of()).contains(detected);
+        if (code == null || !spokenInIt) {
+            return spoken;
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(apiKey);
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("model", model);
+            body.add("language", code);
+            body.add("temperature", "0");
+            body.add("response_format", "json");
+
+            HttpHeaders fileHeaders = new HttpHeaders();
+            fileHeaders.setContentType(resolveMediaType(contentType, safeFilename));
+            body.add("file", new HttpEntity<>(new NamedByteArrayResource(audioBytes, safeFilename), fileHeaders));
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    transcriptionUrl, new HttpEntity<>(body, headers), String.class);
+            Map<String, Object> payload = objectMapper.readValue(response.getBody(),
+                    new TypeReference<Map<String, Object>>() {
+                    });
+            Object text = payload.get("text");
+            String respelled = text == null ? "" : text.toString().trim();
+            if (respelled.isEmpty() || isHallucinatedSilence(respelled)) {
+                return spoken;
+            }
+            return spoken.withHeardAs(respelled);
+        } catch (Exception e) {
+            log.warn("Speech respelling in {} failed: {}", code, e.getMessage());
+            return spoken;
         }
     }
 

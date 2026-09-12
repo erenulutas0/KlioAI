@@ -1983,7 +1983,10 @@ public class ChatbotController {
                     audio.getOriginalFilename(),
                     audio.getContentType(),
                     locale,
-                    speechHint(scenario, userId));
+                    speechHint(scenario, userId),
+                    // So a sentence spoken in the learner's own language can be shown back to them
+                    // spelled the way they would write it -- see respellInNativeLanguage.
+                    languageProfileFrom(null, userId).sourceLanguage());
             // Both Whisper passes and the vocabulary lookup: everything between the upload
             // arriving and the transcript leaving. avgLogprob and lowConfidence are Whisper's
             // own reading of how sure it was: without them in the log, "it mishears me" and

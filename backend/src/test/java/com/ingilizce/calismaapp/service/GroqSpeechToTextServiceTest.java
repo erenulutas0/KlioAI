@@ -1,5 +1,7 @@
 package com.ingilizce.calismaapp.service;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -397,6 +399,103 @@ class GroqSpeechToTextServiceTest {
                     boolean pinned = multipartBody(request).containsKey("language");
                     return new ResponseEntity<>(pinned ? pinnedJson : unpinnedJson, HttpStatus.OK);
                 });
+    }
+
+    /**
+     * Stubs all three passes, telling them apart by the language each one pins: English for
+     * the transcript, none for the detection, and the learner's own for the respelling.
+     */
+    private List<String> stubThreePasses(String pinnedJson, String unpinnedJson, String nativeJson) {
+        List<String> languagesAsked = new java.util.ArrayList<>();
+        when(restTemplate.postForEntity(eq("https://groq.test/audio/transcriptions"),
+                org.mockito.ArgumentMatchers.any(HttpEntity.class),
+                eq(String.class)))
+                .thenAnswer(invocation -> {
+                    HttpEntity<?> request = invocation.getArgument(1);
+                    Object language = multipartBody(request).getFirst("language");
+                    synchronized (languagesAsked) {
+                        languagesAsked.add(language == null ? "none" : language.toString());
+                    }
+                    if (language == null) {
+                        return new ResponseEntity<>(unpinnedJson, HttpStatus.OK);
+                    }
+                    return new ResponseEntity<>("en".equals(language) ? pinnedJson : nativeJson, HttpStatus.OK);
+                });
+        return languagesAsked;
+    }
+
+    private static final String PINNED_INVENTED =
+            "{\"text\":\"Hello, can you please take a while?\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-1.24}]}";
+
+    /**
+     * A Turkish sentence labelled Azerbaijani is shown back in Turkish.
+     *
+     * <p>Measured on a device: two of three Turkish sentences were labelled "azerbaijani", and
+     * the footer showed the learner their own words in Azerbaijani spelling. One pass pinned
+     * to their language writes it as they would.
+     */
+    @Test
+    void aSentenceInTheLearnersLanguageIsSpelledTheWayTheyWouldWriteIt() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        List<String> asked = stubThreePasses(PINNED_INVENTED,
+                "{\"text\":\"Mahaba, bir az su ala bilir mayiz?\",\"language\":\"azerbaijani\"}",
+                "{\"text\":\"Merhaba, biraz su alabilir miyiz?\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US", List.of(), "Turkish");
+
+        assertTrue(result.otherLanguage());
+        assertEquals("Merhaba, biraz su alabilir miyiz?", result.heardAs());
+        assertTrue(asked.contains("tr"), "the respelling pass was never asked: " + asked);
+    }
+
+    @Test
+    void aLanguageThatIsNotTheLearnersOwnIsNotRespelledIntoIt() {
+        // Respelling a sentence into a language it was never spoken in garbles it. Dutch is
+        // not Turkish and is not a language Whisper is known to mistake for Turkish.
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        List<String> asked = stubThreePasses(PINNED_INVENTED,
+                "{\"text\":\"Goedenavond, mag ik wat water?\",\"language\":\"dutch\"}",
+                "{\"text\":\"should never be used\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US", List.of(), "Turkish");
+
+        assertTrue(result.otherLanguage());
+        assertEquals("Goedenavond, mag ik wat water?", result.heardAs());
+        assertFalse(asked.contains("tr"), "respelled into a language nobody spoke: " + asked);
+    }
+
+    @Test
+    void englishTurnsCostNoRespellingPass() {
+        // The pass is for the held-back path only. On every ordinary turn it would be a
+        // request for nothing.
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        List<String> asked = stubThreePasses(
+                "{\"text\":\"A table for two, please.\",\"segments\":[{\"no_speech_prob\":0.02,\"avg_logprob\":-0.2}]}",
+                "{\"text\":\"A table for two, please.\",\"language\":\"english\"}",
+                "{\"text\":\"should never be used\"}");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US", List.of(), "Turkish");
+
+        assertFalse(result.otherLanguage());
+        assertFalse(asked.contains("tr"), asked.toString());
+    }
+
+    @Test
+    void aRespellingThatFailsLeavesWhatTheFreePassHeard() {
+        ReflectionTestUtils.setField(service, "detectLanguage", true);
+        stubThreePasses(PINNED_INVENTED,
+                "{\"text\":\"Mahaba, bir az su ala bilir mayiz?\",\"language\":\"azerbaijani\"}",
+                "not json at all");
+
+        GroqSpeechToTextService.TranscriptionResult result = service.transcribe(
+                new byte[]{1}, "a.wav", "audio/wav", "en_US", List.of(), "Turkish");
+
+        assertTrue(result.otherLanguage());
+        assertEquals("Mahaba, bir az su ala bilir mayiz?", result.heardAs(),
+                "a failed respelling must cost the spelling, never the sentence");
     }
 
     /**
