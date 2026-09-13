@@ -72,6 +72,38 @@ class ChatbotScenarioTest {
         return messages.get(0).get("content");
     }
 
+    /**
+     * A scene's character does not remember the learner's last session.
+     *
+     * <p>Measured on a device: a fresh restaurant conversation opened with "nice to see you
+     * after our Japanese-style practice". The recall line is the tutor's memory of the
+     * learner; a waiter has never met them. It stays for free chat, where Amy is the one
+     * remembering.
+     */
+    @Test
+    @DisplayName("a scene's character meets the learner as a stranger")
+    void aSceneCharacterIsSentNoRecall() {
+        when(aiCompletionProvider.chatCompletionWithUsage(anyList(), anyBoolean(), any(), any(),
+                nullable(String.class)))
+                .thenReturn(AiCompletionProvider.CompletionResult.of("ok", 1, 1, 2));
+        String recall = "Earlier today the learner practised the \"restaurant order\" scene with you.";
+
+        chatbotService.chatTurn("Good evening", "restaurant_order", null, 42L,
+                LearningLanguageProfile.defaultProfile(), null, recall);
+        chatbotService.chatTurn("Hello", null, null, 42L,
+                LearningLanguageProfile.defaultProfile(), "Amy", recall);
+
+        ArgumentCaptor<List<Map<String, String>>> captor = ArgumentCaptor.forClass(List.class);
+        verify(aiCompletionProvider, atLeastOnce()).chatCompletionWithUsage(captor.capture(), anyBoolean(), any(),
+                any(), nullable(String.class));
+        List<List<Map<String, String>>> calls = captor.getAllValues();
+        String scene = calls.get(calls.size() - 2).get(0).get("content");
+        String freeChat = calls.get(calls.size() - 1).get(0).get("content");
+
+        assertFalse(scene.contains("DID LAST TIME"), "the waiter was handed the tutor's memory");
+        assertTrue(freeChat.contains("DID LAST TIME"), "Amy forgot");
+    }
+
     @Test
     @DisplayName("every everyday scene reaches the model as its own character")
     void everydaySceneSelectsItsOwnPrompt() {

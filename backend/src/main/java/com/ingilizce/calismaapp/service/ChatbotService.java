@@ -528,11 +528,17 @@ HOW TO OFFER A CORRECTION:
   public ChatTurn chatTurn(String message, String scenario, String scenarioContext, Long userId,
       LearningLanguageProfile profile, String speakerName, String recall, Integer scenarioVariant,
       String threadId) {
+    // The recall is the tutor remembering the learner. A scene's character is not the
+    // tutor: measured on a device, a waiter opened a fresh restaurant conversation with
+    // "nice to see you after our Japanese-style practice" -- the previous conversation's
+    // mishearing, carried into a scene by someone who was never in it. A character meets
+    // the learner as a stranger, every time. Amy in free chat still remembers.
+    boolean inScene = scenarioCatalog.find(scenario).isPresent();
     String systemPrompt =
         buildChatSystemPrompt(message, scenario, scenarioContext, userId, profile, speakerName,
             scenarioVariant, threadId)
             + nativeLanguageBlock(profile)
-            + recallBlock(recall)
+            + (inScene ? "" : recallBlock(recall))
             + fixInstructions(profile);
     List<Map<String, String>> history = conversationSessionService == null
         ? List.of()
