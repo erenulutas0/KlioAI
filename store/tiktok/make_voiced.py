@@ -31,6 +31,7 @@ CLIPS = {
     'waiter': dict(
         src='rec_203050.mp4',
         start=129.5, end=158.8,
+        keep=[(135.8, 142.6), (152.8, 158.8)],
         hook=(u'Yapay zekâ garsonla', u'İngilizce sipariş verdim'),
     ),
     # The learner asks for wine and a recommendation; the card lands at 111
@@ -40,6 +41,7 @@ CLIPS = {
     'wine': dict(
         src='rec_203050.mp4',
         start=97.5, end=118.0, fade_out=2.0,
+        keep=[(109.8, 118.0)],
         hook=(u'Bunu sen de diyorsun:', u'I prefer glass of wine'),
     ),
 }
@@ -63,6 +65,21 @@ def build(name):
     crop_h = CROP_BOTTOM - CROP_TOP
     fade = c.get('fade_out', 0.0)
     audio = 'aresample=48000,aformat=channel_layouts=stereo'
+    keep = c.get('keep')
+    if keep:
+        # Only Luca. The recorder mixes the microphone and the media into one
+        # track, so the learner's own voice cannot be lifted out -- but the
+        # turns never overlap: they speak while the button is held, Luca
+        # answers after. Everything outside Luca's replies is muted, on the
+        # raw file's clock like the fade below. Asked for after the first
+        # cut: hearing their own English in the clip felt silly to them, and
+        # the clip is about the reply anyway.
+        spans = '+'.join('between(t,%.2f,%.2f)' % (a, b) for a, b in keep)
+        audio += ",volume=0:enable='not(%s)'" % spans
+        # The microphone stayed open while Luca spoke, so his part carries
+        # the room. Denoise, cut the rumble, then bring him up to a feed
+        # level: his replies sat at -27 dB mean in the take.
+        audio += ',afftdn=nf=-28,highpass=f=100,volume=8dB,alimiter=limit=0.95'
     if fade:
         # On the raw file's clock, not the segment's. -ss after -i drops
         # frames after the filters have run, so a fade timed from zero would
