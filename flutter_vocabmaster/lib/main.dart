@@ -31,6 +31,7 @@ import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'services/analytics_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/device_environment.dart';
 import 'services/local_reminder_service.dart';
 import 'services/push_token_service.dart';
 import 'app_navigator.dart';
@@ -196,12 +197,21 @@ Future<bool> _initializeFirebaseTelemetry() async {
     // reported as somebody's.
     final bool report = !kDebugMode;
     CrashlyticsService.setEnabled(report);
+    // Google's pre-launch test devices are not learners. Counted as users they turned
+    // robots tapping the paywall on an account-less phone into "subscribers could not
+    // subscribe". See DeviceEnvironment.isTestLab. Their crashes are still in the Play
+    // Console's pre-launch report, which is where they belong.
+    final bool testLab = await DeviceEnvironment.isTestLab();
+    if (testLab) {
+      await CrashlyticsService.disableCollection();
+      await AnalyticsService.disableCollection();
+    }
     FlutterError.onError = CrashlyticsService.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       unawaited(CrashlyticsService.recordError(error, stack, fatal: true));
       return true;
     };
-    AnalyticsService.setEnabled(report);
+    AnalyticsService.setEnabled(report && !testLab);
     return true;
   } catch (e) {
     AnalyticsService.setEnabled(false);

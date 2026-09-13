@@ -12,6 +12,20 @@ class AnalyticsService {
     _enabled = enabled;
   }
 
+  /// Switches the native collector off on this device, not only the events Dart sends.
+  ///
+  /// Firebase Analytics records sessions and screen views on its own, so gating
+  /// [logEvent] is not enough to keep Google's test devices out of the user count. See
+  /// DeviceEnvironment.isTestLab.
+  static Future<void> disableCollection() async {
+    _enabled = false;
+    try {
+      await _analytics.setAnalyticsCollectionEnabled(false);
+    } catch (e) {
+      debugPrint('Analytics setAnalyticsCollectionEnabled failed: $e');
+    }
+  }
+
   static FirebaseAnalyticsObserver get navigatorObserver =>
       FirebaseAnalyticsObserver(analytics: _analytics);
 

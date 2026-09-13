@@ -52,6 +52,13 @@ class _FakeCrashlyticsRecorder implements CrashlyticsRecorder {
     logCalls++;
     lastLogMessage = message;
   }
+
+  bool? lastCollectionEnabled;
+
+  @override
+  Future<void> setCollectionEnabled(bool enabled) async {
+    lastCollectionEnabled = enabled;
+  }
 }
 
 void main() {
@@ -61,6 +68,59 @@ void main() {
     fakeRecorder = _FakeCrashlyticsRecorder();
     CrashlyticsService.recorder = fakeRecorder;
     CrashlyticsService.setEnabled(false);
+  });
+
+  group('a font that failed to download', () {
+    // The app does not crash: text falls back to the platform font. It was reported as
+    // a fatal crash anyway, for every phone that opened the app offline and every
+    // pre-launch test device with a restricted network.
+    final Exception fontFailure = Exception(
+      'Failed to load font with url: https://fonts.gstatic.com/s/a/nunito.ttf',
+    );
+
+    test('is recorded, but not as a crash, from FlutterError.onError', () async {
+      CrashlyticsService.setEnabled(true);
+
+      CrashlyticsService.recordFlutterFatalError(
+        FlutterErrorDetails(exception: fontFailure, stack: StackTrace.empty),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fakeRecorder.recordFlutterFatalErrorCalls, 0);
+      expect(fakeRecorder.recordErrorCalls, 1);
+      expect(fakeRecorder.lastFatal, isFalse);
+    });
+
+    test('is recorded, but not as a crash, as an uncaught async error', () async {
+      CrashlyticsService.setEnabled(true);
+
+      await CrashlyticsService.recordError(fontFailure, StackTrace.empty, fatal: true);
+
+      expect(fakeRecorder.lastFatal, isFalse);
+      expect(fakeRecorder.lastReason, contains('platform font'));
+    });
+
+    test('and anything else is still a crash', () async {
+      CrashlyticsService.setEnabled(true);
+
+      CrashlyticsService.recordFlutterFatalError(
+        FlutterErrorDetails(exception: StateError('a real bug')),
+      );
+      await CrashlyticsService.recordError(StateError('a real bug'), null, fatal: true);
+
+      expect(fakeRecorder.recordFlutterFatalErrorCalls, 1);
+      expect(fakeRecorder.lastFatal, isTrue);
+    });
+  });
+
+  test('disabling collection switches the native collector off too', () async {
+    // A crash inside Google's billing or sign-in activity never passes through Dart.
+    CrashlyticsService.setEnabled(true);
+
+    await CrashlyticsService.disableCollection();
+
+    expect(fakeRecorder.lastCollectionEnabled, isFalse);
+    expect(CrashlyticsService.isEnabled, isFalse);
   });
 
   group('when disabled (Firebase not initialized / debug run)', () {
