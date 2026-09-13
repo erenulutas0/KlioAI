@@ -33,7 +33,8 @@ Samsung hızlı panel → **Ekran kaydedici** → Ses: **"Medya sesleri ve mikro
   sürprizi (lazanya bitti), kartı ve süreyi en iyi tutturanı seçeriz.
 - Kayıtları `store/tiktok/raw/` içine koy ve haber ver. Ben keserim: ilk karede
   kanca yazısı, ortada gerçek konuşma **sesiyle birlikte**, sonda uygulama adı.
-  (`make_clip.py` şu an sesi atıyor; sesli kayıtlar gelince onu uyarlayacağım.)
+  Sesli klipler `make_voiced.py` ile kesiliyor (`python make_voiced.py waiter`);
+  `make_clip.py` sessiz Eylül klipleri için duruyor.
 
 ---
 
