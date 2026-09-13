@@ -421,6 +421,9 @@ void main() {
       // below, so 'otel' covers otele, oteli and otelden without any of them
       // being written here -- and without excusing a word that merely starts
       // the same way.
+      // 'lisans' is French licence, borrowed whole; TDK spells the plural
+      // lisanslar, as the settings row does.
+      'lisans',
       'nisan', 'otel', 'otomatik', 'portekizce', 'pratik', 'profesyonel',
       'profil', 'profili', 'profiller', 'rozetler', 'sakin',
       'senkron', 'senkronu', 'sohbet', 'sohbete', 'sohbeti',

@@ -521,6 +521,21 @@ class NfSettingsPage extends StatelessWidget {
           // The strings for this row have been sitting in all three languages
           // the whole time, waiting for something to render them.
           _SettingsRow(
+            key: const ValueKey<String>('settings-licenses'),
+            icon: Icons.info_outline_rounded,
+            label: context.tr('settings.licenses'),
+            tokens: t,
+            // Flutter's own page: every package the app is built from, plus the
+            // voices and speech model the server speaks with -- see VoiceCredits.
+            // Two of those voices are licensed on condition of attribution, and
+            // this is the attribution.
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'KlioAI',
+            ),
+          ),
+          _RowDivider(tokens: t),
+          _SettingsRow(
             key: const ValueKey<String>('settings-replay-tour'),
             icon: Icons.play_circle_outline,
             label: context.tr('settings.tour.cta'),

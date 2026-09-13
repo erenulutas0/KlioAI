@@ -32,6 +32,7 @@ import 'services/api_service.dart';
 import 'services/analytics_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/device_environment.dart';
+import 'legal/voice_credits.dart';
 import 'services/local_reminder_service.dart';
 import 'services/push_token_service.dart';
 import 'app_navigator.dart';
@@ -160,6 +161,9 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // The voices the tutor speaks with are made on the server, so the licence
+  // page cannot find them on its own. See VoiceCredits.
+  VoiceCredits.register();
   runApp(
     MultiProvider(
       providers: [
