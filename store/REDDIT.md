@@ -5,6 +5,82 @@ dosyanın kendisi Türkçe, çünkü onu sen okuyacaksın.
 
 ---
 
+## 13 Eylül — yeni gönderi: Metin C
+
+Aşağıdaki Metin A ve B 6 Eylül'de yazıldı. O günden beri uygulamanın en
+anlatılacak tarafı değişti: sesli tutor artık yaklaşık bir buçuk saniyede
+cevap veriyor, ve oraya nasıl gelindiği ölçülmüş, somut bir yapımcı hikâyesi.
+**r/SideProject için ilk gönderi bu olsun.** Metin A atılmadıysa sonraya kalır;
+atıldıysa bu, iki hafta sonra atılacak devamıdır.
+
+Göndermeden önce:
+
+- [ ] **Play Console'da reklam beyanını "Hayır" yap.** Mağaza sayfası "Reklam
+      içerir" diyor, uygulamada reklam yok. Metin B "No ads" diyor; biri linke
+      tıklayıp tersini görürse ilk yorum o olur.
+- [ ] Rakamlar bu oturumun sunucu loglarından. Kendi logunda yeniden görmek
+      istersen: `docker logs --since 1h vocabmaster-backend 2>&1 | grep TIMING`
+
+**Başlık:**
+
+```
+My voice tutor took 7 seconds to reply. The LLM was the fast part.
+```
+
+**Gövde:**
+
+```
+Solo dev. I build an app where you practise English by talking out loud to a
+character -- a waiter, a hotel receptionist -- and it answers in a voice.
+
+A week ago one turn took about 7 seconds on the server. I blamed the model.
+The logs said:
+
+- speech-to-text: 0.27 s
+- the LLM writing the reply: 0.85 s
+- text-to-speech: 6.0 s
+
+I'd just moved the voice to Kokoro-82M -- far better than what I had, and
+Apache 2.0 -- on an 8-core CPU box already at 700% CPU. Nothing left to tune.
+
+What fixed it:
+
+1. Synthesise only the first sentence before replying; the app fetches the
+   rest while it plays. Speech plays about 4x slower than Kokoro makes it,
+   so the opening covers the remainder.
+2. The first part is a proportion of the reply (about a fifth), not a fixed
+   length -- fixed lengths either wait too long or run out mid-reply.
+3. A very long first sentence gets cut at a comma instead.
+4. Shorter sentences from the model. One 289-character reply was 17 seconds
+   of speech. That's a monologue, not a conversation.
+5. Kokoro loads on its first request (8.4 s after a restart), so the backend
+   now makes that request itself at startup.
+
+The whole turn is now about 1.5 s on the server.
+
+https://play.google.com/store/apps/details?id=com.VocabMaster
+
+Genuine question: where does a voice reply stop feeling like a conversation
+for you -- one second, two?
+```
+
+Yaklaşık 210 kelime. Metin A ile aynı iskelet: ilk cümlede geliştirici, bir şey
+öğretiyor, rakamlar gerçek, link sonda ve düz, sonda gerçek bir soru.
+
+**Yorumlarda gelecek sorular ve hazır cevaplar:**
+
+- *"Why not stream audio?"* — Çünkü uygulama tek bir WAV çalıyor; iki parçaya
+  bölmek, akış protokolü kurmadan kazancın çoğunu verdi. Sıradaki adım gerçek
+  akış olabilir.
+- *"Why not a GPU?"* — Maliyet. CPU'da ilk cümle ~1 sn; kullanıcı bekleyişinin
+  çoğu gitti, GPU'nun kalan farkı parasına değmiyor (şimdilik).
+- *"Seams between the two clips?"* — Kesim nokta ya da virgülde, konuşan zaten
+  orada duruyor. Ölçülen: ikinci parça birinci bitmeden hazır.
+- *"What about the 1.5 s?"* — Kabaca 0.25 sn tanıma, 0.4 sn model, ~0.9 sn ilk
+  cümlenin sesi. Artık en büyük kalem yine ses, ama bölünmüş hali.
+
+---
+
 ## Önce: neyi doğrulayabildim, neyi doğrulayamadım
 
 Reddit'in kural sayfaları buradan çekilemiyor, o yüzden ayrımı açık tutuyorum.
