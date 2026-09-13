@@ -221,6 +221,14 @@ class ChatbotScenarioTest {
         // And what to end on instead. With only the prohibition, a fresh conversation still
         // ended one reply on "or should I bring the bill now?" -- a waiter ends on an offer.
         assertTrue(prompt.contains("never with an offer of what the goal asks them to ask for"));
+        // Measured on a device: "No, I don't want to drink something for now", then "Would you
+        // like still water while you decide?", then "Can I bring you a glass of sparkling
+        // water?". Told to end every reply with a question, the waiter kept reaching for the
+        // same one.
+        assertTrue(prompt.contains("Something they have turned down stays turned down"));
+        // And "Certainly, one lasagne." followed a turn later by "I'm sorry, the lasagne is sold
+        // out tonight" -- the complication, delivered as if the order had never been taken.
+        assertTrue(prompt.contains("it is news that has only just reached you"));
         assertTrue(prompt.contains("never offer it, or ask whether they want it"));
     }
 
