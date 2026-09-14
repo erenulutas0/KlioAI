@@ -74,7 +74,7 @@ class NfSessionSummaryPage extends StatelessWidget {
   /// service behind `maybeShow` owns the "how often" decision, so calling it
   /// on every Continue is safe.
   Future<void> _handleContinue(BuildContext context) async {
-    await FeedbackPromptSheet.maybeShow(context);
+    await FeedbackPromptSheet.maybeShow(context, feature: 'SESSION');
     if (!context.mounted) {
       return;
     }

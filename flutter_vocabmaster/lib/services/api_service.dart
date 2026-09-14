@@ -1388,6 +1388,41 @@ class ApiService {
     );
   }
 
+  /// A learner's 1-5 answer to "how was this?" -- see FeatureRatingController.
+  ///
+  /// Throws on anything but a 2xx so the caller can log it; nothing a learner sees
+  /// depends on this succeeding, and no caller should retry it into a duplicate.
+  Future<void> submitFeatureRating({
+    required String feature,
+    required int stars,
+    String? note,
+    String? sceneId,
+    String? locale,
+    String? appVersion,
+    Map<String, Object?>? context,
+  }) async {
+    final url = await baseUrl;
+    final response = await _withProtectedRetry(
+      (headers) => client.post(
+        Uri.parse('$url/feedback/ratings'),
+        headers: headers,
+        body: json.encode({
+          'feature': feature,
+          'stars': stars,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          if (sceneId != null && sceneId.isNotEmpty) 'sceneId': sceneId,
+          if (locale != null && locale.isNotEmpty) 'locale': locale,
+          if (appVersion != null && appVersion.isNotEmpty) 'appVersion': appVersion,
+          if (context != null && context.isNotEmpty) 'context': context,
+        }),
+      ),
+      json: true,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Rating not saved: ${response.statusCode}');
+    }
+  }
+
   /// The scene catalog in [language]: every scene the server can play, with
   /// its title and goal in that language. See NfSceneCatalog. Costs no quota.
   Future<Map<String, dynamic>> chatbotScenarios(String language) async {

@@ -584,7 +584,7 @@ void main() {
     const legitimate = <String>{
       'abgeschlossen', 'aktivitätsstatus', 'aktuelle', 'anpassen',
       'assistenten', 'ausgangssprache', 'aussprache', 'aussprachetraining',
-      'aussprechen', 'dasselbe', 'erfasst', 'flüssiger', 'flüssigkeit',
+      'aussprechen', 'besser', 'dasselbe', 'erfasst', 'flüssiger', 'flüssigkeit',
       'flussufer', 'fokussieren', 'fokussiert', 'gesprächsfluss', 'gewusst',
       'kontoeinstellungen', 'lassen', 'lässt', 'loslassen', 'manuell',
       'modellaussprache', 'neue', 'neuer', 'neues', 'neueste', 'passen', 'passend',

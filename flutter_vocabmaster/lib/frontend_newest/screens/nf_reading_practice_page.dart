@@ -283,7 +283,7 @@ class _NfReadingPracticePageState extends State<NfReadingPracticePage> {
     }
 
     if (mounted) {
-      await FeedbackPromptSheet.maybeShow(context);
+      await FeedbackPromptSheet.maybeShow(context, feature: 'READING');
     }
   }
 

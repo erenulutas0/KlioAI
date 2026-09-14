@@ -179,7 +179,7 @@ class _NfWritingPracticePageState extends State<NfWritingPracticePage> {
         });
       }
       if (mounted) {
-        await FeedbackPromptSheet.maybeShow(context);
+        await FeedbackPromptSheet.maybeShow(context, feature: 'WRITING');
       }
     } catch (e) {
       if (!mounted) return;

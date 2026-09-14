@@ -24,7 +24,9 @@ import '../../services/ai_paywall_handler.dart';
 import '../../services/analytics_service.dart';
 import '../../services/api_service.dart';
 import '../../services/chatbot_service.dart';
+import '../../services/in_app_review_service.dart';
 import '../../services/piper_tts_service.dart';
+import '../../services/rating_prompt_service.dart';
 import '../../services/xp_manager.dart';
 import '../services/nf_scenes.dart';
 import '../services/nf_speech_capture.dart';
@@ -36,6 +38,7 @@ import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
+import '../widgets/nf_rating_card.dart';
 import '../widgets/nf_word_lookup.dart';
 
 // NfScene lived in this file until the catalog gave it a file of its own;
@@ -218,6 +221,14 @@ class _NfTutorPageState extends State<NfTutorPage> {
   String _sessionXpId = 'nf_tutor_${DateTime.now().millisecondsSinceEpoch}';
   bool _sessionXpAwarded = false;
 
+  /// The "how was this conversation?" card, once this thread has been asked -- see
+  /// [_maybeAskForRating]. Held here rather than in its row; see [NfRatingController].
+  NfRatingController? _rating;
+
+  /// The tutor turn the card sits under, so it scrolls away with the conversation as it
+  /// carries on instead of sticking to the bottom of it.
+  int? _ratingAnchorTurnId;
+
   /// Identity of the conversation on screen, so that writing it out on every
   /// turn replaces the same row rather than appending a longer copy of it.
   String _threadId = DateTime.now().microsecondsSinceEpoch.toString();
@@ -288,6 +299,9 @@ class _NfTutorPageState extends State<NfTutorPage> {
     if (_wakelockOn) {
       unawaited(WakelockPlus.disable());
     }
+    // A low rating still waiting on its note is sent as it stands.
+    _rating?.flush();
+    _rating?.dispose();
     super.dispose();
   }
 
@@ -356,6 +370,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     // spoken into. Carrying it across would drop it, minutes later, into a
     // thread nobody said it in.
     _clearConfirming();
+    _clearRating();
     _threadId = saved.id;
     _threadStartedAt = saved.startedAt;
     _sceneId = saved.sceneId;
@@ -387,6 +402,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
     // Same reason as in [_adopt]: changing speaker or scene ends the
     // conversation the pending sentence was spoken into.
     _clearConfirming();
+    _clearRating();
     _threadId = DateTime.now().microsecondsSinceEpoch.toString();
     _threadStartedAt = DateTime.now();
     _pendingRecall = NfTutorRecall.build(
@@ -823,6 +839,7 @@ class _NfTutorPageState extends State<NfTutorPage> {
       }
       unawaited(_persist());
       await _maybeAwardSessionXp();
+      await _maybeAskForRating();
     } catch (e) {
       if (!mounted) {
         return;
@@ -914,6 +931,95 @@ class _NfTutorPageState extends State<NfTutorPage> {
   void _resetSessionXp() {
     _sessionXpId = 'nf_tutor_${DateTime.now().millisecondsSinceEpoch}';
     _sessionXpAwarded = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rating the conversation
+  // ---------------------------------------------------------------------------
+
+  /// Ask how the conversation went, once it has been one.
+  ///
+  /// The same moment the session's XP is given, five turns in: long enough to have an
+  /// opinion about, and right after the learner has been told they did well. The tutor is
+  /// the feature the app is sold on, and until this it was the one place nothing ever asked
+  /// how it was going. How often anyone is asked is [RatingPromptService]'s call.
+  Future<void> _maybeAskForRating() async {
+    if (!mounted || _rating != null) {
+      return;
+    }
+    final int learnerTurns =
+        _turns.where((_NfTurn turn) => !turn.fromTutor).length;
+    if (learnerTurns < 5) {
+      return;
+    }
+    final String thread = _threadId;
+    final RatingPromptService prompts = RatingPromptService();
+    if (!await prompts.shouldAsk('TUTOR')) {
+      return;
+    }
+    // The learner may have started another conversation while that was being read.
+    if (!mounted || _rating != null || thread != _threadId) {
+      return;
+    }
+    final int anchor = _turns.lastIndexWhere((_NfTurn turn) => turn.fromTutor);
+    if (anchor < 0) {
+      return;
+    }
+    unawaited(prompts.recordAsked('TUTOR'));
+
+    // Everything the rating says about the conversation is read now, while it is on screen:
+    // the rating may be sent after the learner has moved on to another one.
+    final String? sceneId = _sceneId;
+    final String locale = Localizations.localeOf(context).languageCode;
+    final String level = context.read<LearningLanguageProvider>().englishLevel;
+    final ApiService api = _api;
+    setState(() {
+      _ratingAnchorTurnId = _turns[anchor].id;
+      _rating = NfRatingController(
+        onSubmit: (int stars, String? note) async {
+          await RatingPromptService().recordAnswered();
+          final String? version = await nfAppVersion();
+          // Side by side rather than one after the other: the store's sheet waits for the
+          // learner, and a rating queued behind it is lost if they leave the app from there.
+          // Not gated on finished practices the way the sheet's is -- a conversation is not
+          // counted as one, so a learner who only ever talks would never qualify.
+          await Future.wait(<Future<void>>[
+            api.submitFeatureRating(
+              feature: 'TUTOR',
+              stars: stars,
+              note: note,
+              sceneId: sceneId,
+              locale: locale,
+              appVersion: version,
+              context: <String, Object?>{'turns': learnerTurns, 'level': level},
+            ),
+            if (nfRatingEarnsStoreReview(stars)) InAppReviewService().requestStoreReview(),
+          ]);
+        },
+      );
+    });
+    _scrollToBottom();
+  }
+
+  void _dismissRating() {
+    unawaited(RatingPromptService().recordDismissed());
+    setState(() => _clearRating(flush: false));
+  }
+
+  /// Takes the card away; a low rating still waiting on its note is sent as it stands. The
+  /// caller owns the rebuild, as for [_clearConfirming].
+  void _clearRating({bool flush = true}) {
+    final NfRatingController? rating = _rating;
+    if (rating == null) {
+      return;
+    }
+    if (flush) {
+      rating.flush();
+    }
+    _rating = null;
+    _ratingAnchorTurnId = null;
+    // After the frame that takes the card out of the tree, like the transcript field.
+    WidgetsBinding.instance.addPostFrameCallback((_) => rating.dispose());
   }
 
   // ---------------------------------------------------------------------------
@@ -1597,20 +1703,42 @@ class _NfTutorPageState extends State<NfTutorPage> {
 
         final _NfTurn turn = _turns[index];
         final TutorCorrection? fix = turn.correction;
+        final Widget view = _TurnView(
+          turn: turn,
+          speaking: _speakingTurnId == turn.id,
+          onPlay: () => unawaited(_speak(turn)),
+          savedWords: savedWords,
+          onWordTapped: (String token, String sentence) =>
+              unawaited(_onWordTapped(token, sentence)),
+          api: _api,
+          correctionKept:
+              fix != null && keptPhrases.contains(_deckKey(fix.better)),
+          onCorrectionSaved: (Word saved) =>
+              context.read<AppStateProvider>().adoptServerWord(saved),
+        );
+        final NfRatingController? rating =
+            turn.id == _ratingAnchorTurnId ? _rating : null;
         return Padding(
           padding: EdgeInsets.only(top: index == 0 ? 0 : NfSpace.s14),
-          child: _TurnView(
-            turn: turn,
-            speaking: _speakingTurnId == turn.id,
-            onPlay: () => unawaited(_speak(turn)),
-            savedWords: savedWords,
-            onWordTapped: (String token, String sentence) =>
-                unawaited(_onWordTapped(token, sentence)),
-            api: _api,
-            correctionKept:
-                fix != null && keptPhrases.contains(_deckKey(fix.better)),
-            onCorrectionSaved: (Word saved) =>
-                context.read<AppStateProvider>().adoptServerWord(saved),
+          // A column whether or not the card is under this turn, so the turn keeps its
+          // place in the tree when the card arrives: a correction being kept at that moment
+          // would otherwise lose its state halfway through.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              view,
+              if (rating != null) ...<Widget>[
+                const SizedBox(height: NfSpace.s14),
+                NfRatingCard(
+                  controller: rating,
+                  title: context
+                      .tr('rating.tutor.title')
+                      .replaceAll('{name}', _speakerName),
+                  onDismiss: _dismissRating,
+                ),
+              ],
+            ],
           ),
         );
       },
