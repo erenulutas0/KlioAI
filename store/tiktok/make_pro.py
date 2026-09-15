@@ -104,6 +104,30 @@ CLIPS = {
             (18.0, 20.5, None, u'Ve hatanı kartla düzeltiyor ↑'),
         ],
     ),
+    'wine_fast': dict(
+        # The same moment without the wait. The first cut opened on twelve silent
+        # seconds -- the button held while the learner spoke, their voice taken out --
+        # and the waiter clip, which opened on six, averaged 3.5 seconds of watching on
+        # TikTok. This one opens as the sentence lands and jumps the typing dots, so
+        # Luca speaks inside a second and a half and the card is up at two.
+        src='rec_203050.mp4',
+        segments=[(107.6, 108.6), (109.7, 118.0)],
+        fade_out=2.0,
+        keep=[(109.8, 118.0)],
+        hook=(u'Bunu sen de diyorsun:', u'I prefer glass of wine'),
+        # On the first frame, not faded in: the first frame is what the feed shows.
+        hook_fade=False,
+        freeze=2.3,
+        zoom=('card', 2.3),
+        captions=[
+            (0.0, 1.0, None, u'Söyledim, anında yazıya döndü'),
+            (1.4, 3.7, u'A glass of our house red will be perfect —',
+             u'Ev şarabımızdan bir kadeh harika olur —'),
+            (4.0, 6.5, u'would you like a bottle or just one glass?',
+             u'şişe mi, tek kadeh mi?'),
+            (6.8, 9.3, None, u'Ve hatanı kartla düzeltiyor ↑'),
+        ],
+    ),
 }
 
 
@@ -256,6 +280,33 @@ def cut(name, c):
     return video, audio_out, length
 
 
+def cut_segments(name, c):
+    """Pass one for a clip made of several moments: each is cut on the raw file's
+    clock exactly as [cut] cuts one, so the voice spans and the fade keep meaning
+    what they say, and the pieces are joined end to end."""
+    parts = []
+    last = len(c['segments']) - 1
+    for i, (a, b) in enumerate(c['segments']):
+        part = dict(c, start=a, end=b, fade_out=c.get('fade_out', 0.0) if i == last else 0.0)
+        parts.append(cut('%s_seg%d' % (name, i), part))
+    video = os.path.join(BUILD, name + '_cut.mp4')
+    audio = os.path.join(BUILD, name + '_cut.m4a')
+    n = len(parts)
+    args = ['ffmpeg', '-v', 'error', '-y']
+    for v, _, _ in parts:
+        args += ['-i', v]
+    run(args + ['-filter_complex',
+                ''.join('[%d:v]' % i for i in range(n)) + 'concat=n=%d:v=1:a=0[v]' % n,
+                '-map', '[v]', '-c:v', 'libx264', '-crf', '14', '-preset', 'medium', video])
+    args = ['ffmpeg', '-v', 'error', '-y']
+    for _, au, _ in parts:
+        args += ['-i', au]
+    run(args + ['-filter_complex',
+                ''.join('[%d:a]' % i for i in range(n)) + 'concat=n=%d:v=0:a=1[a]' % n,
+                '-map', '[a]', '-c:a', 'aac', '-b:a', '160k', audio])
+    return video, audio, sum(length for _, _, length in parts)
+
+
 def compose(name, c, video, audio, length):
     """Pass two: everything on the cut's own clock."""
     bg = os.path.join(BUILD, name + '_pro_bg.png')
@@ -307,7 +358,10 @@ def compose(name, c, video, audio, length):
     f.append('[3:v]format=gray[m]')
     f.append('[z][m]alphamerge[scr]')
     f.append('[2:v][scr]overlay=%d:%d:shortest=1[v0]' % (PX, PY))
-    f.append('[4:v]format=rgba,fade=t=in:st=0.15:d=0.5:alpha=1[hl]')
+    if c.get('hook_fade', True):
+        f.append('[4:v]format=rgba,fade=t=in:st=0.15:d=0.5:alpha=1[hl]')
+    else:
+        f.append('[4:v]format=rgba[hl]')
     f.append('[v0][hl]overlay=0:0[v1]')
     cur = 'v1'
     for i, (a, b, p) in enumerate(caps):
@@ -336,7 +390,7 @@ def build(name):
     c = CLIPS[name]
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(BUILD, exist_ok=True)
-    video, audio, length = cut(name, c)
+    video, audio, length = cut_segments(name, c) if 'segments' in c else cut(name, c)
     compose(name, c, video, audio, length)
 
 
