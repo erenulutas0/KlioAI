@@ -2,24 +2,24 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Whether the app and the activities it launches live in the same task.
+/// How the manifest hosts the activities the Play libraries add to it.
 ///
-/// MainActivity declared `android:taskAffinity=""` from the first commit. An
-/// activity's default affinity is the applicationId, so every activity the Play
-/// libraries contribute — SignInHubActivity from play-services-auth,
-/// ProxyBillingActivity from billing — belonged to "com.VocabMaster" while
-/// MainActivity belonged to nothing. Android could restore that other task by
-/// itself and rebuild those activities without the Intent extras they were
-/// handed, and each dereferences exactly that in onCreate.
+/// MainActivity declared `android:taskAffinity=""` from the first commit, which
+/// put it in a different task from SignInHubActivity and ProxyBillingActivity,
+/// whose default affinity is the applicationId. It was removed on 9 September
+/// on the belief that Android was restoring that other task and rebuilding
+/// those activities without the extras they were handed. Sharing the task is
+/// still right, and it stays. But the belief was wrong: build 475, made after
+/// the change, crashed exactly as before. A restored ProxyBillingActivity takes
+/// its savedInstanceState branch and never reads the PendingIntent at all.
 ///
-/// Crashlytics showed both as NullPointerExceptions inside third-party
-/// onCreate, on the two screens nobody can avoid: signing in, and paying.
-/// Crash-free users went from 100% to 79.75% in two days.
-///
-/// A test on a manifest is unusual, and this one earns it: nothing else in the
-/// project reads that file, the attribute is one word, and putting it back
-/// would break sign-in and purchase for everyone while every Dart test stayed
-/// green.
+/// The crashes were both activities started by name, with an empty intent, by a
+/// device farm -- OnePlus and Huawei phones, all Android 11, under a second into
+/// the session. PlayActivityLaunchGuard handles that launch, and KlioApplication
+/// registers it before any activity exists. It is covered against the real
+/// library classes in android/app/src/test; what is checked here is that the
+/// manifest still wires it up, since an application class that is not named
+/// there does nothing and every test would stay green.
 void main() {
   final File manifest =
       File('android/app/src/main/AndroidManifest.xml');
@@ -57,5 +57,28 @@ void main() {
     expect(xml, contains('android:launchMode="singleTop"'));
     expect(xml, contains('android:exported="true"'));
     expect(xml, contains('android.intent.category.LAUNCHER'));
+  });
+
+  test('the application class that registers the launch guard is the one in use', () {
+    expect(declarations(), contains('android:name=".KlioApplication"'),
+        reason: 'without it PlayActivityLaunchGuard is never registered, and a '
+            'bare launch of the billing or sign-in screen crashes again');
+
+    final File app = File(
+        'android/app/src/main/kotlin/com/example/flutter_vocabmaster/KlioApplication.kt');
+    expect(app.readAsStringSync(),
+        contains('registerActivityLifecycleCallbacks(PlayActivityLaunchGuard)'));
+  });
+
+  test('the empty answer the billing screen is given is declared, and private', () {
+    final RegExpMatch? element = RegExp(
+      r'<activity[^>]*android:name="\.EmptyLaunchActivity"[^>]*>',
+      dotAll: true,
+    ).firstMatch(declarations());
+
+    expect(element, isNotNull,
+        reason: 'an activity missing from the manifest cannot be started, so the '
+            'billing screen would crash on the PendingIntent it was given instead');
+    expect(element!.group(0), contains('android:exported="false"'));
   });
 }

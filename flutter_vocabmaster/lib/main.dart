@@ -201,10 +201,9 @@ Future<bool> _initializeFirebaseTelemetry() async {
     // reported as somebody's.
     final bool report = !kDebugMode;
     CrashlyticsService.setEnabled(report);
-    // Google's pre-launch test devices are not learners. Counted as users they turned
-    // robots tapping the paywall on an account-less phone into "subscribers could not
-    // subscribe". See DeviceEnvironment.isTestLab. Their crashes are still in the Play
-    // Console's pre-launch report, which is where they belong.
+    // Google's pre-launch test devices are not learners: see DeviceEnvironment.isTestLab.
+    // Their crashes are still in the Play Console's pre-launch report, which is where
+    // they belong.
     final bool testLab = await DeviceEnvironment.isTestLab();
     if (testLab) {
       await CrashlyticsService.disableCollection();

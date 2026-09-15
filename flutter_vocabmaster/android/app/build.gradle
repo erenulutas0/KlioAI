@@ -29,6 +29,15 @@ android {
         jvmTarget = "17"
     }
 
+    testOptions {
+        unitTests.all {
+            // Robolectric loads Conscrypt, which lower-cases the OS name with the default
+            // locale. On a Turkish machine "windows" becomes "wındows" and its native
+            // library is not found, so every test fails before it starts.
+            jvmArgs "-Duser.language=en", "-Duser.country=US"
+        }
+    }
+
     defaultConfig {
         applicationId "com.VocabMaster"
         minSdk = 24
@@ -84,4 +93,9 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+
+    // PlayActivityLaunchGuardTest starts Google's billing and sign-in activities the way the
+    // device farm did, which needs the Android framework in the JVM.
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.14.1"
 }
