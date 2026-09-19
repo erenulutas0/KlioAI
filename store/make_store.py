@@ -70,6 +70,13 @@ SHOTS_EN = [
 ]
 
 SHOTS = [
+    # First, because it is the one thing here nothing else on the store does: the
+    # learner said it wrong out loud, and the card says what to say instead and why.
+    # Captured on the phone on 20 Sep; the explanation line came back in English on a
+    # Turkish account, which is a bug, not a caption choice -- see the note in
+    # ChatbotService.inLearnersLanguage.
+    ('09_correction.png', 'Yanlış söyleyince düzeltir',
+     'Söylediğin cümle, doğrusu ve nedeni'),
     ('01_today.png', 'Bugün ne yapacağın belli', 'Plan sırayla ilerler'),
     ('02_tutor.png', 'Kafede sipariş ver', 'Sesli rol yapma sahneleri'),
     ('03_words.png', 'Kelimelerin nerede duruyor', 'Güç çubuğu ve kaynak filtresi'),
