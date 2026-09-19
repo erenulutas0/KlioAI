@@ -5,82 +5,49 @@ Play sınırları: uygulama adı 30, kısa açıklama 80, tam açıklama 4000 ka
 Bu metin **Türkçe çeviri girişine** gidiyor (`Türkçe – tr`). Varsayılan
 (`en-US`) girişe İngilizcesi gidiyor — o `LISTING_EN.md` içinde.
 
+Eski metin uygulamanın yaptığı her şeyi sayan bir listeydi. Bu metin tek bir
+şeyi satıyor: takıldığın yerde kendi dilini konuşabilmeni. Nedeni ve ekran
+görüntüsü planı `LISTING.md` içinde.
+
 ---
 
 ## Uygulama adı (30)
 
 ```
-KlioAI: İngilizce Öğren
+KlioAI: Takılınca Türkçe Söyle
 ```
 
-Mevcut adın sadece "KlioAI". Aramada bulunmak için birkaç kelime eklemek
-işe yarar, ama zorunlu değil — "KlioAI" olarak bırakmak da geçerli.
+**30 karakter.**
 
 ---
-
 ## Kısa açıklama (80)
 
 ```
-Gerçek kitap oku, yapay zekâ ile konuş, öğrendiğin kelime aklında kalsın.
+Takılınca Türkçe söyle: KlioAI konuşmayı sürdürür, İngilizcesini gösterir.
 ```
 
-Arama sonuçlarında uygulama adının altında görünen satır bu.
+**74 karakter.** Arama sonuçlarında uygulama adının altında görünen satır bu.
 
 ---
-
 ## Tam açıklama (4000)
 
 ```
-KlioAI, tek bir fikir üzerine kurulu bir İngilizce uygulaması: bir kelime,
-ancak ihtiyacın olduğu anda aklına geliyorsa senindir.
+KlioAI, İngilizce öğrenirken herkesin yaşadığı şu ana göre kuruldu: konuşurken cümlenin ortasında kelime kayboluyor.
 
-SESLİ KONUŞ, GERÇEK BİR DURUMDA
-Düğmeyi basılı tut ve konuş. Karşındaki sesli cevap veriyor — İngilizce, hem
-de rolünde: kafede sipariş ver, otele giriş yap, doktorda şikâyetini anlat,
-aldığın ürünü iade et, ya da sadece gününü anlat. Net bir hata yaptığında
-cevabının altında küçük bir kart beliriyor: söylediğin cümle üstü çizili,
-altında doğrusu, en altta da neyin yanlış olduğunu Türkçe söyleyen tek bir
-satır. Kırmızı bir çarpı değil, kullanabileceğin bir cümle — ve nedeni.
+TAKILINCA TÜRKÇE SÖYLE
+Sesli konuşma ekranında bir karakterle İngilizce konuşursun — garson, otel resepsiyonisti, doktor. Cümlenin ortasında bilmediğin kelimeye gelince Türkçesini söyle: "I'd like the pasta, and also biraz su alabilir miyiz?" gibi. KlioAI bunun İngilizce olmadığını fark eder; kulağına uydurma bir İngilizce cümle söylemek yerine, tam olarak ne duyduğunu Türkçe yazıp önüne koyar, sen "Gönder"e basarsın. Konuşma kesilmez, kaldığı yerden sürer — garson suyu getirir. Cevabın altında beliren küçük bir kartta Türkçe söylediğin kısmın üstü çizili, yanında söylemen gereken İngilizcesi duruyor. Kelimeyi unuttuğun an konuşmanın sonu değil, öğrendiğin an oluyor.
 
-GERÇEK KİTAP OKU
-Baştan sona okunabilen, ücretsiz kitaplar: Sherlock Holmes, Ezop Masalları,
-Mutlu Prens, Dr. Jekyll ve Bay Hyde ve dahası, seviyene göre sıralı.
-Bilmediğin kelimeye dokun; anlamı, geldiği cümlenin içinde açıklanıyor —
-sözlükteki bütün olası anlamlar değil, önündeki sayfada geçerli olan anlam.
-Bir dokunuş daha, kelime cümlesiyle birlikte listene giriyor.
+HESAP AÇMADAN DENE
+Uygulamayı ilk açtığında hiçbir şey sorulmuyor: doğrudan konuşmaya başlıyorsun. İlerlemeni kaydetmek istediğinde giriş yaparsın, o ana kadar yaptıkların hesabına taşınır.
 
-UNUTMADAN HEMEN ÖNCE TEKRARLA
-Kaydettiğin her kelime, tam da kaybetmek üzereyken geri geliyor; daha erken
-değil. Nasıl gittiğini sen söylüyorsun — zor, iyi, kolay — ve o cevap bir
-sonraki görüşmenin ne zaman olacağını belirliyor. Kelime listendeki güç
-çubuğu hangilerinin oturduğunu, hangilerinin hâlâ kaydığını gösteriyor.
+AYNI UYGULAMADA
+Baştan sona okuyabileceğin gerçek kitaplar (Sherlock Holmes, Ezop Masalları, Dr. Jekyll ve Bay Hyde), bilmediğin kelimeye dokunup o cümledeki anlamını görme, kaydettiğin kelimenin tam kaybetmek üzereyken önüne gelen tekrarı, kısa ve biten bir günlük plan, kendi kelimelerinden kurulan çeviri alıştırmaları, örnekli gramer anlatımları ve yazdığın metne yapay zekâ geri bildirimi.
 
-BİTEN BİR PLAN
-Bugünün planı kısa ve sonlu: tekrar zamanı gelenler, birkaç yeni kelime,
-hızlı bir çeviri seti. Bitirdiğinde o günlük işin bitmiş oluyor. Bu
-uygulamada seni ekranda tutmak için tasarlanmış hiçbir şey yok.
+Arayüz Türkçe dahil yedi dilde; bir düzeltmenin altındaki "neden yanlıştı" satırı da kendi dilinde gelebiliyor. Karşındaki her zaman İngilizce konuşuyor ve İngilizce cevap veriyor — pratiğin sebebi zaten o.
 
-GERİ KALANINI ÇALIŞ
-- Kendi kaydettiğin kelimelerden kurulan çeviri alıştırmaları
-- A1'den C2'ye okuma parçaları ve anlama soruları
-- Yazma görevleri; kelime, tutarlılık ve konuya bağlılık üzerinden AI geri bildirimi
-- Örnekli gramer anlatımları ve okuduğun alt konuya odaklı testler
-- Telaffuz: sesli oku, kaydet, kelime kelime netlik raporu al
-
-KENDİ DİLİNDE — VE İNGİLİZCE
-Arayüz yedi dil konuşuyor: İngilizce, Türkçe, Almanca, İspanyolca,
-Portekizce, İtalyanca ve Fransızca. Kelime anlamları — sözlükte ve
-alıştırmalarda — konuştuğunu söylediğin dilde geliyor; düzeltme kartındaki
-"neden yanlıştı" satırı da öyle. Konuştuğun kişi ise İngilizce konuşuyor ve
-İngilizce cevap veriyor; pratiğin sebebi zaten o.
-
-ÜCRETİ
-Kelime listesi, tekrarlar, kitaplar ve gramer anlatımları ücretsiz. Yapay
-zekâ özellikleri — konuşma pratiği, yazma değerlendirmesi, üretilen cümleler
-ve testler — bir kullanım kotasıyla çalışıyor. Yeni hesaplar 7 günlük deneme
-kotasıyla başlıyor; sonrasında her gün yenilenen ücretsiz bir hak kalıyor,
-PRO ise kotayı yükseltiyor. Google Play üzerinden istediğin zaman iptal
-edebilirsin.
-
-Reklam yok. Seni suçlayan bir seri sayacı yok. Sıralama tablosu yok.
+Kelime listesi, tekrarlar, kitaplar ve gramer anlatımları ücretsiz. Konuşma ekranı dahil yapay zekâ özellikleri günlük bir kotayla çalışıyor; yeni hesaplar 7 günlük deneme kotasıyla başlıyor, sonrasında her gün yenilenen ücretsiz bir hak kalıyor, PRO ise kotayı yükseltiyor. Reklam yok, seni suçlayan bir seri sayaçı yok, sıralama tablosu yok.
 ```
+
+**1933 karakter.** İlk paragraf, Play'in "daha fazla" demeden gösterdiği kısım.
+
+---

@@ -3,127 +3,52 @@
 Play's limits: app name 30 characters, short description 80, full description
 4000. Everything below is inside them; the count is given after each field.
 
-This is written to be the **default** listing — the one Play falls back to for
-every device whose language has no translation of its own. So it addresses a
-learner of English generally, not a Turkish one.
+This is the **default** listing — the one Play falls back to for every device
+whose language has no translation of its own. The Turkish listing names Turkish
+because that is who reads it; this one says "your own language", which is what
+the tutor actually does for a learner in any of the seven interface languages.
+The Turkish sentence in the example stays: it is a real one, recorded on a
+device, and it shows the mechanism better than a description of it.
 
 ---
 
 ## App name (30)
 
 ```
-KlioAI: Learn English Words
+KlioAI: English Conversation
 ```
-27 characters.
 
-Alternative, if you would rather lead with speaking:
-
-```
-KlioAI: Speak & Learn English
-```
-29 characters.
+**28 karakter.**
 
 ---
-
 ## Short description (80)
 
 ```
-Read real books, speak with an AI tutor, and keep every word you learn.
+Stuck mid-sentence? Say it in your language; the tutor carries on in English.
 ```
-71 characters.
 
-This is the line that shows under the app name in search results, so it says
-the three things the app actually does rather than describing a category.
+**77 karakter.**
 
 ---
-
 ## Full description (4000)
 
 ```
-KlioAI is an English learning app built around one idea: a word is only yours
-once it comes back to you when you need it.
+KlioAI is built around the moment every English learner knows: you are mid-sentence and the word is not there.
 
-SPEAK, OUT LOUD, IN A REAL SITUATION
-Hold the button and talk. The tutor answers out loud, in English, in character.
-Order a coffee, check into a hotel, explain a symptom at the doctor, return
-something you bought, or just talk about your day. When you get something
-clearly wrong, a small card appears under your reply: your own sentence struck
-through, the way to say it underneath, and one line in your own language saying
-what went wrong. Not a red mark — a sentence you can use, and the reason.
+STUCK? SAY IT IN YOUR OWN LANGUAGE
+In the spoken tutor you talk out loud to a character — a waiter, a hotel receptionist, a doctor. When you hit a word you do not have, say that part in your own language: "I'd like the pasta, and also biraz su alabilir miyiz?" KlioAI notices it was not English, and instead of inventing an English sentence out of what it half heard, it shows you exactly what you said, in your language, and waits for you to tap Send. Nothing is put in your mouth, and the conversation carries straight on — the waiter brings the water. Under your line a small card appears: what you said struck through, the English you needed beside it. The moment you forget a word stops being where the conversation ends and becomes where you learn it.
 
-READ REAL BOOKS
-Whole books, free to read: Sherlock Holmes, Aesop's Fables, The Happy Prince,
-Dr Jekyll and Mr Hyde, and more, sorted by CEFR level. Tap any word you do not
-know and it is explained inside the sentence it came from — not a dictionary
-entry for every possible meaning, the one meaning that is on the page in front
-of you. One more tap and the word joins your list, with the sentence.
+TRY IT WITHOUT AN ACCOUNT
+The first time you open the app nothing is asked of you: you start talking. Sign in when you want to keep what you have done, and it moves to your account.
 
-REVIEW BEFORE YOU FORGET
-Every word you save comes back on the day you are about to lose it, and not
-before. You say how it went — hard, good, easy — and that answer decides when
-you see it next. A strength bar on your word list shows which words have taken
-hold and which are still slipping.
+IN THE SAME APP
+Whole public-domain books to read end to end (Sherlock Holmes, Aesop's Fables, Dr Jekyll and Mr Hyde), tapping any word for its meaning inside that exact sentence, saved words that come back right before you would forget them, a short daily plan that actually ends, translation practice built from your own words, grammar guides with worked examples, and AI feedback on your writing.
 
-A PLAN THAT ENDS
-Today's plan is short and finite: the words due for review, a few new ones, a
-quick translation set. Work through it and you are done for the day. Nothing
-in this app is designed to keep you scrolling.
+The interface speaks seven languages, and the line under a correction that explains why can arrive in yours. The tutor itself always speaks and answers in English — that is the part you are here to practise.
 
-PRACTISE THE REST
-- Translation, built from your own saved words
-- Reading passages with comprehension questions, A1 to C2
-- Writing tasks with AI feedback on vocabulary, coherence and relevance
-- Grammar guides with worked examples, and a quiz on the subtopic you just read
-- Pronunciation: read aloud, record, and get a clarity report word by word
-
-YOUR LANGUAGE, AND ENGLISH
-The interface speaks seven languages: English, Turkish, German, Spanish,
-Portuguese, Italian and French. Word meanings, in the dictionary and in the
-exercises, arrive in the language you tell us you speak, and so does the line
-under a correction that says why you were wrong. The tutor speaks English and
-answers in English — that is the part you came to practise.
-
-WHAT IT COSTS
-The word list, reviews, books and grammar guides are free. AI features — the
-speaking tutor, writing evaluation, generated sentences and quizzes — run on a
-usage quota. New accounts start with a 7-day trial quota; after that a free
-daily allowance stays, and PRO lifts the ceiling. You can cancel any time in
-Google Play.
-
-No ads. No streak that shames you. No leaderboard.
+The word list, reviews, books and grammar guides are free. AI features, including the speaking tutor, run on a daily quota; new accounts get a 7-day trial quota, then a free daily allowance continues, and PRO lifts the ceiling. No ads, no streak that shames you, no leaderboard.
 ```
 
-2,669 characters.
+**1942 karakter.**
 
 ---
-
-## Play Console'da ne yapman gerekiyor
-
-Varsayılan dil zaten **İngilizce (en-US)**. Değiştirmene gerek yok.
-
-**Dil eklemek bir yedek kurmak değildir.** Play'de bir dil eklemek "o dile
-içerik sağlayacağım" demek: eklediğin her dil için uygulama adı, kısa açıklama
-ve tam açıklama zorunlu hâle gelir ve boş bırakılanlar hata verir. Bir
-kullanıcının dili **eklenmemişse** Play onu zaten varsayılana düşürür — bir
-İspanyol'a İngilizce göstermek için İspanyolca eklemek gerekmez, tam tersine
-eklersen İspanyolca metin yazmak zorunda kalırsın.
-
-Yani listede yalnızca iki dil olmalı:
-
-1. **İngilizce (ABD) – en-US**, varsayılan: bu dosyadaki metinler,
-   `screenshot_en_01..06.png` ve `feature_graphic_1024x500_en.png`.
-
-2. **Türkçe – tr**: `LISTING_TR.md` içindeki metinler,
-   `screenshot_01..07.png` ve `feature_graphic_1024x500.png`.
-
-Başka dil eklenmişse *Çeviriler → Dilleri yönet*'ten kaldır.
-
-**Uygulama simgesine dokunma** — dile göre değişmiyor, tek ve global.
-
-Özel giriş ve grup da gerekmiyor: onlar belirli bir kitleye farklı bir
-pazarlama metni göstermek için, dil için değil.
-
-Sonuç: Türkçe cihazlar Türkçe görür, geri kalan herkes İngilizce'ye düşer.
-İspanya tutarsa İspanyolca'yı üçüncü dil olarak eklersin — o zaman İspanyolca
-metin ve görselleri de hazırlaman gerekir, ki bu ancak orada gerçekten kullanıcı
-varsa değer.

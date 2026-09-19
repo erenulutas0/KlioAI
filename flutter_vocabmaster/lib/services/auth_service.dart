@@ -527,6 +527,14 @@ class AuthService {
         resolvedId != null &&
         previousUserId != resolvedId) {
       await _clearLocalLearningState(prefs);
+    } else if (guest) {
+      // A guest account is seconds old and owns nothing, so anything local
+      // belongs to somebody else. The check above cannot see that on a fresh
+      // install: Android restores the preferences and the database from its own
+      // backup, but not the encrypted store the previous user id lives in, so
+      // there is no id to compare and the old words and conversations were
+      // still there under an account that had never seen them.
+      await _clearLocalLearningState(prefs);
     }
 
     await _writeSecureString(_tokenKey, token);
@@ -700,7 +708,15 @@ class AuthService {
           key == 'weekly_activity' ||
           key.startsWith('xp_') ||
           key.startsWith('xp_awarded_') ||
-          key.startsWith('learned_today_');
+          key.startsWith('learned_today_') ||
+          // The conversations, which this missed entirely: they are a learner's
+          // own sentences and their tutor's answers, kept on the device only,
+          // and they stayed on screen through an account change. Seen on a
+          // reinstall, where the first guest account opened onto the previous
+          // account's talks with Amy.
+          key.startsWith('nf_tutor_sessions') ||
+          key.startsWith('daily_words_') ||
+          key.startsWith('streak_bonus_');
       if (shouldRemove) {
         await prefs.remove(key);
       }

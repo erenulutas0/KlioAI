@@ -42,6 +42,47 @@ void main() {
         reason: 'the sign-in offer would keep coming back after they took it');
   });
 
+  test('a guest account starts with nothing on the phone', () async {
+    // Found on a real reinstall: the first guest account opened onto the
+    // previous account's conversations with Amy and its word list. Android had
+    // restored the preferences and the database from its own backup while the
+    // encrypted store holding the old user id was not restored, so the
+    // id-mismatch check above had nothing to compare and cleared nothing.
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'nf_tutor_sessions_v1': '[{"id":"1"}]',
+      'total_xp_persistent': 1206,
+      'current_streak': 5,
+      'daily_words_cache': 'yesterday',
+    });
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+
+    await AuthService().saveSession('access', 'refresh', user, guest: true);
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('nf_tutor_sessions_v1'), isNull,
+        reason: "a brand-new account opened on somebody else's conversations");
+    expect(prefs.getInt('total_xp_persistent'), isNull);
+    expect(prefs.getInt('current_streak'), isNull);
+    expect(prefs.getString('daily_words_cache'), isNull);
+  });
+
+  test('signing in as somebody else takes the conversations too', () async {
+    await AuthService().saveSession('access', 'refresh', user);
+    final SharedPreferences seeded = await SharedPreferences.getInstance();
+    await seeded.setString('nf_tutor_sessions_v1', '[{"id":"1"}]');
+
+    await AuthService().saveSession('access2', 'refresh2', <String, dynamic>{
+      'id': 99,
+      'email': 'someone.else@example.com',
+      'displayName': 'Someone Else',
+      'userTag': '#00099',
+      'role': 'USER',
+    });
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('nf_tutor_sessions_v1'), isNull);
+  });
+
   test('a session that is not there is not a guest session', () async {
     await AuthService().saveSession('access', 'refresh', user, guest: true);
     await AuthService().logout();

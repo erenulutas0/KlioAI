@@ -70,6 +70,24 @@ void main() {
         contains('registerActivityLifecycleCallbacks(PlayActivityLaunchGuard)'));
   });
 
+  test('Android does not restore this app onto a new install', () {
+    // Automatic backup is on unless a manifest says otherwise, and it restores
+    // the preferences and the database while leaving the encrypted store with
+    // the session behind. On a reinstall the first guest account therefore
+    // opened onto the previous account's word list and its conversations with
+    // the tutor. Everything a learner keeps is on the server and comes back
+    // when they sign in.
+    final String xml = declarations();
+
+    expect(xml, contains('android:allowBackup="false"'));
+    expect(xml, contains('android:dataExtractionRules="@xml/data_extraction_rules"'));
+    expect(
+        File('android/app/src/main/res/xml/data_extraction_rules.xml').existsSync(),
+        isTrue,
+        reason: 'the manifest points at rules that are not there, so the build '
+            'fails -- or worse, a later edit removes the pointer instead');
+  });
+
   test('the empty answer the billing screen is given is declared, and private', () {
     final RegExpMatch? element = RegExp(
       r'<activity[^>]*android:name="\.EmptyLaunchActivity"[^>]*>',

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing this app keeps on the device is restored onto another install.
+
+  Android's automatic backup was on by default, and it restores the shared
+  preferences and the local database while the encrypted store holding the
+  session is left behind. A reinstall therefore opened with one account's words
+  and conversations under whatever account signed in next — which, since the app
+  now opens a guest account on first launch, was an account that had never seen
+  any of it. Everything a learner keeps is on the server and comes back when
+  they sign in; the tutor's conversation history is the one thing that does not,
+  and showing it to the wrong person is worse than losing it.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
