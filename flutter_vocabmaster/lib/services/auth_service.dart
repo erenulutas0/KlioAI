@@ -388,6 +388,10 @@ class AuthService {
       'success': true,
       'user': user,
       if (data['newAccount'] != null) 'newAccount': data['newAccount'],
+      // A guest account that has just become a real one. The server reports it
+      // separately because no row was created, so `newAccount` is false -- but
+      // for the funnel this is the moment somebody signed up.
+      if (data['converted'] != null) 'converted': data['converted'],
       if (data['trialBlockedReason'] != null)
         'trialBlockedReason': data['trialBlockedReason'],
     };

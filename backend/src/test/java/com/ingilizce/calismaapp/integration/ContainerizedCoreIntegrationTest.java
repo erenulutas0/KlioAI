@@ -33,6 +33,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.ingilizce.calismaapp.service.GuestAccountCleanupService;
+
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -98,6 +103,9 @@ class ContainerizedCoreIntegrationTest {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private GuestAccountCleanupService guestAccountCleanupService;
 
     @Test
     @Order(1)
@@ -411,6 +419,52 @@ class ContainerizedCoreIntegrationTest {
         String json = jdbcTemplate.queryForObject(explainSql, String.class);
         org.junit.jupiter.api.Assertions.assertNotNull(json);
         return objectMapper.readTree(json).get(0);
+    }
+
+    @Test
+    @Order(9)
+    void guestCleanupShouldRunAgainstTheSchemaFlywayBuilt() {
+        // Every other test of the cleanup runs on H2, whose schema Hibernate derives from the
+        // entities. The cleanup does not go through Hibernate: it is twenty hand-written
+        // DELETEs naming tables and columns directly, five of which belong to tables no entity
+        // maps a foreign key for. A wrong name there is invisible until 03:30 on the server.
+        // This runs the whole statement list against the schema the migrations actually build.
+        jdbcTemplate.update(
+                "INSERT INTO users (email, password_hash, display_name, user_tag, created_at, is_guest)"
+                        + " VALUES (?, ?, ?, ?, ?, TRUE)",
+                "guest-old@guest.klioai.app", "x", "Guest", "#90001",
+                Timestamp.valueOf(LocalDateTime.now().minusDays(60)));
+        jdbcTemplate.update(
+                "INSERT INTO users (email, password_hash, display_name, user_tag, created_at, is_guest)"
+                        + " VALUES (?, ?, ?, ?, ?, TRUE)",
+                "guest-new@guest.klioai.app", "x", "Guest", "#90002",
+                Timestamp.valueOf(LocalDateTime.now().minusDays(1)));
+        jdbcTemplate.update(
+                "INSERT INTO users (email, password_hash, display_name, user_tag, created_at, is_guest)"
+                        + " VALUES (?, ?, ?, ?, ?, FALSE)",
+                "real-person@example.com", "x", "Eren", "#90003",
+                Timestamp.valueOf(LocalDateTime.now().minusDays(60)));
+        Long oldGuestId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE email = ?", Long.class, "guest-old@guest.klioai.app");
+        // One child in a table with no foreign key to users, which is the case a cascade would
+        // have missed.
+        jdbcTemplate.update(
+                "INSERT INTO feature_ratings (user_id, feature, stars) VALUES (?, 'TUTOR', 5)",
+                oldGuestId);
+
+        int deleted = guestAccountCleanupService.purgeBatch(LocalDateTime.now().minusDays(30), 50);
+
+        org.junit.jupiter.api.Assertions.assertTrue(deleted >= 1, "the guest older than the window was not collected");
+        org.junit.jupiter.api.Assertions.assertEquals(0, (int) jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE email = 'guest-old@guest.klioai.app'", Integer.class));
+        org.junit.jupiter.api.Assertions.assertEquals(0, (int) jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM feature_ratings WHERE user_id = ?", Integer.class, oldGuestId));
+        org.junit.jupiter.api.Assertions.assertEquals(1, (int) jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE email = 'guest-new@guest.klioai.app'", Integer.class),
+                "a guest created yesterday is not old enough to collect");
+        org.junit.jupiter.api.Assertions.assertEquals(1, (int) jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE email = 'real-person@example.com'", Integer.class),
+                "an account somebody signed in to was deleted");
     }
 
     private void collectIndexNames(JsonNode node, Set<String> names) {

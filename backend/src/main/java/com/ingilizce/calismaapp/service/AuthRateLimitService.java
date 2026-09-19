@@ -55,6 +55,8 @@ public class AuthRateLimitService {
     private final ConcurrentHashMap<String, AttemptState> loginIpAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AttemptState> registerIpAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AttemptState> passwordResetIpAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AttemptState> guestIpAttempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AttemptState> guestDeviceAttempts = new ConcurrentHashMap<>();
 
     @Autowired
     public AuthRateLimitService(AuthRateLimitProperties properties,
@@ -260,6 +262,77 @@ public class AuthRateLimitService {
         recordFailure("password-reset:ip:" + normalizeValue(clientIp), passwordResetIpAttempts,
                 properties.getPasswordResetIpWindowSeconds(), properties.getPasswordResetIpBlockSeconds(),
                 properties.getPasswordResetIpMaxAttempts());
+    }
+
+    /**
+     * Whether another guest account may be opened for this address and device.
+     *
+     * Unlike every other limiter here, this one counts what succeeded. The others exist to
+     * stop guessing -- a wrong password, an address that is not registered -- and count
+     * failures because a success is the legitimate end of the attempt. A guest account has
+     * nothing to guess: the request always succeeds, and the thing worth limiting is how
+     * many of them one caller can have. Each is a user row and a fresh daily AI quota.
+     *
+     * Two ceilings rather than one, because each is cheap to evade on its own: a phone can
+     * change address, and an address serves a whole building.
+     */
+    public RateLimitDecision checkGuestCreation(String clientIp, String deviceId) {
+        if (!properties.isEnabled()) {
+            return RateLimitDecision.allowed();
+        }
+
+        RateLimitDecision ipDecision = checkGuestKey("guest:ip:" + normalizeValue(clientIp),
+                guestIpAttempts, properties.getGuestIpWindowSeconds(),
+                properties.getGuestIpBlockSeconds(), "checkGuestCreation");
+        if (ipDecision.blocked()) {
+            return ipDecision;
+        }
+        return checkGuestKey("guest:device:" + normalizeValue(deviceId),
+                guestDeviceAttempts, properties.getGuestDeviceWindowSeconds(),
+                properties.getGuestDeviceBlockSeconds(), "checkGuestCreation");
+    }
+
+    /** Called once a guest account has actually been created. */
+    public void recordGuestCreation(String clientIp, String deviceId) {
+        if (!properties.isEnabled()) {
+            return;
+        }
+
+        recordGuestKey("guest:ip:" + normalizeValue(clientIp), guestIpAttempts,
+                properties.getGuestIpWindowSeconds(), properties.getGuestIpBlockSeconds(),
+                properties.getGuestIpMaxAttempts());
+        recordGuestKey("guest:device:" + normalizeValue(deviceId), guestDeviceAttempts,
+                properties.getGuestDeviceWindowSeconds(), properties.getGuestDeviceBlockSeconds(),
+                properties.getGuestDeviceMaxAttempts());
+    }
+
+    private RateLimitDecision checkGuestKey(String key, Map<String, AttemptState> attemptMap,
+                                            long windowSeconds, long blockSeconds,
+                                            String operation) {
+        if (canUseRedis()) {
+            try {
+                return checkRedisLimit(key);
+            } catch (Exception ex) {
+                onRedisFailure(operation, ex);
+                if (isFailClosedMode()) {
+                    return denyByRedisFailure(operation);
+                }
+            }
+        }
+        return check(key, attemptMap, windowSeconds, blockSeconds);
+    }
+
+    private void recordGuestKey(String key, Map<String, AttemptState> attemptMap,
+                                long windowSeconds, long blockSeconds, int maxAttempts) {
+        if (canUseRedis()) {
+            try {
+                recordRedisFailure(key, windowSeconds, blockSeconds, maxAttempts);
+                return;
+            } catch (Exception ex) {
+                onRedisFailure("recordGuestCreation", ex);
+            }
+        }
+        recordFailure(key, attemptMap, windowSeconds, blockSeconds, maxAttempts);
     }
 
     protected long currentTimeMillis() {

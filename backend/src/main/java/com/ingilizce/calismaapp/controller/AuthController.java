@@ -36,6 +36,19 @@ import java.util.UUID;
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
+    /**
+     * Where a guest's generated address lives (V032). The subdomain has no MX record, so
+     * nothing can ever be delivered to a guest account and no password reset can reach one.
+     */
+    private static final String GUEST_EMAIL_DOMAIN = "@guest.klioai.app";
+
+    /**
+     * What the tutor calls someone who has not told us their name. Without it
+     * {@code User}'s constructor takes the name from the address and greets the learner as
+     * guest-9f2c1e....
+     */
+    private static final String GUEST_DISPLAY_NAME = "Guest";
+
     private final UserRepository userRepository;
     private final AuthRateLimitService authRateLimitService;
     private final PasswordEncoder passwordEncoder;
@@ -162,6 +175,77 @@ public class AuthController {
         }
     }
 
+    /**
+     * Creates an account for someone who has not signed in, so the app can be used before it
+     * asks for anything (V032). The learner talks to the tutor first and signs in later, at
+     * which point {@link #googleLogin} converts this same row instead of starting a new one.
+     */
+    @PostMapping("/guest")
+    public ResponseEntity<Map<String, Object>> guest(@RequestBody(required = false) Map<String, String> request,
+                                                     HttpServletRequest httpRequest) {
+        Map<String, String> body = request != null ? request : Map.of();
+        log.info("Processing guest account request");
+        try {
+            String clientIp = resolveClientIp(httpRequest);
+            String deviceId = resolveDeviceId(body, httpRequest);
+            // The registration limiter first: this endpoint creates a user row exactly as
+            // /register does, and an IP already blocked for hammering registration must not be
+            // handed an unlimited side door to the same table. Nothing is recorded or reset
+            // against it -- that counter is about failed registrations, and a guest account is
+            // neither a failure nor a reason to forgive earlier ones.
+            RateLimitDecision rateLimitDecision = authRateLimitService.checkRegister(clientIp);
+            if (rateLimitDecision.blocked()) {
+                return tooManyRequests("Too many registration attempts. Please try again later.", rateLimitDecision);
+            }
+            // And then the one that counts guest accounts themselves. Nothing here can fail,
+            // so a limiter that counts failures counts nothing: a script asking for guest
+            // accounts in a loop would be handed a user row and a fresh daily AI quota every
+            // time. See AuthRateLimitService.checkGuestCreation.
+            RateLimitDecision guestDecision =
+                    authRateLimitService.checkGuestCreation(clientIp, deviceId);
+            if (guestDecision.blocked()) {
+                return tooManyRequests("Too many guest accounts from here. Please try again later.", guestDecision);
+            }
+            String displayName = trimmedOrNull(body.get("displayName"));
+            // The locale is logged and nowhere else: there is no per-user locale column, and
+            // the client already sends its locale on the requests that act on one. It is in
+            // the contract so that adding one later is not a client release.
+            String locale = trimmedOrNull(body.get("locale"));
+
+            User user = new User(
+                    generateGuestEmail(),
+                    passwordEncoder.encode(UUID.randomUUID().toString()),
+                    displayName != null ? displayName : GUEST_DISPLAY_NAME);
+            user.setGuest(true);
+            // The 7-day trial is deliberately withheld from a guest and decided when they sign
+            // in for real. TrialAbuseProtectionService counts per device, so a trial granted
+            // here would be the only one this device ever gets: the learner would create their
+            // actual account an hour later and find the trial already spent -- by themselves,
+            // on an account they never asked for.
+            user.setTrialEligible(false);
+            User savedUser = userRepository.save(user);
+            createDefaultLanguageProfile(savedUser);
+            // rememberMe is not a choice for a guest. There is no password and no Google
+            // account to sign back in with, so this refresh token is the only way back into
+            // the account; a short session would quietly strand everything the learner did.
+            TokenBundle tokens = issueTokens(savedUser, true, deviceId, httpRequest);
+            authRateLimitService.recordGuestCreation(clientIp, deviceId);
+            log.info("Guest account created, userId={}, locale={}", savedUser.getId(), locale);
+
+            Map<String, Object> response = buildAuthSuccessResponse(savedUser, tokens);
+            response.put("guest", true);
+            // A guest has no mailbox. Asking them to go and verify one is the wall this
+            // endpoint exists to remove, so the flag the client reads for that prompt says no
+            // even though the address is, strictly, unverified.
+            response.put("emailVerificationRequired", false);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error creating guest account", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Internal server error", "success", false));
+        }
+    }
+
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> request,
                                                      HttpServletRequest httpRequest) {
@@ -263,13 +347,24 @@ public class AuthController {
             }
 
             Optional<User> userOpt = userRepository.findByEmail(email);
+            Optional<User> guestOpt = authenticatedGuest();
             User user;
             boolean createdUser = false;
+            boolean convertedGuest = false;
             TrialAbuseProtectionService.TrialDecision trialDecision = TrialAbuseProtectionService.TrialDecision.allowed();
 
             if (userOpt.isPresent()) {
                 user = userOpt.get();
                 log.info("Google login user found, userId={}", user.getId());
+                if (guestOpt.isPresent()) {
+                    // This Google account already has an account of its own -- the learner has
+                    // been here before, on another install or before a reinstall. They are
+                    // signed into it, and the guest row stays exactly as it is: merging two
+                    // sets of words by guesswork would be a worse answer than either of them.
+                    // The nightly cleanup collects the guest once the retention window passes.
+                    log.info("Guest not converted, email already registered: guest userId={}, signing into userId={}",
+                            guestOpt.get().getId(), user.getId());
+                }
 
                 // Update displayName if it was null/default before
                 boolean updated = false;
@@ -284,6 +379,35 @@ public class AuthController {
                 if (updated) {
                     userRepository.save(user);
                 }
+            } else if (guestOpt.isPresent()) {
+                // The learner has been using the app as a guest and is now signing in with an
+                // email no account holds. The row is converted in place rather than replaced:
+                // their words, their conversations and their id all hang off it, and creating
+                // a second account here would make signing in cost them everything they had
+                // done up to that point -- which is the exact bargain we removed.
+                user = guestOpt.get();
+                user.setEmail(email);
+                if (displayName != null && !displayName.isBlank()) {
+                    user.setDisplayName(displayName);
+                }
+                user.setEmailVerifiedAt(LocalDateTime.now());
+                user.setGuest(false);
+
+                // The trial was withheld while this was a guest (see the guest endpoint above),
+                // so this is where it is decided -- on exactly the terms a brand-new account
+                // gets, including the rule that a block we could not verify is not persisted.
+                trialDecision = trialAbuseProtectionService.evaluate(deviceId, clientIp);
+                user.setTrialEligible(true);
+                if (!trialDecision.trialEligible()
+                        && !TrialAbuseProtectionService.REASON_UNAVAILABLE.equals(trialDecision.reason())) {
+                    user.setTrialEligible(false);
+                }
+                user = userRepository.save(user);
+                convertedGuest = true;
+                if (user.isTrialEligible()) {
+                    trialAbuseProtectionService.recordTrialGrant(deviceId, clientIp);
+                }
+                log.info("Guest account converted, userId={}", user.getId());
             } else {
                 // User doesn't exist, create proper account
                 log.info("Google login user not found, creating new account for email={}", email);
@@ -326,10 +450,16 @@ public class AuthController {
             // all. Install-to-account was therefore unmeasurable, which is the
             // one number a launch exists to produce.
             response.put("newAccount", createdUser);
+            // Whether this call turned a guest into this account. Always present, never only
+            // on the true case: a client reading a flag that is sometimes absent eventually
+            // reads its absence as false for the wrong reason. A conversion is the moment a
+            // learner becomes countable, so it is the signup for the funnel even though
+            // newAccount is false -- no row was created.
+            response.put("converted", convertedGuest);
             if (photoUrl != null && !photoUrl.isBlank()) {
                 response.put("photoUrl", photoUrl);
             }
-            if (createdUser && !user.isTrialEligible()) {
+            if ((createdUser || convertedGuest) && !user.isTrialEligible()) {
                 response.put("trialBlockedReason", trialDecision.reason());
             }
 
@@ -607,6 +737,38 @@ public class AuthController {
         if (expiresAt != null) {
             response.put(fieldName + "ExpiresAt", expiresAt.toString());
         }
+    }
+
+    /**
+     * A guest address nothing can deliver to. Not checked for collision on purpose: two
+     * random UUIDs meeting is not worth a round trip to the database, and the unique index on
+     * the column is the backstop if the impossible happens.
+     */
+    private String generateGuestEmail() {
+        return "guest-" + UUID.randomUUID() + GUEST_EMAIL_DOMAIN;
+    }
+
+    /**
+     * The guest whose access token this request carries, if there is one.
+     *
+     * <p>{@code /api/auth/google-login} is permitAll, so most calls arrive with no principal
+     * at all -- and an app signing in a second time on the same device still sends the header
+     * of the account it already has. Every one of those cases has to come back empty rather
+     * than throw: no principal, a principal whose row is gone, and a principal that is a real
+     * account already.
+     */
+    private Optional<User> authenticatedGuest() {
+        return currentUserContext.getCurrentUserId()
+                .flatMap(userRepository::findById)
+                .filter(User::isGuest);
+    }
+
+    private String trimmedOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String normalizeEmail(String email) {

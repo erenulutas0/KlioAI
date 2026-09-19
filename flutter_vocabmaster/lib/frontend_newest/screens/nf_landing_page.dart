@@ -107,7 +107,7 @@ class _NfLandingViewState extends State<_NfLandingView> {
       // logged login_completed for both and signup_completed for nobody, and
       // install-to-account was unmeasurable. The server now says which it was.
       final String? userId = _extractUserId(result);
-      if (result['newAccount'] == true) {
+      if (result['newAccount'] == true || result['converted'] == true) {
         await AnalyticsService.logSignupCompleted(
           method: 'google',
           userId: userId,

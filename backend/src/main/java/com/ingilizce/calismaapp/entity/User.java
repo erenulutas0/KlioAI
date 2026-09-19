@@ -47,6 +47,17 @@ public class User {
     @Column(name = "trial_eligible", nullable = false)
     private boolean trialEligible = true;
 
+    /**
+     * An account created on first launch, before the learner signed in (V032). It stops being
+     * one the moment they sign in with Google: the same row keeps its id, its words and its
+     * conversations and only this flag, the email and the display name change.
+     *
+     * <p>False for every account that came in through registration or Google, which is why
+     * the column defaults to false in both places -- the migration and here.
+     */
+    @Column(name = "is_guest", nullable = false)
+    private boolean isGuest = false;
+
     public enum Role {
         USER,
         ADMIN,
@@ -201,6 +212,14 @@ public class User {
 
     public void setTrialEligible(boolean trialEligible) {
         this.trialEligible = trialEligible;
+    }
+
+    public boolean isGuest() {
+        return isGuest;
+    }
+
+    public void setGuest(boolean guest) {
+        this.isGuest = guest;
     }
 }
 

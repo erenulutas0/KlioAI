@@ -120,6 +120,9 @@ public class SecurityConfig {
                             "/api/auth/login",
                             "/api/auth/register",
                             "/api/auth/google-login",
+                            // Creates the account a first launch needs before anyone has
+                            // signed in; there is nothing to authenticate with yet (V032).
+                            "/api/auth/guest",
                             "/api/auth/refresh",
                             "/api/auth/password-reset/request",
                             "/api/auth/password-reset/confirm",

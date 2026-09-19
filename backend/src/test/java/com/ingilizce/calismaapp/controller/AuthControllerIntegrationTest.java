@@ -1,23 +1,30 @@
 package com.ingilizce.calismaapp.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ingilizce.calismaapp.repository.EmailVerificationTokenRepository;
 import com.ingilizce.calismaapp.repository.PasswordResetTokenRepository;
 import com.ingilizce.calismaapp.repository.RefreshTokenSessionRepository;
 import com.ingilizce.calismaapp.entity.User;
+import com.ingilizce.calismaapp.entity.Word;
 import com.ingilizce.calismaapp.repository.UserRepository;
+import com.ingilizce.calismaapp.repository.WordRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,12 +55,53 @@ public class AuthControllerIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private WordRepository wordRepository;
+
     @BeforeEach
     void setUp() {
         refreshTokenSessionRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         emailVerificationTokenRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    /**
+     * The whole point of the guest account: whatever the learner did before they signed in is
+     * still theirs afterwards, on the same row, under the same id.
+     */
+    @Test
+    void guestSigningInWithGoogle_ShouldKeepTheAccountAndTheWordsOnIt() throws Exception {
+        String guestBody = mockMvc.perform(post("/api/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceId\":\"device-guest-1\",\"locale\":\"tr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.guest").value(true))
+                .andExpect(jsonPath("$.trialEligible").value(false))
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode guest = objectMapper.readTree(guestBody);
+        long guestId = guest.get("userId").asLong();
+
+        Word word = new Word("ephemeral", "gecici", LocalDate.now());
+        word.setUserId(guestId);
+        wordRepository.save(word);
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + guest.get("accessToken").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"converted@test.com\",\"displayName\":\"Converted\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.converted").value(true))
+                .andExpect(jsonPath("$.newAccount").value(false))
+                .andExpect(jsonPath("$.userId").value(guestId))
+                .andExpect(jsonPath("$.email").value("converted@test.com"));
+
+        User converted = userRepository.findById(guestId).orElseThrow();
+        assertFalse(converted.isGuest());
+        assertEquals("converted@test.com", converted.getEmail());
+        assertEquals(1, wordRepository.findByUserId(guestId).size());
+        assertEquals(1, userRepository.count());
     }
 
     @Test

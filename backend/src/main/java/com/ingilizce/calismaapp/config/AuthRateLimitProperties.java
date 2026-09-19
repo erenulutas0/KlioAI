@@ -33,6 +33,66 @@ public class AuthRateLimitProperties {
     private long passwordResetIpWindowSeconds = 600;
     private long passwordResetIpBlockSeconds = 1800;
 
+    // Guest accounts are created without anyone asking for one, and each carries its own
+    // daily AI quota, so these count accounts created rather than attempts refused. Twenty
+    // an hour from one address is far above a shared network of real installs and far below
+    // what a script would want; five a day from one device is more than anyone reinstalls.
+    private int guestIpMaxAttempts = 20;
+    private long guestIpWindowSeconds = 3600;
+    private long guestIpBlockSeconds = 3600;
+
+    private int guestDeviceMaxAttempts = 5;
+    private long guestDeviceWindowSeconds = 86400;
+    private long guestDeviceBlockSeconds = 86400;
+
+    public int getGuestIpMaxAttempts() {
+        return guestIpMaxAttempts;
+    }
+
+    public void setGuestIpMaxAttempts(int guestIpMaxAttempts) {
+        this.guestIpMaxAttempts = guestIpMaxAttempts;
+    }
+
+    public long getGuestIpWindowSeconds() {
+        return guestIpWindowSeconds;
+    }
+
+    public void setGuestIpWindowSeconds(long guestIpWindowSeconds) {
+        this.guestIpWindowSeconds = guestIpWindowSeconds;
+    }
+
+    public long getGuestIpBlockSeconds() {
+        return guestIpBlockSeconds;
+    }
+
+    public void setGuestIpBlockSeconds(long guestIpBlockSeconds) {
+        this.guestIpBlockSeconds = guestIpBlockSeconds;
+    }
+
+    public int getGuestDeviceMaxAttempts() {
+        return guestDeviceMaxAttempts;
+    }
+
+    public void setGuestDeviceMaxAttempts(int guestDeviceMaxAttempts) {
+        this.guestDeviceMaxAttempts = guestDeviceMaxAttempts;
+    }
+
+    public long getGuestDeviceWindowSeconds() {
+        return guestDeviceWindowSeconds;
+    }
+
+    public void setGuestDeviceWindowSeconds(long guestDeviceWindowSeconds) {
+        this.guestDeviceWindowSeconds = guestDeviceWindowSeconds;
+    }
+
+    public long getGuestDeviceBlockSeconds() {
+        return guestDeviceBlockSeconds;
+    }
+
+    public void setGuestDeviceBlockSeconds(long guestDeviceBlockSeconds) {
+        this.guestDeviceBlockSeconds = guestDeviceBlockSeconds;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }

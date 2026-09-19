@@ -56,6 +56,7 @@ class AuthControllerUnitTest {
     private AuthSecurityProperties authSecurityProperties;
     private ClientIpResolver clientIpResolver;
     private TrialAbuseProtectionService trialAbuseProtectionService;
+    private com.ingilizce.calismaapp.service.LanguageProfileService languageProfileService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
 
@@ -73,10 +74,13 @@ class AuthControllerUnitTest {
         authSecurityProperties = new AuthSecurityProperties();
         clientIpResolver = mock(ClientIpResolver.class);
         trialAbuseProtectionService = mock(TrialAbuseProtectionService.class);
+        languageProfileService = mock(com.ingilizce.calismaapp.service.LanguageProfileService.class);
         authSecurityProperties.setExposeDebugTokens(true);
         when(authRateLimitService.checkRegister(anyString())).thenReturn(RateLimitDecision.allowed());
         when(authRateLimitService.checkLogin(anyString(), anyString())).thenReturn(RateLimitDecision.allowed());
         when(authRateLimitService.checkPasswordResetRequest(anyString())).thenReturn(RateLimitDecision.allowed());
+        when(authRateLimitService.checkGuestCreation(anyString(), anyString()))
+                .thenReturn(RateLimitDecision.allowed());
         when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         when(currentUserContext.getCurrentUserId()).thenReturn(Optional.empty());
@@ -112,7 +116,7 @@ class AuthControllerUnitTest {
                 authSecurityProperties,
                 clientIpResolver,
                 trialAbuseProtectionService,
-                mock(com.ingilizce.calismaapp.service.LanguageProfileService.class));
+                languageProfileService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
@@ -432,5 +436,191 @@ class AuthControllerUnitTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Google login temporarily unavailable"));
+    }
+
+    // ---------------------------------------------------------------------------------
+    // Guest accounts (V032): the app has to work before anybody has signed in, and signing
+    // in later must cost the learner nothing they have already done.
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    void guest_ShouldCreateAnAccountNobodyHasSignedInTo() throws Exception {
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(501L);
+            return u;
+        });
+
+        mockMvc.perform(post("/api/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "deviceId", "device-501",
+                                "displayName", "Eren",
+                                "locale", "tr"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.guest").value(true))
+                .andExpect(jsonPath("$.userId").value(501))
+                .andExpect(jsonPath("$.displayName").value("Eren"))
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                // Nothing to verify: there is no mailbox behind a guest address.
+                .andExpect(jsonPath("$.emailVerificationRequired").value(false));
+
+        verify(userRepository).save(argThat(user ->
+                user.isGuest()
+                        && user.getEmail().startsWith("guest-")
+                        && user.getEmail().endsWith("@guest.klioai.app")));
+        verify(languageProfileService).ensureDefaultProfile(501L);
+    }
+
+    @Test
+    void guest_ShouldNotSpendTheTrialTheRealAccountWillNeed() throws Exception {
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(502L);
+            return u;
+        });
+
+        mockMvc.perform(post("/api/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("deviceId", "device-502"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trialEligible").value(false));
+
+        // The device counter must not even be consulted, let alone spent: it is what decides
+        // the trial for the account this person actually creates later.
+        verify(trialAbuseProtectionService, never()).evaluate(anyString(), anyString());
+        verify(trialAbuseProtectionService, never()).recordTrialGrant(anyString(), anyString());
+    }
+
+    @Test
+    void guest_ShouldBeRefusedWhenTooManyHaveBeenOpenedFromHere() throws Exception {
+        // The registration limiter counts failures, and asking for a guest account never
+        // fails: without a limiter that counts the accounts themselves, a script gets a user
+        // row and a fresh daily AI quota on every request.
+        when(authRateLimitService.checkGuestCreation(anyString(), anyString()))
+                .thenReturn(RateLimitDecision.blocked(900));
+
+        mockMvc.perform(post("/api/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isTooManyRequests());
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void guest_ShouldWorkWithNoBodyAtAll() throws Exception {
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(503L);
+            return u;
+        });
+
+        mockMvc.perform(post("/api/auth/guest").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.guest").value(true))
+                .andExpect(jsonPath("$.displayName").value("Guest"));
+    }
+
+    @Test
+    void guest_ShouldReturnTooManyRequests_WhenRateLimited() throws Exception {
+        when(authRateLimitService.checkRegister(anyString())).thenReturn(RateLimitDecision.blocked(120));
+
+        mockMvc.perform(post("/api/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.retryAfterSeconds").value(120));
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void googleLogin_ShouldConvertTheGuestInPlace_KeepingItsId() throws Exception {
+        User guest = new User("guest-abc@guest.klioai.app", "hash", "Guest");
+        guest.setId(700L);
+        guest.setGuest(true);
+        guest.setTrialEligible(false);
+        when(currentUserContext.getCurrentUserId()).thenReturn(Optional.of(700L));
+        when(userRepository.findById(700L)).thenReturn(Optional.of(guest));
+        when(userRepository.findByEmail("real@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "real@gmail.com",
+                                "displayName", "Real Name",
+                                "googleId", "gid-700",
+                                "deviceId", "device-700"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.converted").value(true))
+                // No row was created, so this is not a new account -- but it is the signup.
+                .andExpect(jsonPath("$.newAccount").value(false))
+                .andExpect(jsonPath("$.userId").value(700))
+                .andExpect(jsonPath("$.email").value("real@gmail.com"))
+                .andExpect(jsonPath("$.displayName").value("Real Name"))
+                .andExpect(jsonPath("$.emailVerified").value(true))
+                // The trial the guest was refused is granted to the account it became.
+                .andExpect(jsonPath("$.trialEligible").value(true));
+
+        verify(userRepository).save(argThat(user ->
+                user.getId().equals(700L) && !user.isGuest() && "real@gmail.com".equals(user.getEmail())));
+        verify(trialAbuseProtectionService).recordTrialGrant("device-700", "127.0.0.1");
+    }
+
+    @Test
+    void googleLogin_ShouldLeaveTheGuestAlone_WhenTheEmailAlreadyHasAnAccount() throws Exception {
+        User guest = new User("guest-abc@guest.klioai.app", "hash", "Guest");
+        guest.setId(700L);
+        guest.setGuest(true);
+        User existing = new User("real@gmail.com", "hash", "Real Name");
+        existing.setId(800L);
+        existing.setEmailVerifiedAt(LocalDateTime.now());
+        when(currentUserContext.getCurrentUserId()).thenReturn(Optional.of(700L));
+        when(userRepository.findById(700L)).thenReturn(Optional.of(guest));
+        when(userRepository.findByEmail("real@gmail.com")).thenReturn(Optional.of(existing));
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "real@gmail.com",
+                                "displayName", "Real Name",
+                                "googleId", "gid-800"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.converted").value(false))
+                .andExpect(jsonPath("$.userId").value(800));
+
+        // The guest row is untouched here -- neither converted nor deleted. The nightly
+        // cleanup collects it once the retention window passes.
+        org.junit.jupiter.api.Assertions.assertTrue(guest.isGuest());
+        verify(userRepository, never()).save(argThat(user -> Long.valueOf(700L).equals(user.getId())));
+    }
+
+    @Test
+    void googleLogin_ShouldCreateANewAccount_WhenThePrincipalIsAlreadyARealOne() throws Exception {
+        User realPrincipal = new User("someone@gmail.com", "hash", "Someone");
+        realPrincipal.setId(900L);
+        when(currentUserContext.getCurrentUserId()).thenReturn(Optional.of(900L));
+        when(userRepository.findById(900L)).thenReturn(Optional.of(realPrincipal));
+        when(userRepository.findByEmail("other@gmail.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(901L);
+            return u;
+        });
+
+        mockMvc.perform(post("/api/auth/google-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "other@gmail.com",
+                                "displayName", "Other"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.converted").value(false))
+                .andExpect(jsonPath("$.newAccount").value(true))
+                .andExpect(jsonPath("$.userId").value(901));
     }
 }
