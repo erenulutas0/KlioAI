@@ -146,41 +146,85 @@ paylaş. `store/REDDIT.md`'deki 90/10 ilkesi buraya da uygulanır.
 
 ## 3. Mesaj şablonları (Türkçe, olduğu gibi gönderilebilir)
 
+Önce bir ilke: **abartma.** Konuşma özelliği iyi ama kusursuz değil — bazen
+yanlış duyuyor, bazen gereksiz düzeltiyor. Bunu mesajda kendimiz söylersek iki
+şey kazanırız: öğretmen "bu adam dürüst" diye okumaya devam eder, ve deneyen
+kişi ilk yanlış duymada "kandırıldım" demez. Yanlış beklentiyle gelen
+kullanıcı en çabuk kaybedilen kullanıcıdır.
+
+**Hiçbir mesajda geçmemesi gerekenler:** "ana dili gibi", "hatasız", "her
+şeyi anlıyor", "en iyi", "devrim". Bunların hiçbiri doğru değil ve hepsi
+okuyanın gözünde bir şey kırıyor.
+
 ### Öğretmene ilk mesaj
 
+Köşeli parantezleri doldurmadan gönderme; ikinci cümle, o hesabın gerçekten
+okunduğunu gösteren tek cümledir ve mesajı toplu DM olmaktan çıkaran da odur.
+
 ```
-Merhaba [isim], ben [ad soyad] — İngilizce öğrenme uygulaması KlioAI'ı tek
-başıma geliştiriyorum. [Videonuzu/postunuzu] izledim, konuşma pratiğine
-verdiğiniz önem dikkatimi çekti.
+Merhaba [isim], ben Eren. KlioAI adında bir İngilizce uygulamasını tek
+başıma geliştiriyorum. [Şu videonuzda / şu yazınızda] konuşma pratiği
+hakkında söylediğiniz şey aklımda kaldı, o yüzden size yazıyorum.
 
-Uygulamada sesli bir yapay zekâ öğretmen var; sahne kuruyor (restoran, otel,
-mülakat), yaklaşık bir saniyede cevap veriyor, ve öğrenci takıldığı kelimeyi
-Türkçe söyleyince konuşmayı bozmadan İngilizcesini öğretiyor.
+Uygulamanın özü sesli bir konuşma pratiği: öğrenci bir garsonla,
+resepsiyonistle ya da mülakatçıyla İngilizce konuşuyor. Cümlenin ortasında
+kelime gelmeyince Türkçesini söylüyor; konuşma kesilmiyor, o kelimenin
+İngilizcesi bir kartla önüne geliyor.
 
-Satmak için yazmıyorum — profesyonel bir gözle deneyip ne bozuk, ne eksik,
-nerede yanlış olduğunu söylerseniz çok değerli olur. İsterseniz size kalıcı
-ve ücretsiz premium tanımlayabilirim, karşılığında hiçbir şey istemiyorum.
-Uygun olursa hangi e-posta ile kayıt olacağınızı yazmanız yeterli.
+Dürüst olayım: bu bir yapay zekâ ve henüz kusursuz değil. Bazen yanlış
+duyuyor, bazen gereksiz düzeltiyor. Tam da bu yüzden bir öğretmenin gözüne
+ihtiyacım var: neresi gerçekten işe yarıyor, neresi öğrenciyi yanıltır?
+
+Satış için yazmıyorum. Denemeyi kabul ederseniz hesabınıza kalıcı ve
+ücretsiz PRO tanımlarım; karşılığında tek istediğim açık sözlü birkaç
+cümle. Uygun değilse de sorun değil, okuduğunuz için teşekkürler.
+```
+
+### Öğretmen denedikten sonra (bir hafta geçince)
+
+Bu mesaj ilkinden daha önemli. İlki kapıyı açar, bu işe yarayan bilgiyi getirir.
+
+```
+Merhaba [isim], denediğiniz için teşekkürler. Üç kısa soru sorsam:
+
+1. En çok neresi rahatsız etti?
+2. Bir öğrencinize önerir miydiniz? Önermezseniz neden?
+3. Tek bir şeyi değiştirebilsem ne olmalı?
+
+Tek kelimelik cevaplar da olur. Yanlış duyma, saçma düzeltme, özellikle
+bunları duymak istiyorum — iyi taraflarını zaten biliyorum, kötülerini
+düzeltmem gerekiyor.
 ```
 
 ### Topluluk gönderisi (Telegram/Discord/forum için genel)
 
 ```
-Selam, ben bu uygulamayı yapan geliştiriciyim, saklamak istemem.
+Selam, ben bu uygulamayı yapan kişiyim; bunu baştan söyleyeyim.
 
-Konuşma pratiği için sesli bir yapay zekâ öğretmen içeren bir İngilizce
-uygulaması yapıyorum (KlioAI). Takıldığınız kelimeyi Türkçe söyleyip devam
-edebiliyorsunuz, o an İngilizcesini öğretiyor.
+KlioAI'da sesli bir konuşma pratiği var: bir garsonla ya da mülakatçıyla
+İngilizce konuşuyorsunuz, kelime gelmeyince Türkçesini söylüyorsunuz,
+konuşma kesilmiyor ve doğrusu kartla geliyor. Hesap açmadan deneniyor.
 
-[YDS/YÖKDİL/IELTS] hazırlığına gerçekten faydası olur mu, yoksa eksik bir
-yanı mı var bilmiyorum — deneyip söylerseniz sevinirim: [link]
+Kusursuz değil: yapay zekâ bazen yanlış duyuyor, bazen fazla düzeltiyor.
+[YDS/IELTS] konuşma bölümüne gerçekten faydası olur mu, yoksa sizi
+yanıltacak bir yanı mı var — ben kendi yaptığım şeye tarafsız bakamıyorum.
+Deneyip en kötü yanını yazarsanız gerçekten işime yarar: [link]
 ```
 
 ### "Bu hangi uygulama?" sorusuna cevap
 
 ```
-KlioAI, Play Store'da ücretsiz. Ben geliştiricisiyim, sorunuz olursa
-buradan yazabilirsiniz.
+KlioAI, Play Store'da; hesap açmadan denenebiliyor. Geliştiricisi benim,
+takıldığınız bir şey olursa yazın, bakarım.
+```
+
+### Olumsuz cevaba cevap
+
+Biri "denedim, beğenmedim" derse bu en değerli mesajdır; savunmaya geçme.
+
+```
+Teşekkürler, tam bunu duymak istiyordum. Neresi oldu? Yanlış mı duydu,
+saçma mı düzeltti, yavaş mı geldi? Tek cümle yeter, düzeltmeye çalışırım.
 ```
 
 ---
