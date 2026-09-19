@@ -21,9 +21,12 @@ public class GuestAccountCleanupScheduler {
     private boolean enabled = true;
 
     /**
-     * How long an unconverted guest is kept. Long enough that someone who tried the app,
-     * closed it and came back a fortnight later still finds their words where they left them;
-     * short enough that a month of one-time installs is not carried forever.
+     * How long an unconverted guest is kept after it was last used -- not after it was
+     * created, which would have deleted accounts people were still using. Thirty days matches
+     * the life of the refresh token that is a guest's only key: past that they cannot get back
+     * into the account anyway, because there is no email, no password and no Google account on
+     * it. Someone who tried the app, closed it and came back a fortnight later still finds
+     * their words where they left them.
      */
     @Value("${app.guest.cleanup.retention-days:30}")
     private int retentionDays = 30;

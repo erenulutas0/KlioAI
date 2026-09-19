@@ -38,15 +38,23 @@ public class GuestAccountCleanupService {
     private static final Logger log = LoggerFactory.getLogger(GuestAccountCleanupService.class);
 
     /**
-     * The two extra conditions are not about guests being old enough. Nothing stops a learner
-     * from subscribing before they sign in -- Google Play takes the money from the device, not
-     * from an account -- and deleting a row somebody has paid against would destroy the only
-     * record of what they bought. A guest who has paid stays until a person decides otherwise.
+     * Last used, not created. This read created_at first, which would have deleted the account
+     * of a learner who had been talking to the tutor every day for a month, on the thirty-first
+     * day, while they were using it. What makes a guest worth collecting is that nobody can get
+     * back into it: the refresh token is its only key, it lives thirty days, and every launch
+     * renews it. A guest not seen for longer than that window is already locked out of their
+     * own account. COALESCE covers the commonest guest of all -- created, never used, never
+     * stamped.
+     *
+     * <p>The two conditions after it are not about age. Nothing stops a learner from
+     * subscribing before they sign in -- Google Play takes the money from the device, not from
+     * an account -- and deleting a row somebody has paid against would destroy the only record
+     * of what they bought. A guest who has paid stays until a person decides otherwise.
      */
     private static final String SELECT_EXPIRED_GUESTS =
             "SELECT id FROM users u"
                     + " WHERE u.is_guest = TRUE"
-                    + " AND u.created_at < :cutoff"
+                    + " AND COALESCE(u.last_seen_at, u.created_at) < :cutoff"
                     + " AND u.subscription_end_date IS NULL"
                     + " AND NOT EXISTS (SELECT 1 FROM payment_transactions p WHERE p.user_id = u.id)"
                     + " ORDER BY u.id LIMIT :limit";

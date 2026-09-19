@@ -444,6 +444,13 @@ class ContainerizedCoreIntegrationTest {
                         + " VALUES (?, ?, ?, ?, ?, FALSE)",
                 "real-person@example.com", "x", "Eren", "#90003",
                 Timestamp.valueOf(LocalDateTime.now().minusDays(60)));
+        // Created long ago, used this morning: the rule is last use, not age.
+        jdbcTemplate.update(
+                "INSERT INTO users (email, password_hash, display_name, user_tag, created_at, last_seen_at, is_guest)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, TRUE)",
+                "guest-daily@guest.klioai.app", "x", "Guest", "#90004",
+                Timestamp.valueOf(LocalDateTime.now().minusDays(120)),
+                Timestamp.valueOf(LocalDateTime.now().minusHours(2)));
         Long oldGuestId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE email = ?", Long.class, "guest-old@guest.klioai.app");
         // One child in a table with no foreign key to users, which is the case a cascade would
@@ -465,6 +472,9 @@ class ContainerizedCoreIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(1, (int) jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM users WHERE email = 'real-person@example.com'", Integer.class),
                 "an account somebody signed in to was deleted");
+        org.junit.jupiter.api.Assertions.assertEquals(1, (int) jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM users WHERE email = 'guest-daily@guest.klioai.app'", Integer.class),
+                "a guest who used the app this morning was collected for being old");
     }
 
     private void collectIndexNames(JsonNode node, Set<String> names) {

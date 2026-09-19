@@ -134,6 +134,35 @@ class GuestAccountCleanupServiceTest {
     }
 
     @Test
+    void aGuestStillBeingUsedIsNotCollectedHoweverOldTheAccountIs() {
+        // The rule was "created more than thirty days ago", which would have deleted the
+        // account of a learner who had been talking to the tutor every day since they
+        // installed it -- on the thirty-first day, mid-use. What makes a guest collectable is
+        // that nobody can get back into it: its refresh token is the only key and it is
+        // renewed on every launch.
+        User daily = user(true, LocalDateTime.now().minusDays(120));
+        daily.setLastSeenAt(LocalDateTime.now().minusHours(2));
+        userRepository.save(daily);
+        givePossessions(daily);
+
+        assertEquals(0, service.purgeBatch(CUTOFF, 100));
+
+        assertTrue(userRepository.findById(daily.getId()).isPresent());
+        assertEquals(1, rowsFor("words", daily.getId()));
+    }
+
+    @Test
+    void aGuestNobodyHasOpenedForLongerThanItsSessionLivesIsCollected() {
+        User abandoned = user(true, LocalDateTime.now().minusDays(120));
+        abandoned.setLastSeenAt(LocalDateTime.now().minusDays(45));
+        userRepository.save(abandoned);
+
+        assertEquals(1, service.purgeBatch(CUTOFF, 100));
+
+        assertTrue(userRepository.findById(abandoned.getId()).isEmpty());
+    }
+
+    @Test
     void anAccountThatBelongsToSomebodyIsNeverTakenHoweverOldItIs() {
         User real = user(false, LocalDateTime.now().minusDays(400));
         givePossessions(real);
