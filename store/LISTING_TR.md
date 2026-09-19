@@ -5,9 +5,10 @@ Play sınırları: uygulama adı 30, kısa açıklama 80, tam açıklama 4000 ka
 Bu metin **Türkçe çeviri girişine** gidiyor (`Türkçe – tr`). Varsayılan
 (`en-US`) girişe İngilizcesi gidiyor — o `LISTING_EN.md` içinde.
 
-Eski metin uygulamanın yaptığı her şeyi sayan bir listeydi. Bu metin tek bir
-şeyi satıyor: takıldığın yerde kendi dilini konuşabilmeni. Nedeni ve ekran
-görüntüsü planı `LISTING.md` içinde.
+İki ilke. Tek bir şey satıyor: takıldığın yerde kendi dilini konuşabilmeni;
+gerisi bir paragraf. Ve kusurunu kendisi söylüyor: yapay zekâ bazen yanlış
+duyar. Bunu mağazada söylemeyip ilk konuşmada yaşatmak, kullanıcıyı en hızlı
+kaybetme yolu. Ekran görüntüsü planı `LISTING.md` içinde.
 
 ---
 
@@ -17,13 +18,13 @@ görüntüsü planı `LISTING.md` içinde.
 KlioAI: Takılınca Türkçe Söyle
 ```
 
-**30 karakter.**
+**30 karakter.** Adı değiştirmek isteğe bağlı; "KlioAI" olarak bırakmak da geçerli.
 
 ---
 ## Kısa açıklama (80)
 
 ```
-Takılınca Türkçe söyle: KlioAI konuşmayı sürdürür, İngilizcesini gösterir.
+Konuşurken takıldın mı? Türkçe söyle, konuşma sürsün, İngilizcesini öğren.
 ```
 
 **74 karakter.** Arama sonuçlarında uygulama adının altında görünen satır bu.
@@ -32,22 +33,25 @@ Takılınca Türkçe söyle: KlioAI konuşmayı sürdürür, İngilizcesini gös
 ## Tam açıklama (4000)
 
 ```
-KlioAI, İngilizce öğrenirken herkesin yaşadığı şu ana göre kuruldu: konuşurken cümlenin ortasında kelime kayboluyor.
+İngilizce konuşurken herkesin başına gelen an: cümlenin ortasındasın, kelime gelmiyor. KlioAI o an için yapıldı.
 
 TAKILINCA TÜRKÇE SÖYLE
-Sesli konuşma ekranında bir karakterle İngilizce konuşursun — garson, otel resepsiyonisti, doktor. Cümlenin ortasında bilmediğin kelimeye gelince Türkçesini söyle: "I'd like the pasta, and also biraz su alabilir miyiz?" gibi. KlioAI bunun İngilizce olmadığını fark eder; kulağına uydurma bir İngilizce cümle söylemek yerine, tam olarak ne duyduğunu Türkçe yazıp önüne koyar, sen "Gönder"e basarsın. Konuşma kesilmez, kaldığı yerden sürer — garson suyu getirir. Cevabın altında beliren küçük bir kartta Türkçe söylediğin kısmın üstü çizili, yanında söylemen gereken İngilizcesi duruyor. Kelimeyi unuttuğun an konuşmanın sonu değil, öğrendiğin an oluyor.
+Sesli konuşma ekranında bir karakterle konuşursun: garson, otel resepsiyonisti, doktor, mülakatçı. Bilmediğin kelimeye gelince Türkçesini söyle: "I'd like the pasta, and also biraz su alabilir miyiz?" Uygulama bunun İngilizce olmadığını anlar, ne duyduğunu sana gösterir, sen Gönder'e basarsın. Konuşma kesilmez; garson suyu getirir. Cevabın altında küçük bir kart belirir: Türkçe söylediğin kısmın üstü çizili, yanında söylemen gereken İngilizce. Kelimeyi unuttuğun an konuşmanın bittiği yer olmaktan çıkar, öğrendiğin yer olur.
 
 HESAP AÇMADAN DENE
-Uygulamayı ilk açtığında hiçbir şey sorulmuyor: doğrudan konuşmaya başlıyorsun. İlerlemeni kaydetmek istediğinde giriş yaparsın, o ana kadar yaptıkların hesabına taşınır.
+İlk açtığında hiçbir şey sorulmaz, doğrudan konuşmaya başlarsın. İlerlemeni saklamak istediğinde giriş yaparsın; o ana kadar yaptıkların hesabına taşınır.
+
+DÜRÜST BİR NOT
+Karşındaki bir yapay zekâ; bazen yanlış duyar. Bu yüzden ne duyduğunu göndermeden önce her zaman görürsün ve düzeltebilirsin. Bir öğretmenin yerini tutmaz; öğretmenin ya da bir yabancının karşısına çıkmadan önce konuşma cesareti verir.
 
 AYNI UYGULAMADA
-Baştan sona okuyabileceğin gerçek kitaplar (Sherlock Holmes, Ezop Masalları, Dr. Jekyll ve Bay Hyde), bilmediğin kelimeye dokunup o cümledeki anlamını görme, kaydettiğin kelimenin tam kaybetmek üzereyken önüne gelen tekrarı, kısa ve biten bir günlük plan, kendi kelimelerinden kurulan çeviri alıştırmaları, örnekli gramer anlatımları ve yazdığın metne yapay zekâ geri bildirimi.
+Baştan sona okuyabileceğin gerçek kitaplar (Sherlock Holmes, Ezop Masalları, Dr. Jekyll ve Bay Hyde), bilmediğin kelimeye dokunup o cümledeki anlamını görme, kaydettiğin kelimenin tam unutmak üzereyken karşına çıkması, kısa ve gerçekten biten bir günlük plan, kendi kelimelerinden kurulan çeviri alıştırmaları, örnekli gramer anlatımları ve yazdığın metne geri bildirim.
 
-Arayüz Türkçe dahil yedi dilde; bir düzeltmenin altındaki "neden yanlıştı" satırı da kendi dilinde gelebiliyor. Karşındaki her zaman İngilizce konuşuyor ve İngilizce cevap veriyor — pratiğin sebebi zaten o.
+Arayüz Türkçe dahil yedi dilde; düzeltmenin altındaki "neden" satırı da kendi dilinde gelir. Karşındaki her zaman İngilizce konuşur ve İngilizce cevap verir; pratiğin sebebi zaten bu.
 
-Kelime listesi, tekrarlar, kitaplar ve gramer anlatımları ücretsiz. Konuşma ekranı dahil yapay zekâ özellikleri günlük bir kotayla çalışıyor; yeni hesaplar 7 günlük deneme kotasıyla başlıyor, sonrasında her gün yenilenen ücretsiz bir hak kalıyor, PRO ise kotayı yükseltiyor. Reklam yok, seni suçlayan bir seri sayaçı yok, sıralama tablosu yok.
+Kelime listesi, tekrarlar, kitaplar ve gramer ücretsiz. Konuşma dahil yapay zekâ özellikleri günlük bir kotayla çalışır; yeni hesaplar 7 günlük deneme kotasıyla başlar, sonrasında her gün yenilenen ücretsiz bir hak kalır, PRO kotayı yükseltir. Reklam yok, seni suçlayan seri sayaçı yok, sıralama tablosu yok.
 ```
 
-**1933 karakter.** İlk paragraf, Play'in "daha fazla" demeden gösterdiği kısım.
+**1976 karakter.** İlk paragraf, Play'in "daha fazla" demeden gösterdiği kısım.
 
 ---
