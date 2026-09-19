@@ -162,6 +162,27 @@ class NfTutorSessions {
   /// re-reads on every launch.
   static const int _maxBytes = 256 * 1024;
 
+  /// The most recent phrase the tutor corrected, or null when there is none.
+  ///
+  /// Read by the daily reminder, which says it back to the learner: a notification about
+  /// their own sentence is a different thing from one about the app. Newest conversation
+  /// first, and the newest correction inside it.
+  static Future<String?> lastCorrectedPhrase() async {
+    try {
+      for (final NfTutorSession session in await load()) {
+        for (final NfSavedTurn turn in session.turns.reversed) {
+          final String? said = turn.correction?.said.trim();
+          if (said != null && said.isNotEmpty) {
+            return said;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Last correction unavailable: $e');
+    }
+    return null;
+  }
+
   static Future<List<NfTutorSession>> load() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();

@@ -8,6 +8,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../frontend_newest/nf_shell.dart';
+import '../frontend_newest/services/nf_tutor_sessions.dart';
 import '../app_navigator.dart';
 import '../l10n/app_localizations.dart';
 import 'analytics_service.dart';
@@ -230,6 +231,25 @@ class LocalReminderService {
     return _requestNotificationPermission();
   }
 
+  /// Whether notifications are already allowed, asked without asking anyone.
+  ///
+  /// The offer made after a learner's first conversation has to know the difference between
+  /// "has not been asked" and "said no": on Android 13 the second refusal closes the setting
+  /// for good, so an offer that leads to a prompt nobody will see is worse than no offer.
+  Future<bool> hasNotificationPermission() async {
+    try {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.areNotificationsEnabled() ?? false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Notification permission state unavailable: $e');
+      return false;
+    }
+  }
+
   Future<void> showRemoteNotification({
     required String title,
     required String body,
@@ -333,8 +353,10 @@ class LocalReminderService {
       'KlioAI',
       // The old copy was one hardcoded English sentence sent to an audience learning
       // English *from Turkish*. Being unable to read your own reminder is a strange way
-      // to be reminded.
-      copy('notif.push.daily.body'),
+      // to be reminded. It is their own last mistake now when there is one -- a generic
+      // "time to practise" is a notification about the app, and a learner's own sentence
+      // is a notification about them.
+      await _dailyReminderBody(),
       _nextReminderTime(),
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -343,6 +365,24 @@ class LocalReminderService {
       matchDateTimeComponents: DateTimeComponents.time,
       payload: 'daily_practice',
     );
+  }
+
+  /// Their last correction, when the tutor has made one, and the general line otherwise.
+  ///
+  /// Read from the conversations kept on this device, so nothing is sent anywhere to make a
+  /// reminder personal. The scheduled text is fixed until the next time the app schedules,
+  /// which is every launch, so it says "you said" rather than "yesterday you said".
+  Future<String> _dailyReminderBody() async {
+    try {
+      final String? said = await NfTutorSessions.lastCorrectedPhrase();
+      if (said != null && said.trim().isNotEmpty && said.trim().length <= 60) {
+        return copy('notif.push.daily.body.correction',
+            args: <String, String>{'said': said.trim()});
+      }
+    } catch (e) {
+      debugPrint('Personal reminder body unavailable: $e');
+    }
+    return copy('notif.push.daily.body');
   }
 
   Future<void> scheduleStreakGuardReminder() async {

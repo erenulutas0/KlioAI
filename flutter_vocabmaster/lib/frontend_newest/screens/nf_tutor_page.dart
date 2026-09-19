@@ -39,6 +39,7 @@ import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
 import '../widgets/nf_guest_sign_in.dart';
+import '../widgets/nf_reminder_offer.dart';
 import '../widgets/nf_rating_card.dart';
 import '../widgets/nf_word_lookup.dart';
 
@@ -840,9 +841,10 @@ class _NfTutorPageState extends State<NfTutorPage> {
       }
       unawaited(_persist());
       await _maybeAwardSessionXp();
-      // One ask per conversation, and the account comes first: a rating is worth
-      // less than a learner we can still reach tomorrow.
-      if (!await _maybeAskGuestToSignIn()) {
+      // One ask per conversation, in the order of what it is worth: an account
+      // we can bring them back to, then permission to bring them back, then how
+      // it went. A rating is worth less than a learner we can still reach.
+      if (!await _maybeAskGuestToSignIn() && !await _maybeOfferReminder()) {
         await _maybeAskForRating();
       }
     } catch (e) {
@@ -955,6 +957,24 @@ class _NfTutorPageState extends State<NfTutorPage> {
       return false;
     }
     return NfGuestSignInSheet.maybeShow(context, reason: 'tutor');
+  }
+
+  /// Offer to remind them tomorrow, once there has been a today.
+  ///
+  /// The same three turns as the sign-in offer, and never in the same breath as it: a
+  /// learner who has just been asked for an account is not also asked for notifications.
+  /// The system prompt is opened only by somebody who says yes here, which is the whole
+  /// point -- see [NfReminderPromptSchedule]. Returns whether the sheet was shown.
+  Future<bool> _maybeOfferReminder() async {
+    if (!mounted) {
+      return false;
+    }
+    final int learnerTurns =
+        _turns.where((_NfTurn turn) => !turn.fromTutor).length;
+    if (learnerTurns < 3) {
+      return false;
+    }
+    return NfReminderOfferSheet.maybeShow(context, reason: 'tutor');
   }
 
   // ---------------------------------------------------------------------------

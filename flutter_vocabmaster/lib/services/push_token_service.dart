@@ -38,14 +38,27 @@ class PushTokenService {
   final AuthService _authService;
   final bool _skipMessagingInstance;
 
+  /// Registers this device for the server's reminders -- but only once the learner has
+  /// agreed to be reminded.
+  ///
+  /// This used to open with the system permission prompt, which made it the first thing a
+  /// new install saw: a dialog about notifications, before the app had said anything at all.
+  /// Android 13 gives an app two refusals and then closes the setting for good, and 12 of
+  /// 105 accounts had a push token to show for it -- so the reminders meant to bring people
+  /// back could not reach nine in ten of them. The asking now happens after a conversation,
+  /// in the learner's own language, in NfReminderOfferSheet; this only registers a device
+  /// that has already said yes, and is called again from there the moment it does.
   Future<void> initialize() async {
     if (_initialized || kIsWeb || _skipMessagingInstance) {
       return;
     }
-    _initialized = true;
 
     try {
-      await _requestNotificationPermission();
+      if (!await _hasNotificationPermission()) {
+        return;
+      }
+      _initialized = true;
+      await _setForegroundPresentationOptions();
       await _registerCurrentToken(force: false);
       _messaging!.onTokenRefresh.listen((token) {
         unawaited(_registerToken(token, force: true));
@@ -81,21 +94,28 @@ class PushTokenService {
     }
   }
 
-  Future<void> _requestNotificationPermission() async {
+  /// Whether the learner has already allowed notifications. Never asks.
+  Future<bool> _hasNotificationPermission() async {
     try {
-      await _messaging!.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      final NotificationSettings settings =
+          await _messaging!.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (e) {
+      debugPrint('Push permission state unavailable: $e');
+      return false;
+    }
+  }
+
+  Future<void> _setForegroundPresentationOptions() async {
+    try {
       await _messaging!.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
-      await LocalReminderService().requestNotificationPermission();
     } catch (e) {
-      debugPrint('Push notification permission skipped: $e');
+      debugPrint('Foreground notification options skipped: $e');
     }
   }
 
