@@ -366,6 +366,19 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
               // First. Everything below it is easier to follow once Amy knows
               // who she is talking to.
               _ProfileStep(),
+              // First of the four. Somebody who installed after being told
+              // "say it in your own language and learn the English" meets
+              // that here, before the word list.
+              _TourSlide(
+                icon: LucideIcons.messagesSquare,
+                titleKey: 'onboarding.tour.practice.title',
+                bodyKey: 'onboarding.tour.practice.body',
+                pointKeys: <String>[
+                  'onboarding.tour.practice.p1',
+                  'onboarding.tour.practice.p2',
+                  'onboarding.tour.practice.p3',
+                ],
+              ),
               _TourSlide(
                 icon: LucideIcons.bookMarked,
                 titleKey: 'onboarding.tour.deck.title',
@@ -398,16 +411,6 @@ class _NfOnboardingFlowState extends State<_NfOnboardingFlow> {
                   'onboarding.tour.review.p1',
                   'onboarding.tour.review.p2',
                   'onboarding.tour.review.p3',
-                ],
-              ),
-              _TourSlide(
-                icon: LucideIcons.messagesSquare,
-                titleKey: 'onboarding.tour.practice.title',
-                bodyKey: 'onboarding.tour.practice.body',
-                pointKeys: <String>[
-                  'onboarding.tour.practice.p1',
-                  'onboarding.tour.practice.p2',
-                  'onboarding.tour.practice.p3',
                 ],
               ),
             ],

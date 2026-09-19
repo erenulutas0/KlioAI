@@ -234,6 +234,11 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 todayIndex: model.todayIndex,
               ),
               const SizedBox(height: NfSpace.s16),
+              // Before the plan, not after the day's words: the spoken tutor is
+              // what the app is downloaded for, and it used to be the fifth
+              // thing on this screen.
+              _TutorCard(onOpenTutor: widget.onOpenTutor),
+              const SizedBox(height: NfSpace.s16),
               _PlanCard(
                 model: model,
                 onStartSession: widget.onStartSession,
@@ -246,8 +251,6 @@ class _NfTodayPageState extends State<NfTodayPage> {
                 const SizedBox(height: NfSpace.s16),
                 _DailyWordsCard(model: model),
               ],
-              const SizedBox(height: NfSpace.s16),
-              _TutorCard(onOpenTutor: widget.onOpenTutor),
               const SizedBox(height: NfSpace.s16),
               // Above the stat tiles, not under the week strip. The strip
               // up top is about today; this belongs with the totals, which is
