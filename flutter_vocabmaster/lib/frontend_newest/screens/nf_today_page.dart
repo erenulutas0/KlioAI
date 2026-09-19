@@ -13,6 +13,7 @@ import '../../models/voice_model.dart';
 import '../../models/word.dart';
 import '../../models/word_origins.dart';
 import '../../providers/app_state_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/learning_language_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/xp_manager.dart';
@@ -112,12 +113,27 @@ class _NfTodayPageState extends State<NfTodayPage> {
   /// learner's fault.
   NfPracticeHistory? _history;
 
+  /// Whether nobody has signed in to this account yet. See NfGuestGate.
+  bool _isGuest = false;
+
   @override
   void initState() {
     super.initState();
     // The tutor card names the speaker. Today can be the first tab a learner
     // sees, so it must not wait for the tutor tab to read the stored choice.
     unawaited(NfTutorVoice.ensureLoaded());
+    unawaited(_readGuestState());
+  }
+
+  /// A guest's display name is the word "Guest", which the server generates and
+  /// nobody chose. Greeting a Turkish learner with "Hos geldin, Guest" on the
+  /// first screen they ever see is worse than greeting them with nothing, so
+  /// the name is left out until there is one they gave.
+  Future<void> _readGuestState() async {
+    final bool guest = await AuthService().isGuestSession();
+    if (mounted && guest != _isGuest) {
+      setState(() => _isGuest = guest);
+    }
   }
 
   @override
@@ -214,7 +230,7 @@ class _NfTodayPageState extends State<NfTodayPage> {
             ),
             children: <Widget>[
               _GreetingRow(
-                name: model.userName,
+                name: _isGuest ? '' : model.userName,
                 streak: model.streak,
                 cefrLevel: model.cefrLevel,
                 targetLanguage: model.targetLanguage,
@@ -294,6 +310,7 @@ class _TodayModel {
     required this.level,
     required this.levelProgress,
     required this.trialDaysRemaining,
+    required this.trialActive,
   });
 
   factory _TodayModel.from(
@@ -405,6 +422,7 @@ class _TodayModel {
       level: math.max(1, _asInt(stats['level'], fallback: 1)),
       levelProgress: appState.xpManager.levelProgress(xp),
       trialDaysRemaining: trialDays,
+      trialActive: appState.userInfo?['trialActive'] == true,
     );
   }
 
@@ -429,10 +447,24 @@ class _TodayModel {
   /// Days of free trial left, or null when the learner is not on one.
   final int? trialDaysRemaining;
 
+  /// Straight from the server's quota answer, rather than inferred from the
+  /// day count above.
+  final bool trialActive;
+
   /// Only in the last two days. A notice that shows for the whole week is
   /// wallpaper by day three; two days is a warning before the wall.
+  /// The last two days of a trial that is actually running.
+  ///
+  /// The server sends `trialDaysRemaining: 0` to mean "no trial" -- for an
+  /// account whose week is over, and for every guest, who is deliberately not
+  /// given one. Read as a countdown, zero is the most urgent number there is,
+  /// so the first screen told every free learner "your free trial ends today",
+  /// for ever. It says nothing now unless a trial is running and nearly out.
   bool get showTrialNotice =>
-      trialDaysRemaining != null && trialDaysRemaining! <= 2;
+      trialActive &&
+      trialDaysRemaining != null &&
+      trialDaysRemaining! > 0 &&
+      trialDaysRemaining! <= 2;
 
   bool get hasWords => plan.hasWords;
 

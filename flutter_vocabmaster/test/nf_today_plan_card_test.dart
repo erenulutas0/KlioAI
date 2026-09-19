@@ -31,6 +31,10 @@ class _LoadedAppState extends AppStateProvider {
 
   List<Word> words;
   Map<String, dynamic> stats;
+  Map<String, dynamic> info = const <String, dynamic>{};
+
+  @override
+  Map<String, dynamic>? get userInfo => info;
 
   @override
   bool get isInitialized => true;
@@ -71,6 +75,7 @@ void main() {
     Size size = const Size(400, 900),
     List<Word> words = const <Word>[],
     Map<String, dynamic> stats = const <String, dynamic>{},
+    Map<String, dynamic> info = const <String, dynamic>{},
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -79,7 +84,7 @@ void main() {
 
     SharedPreferences.setMockInitialValues(<String, Object>{});
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
-    appState = _LoadedAppState(words: words, stats: stats);
+    appState = _LoadedAppState(words: words, stats: stats)..info = info;
 
     await tester.pumpWidget(
       MultiProvider(
@@ -112,6 +117,37 @@ void main() {
         difficulty: 'easy',
         nextReviewDate: due,
       );
+
+  testWidgets('no trial notice for somebody who is not on a trial',
+      (WidgetTester tester) async {
+    // The server says "no trial" by sending zero days, and the banner read that
+    // as the most urgent number there is: every free learner, and every guest,
+    // was told on the first screen that their trial ended today.
+    await showToday(tester, info: <String, dynamic>{
+      'trialActive': false,
+      'trialDaysRemaining': 0,
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining(AppLocalizations(const Locale('tr')).t('trial.notice.today')),
+        findsNothing);
+  });
+
+  testWidgets('but a trial with a day left still says so',
+      (WidgetTester tester) async {
+    await showToday(tester, info: <String, dynamic>{
+      'trialActive': true,
+      'trialDaysRemaining': 1,
+    });
+    // The notice hides itself until it has read whether it was dismissed today.
+    await tester.pumpAndSettle();
+
+    expect(
+        find.textContaining(AppLocalizations(const Locale('tr'))
+            .t('trial.notice')
+            .replaceAll('{n}', '1')),
+        findsOneWidget);
+  });
 
   testWidgets('the plan card draws its steps without overflowing',
       (WidgetTester tester) async {
