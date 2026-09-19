@@ -17,6 +17,7 @@ class AuthService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userDataKey = 'user_data';
   static const String _rememberMeKey = 'remember_me';
+  static const String _guestKey = 'session_is_guest';
   static const String _deviceIdKey = 'install_device_id';
   static const String _forcedResetMigrationKey =
       'forced_auth_reset_2026_04_23_v2';
@@ -118,6 +119,78 @@ class AuthService {
   Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// An account the learner never asked for, so the first conversation can happen
+  /// before anything is asked of them.
+  ///
+  /// The app used to open on "sign in with Google". Firebase counted 235 people
+  /// opening it in a month against 40 accounts, and of 105 accounts only 11 ever
+  /// came back on a second day: most people were leaving at the door, before the
+  /// tutor had said a word. The server issues a real account with `guest` set, so
+  /// every endpoint works exactly as it does for anyone else; signing in later
+  /// converts that same row and keeps the words and conversations
+  /// (see AuthController.guest).
+  Future<bool> startGuestSession({String? locale}) async {
+    try {
+      final baseUrl = await AppConfig.apiBaseUrl;
+      final deviceId = await getOrCreateDeviceId();
+      final uri = Uri.parse('$baseUrl/auth/guest');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': deviceId,
+        },
+        body: jsonEncode({
+          'deviceId': deviceId,
+          if (locale != null && locale.isNotEmpty) 'locale': locale,
+        }),
+      );
+
+      final data = _decodeResponseBodyMap(
+        response.body,
+        context: 'guest',
+        url: uri,
+      );
+      if (response.statusCode != 200 || data['success'] != true) {
+        _debugLog('startGuestSession refused status=${response.statusCode}');
+        return false;
+      }
+
+      final token = data['accessToken'] ?? data['sessionToken'];
+      final refreshToken = data['refreshToken'];
+      if (token == null || refreshToken == null) {
+        return false;
+      }
+      final user = _normalizeUserPayload(
+        data['user'],
+        fallback: {
+          'id': data['userId'],
+          'role': 'USER',
+          'displayName': 'Guest',
+          'userTag': '#00000',
+        },
+        responseData: data,
+      );
+      await saveSession(token, refreshToken, user, guest: true);
+      _debugLog('startGuestSession ok userId=${user['id']}');
+      return true;
+    } catch (e) {
+      _debugLog('startGuestSession exception=$e');
+      return false;
+    }
+  }
+
+  /// Whether this session belongs to an account nobody has signed in to yet.
+  Future<bool> isGuestSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getBool(_guestKey) ?? false) && await isLoggedIn();
+    } catch (e) {
+      debugPrint('Guest session check failed: $e');
+      return false;
+    }
   }
 
   /// Login (E-posta & Şifre)
@@ -357,11 +430,18 @@ class AuthService {
         'POST $baseUrl/auth/google-login with googleId=${googleUser.id} email=${googleUser.email}',
       );
       googleLoginUri = Uri.parse('$baseUrl/auth/google-login');
+      // The guest's own token, when there is one: the server converts that
+      // account in place rather than leaving its words behind in a row nobody
+      // can reach again. Sent only for a guest -- a signed-in learner adding a
+      // second Google account is switching accounts, not converting one.
+      final String? guestToken = await isGuestSession() ? await getToken() : null;
       final response = await http.post(
         googleLoginUri,
         headers: {
           'Content-Type': 'application/json',
           'X-Device-Id': deviceId,
+          if (guestToken != null && guestToken.isNotEmpty)
+            'Authorization': 'Bearer $guestToken',
         },
         body: jsonEncode(requestBody),
       );
@@ -433,7 +513,7 @@ class AuthService {
   /// Oturumu kaydet
   Future<void> saveSession(
       String token, String refreshToken, Map<String, dynamic> user,
-      {bool rememberMe = true}) async {
+      {bool rememberMe = true, bool guest = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final previousUserId = await _resolveStoredUserId(prefs);
     final resolvedId = _toInt(user['id']) ?? _toInt(user['userId']);
@@ -453,6 +533,7 @@ class AuthService {
     await prefs.remove(_userDataKey);
     await _removeLegacyOfflineCredentials(prefs);
     await prefs.setBool(_rememberMeKey, rememberMe);
+    await prefs.setBool(_guestKey, guest);
     _cachedToken = token;
     _cachedRefreshToken = refreshToken;
     _cachedUser = user;
@@ -495,6 +576,7 @@ class AuthService {
     // Yerel verileri temizle
     final prefs = await SharedPreferences.getInstance();
     await _clearLocalLearningState(prefs);
+    await prefs.remove(_guestKey);
     await _deleteSecureString(_tokenKey);
     await _deleteSecureString(_refreshTokenKey);
     await _deleteSecureString(_userDataKey);

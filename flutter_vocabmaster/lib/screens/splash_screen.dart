@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/app_tour_service.dart';
 import '../providers/app_state_provider.dart';
 import '../main.dart';
-import '../frontend_newest/screens/nf_landing_page.dart';
+import '../frontend_newest/screens/nf_guest_gate.dart';
 import '../frontend_newest/screens/nf_onboarding_page.dart';
 import '../frontend_newest/theme/nf_tokens.dart';
 
@@ -49,7 +49,10 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       if (mounted) {
         // Same branch, same `pushReplacement`, new destinations: the tour and
-        // the sign-in screen both come from the new frontend now.
+        // the first conversation both come from the new frontend now. Nobody is
+        // asked to sign in before they have used the app -- [NfGuestGate] opens
+        // a guest account and goes to the tutor, and falls back to the sign-in
+        // screen only when the server cannot be reached.
         //
         // Neither page is wrapped in `NfThemeScope` here. Unlike the pages
         // `NfShell._pushNf` opens, these two run before any shell exists and so
@@ -62,9 +65,9 @@ class _SplashScreenState extends State<SplashScreen> {
           MaterialPageRoute(
             builder: (_) => shouldShowTour
                 ? NfOnboardingPage(
-                    nextPageBuilder: (_) => const NfLandingPage(),
+                    nextPageBuilder: (_) => const NfGuestGate(),
                   )
-                : const NfLandingPage(),
+                : const NfGuestGate(),
           ),
         );
       }

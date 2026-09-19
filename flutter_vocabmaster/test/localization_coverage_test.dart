@@ -416,6 +416,9 @@ void main() {
       'endonezce', 'galaksisi', 'hangi', 'harika',
       'haziran', 'iptal', 'ispanyolca', 'italyanca',
       'kitap', 'kitaplar', 'klasik', 'memnuniyet', 'mevcut',
+      // Arabic, borrowed whole: TDK spells it misafir, and it keeps its own
+      // vowels the way otel and sohbet do.
+      'misafir',
       'mikrofon', 'mobil', 'modeli', 'modeller', 'navigasyon',
       // Stems only. Inflected borrowings are handled by withoutBorrowedStem
       // below, so 'otel' covers otele, oteli and otelden without any of them

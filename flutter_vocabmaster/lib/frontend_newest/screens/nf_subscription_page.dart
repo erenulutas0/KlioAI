@@ -14,6 +14,7 @@ import '../../services/analytics_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../theme/nf_tokens.dart';
+import 'nf_landing_page.dart';
 import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
@@ -451,6 +452,25 @@ class _NfSubscriptionPageState extends State<NfSubscriptionPage> {
 
   void _startPayment(SubscriptionPlan plan) async {
     if (_isPurchasing) return;
+
+    // A subscription belongs to the account that bought it, and a guest account
+    // is one Google sign-in away from being replaced: if the address they sign in
+    // with already has an account, the server signs them into that one and the
+    // entitlement is left on a row nobody can reach. So this is the one thing in
+    // the app a guest is asked to sign in for first. See NfGuestGate.
+    if (await AuthService().isGuestSession()) {
+      if (!mounted) return;
+      _pendingPurchasePlanName = null;
+      _showSnack(context.tr('guest.paywall.note'), warning: true);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (BuildContext context) => NfLandingPage(
+            onLoginSuccess: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+      return;
+    }
 
     _pendingPurchasePlanName = plan.name;
     await AnalyticsService.logPurchaseStarted(

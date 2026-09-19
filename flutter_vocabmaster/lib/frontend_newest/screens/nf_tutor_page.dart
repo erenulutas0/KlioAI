@@ -38,6 +38,7 @@ import '../theme/nf_theme_scope.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
+import '../widgets/nf_guest_sign_in.dart';
 import '../widgets/nf_rating_card.dart';
 import '../widgets/nf_word_lookup.dart';
 
@@ -839,7 +840,11 @@ class _NfTutorPageState extends State<NfTutorPage> {
       }
       unawaited(_persist());
       await _maybeAwardSessionXp();
-      await _maybeAskForRating();
+      // One ask per conversation, and the account comes first: a rating is worth
+      // less than a learner we can still reach tomorrow.
+      if (!await _maybeAskGuestToSignIn()) {
+        await _maybeAskForRating();
+      }
     } catch (e) {
       if (!mounted) {
         return;
@@ -931,6 +936,25 @@ class _NfTutorPageState extends State<NfTutorPage> {
   void _resetSessionXp() {
     _sessionXpId = 'nf_tutor_${DateTime.now().millisecondsSinceEpoch}';
     _sessionXpAwarded = false;
+  }
+
+  /// Offer to keep the conversation, once there is one worth keeping.
+  ///
+  /// A learner arrives in the tutor without an account now (see NfGuestGate), so
+  /// this is where the account is finally worth something to them: three turns
+  /// in, there is a conversation, a correction or two and a streak that signing
+  /// in would carry to their next phone. How often anyone is asked is
+  /// [NfGuestPromptSchedule]'s call. Returns whether the sheet was shown.
+  Future<bool> _maybeAskGuestToSignIn() async {
+    if (!mounted) {
+      return false;
+    }
+    final int learnerTurns =
+        _turns.where((_NfTurn turn) => !turn.fromTutor).length;
+    if (learnerTurns < 3) {
+      return false;
+    }
+    return NfGuestSignInSheet.maybeShow(context, reason: 'tutor');
   }
 
   // ---------------------------------------------------------------------------

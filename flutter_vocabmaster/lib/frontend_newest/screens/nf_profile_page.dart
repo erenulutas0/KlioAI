@@ -6,11 +6,13 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../theme/nf_tokens.dart';
 import '../widgets/nf_button.dart';
 import '../widgets/nf_card.dart';
 import '../widgets/nf_chip.dart';
 import '../widgets/nf_progress.dart';
+import 'nf_landing_page.dart';
 
 /// The PROFILE tab of the "Modern Oyunlu" frontend.
 ///
@@ -62,6 +64,7 @@ class _NfProfilePageState extends State<NfProfilePage>
   late final ApiService _apiService;
 
   bool _isQuotaLoading = false;
+  bool _isGuest = false;
 
   /// Non-null only when the quota REQUEST failed. Kept apart from
   /// `_aiTokenLimit == 0` so a transient 401 never renders as "you have no
@@ -87,6 +90,18 @@ class _NfProfilePageState extends State<NfProfilePage>
     WidgetsBinding.instance.addObserver(this);
     if (!widget.skipInitialRemoteLoads) {
       _loadAiQuota();
+      unawaited(_readGuestState());
+    }
+  }
+
+  /// Whether this account is one nobody has signed in to. See NfGuestGate: the
+  /// app opens one on first launch so the first conversation can happen without
+  /// an account, and this screen is where that is said out loud -- everything
+  /// here is theirs only as long as the phone is.
+  Future<void> _readGuestState() async {
+    final bool guest = await AuthService().isGuestSession();
+    if (mounted && guest != _isGuest) {
+      setState(() => _isGuest = guest);
     }
   }
 
@@ -275,6 +290,10 @@ class _NfProfilePageState extends State<NfProfilePage>
             NfSpace.s26,
           ),
           children: <Widget>[
+            if (_isGuest) ...<Widget>[
+              _buildGuestBanner(t),
+              const SizedBox(height: NfSpace.s16),
+            ],
             _buildHeader(t, appState, user, planState),
             const SizedBox(height: NfSpace.s20),
             _buildStatGrid(t, appState),
@@ -286,6 +305,45 @@ class _NfProfilePageState extends State<NfProfilePage>
         ),
       ),
     );
+  }
+
+  /// The one place a guest is told, without being interrupted, that what they
+  /// have made lives on this phone only.
+  Widget _buildGuestBanner(NfTokens t) {
+    return NfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            context.tr('guest.banner.title'),
+            style: NfTokens.body(
+                size: NfFont.s15, color: t.ink, weight: FontWeight.w700),
+          ),
+          const SizedBox(height: NfSpace.s4),
+          Text(
+            context.tr('guest.signIn.body'),
+            style: NfTokens.body(size: NfFont.s13, color: t.inkMuted),
+          ),
+          const SizedBox(height: NfSpace.s12),
+          NfPrimaryButton(
+            key: const ValueKey<String>('profile-guest-sign-in'),
+            label: context.tr('guest.banner.cta'),
+            onPressed: () => unawaited(_signIn()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _signIn() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => NfLandingPage(
+          onLoginSuccess: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+    await _readGuestState();
   }
 
   Widget _buildHeader(

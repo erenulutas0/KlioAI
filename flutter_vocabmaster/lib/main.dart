@@ -44,7 +44,7 @@ import 'l10n/app_localizations.dart';
 import 'theme/theme_provider.dart';
 import 'frontend_newest/nf_frontend_preference.dart';
 import 'frontend_newest/nf_shell.dart';
-import 'frontend_newest/screens/nf_landing_page.dart';
+import 'frontend_newest/screens/nf_guest_gate.dart';
 import 'frontend_newest/screens/nf_onboarding_page.dart';
 
 bool _firebaseTelemetryEnabled = false;
@@ -305,9 +305,11 @@ class _AppEntryGateState extends State<AppEntryGate> {
     if (_isFirstRun ??= !languageProvider.hasExplicitSelection) {
       // `nextPageBuilder` is what keeps the end of the flow off the legacy
       // `LoginPage`; without it the page falls back to that as its default.
+      // It ends on a conversation rather than a sign-in screen now: see
+      // [NfGuestGate].
       return NfOnboardingPage(
         showLanguageStep: true,
-        nextPageBuilder: (_) => const NfLandingPage(),
+        nextPageBuilder: (_) => const NfGuestGate(),
       );
     }
     return const SplashScreen();
