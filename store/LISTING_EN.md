@@ -22,24 +22,32 @@ second pass reads the clip as another language, and a Turkish sentence written
 in plain ASCII letters ("biraz su olabilir miyiz") is neither. A listing must
 not promise a step the first conversation skips.
 
+The name and the short description were rewritten on 20 September for a reason the
+numbers gave: 311 store impressions in 28 days, and a conversion rate of 19.44%.
+The listing was converting the few people who reached it; almost nobody reached
+it. Both fields are what Play ranks a search on, and neither carried a single
+word anybody types. The hook moved into the short description's second half
+rather than being lost.
+
 ---
 
 ## App name (30)
 
 ```
-KlioAI: English Conversation
+KlioAI: English Speaking Tutor
 ```
 
-**28 characters.**
+**30 characters.** The heaviest field Play ranks on, so it carries the words people
+actually type: *english*, *speaking*, *tutor*.
 
 ---
 ## Short description (80)
 
 ```
-Stuck mid-sentence? Say it in your language; the tutor carries on in English.
+English speaking practice. Stuck mid-sentence? Say it in your own language.
 ```
 
-**77 characters.**
+**75 characters.**
 
 ---
 ## Full description (4000)

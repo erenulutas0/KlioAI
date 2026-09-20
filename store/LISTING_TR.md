@@ -17,24 +17,33 @@ bir dil olarak okuduğunda açılıyor, "biraz su olabilir miyiz" ise Türkçeye
 harf taşımadığı için ikisi de değil. Mağazada verilen sözü ilk konuşma
 tutmuyorsa, sözü değiştirmek gerekir.
 
+**Ad değişikliği (20 Eylül):** ad önce `KlioAI: Takılınca Türkçe Söyle` idi.
+Konumlandırma olarak doğru cümleydi ve ASO olarak boştu: kimse Play'de "takılınca
+türkçe söyle" diye aramıyor. 28 günde 311 mağaza gösterimi ve %19,44 dönüşüm
+oranı şunu söylüyordu: sayfaya ulaşanı zaten çeviriyoruz, sayfaya kimse ulaşmıyor.
+Ad ve kısa açıklama Play'in arama için taradığı iki alan, ikisinde de aranan tek bir
+kelime yoktu.
+
 ---
 
 ## Uygulama adı (30)
 
 ```
-KlioAI: Takılınca Türkçe Söyle
+KlioAI: İngilizce Konuşma
 ```
 
-**30 karakter.** Adı değiştirmek isteğe bağlı; "KlioAI" olarak bırakmak da geçerli.
+**25 karakter.** Play'in arama sıralamasındaki en ağır alan, o yüzden içinde
+insanların gerçekten aradığı ifade var: *İngilizce konuşma*.
 
 ---
 ## Kısa açıklama (80)
 
 ```
-Konuşurken takıldın mı? Türkçe söyle, konuşma sürsün, İngilizcesini öğren.
+İngilizce konuşma pratiği: kelime gelmeyince Türkçe söyle, konuşma sürsün.
 ```
 
-**74 karakter.** Arama sonuçlarında uygulama adının altında görünen satır bu.
+**74 karakter.** Arama sonuçlarında uygulama adının altında görünen satır bu; Play
+bunu da aramada tarıyor, o yüzden kanca ikinci yarıya taşındı.
 
 ---
 ## Tam açıklama (4000)
