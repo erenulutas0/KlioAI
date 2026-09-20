@@ -154,6 +154,19 @@ class ChatbotNoteLanguageTest {
     }
 
     @Test
+    @DisplayName("the language-switch note that reached a card on 20 September")
+    void theLanguageSwitchNoteIsCaught() {
+        // Captured on the phone: a Turkish guest account, profile source_language Turkish,
+        // and this note on the card in English from end to end.
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "You switched to Turkish; in English we’d ask “could we have some water?”",
+                "Turkish"), "curly quotation marks");
+        assertTrue(ChatbotService.noteStraysFromLanguage(
+                "You switched to Turkish; in English we'd ask \"could we have some water?\"",
+                "Turkish"), "straight quotation marks");
+    }
+
+    @Test
     @DisplayName("nothing to drop leaves nothing changed")
     void absentNotesAndAbsentCorrectionsPassThrough() {
         ChatbotService.Correction bare = new ChatbotService.Correction("I go", "I went");

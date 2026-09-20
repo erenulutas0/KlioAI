@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocabmaster/services/auth_service.dart';
+import 'package:vocabmaster/services/learning_language_service.dart';
 
 /// The account a learner never asked for.
 ///
@@ -64,6 +65,30 @@ void main() {
     expect(prefs.getInt('total_xp_persistent'), isNull);
     expect(prefs.getInt('current_streak'), isNull);
     expect(prefs.getString('daily_words_cache'), isNull);
+  });
+
+  test("a guest does not inherit the last account's answers", () async {
+    // Found on the phone, on a Turkish interface: the settings page read "Ana dil:
+    // Ingilizce" for a guest account opened minutes earlier, and the tutor explained
+    // that learner's mistakes to them in English. The answer belonged to the account
+    // before it; nothing cleared it, and the app sends it with every AI request.
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'learning_source_language': 'English',
+      'learning_english_level': 'C1',
+      'learning_goal': 'Exam',
+    });
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    LearningLanguageService.setSourceLanguage('English');
+
+    await AuthService().saveSession('access', 'refresh', user, guest: true);
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('learning_source_language'), isNull);
+    expect(prefs.getString('learning_english_level'), isNull);
+    expect(prefs.getString('learning_goal'), isNull);
+    expect(LearningLanguageService.currentProfile().containsKey('sourceLanguage'),
+        isFalse,
+        reason: "a guess is not an answer, and this one was somebody else's");
   });
 
   test('signing in as somebody else takes the conversations too', () async {

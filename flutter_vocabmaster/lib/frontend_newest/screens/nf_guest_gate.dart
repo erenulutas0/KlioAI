@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/app_state_provider.dart';
+import '../../providers/learning_language_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/auth_service.dart';
 import '../nf_shell.dart';
@@ -56,6 +57,12 @@ class _NfGuestGateState extends State<NfGuestGate> {
         MaterialPageRoute<void>(builder: (_) => const NfLandingPage()),
       );
       return;
+    }
+
+    // The guest session cleared whatever the last account answered about itself,
+    // and this provider read those answers before it happened.
+    if (mounted) {
+      await context.read<LearningLanguageProvider>().reload();
     }
 
     final Map<String, dynamic>? user = await auth.getUser();

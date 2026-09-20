@@ -109,13 +109,20 @@ class LearningLanguageService {
   }
 
   /// Forgets every answer, so the getters fall back to the guesses again.
-  /// Only tests need this; the app has no way to un-answer.
-  @visibleForTesting
-  static void resetAnswers() {
+  ///
+  /// One learner cannot un-answer, but a phone can change hands between accounts,
+  /// and then these three belong to whoever answered them and to nobody else.
+  /// AuthService calls this wherever it clears the learning state off the device;
+  /// without it the previous account's native language stays in memory and goes on
+  /// being sent with every AI request for the rest of the session.
+  static void forgetAnswers() {
     _sourceLanguageOverride = null;
     _englishLevelOverride = null;
     _learningGoalOverride = null;
   }
+
+  @visibleForTesting
+  static void resetAnswers() => forgetAnswers();
 
   /// What to tell the server about this learner.
   ///

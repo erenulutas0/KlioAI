@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../config/app_config.dart';
 import '../config/dotenv_safe.dart';
 import 'google_login_error_message_formatter.dart';
+import 'learning_language_service.dart';
 import 'local_database_service.dart';
 import 'xp_manager.dart';
 
@@ -716,11 +717,26 @@ class AuthService {
           // account's talks with Amy.
           key.startsWith('nf_tutor_sessions') ||
           key.startsWith('daily_words_') ||
-          key.startsWith('streak_bonus_');
+          key.startsWith('streak_bonus_') ||
+          // The answers to onboarding: which language this learner speaks, what
+          // level they are, what they came for. They belong to the person who gave
+          // them, not to the phone. Left behind, they followed an account change:
+          // on this phone a brand-new guest reading a Turkish interface inherited
+          // 'English' as their native language from the previous account, the app
+          // sent it on every turn, and the tutor explained a Turkish learner's
+          // mistakes to them in English. Cleared, the three fall back to being
+          // guesses made from the interface they are actually reading.
+          key == 'learning_source_language' ||
+          key == 'learning_english_level' ||
+          key == 'learning_goal';
       if (shouldRemove) {
         await prefs.remove(key);
       }
     }
+    // The keys above are gone from disk; these are the same three answers held in
+    // memory for the rest of this session, and it is the memory copy that the API
+    // reads when it decides what to send.
+    LearningLanguageService.forgetAnswers();
     XPManager.clearIdempotencyCache();
   }
 

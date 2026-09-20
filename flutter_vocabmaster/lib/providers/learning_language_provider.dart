@@ -59,6 +59,17 @@ class LearningLanguageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reads the three answers again, after something has changed them underneath.
+  ///
+  /// An account change clears them from the device (AuthService
+  /// ._clearLocalLearningState): they are the previous learner's answers. This
+  /// provider had already read them at launch, so without it the settings page goes
+  /// on showing the old native language to somebody who never chose it.
+  Future<void> reload() async {
+    _initialized = false;
+    await initialize();
+  }
+
   Future<void> selectSourceLanguage(String language) async {
     final normalized = LearningLanguageService.normalizeSupported(
       language,
