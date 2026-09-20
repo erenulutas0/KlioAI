@@ -15,7 +15,7 @@ başlık koymak.
 | `icon_512.png` | 512×512 | Ana mağaza girişi → **Uygulama simgesi** |
 | `feature_graphic_1024x500.png` | 1024×500 | Ana mağaza girişi → **Öne çıkan grafik** |
 | `screenshot_01..09.png` | 1080×1920 | **Türkçe** girişin telefon ekran görüntüleri |
-| `screenshot_en_01..06.png` | 1080×1920 | **İngilizce** (varsayılan) girişin ekran görüntüleri |
+| `screenshot_en_01..07.png` | 1080×1920 | **İngilizce** (varsayılan) girişin ekran görüntüleri |
 | `feature_graphic_1024x500_en.png` | 1024×500 | İngilizce girişin öne çıkan grafiği |
 
 Simge dile göre değişmiyor; öne çıkan grafik ve ekran görüntüleri değişiyor.
@@ -57,7 +57,7 @@ Karttaki açıklama satırı ("You switched to Turkish...") Türkçe hesapta
 eklemek için ham görüntüyü `raw/` içine koyup betikteki `SHOTS` listesine
 dosya adı, başlık ve alt başlığıyla eklemek yeterli.
 
-## İngilizce set neden altı kare
+## İngilizce set neden yedi kare
 
 Arayüz çevriliyor, **kayıtlı kelime anlamları çevrilmiyor** — onlar hesabın
 ana dili Türkçeyken yazılmış veri. Bu yüzden İngilizce arayüzde Kelimeler
@@ -67,6 +67,13 @@ okumayan birine gösterilecek bir liste değil. O kare İngilizce setten çıkar
 Sıra da farklı. Play arama sonuçlarında ilk iki-üç kareyi gösteriyor ve bir
 yabancıya bu uygulamayı ikinci kez baktıracak şey konuşma sahneleri ile kitap
 okuyucusu, günlük plan değil.
+
+İlk kare Türkçe settekiyle aynı gerekçeyle düzeltme kartı, ama daha eski bir
+çekim (`promo/src/tutor_card.png`, 14 Eylül): 20 Eylül'deki çekim Türkçe
+arayüzde alındı, İngilizce sete konamaz. Bu karenin iki "neden" satırı Türkçe —
+o hesabın ana dili Türkçe olduğu için, yani metnin söz verdiği şey — ama
+Jakarta'daki bir okuyucu Türkçe görüyor. Ana dili İngilizce olan bir hesapta
+aynı kart kendini İngilizce açıklıyor; kare orada yeniden çekilmeli.
 
 ## Diğer diller
 

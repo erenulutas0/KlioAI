@@ -55,6 +55,16 @@ NAV_BAR = 132
 # and what makes this app worth a second look to a stranger is the speaking
 # roleplay and the book reader, not the daily plan.
 SHOTS_EN = [
+    # The same reasoning as the first Turkish frame: the correction is the thing
+    # nothing else in the store does, so it goes first. This capture is older (14 Sep,
+    # store/promo/src/tutor_card.png) because the 20 Sep one was taken with the
+    # interface in Turkish. Its two 'why' lines are Turkish -- that account's native
+    # language -- which is exactly what the listing promises ('the line that explains
+    # why arrives in yours') and still the weakest part of the English set: a reader
+    # in Jakarta sees Turkish. Worth retaking on an account whose own language is
+    # English, where the same card explains itself in English.
+    ('09_correction.png', 'Say it wrong, see it said right',
+     'Your sentence, the better one, and why'),
     ('02_tutor.png', 'Order a coffee, out loud',
      'Spoken roleplay with an AI tutor'),
     ('06_reader_word.png', 'Tap a word you don’t know',
