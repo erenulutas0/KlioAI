@@ -48,8 +48,11 @@ emin olmadığında açılıyor. İki denemenin karelerinde de transkripsiyon do
 çıktı ve ekran hiç görünmedi; o yüzden set sekiz değil dokuz kare ve ilk kare
 kartın kendisi.
 
-Karttaki açıklama satırı ("You switched to Turkish...") Türkçe hesapta
-**İngilizce** geldi. Bu bir hata; düzeldiğinde kare yeniden çekilmeli.
+İlk çekimde karttaki açıklama satırı Türkçe hesapta **İngilizce** geliyordu. Sebebi
+hesabın telefonda saklı ana dilinin İngilizce kalmasıydı (bkz.
+`AuthService._clearLocalLearningState`). Aynı akşam temiz kurulumla, onboarding'de
+Türkçe seçilerek yeniden çekildi; şimdiki karede açıklama Türkçe:
+*"biraz su alabilir miyiz?" su istediğinizi nazikçe sorar.*
 
 ## Yeniden üretmek
 

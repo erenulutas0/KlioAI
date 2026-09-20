@@ -82,9 +82,11 @@ SHOTS_EN = [
 SHOTS = [
     # First, because it is the one thing here nothing else on the store does: the
     # learner said it wrong out loud, and the card says what to say instead and why.
-    # Captured on the phone on 20 Sep; the explanation line came back in English on a
-    # Turkish account, which is a bug, not a caption choice -- see the note in
-    # ChatbotService.inLearnersLanguage.
+    # Captured on the phone on 20 Sep, and retaken the same evening: the first frame's
+    # explanation line came back in English because the account's stored native language
+    # was English -- the leak fixed in AuthService._clearLocalLearningState. On a fresh
+    # install that answers Turkish in onboarding, the line arrives in Turkish, which is
+    # what the listing promises and what this frame now shows.
     ('09_correction.png', 'Yanlış söyleyince düzeltir',
      'Söylediğin cümle, doğrusu ve nedeni'),
     ('01_today.png', 'Bugün ne yapacağın belli', 'Plan sırayla ilerler'),
