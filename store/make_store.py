@@ -56,15 +56,14 @@ NAV_BAR = 132
 # roleplay and the book reader, not the daily plan.
 SHOTS_EN = [
     # The same reasoning as the first Turkish frame: the correction is the thing
-    # nothing else in the store does, so it goes first. This capture is older (14 Sep,
-    # store/promo/src/tutor_card.png) because the 20 Sep one was taken with the
-    # interface in Turkish. Its two 'why' lines are Turkish -- that account's native
-    # language -- which is exactly what the listing promises ('the line that explains
-    # why arrives in yours') and still the weakest part of the English set: a reader
-    # in Jakarta sees Turkish. Worth retaking on an account whose own language is
-    # English, where the same card explains itself in English.
+    # nothing else in the store does, so it goes first. Retaken on 20 Sep with the
+    # interface switched to English, so every label a reader in Jakarta meets is in
+    # theirs: Say it like this, Keep this phrase, Hold to speak. The two lines left in
+    # Turkish are the learner's own half-sentence, which is the mechanism being shown,
+    # and the reason line, which is written in the learner's language on purpose --
+    # what the description promises one paragraph further down.
     ('09_correction.png', 'Say it wrong, see it said right',
-     'Your sentence, the better one, and why'),
+     'Your sentence, the English you needed, and why'),
     ('02_tutor.png', 'Order a coffee, out loud',
      'Spoken roleplay with an AI tutor'),
     ('06_reader_word.png', 'Tap a word you don’t know',

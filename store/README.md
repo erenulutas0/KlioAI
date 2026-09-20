@@ -71,12 +71,11 @@ Sıra da farklı. Play arama sonuçlarında ilk iki-üç kareyi gösteriyor ve b
 yabancıya bu uygulamayı ikinci kez baktıracak şey konuşma sahneleri ile kitap
 okuyucusu, günlük plan değil.
 
-İlk kare Türkçe settekiyle aynı gerekçeyle düzeltme kartı, ama daha eski bir
-çekim (`promo/src/tutor_card.png`, 14 Eylül): 20 Eylül'deki çekim Türkçe
-arayüzde alındı, İngilizce sete konamaz. Bu karenin iki "neden" satırı Türkçe —
-o hesabın ana dili Türkçe olduğu için, yani metnin söz verdiği şey — ama
-Jakarta'daki bir okuyucu Türkçe görüyor. Ana dili İngilizce olan bir hesapta
-aynı kart kendini İngilizce açıklıyor; kare orada yeniden çekilmeli.
+İlk kare Türkçe settekiyle aynı gerekçeyle düzeltme kartı, ama arayüzü İngilizceye
+alınmış telefonda çekildi (20 Eylül akşamı): *Say it like this*, *Keep this phrase*,
+*Hold to speak*. Karede Türkçe kalan iki şey var ve ikisi de kasıtlı — öğrencinin
+kendi yarım cümlesi (gösterilen mekanizma bu) ve "neden" satırı, çünkü o satır
+öğrencinin diline göre yazılıyor ve tam açıklama bunu bir paragraf aşağıda söylüyor.
 
 ## Diğer diller
 
